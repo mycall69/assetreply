@@ -1,0 +1,44 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Python 테스트·타입 체크 캐시
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Node.js / Next.js
+node_modules/
+.next/
+out/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# 환경변수 — API 키·시크릿은 저장소에 포함하지 않는다 (헌법 원칙 II)
+.env
+.env.*
+!.env.example
+
+# 로컬 데이터·로그 (수집한 원본 응답 캐시 등)
+*.log
+/data/
+/logs/
+
+# 머신 로컬 도구 설정
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.swp
