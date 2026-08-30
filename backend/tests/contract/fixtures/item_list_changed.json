@@ -1,0 +1,10 @@
+{
+  "StatisticItemList": {
+    "list_total_count": 3,
+    "row": [
+      {"STAT_CODE":"731Y001","ITEM_CODE":"9900001","ITEM_NAME":"원/미국달러(매매기준율)","UNIT_NAME":"원","CYCLE":"D"},
+      {"STAT_CODE":"731Y001","ITEM_CODE":"9900002","ITEM_NAME":"원/일본엔(100엔)","UNIT_NAME":"원(100엔)","CYCLE":"D"},
+      {"STAT_CODE":"731Y001","ITEM_CODE":"9900003","ITEM_NAME":"원/유로","UNIT_NAME":"원","CYCLE":"D"}
+    ]
+  }
+}

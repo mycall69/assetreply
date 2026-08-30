@@ -1,0 +1,9 @@
+{
+  "StatisticSearch": {
+    "list_total_count": 2,
+    "row": [
+      {"STAT_CODE":"731Y001","STAT_NAME":"3.1.1.1. 주요국 통화의 대원화환율","ITEM_CODE1":"0000002","ITEM_NAME1":"원/일본엔(100엔)","ITEM_CODE2":null,"ITEM_NAME2":null,"UNIT_NAME":"원","TIME":"20200615","DATA_VALUE":"1123.62"},
+      {"STAT_CODE":"731Y001","STAT_NAME":"3.1.1.1. 주요국 통화의 대원화환율","ITEM_CODE1":"0000002","ITEM_NAME1":"원/일본엔(100엔)","ITEM_CODE2":null,"ITEM_NAME2":null,"UNIT_NAME":"원","TIME":"20200616","DATA_VALUE":"1127.27"}
+    ]
+  }
+}

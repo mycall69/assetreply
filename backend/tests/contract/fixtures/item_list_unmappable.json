@@ -1,0 +1,9 @@
+{
+  "StatisticItemList": {
+    "list_total_count": 2,
+    "row": [
+      {"STAT_CODE":"731Y001","ITEM_CODE":"0000101","ITEM_NAME":"원/위안","UNIT_NAME":"원","CYCLE":"D"},
+      {"STAT_CODE":"731Y001","ITEM_CODE":"0000102","ITEM_NAME":"원/파운드","UNIT_NAME":"원","CYCLE":"D"}
+    ]
+  }
+}

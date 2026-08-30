@@ -1,0 +1,64 @@
+[project]
+name = "assetreplay-backend"
+version = "0.1.0"
+description = "AssetReplay 백엔드 — 자산 시계열 수집·조회·시뮬레이션"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "aiohttp",
+    # DB 접근은 비동기 ORM 경유 (헌법 v3.0.0 원칙 I)
+    "sqlalchemy[asyncio]",
+    "alembic",
+    "aiomysql",
+    # MySQL 8.0+ 기본 인증(caching_sha2_password)에 필수 (research R10)
+    "cryptography",
+    # 저장소 루트 .env 로딩 — 전이 의존성이 아닌 직접 선언
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "mypy",
+    "ruff",
+    # FastAPI TestClient가 요구 (Starlette 1.6+)
+    "httpx2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# ── 테스트: 커버리지 80% 게이트 (헌법 원칙 III) ──────────────────────
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "--cov=src --cov-report=term-missing --cov-fail-under=80"
+
+# ── 타입 체크: mypy strict (헌법 기술 제약) ─────────────────────────
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_unreachable = true
+disallow_any_explicit = true
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["aiomysql.*", "asyncmy.*"]
+ignore_missing_imports = true
+
+# ── 린트·포맷 ──────────────────────────────────────────────────────
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+# Alembic이 생성하는 리비전 파일은 린트 대상에서 제외한다 (자동 생성물)
+extend-exclude = ["src/db/migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]

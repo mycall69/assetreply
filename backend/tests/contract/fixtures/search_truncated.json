@@ -1,0 +1,9 @@
+{
+  "StatisticSearch": {
+    "list_total_count": 2468,
+    "row": [
+      {"ITEM_CODE1":"0000001","ITEM_NAME1":"원/미국달러(매매기준율)","ITEM_NAME2":null,"UNIT_NAME":"원","TIME":"20150102","DATA_VALUE":"1099.3"},
+      {"ITEM_CODE1":"0000001","ITEM_NAME1":"원/미국달러(매매기준율)","ITEM_NAME2":null,"UNIT_NAME":"원","TIME":"20150105","DATA_VALUE":"1104.5"}
+    ]
+  }
+}
