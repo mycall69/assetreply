@@ -7,3 +7,6 @@ feature.json
 
 # Per-machine extension config overrides.
 extensions/*/local-config.yml
+
+# 카탈로그 다운로드 캐시. 재생성되는 머신 로컬 상태다.
+extensions/.cache/
