@@ -96,3 +96,23 @@ async def test_다운샘플링이_실제로_줄인다(client: AsyncClient) -> No
     assert body["downsampled"] is True
     assert len(body["points"]) <= 500
     assert body["sourcePointCount"] > 2000
+
+
+async def test_요약과_표_응답이_기준_안에_든다(client) -> None:
+    """T082 — SC-009a(첫 진입 3초)의 서버측 몫.
+
+    화면은 요약·차트·표·커버리지를 병렬로 받으므로 가장 느린 하나가 전체를 정한다
+    (research R2-6). 여기서는 각 응답이 여유 있게 들어오는지만 본다.
+    """
+    import time
+
+    for path, params in (
+        ("/api/fx/latest", {"currency": "USD"}),
+        ("/api/fx/daily", {"currency": "USD"}),
+        ("/api/fx/coverage", {}),
+    ):
+        started = time.monotonic()
+        res = await client.get(path, params=params)
+        elapsed = time.monotonic() - started
+        assert res.status_code in (200, 202), f"{path} → {res.status_code}"
+        assert elapsed < 3.0, f"{path}가 {elapsed:.2f}초 (SC-009a)"

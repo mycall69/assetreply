@@ -37,6 +37,9 @@ class SeriesResult:
     gaps: tuple[Gap, ...]
     downsampled: bool
     source_point_count: int
+    # 잠정으로 저장된 날짜 (FR-017a). 포인트 튜플에 필드를 더하면 다운샘플링 알고리즘의
+    # 입력 형태가 바뀌므로, 날짜 집합으로 따로 전달해 직렬화 단계에서 합친다.
+    provisional_dates: frozenset[dt.date] = frozenset()
 
 
 def _merge_runs(days: list[dt.date], reason: str) -> list[Gap]:
@@ -90,6 +93,7 @@ async def query_series(
     max_points: int = DEFAULT_MAX_POINTS,
 ) -> SeriesResult:
     rows = await fetch_series(session, currency_code, start, end)
+    provisional = frozenset(r.quote_date for r in rows if r.is_provisional)
     coverage = await get_coverage(session, currency_code)
 
     points = [Point(r.quote_date, r.base_rate) for r in rows]
@@ -110,6 +114,7 @@ async def query_series(
         gaps=tuple(gaps),
         downsampled=len(reduced) < len(points),
         source_point_count=len(points),
+        provisional_dates=provisional,
     )
 
 

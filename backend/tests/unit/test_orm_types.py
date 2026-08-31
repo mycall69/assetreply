@@ -68,10 +68,16 @@ def test_시계열_복합_기본키가_통화와_날짜다() -> None:
     assert pk == ["currency_code", "quote_date"]
 
 
-def test_잠금_테이블의_기본키가_통화다() -> None:
-    """research R6: 기본 키 INSERT 충돌이 곧 잠금 획득 실패."""
+def test_잠금_획득이_기본키_충돌로_판정된다() -> None:
+    """research R6: 기본 키 INSERT 충돌이 곧 잠금 획득 실패.
+
+    002에서 `scope`가 키에 추가됐다(research R2-8). 통화 하나로만 잠그면 오늘 새로고침이
+    대량 수집과 충돌해 FR-036a("새로고침은 수집과 독립")를 어긴다. 판정 수단이 기본 키
+    충돌이라는 성질은 그대로다.
+    """
     pk = [c.name for c in Base.metadata.tables["fx_collection_lock"].primary_key.columns]
-    assert pk == ["currency_code"]
+    assert "currency_code" in pk, "통화가 잠금 키에서 빠지면 통화별 단일 실행이 깨진다"
+    assert "scope" in pk, "범위가 없으면 수집과 새로고침이 서로를 막는다"
 
 
 def test_잠금_테이블에_생성컬럼이_없다() -> None:
@@ -79,3 +85,22 @@ def test_잠금_테이블에_생성컬럼이_없다() -> None:
     for t in Base.metadata.tables.values():
         for c in t.columns:
             assert c.computed is None, f"{t.name}.{c.name}이 생성 컬럼이다"
+
+def test_잠정_구분_컬럼이_불리언이며_기본값이_거짓이다() -> None:
+    """헌법 v5.0.0 원칙 V: 확정과 잠정을 구분해 저장해야 한다 (T003).
+
+    기존 행은 전부 확정값이므로 기본값이 거짓이어야 한다. 기본값이 참이면
+    마이그레이션 이후 과거 데이터가 통째로 잠정으로 오인된다.
+    """
+    from sqlalchemy import Boolean
+
+    col = Base.metadata.tables["fx_rate"].columns["is_provisional"]
+    assert isinstance(col.type, Boolean), "is_provisional이 불리언이 아니다"
+    assert not col.nullable, "is_provisional은 NOT NULL이어야 한다"
+    assert col.server_default is not None, "기존 행을 채울 서버 기본값이 필요하다"
+
+
+def test_잠금_테이블의_기본키가_범위와_통화다() -> None:
+    """FR-036a: 수집 잠금과 새로고침 잠금이 같은 통화에서 공존해야 한다 (T003)."""
+    pk = [c.name for c in Base.metadata.tables["fx_collection_lock"].primary_key.columns]
+    assert set(pk) == {"scope", "currency_code"}, f"기본 키가 {pk}"

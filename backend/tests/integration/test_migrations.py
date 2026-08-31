@@ -81,3 +81,26 @@ async def test_스프레드_기본값이_시드된다(engine: AsyncEngine) -> No
     assert rows["USD"].remit_send == Decimal("0.000500")
     assert rows["JPY"].cash_buy == Decimal("0.002000")
     assert isinstance(rows["EUR"].remit_receive, Decimal)
+
+
+async def test_기존_행이_확정으로_채워진다(engine: AsyncEngine) -> None:
+    """T004 — 마이그레이션 이후 과거 데이터가 잠정으로 오인되면 안 된다."""
+    async with engine.connect() as conn:
+        col = (await conn.execute(text(
+            "SELECT COLUMN_DEFAULT, IS_NULLABLE FROM information_schema.columns "
+            "WHERE table_schema = DATABASE() AND table_name = 'fx_rate' "
+            "AND column_name = 'is_provisional'"))).first()
+    assert col is not None, "is_provisional 컬럼이 없다"
+    default, nullable = col
+    assert nullable == "NO", "is_provisional은 NOT NULL이어야 한다"
+    assert str(default) in ("0", "b'0'", "FALSE", "false"), f"기본값이 {default!r}"
+
+
+async def test_잠금_테이블_기본키에_범위가_포함된다(engine: AsyncEngine) -> None:
+    """T004 — FR-036a: 수집과 새로고침 잠금이 공존하려면 범위가 키에 있어야 한다."""
+    async with engine.connect() as conn:
+        cols = [r[0] for r in (await conn.execute(text(
+            "SELECT COLUMN_NAME FROM information_schema.key_column_usage "
+            "WHERE table_schema = DATABASE() AND table_name = 'fx_collection_lock' "
+            "AND constraint_name = 'PRIMARY'"))).all()]
+    assert set(cols) == {"scope", "currency_code"}, f"기본 키가 {cols}"

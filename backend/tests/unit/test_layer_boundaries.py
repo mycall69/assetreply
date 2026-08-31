@@ -76,3 +76,29 @@ def test_ingestion은_api를_임포트하지_않는다() -> None:
             if module.startswith("src.api"):
                 offenders.append(f"{path.name} → {module}")
     assert offenders == [], f"ingestion 계층 위반: {offenders}"
+
+
+def test_일자별_조회_서비스가_계산을_직접_하지_않는다() -> None:
+    """T078 — 헌법 원칙 IV.
+
+    `api/services/daily_query.py`는 `simulation/`의 순수 함수를 **호출만** 한다.
+    표와 단일 날짜 조회가 다른 계산 경로를 타면 같은 입력에 다른 결과가 나올 수 있고,
+    FR-027과 001의 재현성 보장이 함께 깨진다.
+    """
+    import ast
+
+    path = SRC / "api" / "services" / "daily_query.py"
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+
+    # 곱셈·나눗셈이 나오면 이 모듈이 직접 계산하고 있다는 뜻이다
+    arithmetic = [
+        n for n in ast.walk(tree)
+        if isinstance(n, ast.BinOp) and isinstance(n.op, ast.Mult | ast.Div)
+    ]
+    assert arithmetic == [], "daily_query가 파생 환율을 직접 계산한다 (헌법 원칙 IV)"
+
+    imported = {
+        n.module for n in ast.walk(tree)
+        if isinstance(n, ast.ImportFrom) and n.module
+    }
+    assert any("simulation" in m for m in imported), "순수 함수를 재사용하지 않는다"

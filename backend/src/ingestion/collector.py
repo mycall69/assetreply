@@ -124,12 +124,15 @@ async def collect_range(
         ))
 
         if result.outcome is FetchOutcome.OK and result.quotes:
+            # `is_provisional=False`를 명시하는 것이 잠정→확정 전환의 전부다 (FR-037a).
+            # 이 값을 빼면 잠정 행을 덮어써도 상태가 그대로 남아 영원히 확정되지 않는다.
             await upsert(session, FxRate, [{
                 "currency_code": currency_code,
                 "quote_date": q.quote_date,
                 "base_rate": q.base_rate,
                 "quote_unit": q.quote_unit,
                 "source": SOURCE_ID,
+                "is_provisional": False,
             } for q in result.quotes])
             stored += len(result.quotes)
             await _record_first_available(session, currency_code, result.quotes[0].quote_date)

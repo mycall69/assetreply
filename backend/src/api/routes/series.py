@@ -71,8 +71,12 @@ async def get_series_endpoint(
         "downsampled": result.downsampled,
         "algorithm": "lttb",
         "sourcePointCount": result.source_point_count,
-        "points": [{"date": p.date.isoformat(), "baseRate": str(p.value)}
-                   for p in result.points],
+        # `isProvisional`은 참일 때만 붙인다. 대부분의 점에 붙지 않으므로 응답 크기에
+        # 거의 영향이 없다 (contracts/rest-api.md).
+        "points": [
+            {"date": p.date.isoformat(), "baseRate": str(p.value),
+             **({"isProvisional": True} if p.date in result.provisional_dates else {})}
+            for p in result.points],
         "gaps": [{"from": g.start.isoformat(), "to": g.end.isoformat(), "reason": g.reason}
                  for g in result.gaps],
     }

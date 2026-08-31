@@ -12,6 +12,7 @@ from enum import StrEnum
 
 from sqlalchemy import (
     BigInteger,
+    Boolean,
     Date,
     DateTime,
     Enum,
@@ -23,6 +24,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    text,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -73,6 +75,11 @@ class FxRate(Base):
     base_rate: Mapped[Decimal] = mapped_column(RATE)
     quote_unit: Mapped[int] = mapped_column(SmallInteger)
     source: Mapped[str] = mapped_column(String(30))
+    # 출처가 아직 확정하지 않은 값인지 (헌법 v5.0.0 원칙 V).
+    # 확정값과 구분 없이 저장·표시하는 것은 MUST NOT이다. 기본값을 거짓으로 두는 이유는
+    # 마이그레이션 이후 과거 데이터가 통째로 잠정으로 오인되지 않게 하기 위해서다.
+    is_provisional: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("0"), default=False)
     ingested_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
     updated_at: Mapped[dt.datetime] = mapped_column(
         TS, server_default=func.now(), onupdate=func.now())
@@ -170,6 +177,12 @@ class FxCollectionLock(Base):
 
     __tablename__ = "fx_collection_lock"
 
+    # 잠금 범위. `collection`(대량 수집)과 `today_refresh`(오늘 새로고침)가 같은 통화에서
+    # 공존해야 하므로 기본 키에 포함한다 (FR-036a, research R2-8). 범위를 키에 넣지 않으면
+    # 새로고침이 수집 잠금과 충돌해 백필 도는 동안 오늘 값을 못 받는다.
+    scope: Mapped[str] = mapped_column(
+        String(20), primary_key=True, default="collection",
+        server_default=text("'collection'"))
     currency_code: Mapped[str] = mapped_column(
         String(3), ForeignKey("currency.code"), primary_key=True)
     job_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("fx_collection_job.id"))

@@ -71,13 +71,19 @@ def create_app() -> FastAPI:
     # 라우터는 예외 핸들러 등록 이후에 붙인다 (순환 임포트 회피)
     from src.api.routes import collect as collect_routes
     from src.api.routes import coverage as coverage_routes
+    from src.api.routes import daily as daily_routes
     from src.api.routes import jobs as job_routes
+    from src.api.routes import latest as latest_routes
     from src.api.routes import rates as rates_routes
     from src.api.routes import series as series_routes
     from src.api.routes import spreads as spread_routes
+    from src.api.routes import today as today_routes
 
     app.include_router(rates_routes.router)
     app.include_router(coverage_routes.router)
+    app.include_router(latest_routes.router)
+    app.include_router(daily_routes.router)
+    app.include_router(today_routes.router)
     app.include_router(spread_routes.router)
     app.include_router(series_routes.router)
     app.include_router(collect_routes.router)

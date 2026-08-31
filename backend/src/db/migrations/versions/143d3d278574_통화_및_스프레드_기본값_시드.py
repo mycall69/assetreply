@@ -25,13 +25,13 @@ _CURRENCIES = [
     {"code": "EUR", "display_name": "유로", "quote_unit": 1, "source_item_code": "0000003"},
 ]
 
+# 값은 `src/db/spread_defaults.py` 한 곳에만 둔다. 리비전이 값을 따로 들고 있으면
+# 복원 기본값과 시드가 언젠가 어긋나고, 그때 아무 오류도 나지 않는다 (T049).
+from src.db.spread_defaults import DEFAULT_SPREADS  # noqa: E402
+
 _SPREADS = [
-    {"currency_code": "USD", "cash_buy": "0.001800", "cash_sell": "0.001800",
-     "remit_send": "0.000500", "remit_receive": "0.000500"},
-    {"currency_code": "JPY", "cash_buy": "0.002000", "cash_sell": "0.002000",
-     "remit_send": "0.000600", "remit_receive": "0.000600"},
-    {"currency_code": "EUR", "cash_buy": "0.002000", "cash_sell": "0.002000",
-     "remit_send": "0.000600", "remit_receive": "0.000600"},
+    {"currency_code": code, **{k: str(v) for k, v in values.items()}}
+    for code, values in DEFAULT_SPREADS.items()
 ]
 
 

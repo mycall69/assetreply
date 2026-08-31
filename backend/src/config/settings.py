@@ -118,6 +118,13 @@ class Settings:
     collection_sync_threshold_days: int = 30
     job_history_success_retention_days: int = 90
 
+    # ── 조회·표시 (002) ──
+    # 일자별 상세 표가 한 번에 내려주는 기본 행 수.
+    daily_page_size: int = 30
+    # 오늘 새로고침 잠금의 스테일 회수 기준. 단일 호출이라 수집 잠금보다 짧게 잡는다.
+    # 길게 잡으면 프로세스가 죽었을 때 새로고침이 오래 막힌다 (research R2-8).
+    today_refresh_lock_ttl_seconds: int = 60
+
     # ── 축적 범위 (FR-002, 헌법 v4.1.0) ──
     # 탐색 시작점일 뿐이다. 출처가 제공하는 실제 최초일은 수집 중 발견해
     # `currency.first_available_date`에 기록한다 (FR-002a).
@@ -180,6 +187,8 @@ def load_settings(env_file: Path | None = None) -> Settings:
         ecos_retry_base_delay_ms=_env_int("ECOS_RETRY_BASE_DELAY_MS", 1000),
         collection_sync_threshold_days=_env_int("COLLECTION_SYNC_THRESHOLD_DAYS", 30),
         job_history_success_retention_days=_env_int("JOB_HISTORY_SUCCESS_RETENTION_DAYS", 90),
+        daily_page_size=_env_int("DAILY_PAGE_SIZE", 30, minimum=1),
+        today_refresh_lock_ttl_seconds=_env_int("TODAY_REFRESH_LOCK_TTL_SECONDS", 60, minimum=1),
         ecos_probe_starts=_probe_starts(),
         db_host=_env_str("DB_HOST", "localhost"),
         db_port=_env_int("DB_PORT", 3306, minimum=1),
