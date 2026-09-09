@@ -29,7 +29,8 @@ async def _seed(session) -> None:
     session.add(FxCoverage(currency_code="USD", covered_from=START,
                            covered_through=YESTERDAY))
     # 어제 시점에 오늘(=TARGET)을 잠정으로 받아둔 상태
-    await store_provisional(session, "USD", DailyQuote(TARGET, Decimal("1354.20"), 1))
+    await store_provisional(session, "USD", DailyQuote(TARGET, Decimal("1354.20"), 1),
+                            today=TARGET)
     await session.commit()
 
 

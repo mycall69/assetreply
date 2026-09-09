@@ -15,7 +15,7 @@ Claude Code 설정(`.claude/`), 그리고 제정된 헌법만 있다. `pyproject
 
 ## 헌법이 최우선
 
-`.specify/memory/constitution.md`가 이 프로젝트의 최상위 규칙이다(v1.0.1, 원칙 9개).
+`.specify/memory/constitution.md`가 이 프로젝트의 최상위 규칙이다(v5.1.0, 원칙 9개).
 모든 설계·구현·리뷰는 여기에 종속되며, `/speckit-plan`의 `Constitution Check` 게이트가
 이 파일을 런타임에 읽어 판정 기준으로 삼는다. 작업 전 반드시 통독할 것.
 
@@ -29,6 +29,11 @@ Claude Code 설정(`.claude/`), 그리고 제정된 헌법만 있다. `pyproject
   최초 실행에서 실패함을 확인한 뒤 구현한다. 커버리지 80% 미만은 머지 차단.
 - **결측치 임의 보간 금지** (원칙 V) — 휴장일·결측치는 명시적으로 표현한다.
   전일 값 자동 복사는 위반이다.
+- **요구사항 변경은 상위 산출물까지 같은 작업 단위에서** (명세 작성 규약) —
+  `spec.md`에 FR/SC를 추가·수정하면 `plan.md` 추적성과 `tasks.md` 참조를 그 자리에서 갱신한다.
+  구현으로 넘어간 뒤로 미루면 잊는다. 참조하는 태스크가 없는 인수 기준은 위반이다.
+- **요구사항에는 실패 양상을 함께 쓴다** (명세 작성 규약) — 성공 조건만 적으면 구현이 그 조건을
+  빼먹어도 오류가 나지 않아 리뷰와 테스트를 함께 통과한다.
 - **한국어 문서화** (원칙 VIII).
 
 ## Spec-Kit SDD 워크플로
@@ -51,6 +56,9 @@ Claude Code 설정(`.claude/`), 그리고 제정된 헌법만 있다. `pyproject
 | `plan.md` | plan | 설계 및 Constitution Check |
 | `research.md`, `data-model.md`, `contracts/`, `quickstart.md` | plan | 설계 부속 산출물 |
 | `tasks.md` | tasks | 의존성 순서가 매겨진 실행 태스크 |
+
+`spec.md`를 수정하면 `plan.md`·`tasks.md`가 함께 낡는다. 세 파일은 한 묶음으로 갱신하며,
+`/speckit-analyze`는 이를 사후에 검출하는 수단일 뿐 미루기의 근거가 아니다(헌법 명세 작성 규약).
 
 **현재 작업 중인 기능의 위치는 git 브랜치가 아니라 `.specify/feature.json`으로 결정된다.**
 (이 파일은 `.specify/.gitignore`에 의해 머신 로컬 상태로 취급된다.)

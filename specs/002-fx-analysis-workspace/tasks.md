@@ -47,7 +47,7 @@ plan.md의 웹 애플리케이션 구조를 따른다: `backend/src/`, `backend/
 
 - [X] T003 [P] `backend/tests/unit/test_orm_types.py`를 확장해 `FxRate.is_provisional`이 불리언으로 매핑되고 NOT NULL이며 기본값이 거짓인지 검증
 - [X] T004 [P] `backend/tests/integration/test_migrations.py`를 확장해 신규 리비전 적용 후 ORM 메타데이터와 실제 스키마가 일치하고, 기존 행이 `is_provisional = FALSE`로 채워지는지 검증
-- [X] T005 [P] `backend/tests/integration/test_provisional_repo.py`에 확정 전용 조회와 잠정 포함 조회가 구분되는지 테스트 작성 (data-model 조회 규약)
+- [X] T005 [P] `backend/tests/integration/test_provisional_repo.py`에 확정 전용 조회와 잠정 포함 조회가 구분되는지 테스트 작성 (FR-042a, data-model 조회 규약)
 - [X] T006 [P] `backend/tests/integration/test_coverage_provisional.py`에 **잠정 레코드를 저장해도 `covered_through`가 전진하지 않음**을 테스트 작성 (FR-037b, research R2-2)
 - [X] T007 [P] `frontend/tests/Sidebar.test.tsx`에 셸 테스트 작성 — 메뉴 8개, 외환·설정만 활성, "준비중" 항목은 링크가 아니고 키보드 포커스 대상이 아님 (FR-002, FR-005)
 
@@ -55,7 +55,7 @@ plan.md의 웹 애플리케이션 구조를 따른다: `backend/src/`, `backend/
 
 - [X] T008 `backend/src/db/models.py`의 `FxRate`에 `is_provisional` 컬럼 추가 (data-model 1절)
 - [X] T009 `backend/src/db/migrations/versions/`에 `is_provisional` 리비전 생성 — 기존 행을 `FALSE`로 채운다. `quote_date` 상한은 DB 제약이 아니라 문서상 검증 규칙이므로 마이그레이션 대상이 아니며, "오늘 이하" 완화는 `repository/fx_rate.py`(T010)와 data-model 문서에 반영한다
-- [X] T010 `backend/src/repository/fx_rate.py`에 확정/잠정 구분 조회와 upsert 구현 — 확정 전용 조회 경로가 SC-003의 근거다
+- [X] T010 `backend/src/repository/fx_rate.py`에 확정/잠정 구분 조회와 upsert 구현 — 확정 전용 조회 경로가 SC-003의 근거다 (FR-042a)
 - [X] T011 `backend/src/repository/coverage.py`에 **잠정은 커버리지에 반영하지 않음**을 코드와 주석으로 명시 (FR-037b)
 - [X] T012 [P] `frontend/src/components/shell/Sidebar.tsx`에 사이드바 구현 — 메뉴 정적 정의에 준비 여부 포함, 미준비 항목은 링크·포커스 제외 (research R2-9, ui-wireframes W1)
 - [X] T013 [P] `frontend/src/components/shell/TopBar.tsx`에 현재 화면 이름 표시 구현 (FR-004)
@@ -170,7 +170,7 @@ plan.md의 웹 애플리케이션 구조를 따른다: `backend/src/`, `backend/
 - [X] T057 [P] [US4] `backend/tests/integration/test_today_refresh.py`에 새로고침 테스트 작성 — `updated` / `no_quote_today` 분기, `fetchedAt` 포함, 값 생성 금지 (FR-039)
 - [X] T058 [US4] `backend/tests/integration/test_today_refresh.py`에 중복 요청 테스트 추가 — `joinedExisting: true`, 외부 호출 1회 (FR-036b, SC-008)
 - [X] T059 [US4] `backend/tests/integration/test_today_refresh.py`에 실패 테스트 추가 — 외부 실패 시에도 저장된 과거 데이터와 표시 중인 값이 유효 (FR-040)
-- [X] T060 [P] [US4] `backend/tests/integration/test_provisional_transition.py`에 **잠정 → 확정 전환** 테스트 작성 — 날짜가 지난 뒤 증분 수집이 그 날짜를 건너뛰지 않고 값을 덮으며 `is_provisional`이 거짓이 됨. **잠정 시점과 확정 시점의 원본 응답이 `fx_raw_response`에 모두 남아 값 변화를 대조할 수 있는지도 함께 검증한다** (FR-037a, FR-037b, FR-043, 헌법 원칙 V)
+- [X] T060 [P] [US4] `backend/tests/integration/test_provisional_transition.py`에 **잠정 → 확정 전환** 테스트 작성 — 날짜가 지난 뒤 증분 수집이 그 날짜를 건너뛰지 않고 값을 덮으며 `is_provisional`이 거짓이 됨. **잠정 시점과 확정 시점의 원본 응답이 `fx_raw_response`에 모두 남아 값 변화를 대조할 수 있는지도 함께 검증한다** (FR-037a, FR-037b, FR-037d, FR-043, 헌법 원칙 V)
 - [X] T061 [P] [US4] `backend/tests/integration/test_provisional_isolation.py`에 확정 구간 불변 테스트 작성 — 오늘 값을 여러 번 갱신해도 과거 확정값이 변하지 않음 (FR-042, SC-003)
 - [X] T062 [P] [US4] `frontend/tests/TodayRefresh.test.tsx`에 새로고침 UI 테스트 작성 — 잠정 배지, 갱신 시각, 실패 시 기존 값 유지 (ui-wireframes W3-b·W3-c)
 
@@ -219,9 +219,13 @@ plan.md의 웹 애플리케이션 구조를 따른다: `backend/src/`, `backend/
 - [X] T080 `backend/.venv/bin/python -m mypy --strict src`, `cd frontend && npm run typecheck`, `npx eslint src` 통과 확인
 - [X] T081 네트워크를 차단한 상태에서 `backend/tests/`와 `frontend/tests/` 전체 스위트 통과 확인 (헌법 원칙 III)
 - [X] T082 [P] `backend/tests/integration/test_performance.py`에 성능 측정 추가 — 요약·표·시계열 응답이 병렬 기준 3초 이내(SC-009a), 스프레드 변경 후 재산출 2초 이내(SC-005). 차트 조작 1초(SC-009)는 UI 수동 확인
-- [X] T083 `specs/002-fx-analysis-workspace/quickstart.md`의 검증 시나리오 12개를 순서대로 수동 실행하고 결과 기록
+- [X] T083 `specs/002-fx-analysis-workspace/quickstart.md`의 검증 시나리오 13개를 순서대로 수동 실행하고 결과 기록 (시나리오 12가 SC-007b를 검증한다)
 - [X] T084 [P] `backend/src/`와 `frontend/src/` 신규·변경 파일의 주석·docstring이 한국어인지 점검 (헌법 원칙 VIII)
 - [X] T085 001 산출물의 라우트 참조를 갱신 — `quickstart.md`와 `contracts/ui-sketches.md`가 제거된 `/chart`·`/spreads`를 가리키지 않도록 정리 (research R2-10)
+- [X] T086 [US4] `frontend/tests/TodayRefresh.test.tsx`에 통화 변경 경합 테스트 작성 — 응답이 늦게 도착했을 때 사용자가 통화를 바꿨다면 결과·오류가 새 통화 화면에 반영되지 않고, busy는 풀려 다시 받을 수 있음 (FR-036c)
+- [X] T087 [US4] `frontend/src/components/fx/TodayRefresh.tsx`에 요청 귀속 구현 — 요청 시점의 통화를 클로저에 담고 응답 시점의 통화와 비교한다. 안내·오류는 어느 통화의 것인지와 함께 보관해 통화가 바뀌면 자연히 감춰지게 한다 (FR-036c)
+- [X] T088 `backend/src/ingestion/today.py`의 `store_provisional`에 잠정 불변식 강제 — 오늘이 아닌 날짜는 잠정으로 저장할 수 없다. 날짜를 오늘로 제한하면 "통화당 최대 1행"은 기본 키에서 자동으로 따라온다. `backend/tests/integration/test_provisional_invariant.py`에 6건 검증 (FR-037c)
+- [X] T089 잠정 잔존 탐지·노출 구현 — `backend/src/repository/fx_rate.py`의 `oldest_stale_provisional`로 통화별 가장 오래된 잔존을 찾고, `GET /api/fx/coverage`가 `staleProvisional`로 내려주며, `frontend/src/components/CollectionStatus.tsx`가 해당 통화 행에 날짜와 해소 방법을 함께 표시한다. **오늘 날짜의 잠정은 잔존으로 세지 않는다** — 매일 경고가 떠서 신호가 무의미해진다 (FR-043a, FR-043b, SC-007b)
 
 ---
 
@@ -283,6 +287,7 @@ plan.md의 웹 애플리케이션 구조를 따른다: `backend/src/`, `backend/
 | +US4 | T056~T070 | 오늘 값 최신화 |
 | +US5 | T071~T074 | 표 내려받기 |
 | 완료 | T075~T085 | 헌법 준수 검증과 운영 준비 |
+| 보완 | T086~T087 | 명세 보완(FR-036c) 반영 |
 
 ### 위험 순서
 

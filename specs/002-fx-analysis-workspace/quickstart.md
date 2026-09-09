@@ -88,6 +88,39 @@ curl -X POST localhost:8080/api/fx/today/refresh \
 **중복 요청 합류 (FR-036b)**: 같은 요청을 거의 동시에 두 번 보내면 두 번째에
 `joinedExisting: true`가 온다.
 
+**요청의 통화 귀속 (FR-036c)**: 새로고침을 누른 직후 응답이 오기 전에 통화를 바꾼다.
+
+**기대**: 이전 통화의 결과·오류 문구가 새 통화 화면에 나타나지 않는다. 버튼은 다시 누를 수
+있는 상태로 돌아온다.
+
+**쓰기 불변식 (FR-037c)**: 과거 날짜를 잠정으로 저장하려는 시도가 거부되는지 확인한다.
+
+```bash
+cd backend && .venv/bin/python -c "
+import asyncio, datetime as dt
+from decimal import Decimal
+from src.config.settings import load_settings
+from src.db.engine import create_engine
+from src.db.session import make_session_factory
+from src.ingestion.protocols import DailyQuote
+from src.ingestion.today import store_provisional
+async def main():
+    eng = create_engine(load_settings()); sf = make_session_factory(eng)
+    today = dt.date.today()
+    async with sf() as s:
+        try:
+            await store_provisional(s, 'USD',
+                DailyQuote(today - dt.timedelta(days=1), Decimal('1300'), 1), today=today)
+            print('거부되지 않았다 — FR-037c 위반')
+        except ValueError as e:
+            print('정상 거부:', e)
+    await eng.dispose()
+asyncio.run(main())"
+```
+
+**기대**: `잠정 저장은 오늘(...)만 허용됩니다` 오류. 과거 잠정이 생기면 확정 전환 실패와
+구별되지 않으므로 애초에 막는다.
+
 ---
 
 ## 5. 수집과 새로고침의 독립 (FR-036a)
@@ -206,7 +239,28 @@ curl -i "localhost:8080/api/fx/daily?currency=EUR"
 
 ---
 
-## 12. 헌법 준수 확인
+## 12. 잠정 잔존 노출 (FR-043a, FR-043b)
+
+과거 날짜의 잠정 레코드가 남아 있을 때 수집 현황 화면이 그것을 알리는지 확인한다.
+
+```bash
+curl -s localhost:3030/api/fx/coverage | python3 -m json.tool | grep -A2 staleProvisional
+```
+
+**기대**
+- 오늘 날짜의 잠정만 있을 때는 `staleProvisional` **키가 없다** (FR-043b — 매일 경고가
+  뜨면 신호가 무의미해진다)
+- 과거 잠정이 있으면 **가장 오래된** 날짜가 반환된다
+- 수집 현황 화면(`/fx/collection`)의 해당 통화 행에 `⚠`와 해소 방법이 함께 표시된다
+- 해당 통화의 증분 수집을 실행하면 경고가 사라진다
+
+**왜 이 신호가 의미를 갖는가**: 쓰기 시점 불변식(FR-037c)이 과거 날짜의 잠정 저장을
+막으므로 잔존의 원인은 하나뿐이다 — 확정 전환이 일어나지 않았다. 불변식이 없으면 원인이
+둘로 갈라져 무엇을 해야 할지 알 수 없다(research R2-11).
+
+---
+
+## 13. 헌법 준수 확인
 
 ```bash
 cd backend && .venv/bin/python -m pytest --cov=src --cov-fail-under=80

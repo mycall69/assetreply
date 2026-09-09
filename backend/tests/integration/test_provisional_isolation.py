@@ -33,7 +33,7 @@ async def test_잠정값을_여러_번_갱신해도_확정값이_변하지_않�
         before = (await get_rate(s, "USD", CONFIRMED)).base_rate
 
         for rate in ("1354.20", "1352.80", "1358.90"):
-            await store_provisional(s, "USD", DailyQuote(TODAY, Decimal(rate), 1))
+            await store_provisional(s, "USD", DailyQuote(TODAY, Decimal(rate), 1), today=TODAY)
             await s.commit()
 
         after = (await get_rate(s, "USD", CONFIRMED)).base_rate
@@ -44,11 +44,11 @@ async def test_잠정값을_여러_번_갱신해도_확정값이_변하지_않�
 async def test_잠정값은_재조회_시_달라질_수_있다(session_factory) -> None:
     """확정 전이므로 값이 바뀌는 것이 정상이다."""
     async with session_factory() as s:
-        await store_provisional(s, "USD", DailyQuote(TODAY, Decimal("1354.20"), 1))
+        await store_provisional(s, "USD", DailyQuote(TODAY, Decimal("1354.20"), 1), today=TODAY)
         await s.commit()
         first = (await get_rate(s, "USD", TODAY)).base_rate
 
-        await store_provisional(s, "USD", DailyQuote(TODAY, Decimal("1358.90"), 1))
+        await store_provisional(s, "USD", DailyQuote(TODAY, Decimal("1358.90"), 1), today=TODAY)
         await s.commit()
         second = (await get_rate(s, "USD", TODAY)).base_rate
 
@@ -60,7 +60,7 @@ async def test_확정_전용_조회는_잠정을_보지_않는다(session_factor
     """SC-003의 구현 근거."""
     async with session_factory() as s:
         await _seed_confirmed(s)
-        await store_provisional(s, "USD", DailyQuote(TODAY, Decimal("1354.20"), 1))
+        await store_provisional(s, "USD", DailyQuote(TODAY, Decimal("1354.20"), 1), today=TODAY)
         await s.commit()
         assert await get_rate(s, "USD", TODAY, confirmed_only=True) is None
         assert await get_rate(s, "USD", CONFIRMED, confirmed_only=True) is not None

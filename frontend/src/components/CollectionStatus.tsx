@@ -51,10 +51,22 @@ export function CollectionStatus({
           </thead>
           <tbody>
             {coverage.map((c) => (
-              <tr key={c.currency} className="border-b border-gray-100">
-                <td className="py-2 font-medium">{c.currency}</td>
+              <tr key={c.currency} className="border-b border-gray-100 align-top">
+                <td className="py-2 font-medium">
+                  {c.currency}
+                  {c.staleProvisional && (
+                    <span aria-hidden className="ml-1 text-amber-600">⚠</span>
+                  )}
+                </td>
                 <td className="py-2 tabular-nums">
                   {c.coveredFrom} ~ {c.coveredThrough}
+                  {/* 잠정 잔존 = 확정 전환이 안 일어났다는 뜻. 해소 방법을 함께 적는다 (FR-043a). */}
+                  {c.staleProvisional && (
+                    <p data-testid={`stale-${c.currency}`} className="mt-1 text-xs text-amber-700">
+                      ⚠ {c.staleProvisional.date}의 값이 아직 확정되지 않았습니다.
+                      이 통화의 수집을 실행하면 해소됩니다.
+                    </p>
+                  )}
                 </td>
                 <td className="py-2 tabular-nums">{c.firstAvailableDate ?? "—"}</td>
                 <td className="py-2 tabular-nums text-gray-500">

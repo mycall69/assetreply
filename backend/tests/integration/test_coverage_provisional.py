@@ -33,7 +33,7 @@ async def test_잠정_저장이_커버리지를_전진시키지_않는다(sessio
     async with session_factory() as s:
         await _seed_coverage(s)
         await store_provisional(s, "USD", DailyQuote(TODAY, Decimal("1354.2"), 1),
-                                source="ECOS:731Y001")
+                                today=TODAY, source="ECOS:731Y001")
         await s.commit()
         cov = (await s.execute(select(FxCoverage))).scalar_one()
 
@@ -47,7 +47,7 @@ async def test_잠정_저장_후에도_재개_시작일이_오늘을_포함한�
     async with session_factory() as s:
         await _seed_coverage(s)
         await store_provisional(s, "USD", DailyQuote(TODAY, Decimal("1354.2"), 1),
-                                source="ECOS:731Y001")
+                                today=TODAY, source="ECOS:731Y001")
         await s.commit()
         start = await next_start_date(s, "USD", default=START)
 

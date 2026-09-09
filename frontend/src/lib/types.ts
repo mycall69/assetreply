@@ -69,6 +69,11 @@ export interface CoverageRow {
   coveredThrough: string;
   firstAvailableDate: string | null;
   lastUpdatedAt: string;
+  /**
+   * 오늘이 지났는데도 잠정으로 남은 레코드 (FR-043a). 값이 있을 때만 존재한다.
+   * 확정 전환이 일어나지 않았다는 뜻이며, 해당 통화의 증분 수집으로 해소된다.
+   */
+  staleProvisional?: { date: string };
 }
 
 

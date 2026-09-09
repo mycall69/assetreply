@@ -268,6 +268,34 @@
 
 ---
 
+## 변경 `GET /api/fx/coverage`
+
+수집 현황 화면이 잠정 잔존을 표시할 수 있도록 필드를 더한다 (FR-043a).
+
+```json
+{
+  "coverage": [
+    {
+      "currency": "USD",
+      "coveredFrom": "1964-01-01",
+      "coveredThrough": "2026-09-08",
+      "firstAvailableDate": "1964-05-04",
+      "lastUpdatedAt": "2026-09-09T01:12:00Z",
+      "staleProvisional": { "date": "2026-09-05" }
+    }
+  ]
+}
+```
+
+- `staleProvisional`은 **오늘이 지났는데도 잠정으로 남은 레코드**가 있을 때만 포함한다.
+  오늘 날짜의 잠정은 정상이므로 여기 나오지 않는다.
+- 이 값이 있다는 것은 확정 전환이 일어나지 않았다는 뜻이다(FR-037a). 해당 통화의 증분
+  수집을 실행하면 해소된다.
+- 쓰기 시점 불변식(FR-037c) 덕분에 이 상태의 원인은 하나뿐이다 — 잘못된 쓰기로는 과거
+  잠정이 생길 수 없으므로, 남아 있다면 전환이 안 된 것이다.
+
+---
+
 ## 엔드포인트 요약
 
 | 메서드 | 경로 | 상태 | 쓰는 곳 |
@@ -279,7 +307,7 @@
 | GET | `/api/fx/spreads` | 변경 | 설정 — 기본값 비교 추가 |
 | GET | `/api/fx/series` | 변경 | 차트 — 잠정 구분 추가 |
 | GET | `/api/fx/rates/{currency}` | 유지 | **이번 화면에서 미사용** (001의 단일 날짜 조회로 존속) |
-| GET | `/api/fx/coverage` | 유지 | 기간 프리셋 범위 + **선택 날짜 범위 판정** (FR-010) |
+| GET | `/api/fx/coverage` | **변경** | 기간 프리셋 범위 + 선택 날짜 범위 판정(FR-010) + 잠정 잔존 표시(FR-043a) |
 | POST | `/api/fx/collect` · `GET /api/fx/jobs` · `GET /api/fx/progress` | 유지 | 수집 현황 |
 
 **`/api/fx/rates/{currency}`를 쓰지 않는 이유**: 선택 날짜 변경은 서버를 부르지 않는다

@@ -25,13 +25,32 @@ SOURCE_ID = "ECOS:731Y001"
 
 
 async def store_provisional(
-    session: AsyncSession, currency_code: str, quote: DailyQuote, *, source: str = SOURCE_ID
+    session: AsyncSession,
+    currency_code: str,
+    quote: DailyQuote,
+    *,
+    today: dt.date,
+    source: str = SOURCE_ID,
 ) -> None:
-    """오늘 값을 잠정으로 저장한다 (FR-037).
+    """오늘 값을 잠정으로 저장한다 (FR-037, FR-037c).
 
     같은 날 여러 번 새로고침하면 값만 갱신되고 잠정 상태는 유지된다. 확정 전환은
     날짜가 지난 뒤 증분 수집이 그 날짜를 다시 받아올 때만 일어난다 (FR-037a).
+
+    **오늘이 아닌 날짜는 잠정으로 저장할 수 없다** (FR-037c). 과거에 잠정 레코드가
+    생기면 "확정 전환이 안 일어난 것"과 구별되지 않는다. 두 원인이 같은 증상을 내면
+    원인을 좁힐 수 없으므로, 애초에 만들지 못하게 막는다.
+
+    날짜를 오늘로 제한하면 "통화당 최대 하나"는 기본 키 `(currency_code, quote_date)`에서
+    자동으로 따라온다 — 오늘은 하루뿐이므로 행도 하나뿐이다.
+
+    `today`를 인자로 받는 이유는 호출 시점의 날짜를 호출자가 정하기 때문이다. 내부에서
+    `date.today()`를 부르면 자정 경계에서 조회와 저장이 다른 날을 가리킬 수 있다.
     """
+    if quote.quote_date != today:
+        raise ValueError(
+            f"잠정 저장은 오늘({today})만 허용됩니다: {quote.quote_date} (FR-037c)")
+
     await upsert(session, FxRate, [{
         "currency_code": currency_code,
         "quote_date": quote.quote_date,
@@ -68,7 +87,7 @@ async def fetch_today(
         return None
 
     quote = result.quotes[0]
-    await store_provisional(session, currency_code, quote)
+    await store_provisional(session, currency_code, quote, today=today)
     await session.commit()
 
     return (await session.get(FxRate, (currency_code, today)))

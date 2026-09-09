@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import FxRate
@@ -84,3 +84,24 @@ async def series(
     if confirmed_only:
         stmt = stmt.where(FxRate.is_provisional.is_(False))
     return list((await session.execute(stmt.order_by(FxRate.quote_date))).scalars())
+
+
+async def oldest_stale_provisional(
+    session: AsyncSession, *, today: dt.date
+) -> dict[str, dt.date]:
+    """통화별로 **오늘이 지났는데도 잠정으로 남은** 가장 오래된 날짜 (FR-043a).
+
+    오늘 날짜의 잠정은 정상 상태이므로 제외한다. 포함하면 상시 경고가 되어 신호로서
+    쓸모가 없어진다.
+
+    가장 오래된 것을 돌려주는 이유는 심각도가 드러나기 때문이다 — 어제부터 남은 것과
+    열흘 전부터 남은 것은 다른 문제다.
+
+    쓰기 시점 불변식(FR-037c)이 과거 날짜의 잠정 저장을 막으므로, 여기 잡히는 행의
+    원인은 하나뿐이다: 확정 전환이 일어나지 않았다.
+    """
+    rows = (await session.execute(
+        select(FxRate.currency_code, func.min(FxRate.quote_date))
+        .where(FxRate.is_provisional.is_(True), FxRate.quote_date < today)
+        .group_by(FxRate.currency_code))).all()
+    return {code: day for code, day in rows}

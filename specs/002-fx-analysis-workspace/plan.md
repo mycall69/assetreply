@@ -101,7 +101,7 @@ Alembic / Next.js 16+ / React 19+ / Zustand / Lightweight Charts / Tailwind CSS�
 
 ```text
 specs/002-fx-analysis-workspace/
-├── spec.md                          # 기능 명세 (완료)
+├── spec.md                          # 기능 명세 — 용어(확정/잠정/정정) 정의 포함
 ├── plan.md                          # 이 문서
 ├── research.md                      # Phase 0 산출물
 ├── data-model.md                    # Phase 1 산출물 — 001 스키마 대비 변경분
@@ -189,15 +189,20 @@ frontend/
 | FR-027~035 (스프레드 설정·복원) | contracts/rest-api `POST /api/fx/spreads/restore`, ui-wireframes W4 |
 | FR-031a (복원 부분 실패) | contracts/rest-api restore 응답의 `restored` 목록 |
 | FR-036~036b (새로고침 동시성) | research R2-10, data-model `fx_collection_lock.scope` |
+| FR-036c (요청의 통화 귀속) | `components/fx/TodayRefresh.tsx` — 요청 시점 통화와 응답 시점 통화 비교 |
 | FR-037~037b (잠정 저장·전환·커버리지) | research R2-1·R2-2·R2-3, data-model `fx_rate.is_provisional` |
+| FR-037c·037d (잠정 불변식·단방향 전이) | `ingestion/today.py` 쓰기 시점 검증, data-model 상태 전이 |
 | FR-038~041 (갱신 시각·실패·전파) | contracts/rest-api `POST /api/fx/today/refresh` |
 | FR-042~043 (재현성·전환 추적) | research R2-3, data-model 상태 전이 |
+| FR-042a (확정 전용 조회) | data-model 조회 규약, `repository/fx_rate.py` |
+| FR-043a·043b (잠정 잔존 노출) | research R2-11, contracts/rest-api `GET /api/fx/coverage`, ui-wireframes W5 |
 | FR-044~047 (내려받기) | research R2-7, `lib/csv.ts` |
 | FR-010 (범위 판정) | contracts/ui-interaction 조회 가능 범위, research R2-6 |
 | FR-048 (자동 수집 규칙) | contracts/rest-api `latest`·`daily`의 202 분기 |
 | FR-049 (수집 알림) | contracts/ui-wireframes W1 상단 표시기 |
 | SC-005·009·009a (성능) | research R2-6, quickstart 시나리오 8 |
 | SC-007·007a (잠정 구분·시점 일치) | quickstart 시나리오 4·5, tasks T037 |
+| SC-007b (잔존 노출·오늘 제외) | research R2-11, quickstart 시나리오 12, tasks T089 |
 | SC-008 (호출 1회) | research R2-10, quickstart 시나리오 4 |
 | SC-003 (확정 재현성) | quickstart 시나리오 6 |
 
