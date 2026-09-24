@@ -9,6 +9,8 @@
 """
 from __future__ import annotations
 
+import pytest
+
 from src.observability.events import CHUNK_STORED, LOG_SINK_FAILED, CollectionEvent
 from src.observability.sinks import EventPublisher
 
@@ -121,3 +123,79 @@ class Test발행자_계약:
         pub = EventPublisher(db_sink=None, file_sink=성공싱크())
         await pub.publish(_event())
         assert pub.dropped == 0
+
+
+class Test도달_확인:
+    """FR-017a — 호출이 예외 없이 끝난 것을 성공으로 간주해서는 안 된다.
+
+    비활성 로거에 `info()`를 부르면 **예외 없이 조용히 반환한다.** 예외 유무만 보면
+    "전부 기록됨"과 "전부 유실됨"이 같은 신호(`dropped == 0`)를 낸다. 003 구현에서
+    실제로 이 상태가 발생했고, 로그 파일이 안 생기는 것을 보고서야 드러났다.
+    """
+
+    async def test_비활성_로거를_유실로_센다(self) -> None:
+        import logging
+
+        from src.observability.logging_config import COLLECTION_LOGGER_NAME
+        from src.observability.sinks import log_sink
+
+        logger = logging.getLogger(COLLECTION_LOGGER_NAME)
+        logger.disabled = True
+        try:
+            with pytest.raises(RuntimeError, match="기록 경로"):
+                await log_sink(_event())
+        finally:
+            logger.disabled = False
+
+    async def test_핸들러가_없으면_유실로_센다(self) -> None:
+        """핸들러가 없으면 기록은 어디에도 남지 않는다."""
+        import logging
+
+        from src.observability.logging_config import COLLECTION_LOGGER_NAME
+        from src.observability.sinks import log_sink
+
+        logger = logging.getLogger(COLLECTION_LOGGER_NAME)
+        saved = list(logger.handlers)
+        logger.handlers = []
+        try:
+            with pytest.raises(RuntimeError, match="기록 경로"):
+                await log_sink(_event())
+        finally:
+            logger.handlers = saved
+
+    async def test_레벨이_높아도_유실로_센다(self) -> None:
+        import logging
+
+        from src.observability.logging_config import COLLECTION_LOGGER_NAME
+        from src.observability.sinks import log_sink
+
+        logger = logging.getLogger(COLLECTION_LOGGER_NAME)
+        saved = logger.level
+        logger.setLevel(logging.CRITICAL)
+        try:
+            with pytest.raises(RuntimeError, match="기록 경로"):
+                await log_sink(_event())
+        finally:
+            logger.setLevel(saved)
+
+    async def test_발행자가_그_유실을_센다(self, captured_logs) -> None:
+        """SC-007a — 도달 확인 실패가 집계되어야 화면이 드러낼 수 있다."""
+        import logging
+
+        from src.observability.logging_config import COLLECTION_LOGGER_NAME
+
+        logger = logging.getLogger(COLLECTION_LOGGER_NAME)
+        logger.disabled = True
+        try:
+            pub = EventPublisher(db_sink=성공싱크())
+            await pub.publish(_event())
+        finally:
+            logger.disabled = False
+        # 파일 유실은 반대편(DB)에 `log_sink_failed`로 남는다.
+        assert pub.dropped == 0  # DB는 살아 있다
+
+    async def test_정상_상태에서는_예외가_없다(self, captured_logs) -> None:
+        from src.observability.sinks import log_sink
+
+        await log_sink(_event())
+        assert captured_logs

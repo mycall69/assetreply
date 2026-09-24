@@ -16,6 +16,7 @@ DB 적재 실패를 DB에 남길 수 없는 순환을 건수로 끊는다.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Awaitable, Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,8 +28,20 @@ Sink = Callable[[CollectionEvent], Awaitable[None]]
 
 
 async def log_sink(event: CollectionEvent) -> None:
-    """파일 로그에 한 줄로 남긴다."""
-    collection_logger().info(event.message(), extra=event.as_log_fields())
+    """파일 로그에 한 줄로 남긴다.
+
+    **기록 전에 경로가 살아 있는지 확인한다** (FR-017a). 비활성 로거에 `info()`를 부르면
+    **예외 없이 조용히 반환한다** — 호출이 성공한 것처럼 보이지만 어디에도 남지 않는다.
+    예외 유무만 보면 "전부 기록됨"과 "전부 유실됨"이 같은 신호를 낸다.
+
+    003 구현에서 실제로 이 상태가 발생했다. Alembic의 `fileConfig`가 기존 로거를 끄면서
+    수집 기록이 오류 없이 사라졌고, 로그 파일이 생기지 않는 것을 보고서야 드러났다.
+    """
+    logger = collection_logger()
+    if logger.disabled or not logger.handlers or not logger.isEnabledFor(logging.INFO):
+        raise RuntimeError(
+            "기록 경로가 살아 있지 않습니다 — 로거가 비활성이거나 핸들러가 없습니다.")
+    logger.info(event.message(), extra=event.as_log_fields())
 
 
 def db_sink_for(session: AsyncSession) -> Sink:

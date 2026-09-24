@@ -142,7 +142,7 @@ frontend/src/
 | FR-028 (전환 시 잔존 금지) | research R3-11, contracts/rest-api `stream` 통화 대조, ui-wireframes 갱신 범위 |
 | FR-029 (진행 중 시작 거절) | contracts/rest-api `busyWith`·409, ui-wireframes W1 |
 | FR-030 (진입점 보장) | research R3-12, ui-wireframes W7, tasks T073·T090 |
-| FR-005·005a·005b (회수·부분 완료·새 작업) | research R3-2, `worker/reconcile.py`, data-model 상태 전이 |
+| FR-005·005a·005b·005c (회수·부분 완료·새 작업·기동 시 즉시) | research R3-2, `worker/reconcile.py`, data-model 상태 전이 |
 | FR-006·006a (60초 멈춤·회수 대기) | research R3-3, contracts/rest-api `state` 3값, ui-wireframes W3 |
 | FR-007 (정상 종료) | `worker/runner.py` 취소 처리, data-model 상태 전이 |
 | FR-008·009 (이어받기·이미 완료) | 001 `next_start_date` 재사용, quickstart 6 |
@@ -151,8 +151,9 @@ frontend/src/
 | FR-012·013·014·016 (시간축) | contracts/rest-api `timeline`, ui-wireframes W2·W3 |
 | FR-015 (10초 이내 갱신) | contracts/rest-api 5초 하트비트 |
 | FR-017·018 (두 경로 적재) | research R3-4, `observability/sinks.py` |
+| FR-017a (도달 확인) | `observability/sinks.py` 경로 생존 확인, tasks T091 |
 | FR-018a·018b (기록 실패 처리) | research R3-4, data-model `events_dropped`, ui-wireframes W5 |
-| FR-019 (기록 내용) | data-model `kind` 표 |
+| FR-019·019a·019b·019c (기록 내용·결과 삼분·건수 구별·시각 기준) | data-model `kind` 표, `observability/events.py` |
 | FR-020 (비밀값 차단) | research R3-10 (발행 지점에서 차단), quickstart 15 |
 | FR-021 (결측·실패 구별) | data-model `chunk_empty` vs `chunk_failed`, ui-wireframes W6 |
 | FR-022 (실시간·사후 조회) | contracts/rest-api `stream`·`events` |

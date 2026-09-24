@@ -21,6 +21,7 @@ description: "Task list template for feature implementation"
 - 파일 경로를 반드시 포함한다
 - **ID는 안정적 참조다.** 반복(iteration)으로 추가된 태스크는 번호를 이어 붙이므로 ID 순서가
   실행 순서와 일치하지 않을 수 있다. **실행 순서는 페이즈가 정한다** — T089·T090은 Phase 3,
+  T091은 Phase 5,
   T086~T088은 Phase 4에 있다.
 - 삭제된 태스크는 번호를 재사용하지 않고 취소선으로 남긴다 (T020, T065)
 
@@ -53,7 +54,7 @@ description: "Task list template for feature implementation"
 - [X] T007 `backend/src/db/models.py`의 `FxCollectionJob`에 `events_dropped` INT **NOT NULL DEFAULT 0**을 추가한다. 기존 컬럼은 변경하지 않는다 (data-model 2절)
 - [X] T008 `backend/migrations/versions/`에 Alembic 리비전을 만든다 — `fx_collection_event` 테이블 생성, 인덱스 `(job_id, occurred_at)`·`(currency_code, job_id)`, `fx_collection_job.events_dropped` 컬럼 추가, `fx_raw_response(received_at)` 인덱스 추가. 수동 DDL 금지 (헌법 DB 운영 규약)
 - [X] T009 [P] `backend/tests/unit/test_collection_events.py`를 작성한다 — 이벤트 값 객체가 9종 `kind`를 모두 표현하고, 인증 키가 어떤 필드에도 담기지 않는지 검증한다 (FR-020)
-- [X] T010 `backend/src/observability/events.py`에 이벤트 값 객체와 `kind` 상수 9종을 정의한다 — `job_started`, `chunk_requested`, `chunk_stored`, `chunk_empty`, `chunk_failed`, `retry`, `rate_limited`, `job_finished`, `log_sink_failed`. **`chunk_empty`와 `chunk_failed`를 반드시 분리한다** — 합치면 시계열 공백의 원인이 출처 결측인지 수집 실패인지 구별할 수 없다. 이 9종이 FR-019가 요구하는 기록 내용을 모두 덮는다 (FR-019, FR-021)
+- [X] T010 `backend/src/observability/events.py`에 이벤트 값 객체와 `kind` 상수 9종을 정의한다 — `job_started`, `chunk_requested`, `chunk_stored`, `chunk_empty`, `chunk_failed`, `retry`, `rate_limited`, `job_finished`, `log_sink_failed`. **`chunk_empty`와 `chunk_failed`를 반드시 분리한다** — 합치면 시계열 공백의 원인이 출처 결측인지 수집 실패인지 구별할 수 없다. 이 9종이 FR-019가 요구하는 기록 내용을 모두 덮는다. **요청 결과는 성공·결측·실패 셋으로 갈리고**(FR-019a), 저장 건수는 0과 해당 없음을 구별하며(FR-019b), 시각 기준을 문서에 명시한다(FR-019c) (FR-019, FR-019a, FR-019b, FR-019c, FR-021)
 - [X] T011 [P] `backend/tests/unit/test_event_sinks.py`를 작성한다 — 한 싱크가 실패해도 다른 싱크가 호출되고 예외가 호출자에게 전파되지 않는지 검증한다 (FR-018a)
 - [X] T012 `backend/src/observability/sinks.py`에 DB 적재와 파일 로깅 두 싱크를 만들고, 하나의 발행 함수가 둘 다 호출하게 한다. **싱크 실패는 서로 전파되지 않는다.** 파일 실패 시 DB에 `log_sink_failed` 사건을 남기고, DB 실패 시 파일에 남기며 누락 건수를 센다 (research R3-4, FR-018a·018b)
 - [X] T013 [P] `backend/src/repository/collection_event.py`에 `record()`, `list_by_job()`, `list_by_currency()`, `prune_to_recent_jobs()`를 만든다. 정리는 통화별 최근 20개 작업 기준이다 (FR-023, research R3-9)
@@ -86,7 +87,7 @@ description: "Task list template for feature implementation"
 
 - [X] T021 [US1] `backend/src/worker/queue.py`에 시작 요청을 워커로 넘기는 통로를 만든다. `asyncio.Queue` 기반이며 요청은 통화 코드 목록이다 (research R3-1)
 - [X] T022 [US1] `backend/src/worker/runner.py`에 수집 태스크를 만든다. 큐에서 요청을 받아 `orchestrator.run_all_currencies`를 호출하고, 취소 시 진행 중 작업을 **부분 완료**로 확정한 뒤 종료한다 (FR-001, FR-007)
-- [X] T023 [US1] `backend/src/worker/reconcile.py`에 미해결 작업 정리를 만든다. **기동 시 1회 + 주기 실행** 두 경로를 모두 둔다 — 조회 시점 지연 판정은 아무도 화면을 열지 않으면 영원히 고쳐지지 않는다 (research R3-2, FR-005a)
+- [X] T023 [US1] `backend/src/worker/reconcile.py`에 미해결 작업 정리를 만든다. **기동 시 1회 + 주기 실행** 두 경로를 모두 둔다 — 조회 시점 지연 판정은 아무도 화면을 열지 않으면 영원히 고쳐지지 않는다. **기동 시에는 하트비트 나이를 보지 않는다**(FR-005c) — 방금 떴으므로 남아 있는 진행 중 작업은 정의상 전부 고아다 (research R3-2, FR-005a, FR-005c)
 - [X] T024 [US1] `backend/src/api/main.py`의 `lifespan`에 워커 태스크와 정리 태스크를 띄우고, 종료 시 취소 후 완료를 기다린다. 엔진 수명보다 먼저 정리되어야 한다 — 세션이 닫힌 뒤 워커가 DB를 만지면 안 된다
 - [X] T025 [US1] `backend/src/api/routes/collect.py`를 변경한다. 작업 생성과 점유 획득 후 **워커 큐에 시작을 넘긴다**. 202 응답 형식은 001과 동일하게 유지한다 (contracts/rest-api 1절)
 - [X] T026 [US1] **이벤트 발행을 `backend/src/worker/runner.py`에 두었다** (태스크는 `orchestrator.py`를 지정했으나 위치를 옮김 — `ingestion/`이 관측을 모르게 유지하는 편이 헌법 원칙 IV에 맞다). 발행 종류는 계획대로다
@@ -96,6 +97,7 @@ description: "Task list template for feature implementation"
 - [X] T030 [P] [US1] `backend/tests/unit/test_worker_queue.py` — 같은 통화의 중복 시작 요청이 큐에 쌓이지 않고 진행 중 작업에 합류하는지 검증한다 (FR-003)
 - [X] T031 [US1] `be-start.sh`에 `--workers 1`을 명시하고, 다중 워커가 수집을 중복 실행한다는 주석을 남긴다 (research R3-1의 배포 전제)
 - [X] T032 [US1] `backend/tests/integration/test_explicit_start_only.py` — 앱이 기동해도 사용자 조작 없이는 수집이 시작되지 않는지 검증한다 (FR-002)
+- [X] T091 [US3] `backend/src/observability/sinks.py`의 `log_sink`가 **기록 전에 경로 생존을 확인**한다 — 로거 비활성·핸들러 없음·레벨 초과를 유실로 센다. 비활성 로거는 `info()` 호출이 예외 없이 조용히 성공하므로, 예외 유무만 보면 "전부 기록됨"과 "전부 유실됨"이 같은 신호를 낸다 (FR-017a, SC-007a)
 - [X] T090 [P] [US1] `frontend/tests/CollectionIndicatorEntry.test.tsx` — 진행 중인 수집이 없을 때도 표시기가 렌더링되고 `/fx/collection` 링크를 갖는지 검증한다. **이 테스트가 깨지면 기능 전체가 도달 불가능해진다** (FR-030, SC-018)
 - [X] T089 [US1] `backend/src/api/routes/collect.py`에 다른 통화의 수집이 진행 중인지 확인해 **409 `collection_in_progress`로 거절**하고 진행 중인 통화를 본문에 담는 처리를 추가한다. 함께 `backend/tests/integration/test_reject_concurrent_start.py`를 먼저 작성해 실패를 확인한다. 조용히 무시하면 사용자는 버튼이 고장난 것으로 여긴다 (FR-004, FR-029, SC-017)
 
