@@ -73,6 +73,26 @@ async def heartbeat(
         row.heartbeat_at = at or dt.datetime.now()
 
 
+async def stale_locks(
+    session: AsyncSession, *,
+    older_than_seconds: int = DEFAULT_STALE_SECONDS,
+    scope: str = "collection",
+) -> list[FxCollectionLock]:
+    """하트비트가 끊긴 잠금을 **지우지 않고** 돌려준다 (003 T028).
+
+    회수 전에 그 작업을 부분 완료로 확정해야 하므로 `job_id`가 필요하다. 기존
+    `reclaim_stale_locks`는 통화 코드만 돌려주고 행을 지워, 작업을 찾을 근거가 사라진다.
+
+    001이 정한 900초 기준은 변경하지 않는다. 화면에 멈춤을 알리는 기준(60초)은 이것과
+    별개다 — 경고는 사람에게 빨리 알리고 회수는 안전해진 뒤 한다 (FR-006a).
+    """
+    cutoff = dt.datetime.now() - dt.timedelta(seconds=older_than_seconds)
+    return list((await session.execute(
+        select(FxCollectionLock)
+        .where(FxCollectionLock.heartbeat_at < cutoff)
+        .where(FxCollectionLock.scope == scope))).scalars())
+
+
 async def reclaim_stale_locks(
     session: AsyncSession, *,
     older_than_seconds: int = DEFAULT_STALE_SECONDS,

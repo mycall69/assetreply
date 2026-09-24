@@ -61,3 +61,34 @@ class StubSource:
 
     async def verify_item_mapping(self, currency_code: str) -> ItemMapping:
         return ItemMapping(currency_code, "0000001", "스텁")
+
+
+@pytest.fixture
+def captured():
+    """수집 로거에 직접 핸들러를 붙여 기록을 모은다.
+
+    `caplog`를 쓰지 않는 이유는 그것이 루트 핸들러에 의존하기 때문이다. 수집 로거는
+    전파하지 않는 것이 요구사항이라(research R3-10), 전파에 기대는 검증은 요구사항과
+    모순된다.
+    """
+    import logging
+
+    from src.observability.logging_config import COLLECTION_LOGGER_NAME
+
+    records: list[logging.LogRecord] = []
+
+    class _Collect(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    logger = logging.getLogger(COLLECTION_LOGGER_NAME)
+    handler = _Collect()
+    saved_level, saved_propagate = logger.level, logger.propagate
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.disabled = False
+    try:
+        yield records
+    finally:
+        logger.removeHandler(handler)
+        logger.level, logger.propagate = saved_level, saved_propagate

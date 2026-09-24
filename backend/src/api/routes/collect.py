@@ -6,21 +6,17 @@ contracts/rest-api.md — `joinedExisting`은 이미 진행 중인 작업이 있
 
 from __future__ import annotations
 
-import datetime as dt
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.errors import UnknownCurrency
+from src.api.errors import CollectionInProgress, UnknownCurrency
 from src.api.progress import sse_body
 from src.config.settings import SUPPORTED_CURRENCIES as SUPPORTED
-from src.config.settings import load_settings
 from src.db.session import get_session
-from src.ingestion.collector import next_start_date, split_into_chunks
-from src.repository.collection_lock import acquire_lock
-from src.repository.job import create_job
+from src.worker.queue import get_queue
 
 router = APIRouter(prefix="/api/fx", tags=["fx"])
 
@@ -38,21 +34,24 @@ async def start_collection(
         raise UnknownCurrency(f"지원하지 않는 통화입니다: {requested}")
     codes = [requested.upper()] if requested else list(SUPPORTED)
 
-    settings = load_settings()
-    end = dt.date.today() - dt.timedelta(days=1)
+    queue = get_queue()
     jobs: list[Json] = []
 
     for code in codes:
-        start = await next_start_date(session, code, default=settings.probe_start(code))
-        chunks = split_into_chunks(start, end, chunk_days=settings.ecos_chunk_days)
-        job = await create_job(session, code, start, end, chunks_total=len(chunks))
-        existing = await acquire_lock(session, code, job.id)
-        if existing is not None:
-            await session.rollback()
-            jobs.append({"currency": code, "jobId": existing, "joinedExisting": True})
-            continue
-        await session.commit()
-        jobs.append({"currency": code, "jobId": job.id, "joinedExisting": False})
+        # 큐가 받아들이면 워커가 꺼내 실제로 수집을 돈다 (FR-001, T025).
+        # 001에서는 이 호출이 없어 작업이 진행 중으로 박힌 채 멈췄다.
+        accepted = await queue.request(code)
+        if not accepted:
+            busy = queue.in_progress
+            if busy == code:
+                # 같은 통화의 중복 요청은 진행 중인 작업에 합류한다 (FR-003).
+                jobs.append({"currency": code, "joinedExisting": True})
+                continue
+            # 다른 통화가 돌고 있다. 조용히 무시하지 않고 이름을 대어 거절한다
+            # (FR-029) — 버튼만 반응이 없으면 사용자는 고장으로 여긴다.
+            raise CollectionInProgress(
+                f"{busy} 수집이 진행 중입니다. 끝나면 {code}를 시작할 수 있습니다.")
+        jobs.append({"currency": code, "joinedExisting": False})
 
     return {"jobs": jobs}
 

@@ -161,8 +161,50 @@ class FxCollectionJob(Base):
     started_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
     finished_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # 이 작업에서 DB 적재에 실패한 사건 수 (003 FR-018b). 0보다 크면 이 작업의
+    # 기록에 구멍이 있다는 뜻이다. DB 적재 실패를 DB에 남길 수 없는 순환을
+    # 건수로 끊는다 — 사건 본문 대신 개수만 남긴다 (research R3-4).
+    events_dropped: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0"))
 
     __table_args__ = (Index("ix_job_currency_status", "currency_code", "status"),)
+
+
+class FxCollectionEvent(Base):
+    """수집 과정에서 일어난 하나의 사건 (003, data-model.md 1절).
+
+    화면 조회와 파일 기록의 **공통 원천**이다. 두 경로가 각자 문자열을 만들면 시간이
+    지나며 내용이 갈라지므로, 사건을 값으로 먼저 만들고 표현만 달리한다 (FR-018).
+
+    `currency_code`를 `job_id`와 함께 두는 것은 비정규화다. 작업을 거쳐 조인하면 얻을
+    수 있지만 **정리와 조회가 모두 통화별로 일어나** 매번 조인하게 된다 (FR-023).
+    """
+
+    __tablename__ = "fx_collection_event"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    job_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("fx_collection_job.id"), nullable=False)
+    currency_code: Mapped[str] = mapped_column(
+        String(3), ForeignKey("currency.code"), nullable=False)
+    # 사건 종류. `observability/events.py`의 9종 상수를 쓴다. Enum 대신 문자열인 이유는
+    # 종류가 늘 때 마이그레이션 없이 추가할 수 있어야 하기 때문이다 — 기록은 관찰
+    # 수단이라 스키마 변경으로 막을 이유가 없다.
+    kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    # 구간이 없는 사건(작업 시작·종료)이 있으므로 NULL을 허용한다.
+    chunk_from: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    chunk_to: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    rows_stored: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    detail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    occurred_at: Mapped[dt.datetime] = mapped_column(
+        TS, nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        # 작업별 시간순 조회
+        Index("ix_event_job_time", "job_id", "occurred_at"),
+        # 통화별 보관 범위 정리 (research R3-9)
+        Index("ix_event_currency_job", "currency_code", "job_id"),
+    )
 
 
 class FxCollectionLock(Base):

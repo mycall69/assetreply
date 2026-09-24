@@ -39,6 +39,18 @@ async def shutdown_engine() -> None:
         _factory = None
 
 
+def get_session_factory() -> async_sessionmaker[AsyncSession]:
+    """워커가 쓸 세션 팩토리 (003 T024).
+
+    요청 경로 밖에서 도는 태스크는 FastAPI 의존성을 쓸 수 없다. 팩토리를 직접 받아
+    작업 단위마다 세션을 열고 닫는다.
+    """
+    if _factory is None:
+        init_engine()
+    assert _factory is not None
+    return _factory
+
+
 async def get_session() -> AsyncIterator[AsyncSession]:
     """FastAPI 의존성. 요청 단위로 세션을 열고 닫는다."""
     if _factory is None:

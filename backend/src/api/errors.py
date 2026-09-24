@@ -19,3 +19,15 @@ class OutOfRange(Exception):
 
 class InvalidSpread(Exception):
     """스프레드가 허용 범위를 벗어남 (FR-025, 422)."""
+
+
+class CollectionInProgress(Exception):
+    """다른 통화의 수집이 진행 중 (003 FR-029, 409).
+
+    조용히 무시하지 않고 예외로 올리는 이유는, 사용자에게 **어느 통화가 진행 중인지**
+    알려야 하기 때문이다. 버튼만 반응이 없으면 고장으로 여긴다.
+    """
+
+
+class InvalidQuery(Exception):
+    """필수 질의 매개변수가 없거나 조합이 잘못됨 (003, 400)."""

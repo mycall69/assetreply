@@ -125,6 +125,18 @@ class Settings:
     # 길게 잡으면 프로세스가 죽었을 때 새로고침이 오래 막힌다 (research R2-8).
     today_refresh_lock_ttl_seconds: int = 60
 
+    # ── 수집 실행·관측 (003) ──
+    # 진전이 없다고 화면에 알리는 기준. 점유 회수 기준(900초)과 별개다 — 경고는
+    # 사람에게 빨리 알리고, 회수는 시스템이 안전해진 뒤 되찾는다 (FR-006a, R3-3).
+    stall_threshold_seconds: int = 60
+    # 화면 조회용 수집 이벤트의 보관 범위. 통화별 최근 N개 작업 (FR-023, R3-9).
+    event_retention_jobs: int = 20
+    # 미해결 작업 정리 주기. 기동 시 1회 실행에 더해 이 간격으로 반복한다 (R3-2).
+    reconcile_interval_seconds: int = 60
+    # 수집 전용 로그 파일. 웹서버 표준출력과 분리한다 — 접근 로그와 뒤엉키면
+    # 운영자가 걸러내야 한다 (R3-10).
+    collection_log_path: str = "logs/collection.log"
+
     # ── 축적 범위 (FR-002, 헌법 v4.1.0) ──
     # 탐색 시작점일 뿐이다. 출처가 제공하는 실제 최초일은 수집 중 발견해
     # `currency.first_available_date`에 기록한다 (FR-002a).
@@ -141,6 +153,16 @@ class Settings:
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_pool_timeout_seconds: int = 30
+
+    def collection_log_file(self) -> Path:
+        """수집 로그의 절대 경로.
+
+        상대 경로는 **저장소 루트 기준**으로 푼다. uvicorn이 `backend/`에서 뜨기 때문에
+        그대로 두면 `backend/logs/`에 생겨, `be-start.sh`가 쓰는 루트 `logs/`와 갈라진다.
+        운영자가 두 곳을 뒤져야 한다.
+        """
+        path = Path(self.collection_log_path)
+        return path if path.is_absolute() else repo_root() / path
 
     def probe_start(self, currency_code: str) -> dt.date:
         """통화의 탐색 시작일 (FR-002).
@@ -189,6 +211,10 @@ def load_settings(env_file: Path | None = None) -> Settings:
         job_history_success_retention_days=_env_int("JOB_HISTORY_SUCCESS_RETENTION_DAYS", 90),
         daily_page_size=_env_int("DAILY_PAGE_SIZE", 30, minimum=1),
         today_refresh_lock_ttl_seconds=_env_int("TODAY_REFRESH_LOCK_TTL_SECONDS", 60, minimum=1),
+        stall_threshold_seconds=_env_int("STALL_THRESHOLD_SECONDS", 60, minimum=1),
+        event_retention_jobs=_env_int("EVENT_RETENTION_JOBS", 20, minimum=1),
+        reconcile_interval_seconds=_env_int("RECONCILE_INTERVAL_SECONDS", 60, minimum=1),
+        collection_log_path=_env_str("COLLECTION_LOG_PATH", "logs/collection.log"),
         ecos_probe_starts=_probe_starts(),
         db_host=_env_str("DB_HOST", "localhost"),
         db_port=_env_int("DB_PORT", 3306, minimum=1),

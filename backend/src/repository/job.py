@@ -57,6 +57,25 @@ async def finish_job(
     return job
 
 
+async def finalize_as_partial(
+    session: AsyncSession, job: FxCollectionJob, *, reason: str
+) -> FxCollectionJob:
+    """중단된 작업을 종료 상태로 확정한다 (003 FR-005a, FR-007).
+
+    **진행 중으로 남는 작업이 있어서는 안 된다.** 남으면 화면의 작업 목록에서 끝나지
+    않는 작업으로 계속 보이고, 성공도 실패도 아닌 채로 조용히 멈춰 있게 된다.
+
+    한 구간도 받지 못했으면 `failed`, 일부라도 받았으면 `partial`이다 — 받은 데이터는
+    유효하므로 완전 실패와 구별해야 사용자가 "얼마나 건졌는지"를 알 수 있다.
+    """
+    if job.status is not JobStatus.RUNNING:
+        return job
+    job.finished_at = dt.datetime.now()
+    job.status = JobStatus.PARTIAL if job.chunks_done > 0 else JobStatus.FAILED
+    job.last_error = reason
+    return job
+
+
 async def get_job(session: AsyncSession, job_id: int) -> FxCollectionJob | None:
     return (await session.execute(
         select(FxCollectionJob).where(FxCollectionJob.id == job_id))).scalar_one_or_none()

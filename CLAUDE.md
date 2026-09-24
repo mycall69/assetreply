@@ -7,11 +7,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 현재 상태
 
-**애플리케이션 소스 코드가 아직 존재하지 않는다.** 저장소에는 Spec-Kit 스캐폴딩(`.specify/`)과
-Claude Code 설정(`.claude/`), 그리고 제정된 헌법만 있다. `pyproject.toml`, `package.json`,
-테스트 러너, 마이그레이션 도구는 모두 미생성 상태이며, `git init`도 아직 수행되지 않았다.
+외환(FX) 자산군이 구현되어 있다.
 
-따라서 첫 작업은 코드 수정이 아니라 `/speckit-specify`로 첫 기능 명세를 만드는 것이다.
+| 기능 | 내용 |
+|------|------|
+| 001 | 환율 축적·조회·시각화. ECOS 어댑터, 청크 수집, 커버리지·재개, 작업·점유 모델 |
+| 002 | 외환 분석 화면 통합과 전역 셸. 확정/잠정 구분, 오늘 환율 새로고침, 스프레드 설정 |
+| 003 | 수집 실행 계층과 실시간 관측. **001·002가 만들어 두고 실행되지 않던 수집을 실제로 돌린다** |
+
+다음 자산군은 가상자산이다(헌법 원칙 IX의 고정 순서).
 
 ## 헌법이 최우선
 
@@ -109,8 +113,28 @@ FX → 가상자산 → 주식/ETF/지수 → 예금 → 부동산
 
 ## 명령어
 
-**아직 빌드/테스트 도구가 스캐폴딩되지 않았다.** 아래는 헌법이 규정한 스택과 실행 규약이며,
-도구를 도입할 때 이 형태를 따른다. 실제 커맨드가 확정되면 이 절을 갱신할 것.
+실행 스크립트는 저장소 루트에 있다 — `start.sh`·`stop.sh`(둘 다), `be-start.sh`·`be-stop.sh`,
+`fe-start.sh`·`fe-stop.sh`. 백엔드 8080, 프론트엔드 3030.
+
+```bash
+cd backend && .venv/bin/python -m pytest -q --cov=src   # 테스트 + 커버리지
+cd backend && .venv/bin/python -m mypy src              # 타입 (strict)
+cd backend && .venv/bin/python -m ruff check src tests  # 린트
+cd frontend && npm test && npx tsc --noEmit && npx eslint .
+```
+
+**백엔드는 반드시 단일 워커로 띄운다**(`--workers 1`, `be-start.sh`가 이미 지정). 003이
+수집 워커를 애플리케이션 프로세스 안에 두므로, 워커를 여럿 띄우면 프로세스마다 수집
+태스크가 생긴다. DB 점유가 중복 실행은 막지만 확인 호출에 일일 한도를 낭비한다.
+
+**로그는 두 곳으로 나뉜다.** `logs/backend.log`는 웹서버 표준출력이고,
+`logs/collection.log`는 수집 전용 구조화 로그다. 섞으면 접근 로그와 뒤엉켜 운영자가
+걸러내야 한다.
+
+**개발 서버를 띄운 채 통합 테스트를 돌리지 말 것.** 테스트가 같은 MySQL의 스키마를
+드롭·재생성하므로, 그 사이 서버가 조회하면 `Unknown column` 오류가 난다.
+
+아래는 헌법이 규정한 스택이다.
 
 - **Python 실행은 반드시 `.venv/` 내에서** (헌법 "Python 가상환경 [필수]").
   `source activate`에 의존하지 말고 인터프리터를 직접 호출한다:

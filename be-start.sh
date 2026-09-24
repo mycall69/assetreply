@@ -33,7 +33,13 @@ mkdir -p "$LOG_DIR"
 # uvicorn은 cwd 기준으로 `src.api.main`을 임포트하므로 backend/에서 띄운다.
 echo "백엔드 시작 중… (포트 $PORT)"
 cd "$ROOT/backend"
-nohup "$PYTHON" -m uvicorn src.api.main:app --reload --port "$PORT" \
+# `--workers 1`은 003의 배포 전제다 (research R3-1). 워커를 여럿 띄우면 프로세스마다
+# 수집 태스크가 생긴다. DB 점유가 중복 실행은 막지만, 이미 소진된 한도를 확인하는
+# 호출에도 비용이 들어 하루치 한도를 낭비한다.
+#
+# `--reload`는 파일을 저장할 때마다 프로세스를 재시작하므로 개발 중에는 워커가 자주
+# 죽는다. 단점이 아니라 기회다 — FR-005(비정상 종료 후 회수) 경로가 상시 검증된다.
+nohup "$PYTHON" -m uvicorn src.api.main:app --reload --workers 1 --port "$PORT" \
   >>"$LOG_FILE" 2>&1 &
 echo $! >"$PID_FILE"
 

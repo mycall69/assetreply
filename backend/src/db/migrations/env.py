@@ -20,7 +20,10 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # `disable_existing_loggers=False`가 필수다. 기본값(True)이면 마이그레이션을
+    # 코드에서 호출할 때마다 이미 만들어 둔 로거가 전부 꺼진다. 수집 로그가 오류
+    # 없이 조용히 사라지므로 한참 뒤에야 드러난다 (003).
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 
 def _repo_root() -> Path:
