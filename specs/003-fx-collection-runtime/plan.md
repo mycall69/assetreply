@@ -121,7 +121,7 @@ frontend/src/
 │   ├── RateLimitBanner.tsx              #   전체 배너 (W4)
 │   ├── EventList.tsx                    #   최근 기록 (W6)
 │   └── IncompleteRecordNotice.tsx       #   기록 불완전 (W5)
-├── components/shell/CollectionIndicator.tsx  # [변경] 멈춤·한도 반영 (W7)
+├── components/shell/CollectionIndicator.tsx  # [변경] 상시 노출·멈춤·한도 반영 (W7, R3-12)
 ├── stores/collectionStore.ts            # [변경] 수집 스트림 구독으로 전환
 └── lib/collectionStream.ts              # [신규] 수집 스트림 클라이언트
 ```
@@ -141,6 +141,7 @@ frontend/src/
 | FR-027 (통화 선택) | research R3-11, 002 `CurrencyTabs` 재사용, ui-wireframes W1 |
 | FR-028 (전환 시 잔존 금지) | research R3-11, contracts/rest-api `stream` 통화 대조, ui-wireframes 갱신 범위 |
 | FR-029 (진행 중 시작 거절) | contracts/rest-api `busyWith`·409, ui-wireframes W1 |
+| FR-030 (진입점 보장) | research R3-12, ui-wireframes W7, tasks T073·T090 |
 | FR-005·005a·005b (회수·부분 완료·새 작업) | research R3-2, `worker/reconcile.py`, data-model 상태 전이 |
 | FR-006·006a (60초 멈춤·회수 대기) | research R3-3, contracts/rest-api `state` 3값, ui-wireframes W3 |
 | FR-007 (정상 종료) | `worker/runner.py` 취소 처리, data-model 상태 전이 |
@@ -170,6 +171,7 @@ frontend/src/
 | SC-012·013a (한도 사유) | quickstart 9 |
 | SC-016 (전환 시 잔존 0) | quickstart 10 |
 | SC-017 (거절 사유 제시) | quickstart 17 |
+| SC-018 (대기 상태 도달) | quickstart 18 |
 | SC-015 (보관 상한) | quickstart 14 |
 
 ## 위험과 대응

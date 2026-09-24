@@ -20,7 +20,7 @@ description: "Task list template for feature implementation"
 - **[Story]**: 소속 사용자 스토리 (US1~US4)
 - 파일 경로를 반드시 포함한다
 - **ID는 안정적 참조다.** 반복(iteration)으로 추가된 태스크는 번호를 이어 붙이므로 ID 순서가
-  실행 순서와 일치하지 않을 수 있다. **실행 순서는 페이즈가 정한다** — T089는 Phase 3,
+  실행 순서와 일치하지 않을 수 있다. **실행 순서는 페이즈가 정한다** — T089·T090은 Phase 3,
   T086~T088은 Phase 4에 있다.
 - 삭제된 태스크는 번호를 재사용하지 않고 취소선으로 남긴다 (T020, T065)
 
@@ -96,6 +96,7 @@ description: "Task list template for feature implementation"
 - [ ] T030 [P] [US1] `backend/tests/unit/test_worker_queue.py` — 같은 통화의 중복 시작 요청이 큐에 쌓이지 않고 진행 중 작업에 합류하는지 검증한다 (FR-003)
 - [ ] T031 [US1] `be-start.sh`에 `--workers 1`을 명시하고, 다중 워커가 수집을 중복 실행한다는 주석을 남긴다 (research R3-1의 배포 전제)
 - [ ] T032 [US1] `backend/tests/integration/test_explicit_start_only.py` — 앱이 기동해도 사용자 조작 없이는 수집이 시작되지 않는지 검증한다 (FR-002)
+- [ ] T090 [P] [US1] `frontend/tests/CollectionIndicatorEntry.test.tsx` — 진행 중인 수집이 없을 때도 표시기가 렌더링되고 `/fx/collection` 링크를 갖는지 검증한다. **이 테스트가 깨지면 기능 전체가 도달 불가능해진다** (FR-030, SC-018)
 - [ ] T089 [US1] `backend/src/api/routes/collect.py`에 다른 통화의 수집이 진행 중인지 확인해 **409 `collection_in_progress`로 거절**하고 진행 중인 통화를 본문에 담는 처리를 추가한다. 함께 `backend/tests/integration/test_reject_concurrent_start.py`를 먼저 작성해 실패를 확인한다. 조용히 무시하면 사용자는 버튼이 고장난 것으로 여긴다 (FR-004, FR-029, SC-017)
 
 **Checkpoint**: 수집이 실제로 돌고, 화면을 떠나도 진행되며, 죽어도 회복된다. **여기까지가 MVP다**
@@ -191,7 +192,7 @@ description: "Task list template for feature implementation"
 - [ ] T070 [US4] `backend/src/api/services/timeline.py`에서 한도 소진 상태를 날짜가 바뀔 때 해제한다. 다음 날 사용자가 이어받기를 누르면 정상 동작해야 한다 (FR-002 — 자동 시작은 하지 않는다)
 - [ ] T071 [P] [US4] `frontend/src/components/collection/RateLimitBanner.tsx`를 만든다. 선택 통화 카드 **위**에 걸고 그 통화의 도달 지점을 제시한다. **다른 통화로 전환해도 소진 상태는 유지된다** — 전환하면 풀린다고 오해하면 헛수고한다 (ui-wireframes W4)
 - [ ] T072 [US4] `frontend/src/app/fx/collection/page.tsx` 상단에 호출 수를 한 줄로 넣고 **"참고 지표입니다 — 한도 판정은 출처 응답으로 합니다"**를 함께 표시한다. 서버 날짜 기준 집계가 실제 리셋과 어긋날 수 있다 (research R3-5)
-- [ ] T073 [US4] `frontend/src/components/shell/CollectionIndicator.tsx`를 확장한다. 진행 중인 **단일 통화**를 가리키며 멈춤은 `⚠ USD 응답 없음`, 한도 소진은 `⚠ 한도 소진 — 수집 중단됨`으로 표시한다. 누르면 **그 통화로 전환**되어야 한다 — 이름만 보여주고 갈 수 없으면 사용자가 직접 찾아야 한다 (ui-wireframes W7)
+- [ ] T073 [US4] `frontend/src/components/shell/CollectionIndicator.tsx`를 확장한다. **`if (running.length === 0) return null`을 제거해 진행 여부와 무관하게 렌더링하고**, 대기 상태에 `⟳ 수집 현황`을 표시한다(FR-030). 진행 중이면 **단일 통화**를 가리키며 멈춤은 `⚠ USD 응답 없음`, 한도 소진은 `⚠ 한도 소진 — 수집 중단됨`으로 표시한다. 누르면 **그 통화로 전환**되어야 한다 — 이름만 보여주고 갈 수 없으면 사용자가 직접 찾아야 한다 (ui-wireframes W7)
 - [ ] T074 [P] [US4] `frontend/tests/CollectionIndicator.test.tsx` — 멈춤·한도 상태가 표시기에 반영되는지 검증한다 (ui-wireframes W7)
 
 **Checkpoint**: 네 스토리 모두 독립적으로 동작한다
@@ -209,7 +210,7 @@ description: "Task list template for feature implementation"
 - [ ] T081 `cd backend && .venv/bin/python -m pytest -q --cov=src`로 커버리지 80% 이상을 확인한다. 미만이면 부족한 모듈의 단위 테스트를 보강한다 (헌법 품질 게이트)
 - [ ] T082 `backend/tests/`와 `frontend/tests/` 전체 스위트가 **네트워크 차단 상태에서** 통과하는지 확인한다 (헌법 원칙 III)
 - [ ] T083 `CLAUDE.md`의 명령어 절을 갱신한다 — 003이 도입한 `--workers 1` 전제와 수집 로그 파일 경로를 반영한다
-- [ ] T084 `specs/003-fx-collection-runtime/quickstart.md`의 검증 시나리오 18개를 순서대로 수동 실행하고 결과를 기록한다. **시나리오 9(한도 소진)는 호출을 많이 쓰므로 하루 한 번만 한다**
+- [ ] T084 `specs/003-fx-collection-runtime/quickstart.md`의 검증 시나리오 19개를 순서대로 수동 실행하고 결과를 기록한다. **시나리오 9(한도 소진)는 호출을 많이 쓰므로 하루 한 번만 한다**
 - [ ] T085 `.env.example`에 003이 추가한 설정값(`STALL_THRESHOLD_SECONDS`, `EVENT_RETENTION_JOBS`, `RECONCILE_INTERVAL_SECONDS`, `COLLECTION_LOG_PATH`)을 주석과 함께 넣는다. 실제 값은 넣지 않는다
 
 ---
@@ -281,13 +282,13 @@ Task: "test_currency_isolation.py — 통화 간 격리"
 1. Phase 1 Setup 완료
 2. Phase 2 Foundational 완료 (**모든 스토리를 차단하므로 최우선**)
 3. Phase 3 US1 완료
-4. **멈추고 검증**: quickstart 시나리오 1·2·3·6·7·17로 US1을 독립 검증
+4. **멈추고 검증**: quickstart 시나리오 1·2·3·6·7·17·18로 US1을 독립 검증
 5. 이 시점에 **"환율 데이터를 실제로 내려받는다"는 목표가 달성된다**
 
 ### Incremental Delivery
 
 1. Setup + Foundational → 기반 완성
-2. US1 → quickstart 1·2·3·6·7·17 → **MVP**
+2. US1 → quickstart 1·2·3·6·7·17·18 → **MVP**
 3. US2 → quickstart 4·5·10 → 진행이 보이고 통화를 고를 수 있다
 4. US3 → quickstart 11·12·13·14 → 기록이 남는다
 5. US4 → quickstart 9·16 → 한도가 보인다
