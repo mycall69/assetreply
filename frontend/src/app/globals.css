@@ -12,15 +12,16 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/*
+ * 다크 모드를 지원하지 않는다. 화면 전체가 라이트 모드 색상(`text-gray-900`,
+ * `border-gray-200` 등)으로만 작성되어 있어, OS가 다크 모드일 때 사이드바와 상단 바의
+ * 글자가 배경에 묻혀 보이지 않았다. `dark:` 변형 사용처가 한 곳도 없다.
+ *
+ * 되살리려면 `prefers-color-scheme` 블록만 다시 넣어서는 안 된다. 모든 컴포넌트에
+ * `dark:` 대응을 함께 넣어야 한다. 배경만 어두워지면 같은 증상이 재발한다.
+ */
 
 body {
-  background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
