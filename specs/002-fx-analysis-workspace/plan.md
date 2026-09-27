@@ -182,6 +182,8 @@ frontend/
 | FR-006~010 (통화·선택 날짜) | contracts/ui-interaction, `stores/fxWorkspaceStore.ts` |
 | FR-011~014 (요약) | contracts/rest-api `GET /api/fx/latest`, ui-wireframes W2 |
 | FR-015~019 (차트) | contracts/rest-api `GET /api/fx/series`(기존), research R2-4 |
+| FR-015 (프리셋 10단계) | `stores/fxWorkspaceStore.ts` `PRESETS`·`presetStart` (2026-09-27 반복) |
+| FR-019·SC-012 (클램프 알림) | `presetStart`의 잘림 판정 → `RangeNotice.clamped_to_coverage` (2026-09-27 반복) |
 | FR-017a/b (차트 잠정·끝점 보존) | research R2-4 — LTTB가 첫·끝 점을 항상 보존함을 확인 |
 | FR-020~026 (상세 표) | contracts/rest-api `GET /api/fx/daily`, research R2-5 |
 | FR-022a (선택 날짜가 표 밖) | contracts/ui-interaction 갱신 범위 표 |

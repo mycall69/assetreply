@@ -17,12 +17,12 @@ import { TodayRefresh } from "@/components/fx/TodayRefresh";
 import { TrendChart } from "@/components/fx/TrendChart";
 import { PeriodPresets } from "@/components/fx/PeriodPresets";
 import { EmptyState } from "@/components/EmptyState";
-import { useFxWorkspaceStore } from "@/stores/fxWorkspaceStore";
+import { PRESETS, useFxWorkspaceStore } from "@/stores/fxWorkspaceStore";
 
 export default function FxPage() {
   const {
     currency, selectedDate, preset, period, latest, daily, series, collecting,
-    notice, loading, error, loadingMore, loadMoreError, tableEpoch,
+    notice, presetNotice, loading, error, loadingMore, loadMoreError, tableEpoch,
     setCurrency, setPreset, setPeriod, selectDate, loadAll, loadMoreDaily,
   } = useFxWorkspaceStore();
 
@@ -74,6 +74,20 @@ export default function FxPage() {
               </h3>
               <PeriodPresets value={preset} onChange={(p) => void setPreset(p)} />
             </div>
+
+            {presetNotice && (
+              // FR-019 — 요청 구간이 축적 범위를 넘어 잘렸음을 알린다. 알리지 않으면
+              // 축적이 짧은 통화에서 여러 프리셋이 같은 차트를 그리는데 이유를 알 수
+              // 없어, 사용자는 버튼이 먹지 않는다고 여긴다 (SC-012).
+              <p
+                role="status"
+                data-testid="preset-clamp-notice"
+                className="mb-2 rounded border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800"
+              >
+                {presetNotice.message}
+              </p>
+            )}
+
             <TrendChart
               series={series}
               collecting={collecting}
@@ -114,9 +128,10 @@ export default function FxPage() {
   );
 }
 
+/**
+ * 차트 제목에 쓸 한글 이름. `PRESETS`에서 끌어온다 — 목록을 따로 적어 두면 프리셋을
+ * 더할 때 한쪽만 고쳐 제목이 `20y`처럼 키를 그대로 노출한다.
+ */
 function presetLabel(preset: string): string {
-  const map: Record<string, string> = {
-    "1m": "1개월", "6m": "6개월", "1y": "1년", "5y": "5년", "10y": "10년", all: "전체",
-  };
-  return map[preset] ?? preset;
+  return PRESETS.find((p) => p.key === preset)?.label ?? preset;
 }

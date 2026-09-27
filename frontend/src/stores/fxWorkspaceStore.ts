@@ -18,11 +18,15 @@ import type {
   SeriesResponse,
 } from "@/lib/types";
 
-export type Preset = "1m" | "6m" | "1y" | "5y" | "10y" | "all";
+export type Preset =
+  | "1m" | "6m" | "1y" | "5y" | "10y" | "20y" | "30y" | "40y" | "50y" | "all";
 
 /**
  * 기간 프리셋. 일 단위 데이터에서 하루·일주일 구간은 표시할 점이 너무 적어 추이로서
  * 의미가 없으므로 제외했다 (spec Assumptions).
+ *
+ * 2026-09-27 반복에서 20·30·40·50년을 더했다. 10년과 전체 사이가 비어 있으면
+ * USD(62년)에서 장기 추이를 볼 방법이 전체뿐이라, 구간을 좁혀 보려면 직접 지정해야 했다.
  */
 export const PRESETS: ReadonlyArray<{ key: Preset; label: string }> = [
   { key: "1m", label: "1개월" },
@@ -30,8 +34,21 @@ export const PRESETS: ReadonlyArray<{ key: Preset; label: string }> = [
   { key: "1y", label: "1년" },
   { key: "5y", label: "5년" },
   { key: "10y", label: "10년" },
+  { key: "20y", label: "20년" },
+  { key: "30y", label: "30년" },
+  { key: "40y", label: "40년" },
+  { key: "50y", label: "50년" },
   { key: "all", label: "전체" },
 ];
+
+/**
+ * 프리셋이 거슬러 올라가는 길이. 표로 두는 이유는 `else if`가 아홉 개로 늘어나면
+ * 한 줄만 빠뜨려도 그 프리셋이 조용히 "전체"로 떨어지기 때문이다.
+ */
+const MONTHS_BACK: Partial<Record<Preset, number>> = { "1m": 1, "6m": 6 };
+const YEARS_BACK: Partial<Record<Preset, number>> = {
+  "1y": 1, "5y": 5, "10y": 10, "20y": 20, "30y": 30, "40y": 40, "50y": 50,
+};
 
 function yesterday(): Date {
   const d = new Date();
@@ -41,24 +58,63 @@ function yesterday(): Date {
 
 const iso = (d: Date): string => d.toISOString().slice(0, 10);
 
+/** 프리셋이 요구하는 시작일. `all`은 길이가 아니라 "축적 전부"라 `null`이다. */
+function requestedStart(preset: Preset): string | null {
+  const start = yesterday();
+  const months = MONTHS_BACK[preset];
+  if (months !== undefined) {
+    start.setMonth(start.getMonth() - months);
+    return iso(start);
+  }
+  const years = YEARS_BACK[preset];
+  if (years !== undefined) {
+    start.setFullYear(start.getFullYear() - years);
+    return iso(start);
+  }
+  return null;
+}
+
+/** 통화의 축적이 시작되는 날. 최초 제공일을 모르면 수집 시작일을 바닥으로 쓴다. */
+function coverageFloor(coverage: CoverageRow | null): string | null {
+  return coverage?.firstAvailableDate ?? coverage?.coveredFrom ?? null;
+}
+
 /**
  * 프리셋 → 시작일. "전체"는 통화마다 다르므로 여기서 정할 수 없다(FR-002).
  * 커버리지에서 받은 값을 호출부가 채운다.
  */
 export function presetStart(preset: Preset, coverage: CoverageRow | null): string {
-  const end = yesterday();
-  const start = new Date(end);
-  if (preset === "1m") start.setMonth(start.getMonth() - 1);
-  else if (preset === "6m") start.setMonth(start.getMonth() - 6);
-  else if (preset === "1y") start.setFullYear(start.getFullYear() - 1);
-  else if (preset === "5y") start.setFullYear(start.getFullYear() - 5);
-  else if (preset === "10y") start.setFullYear(start.getFullYear() - 10);
-  else return coverage?.firstAvailableDate ?? coverage?.coveredFrom ?? iso(start);
+  const wanted = requestedStart(preset);
+  const floor = coverageFloor(coverage);
+  if (wanted === null) return floor ?? iso(yesterday());
 
   // 프리셋이 요구하는 구간이 축적 시작일보다 이르면 실제 범위만 쓴다 (FR-019).
-  const floor = coverage?.firstAvailableDate ?? coverage?.coveredFrom;
-  const wanted = iso(start);
-  return floor && wanted < floor ? floor : wanted;
+  return floor !== null && wanted < floor ? floor : wanted;
+}
+
+/**
+ * 요청 구간이 축적 범위를 넘어 잘렸음을 알리는 안내 (FR-019, SC-012).
+ *
+ * **잘리지 않았으면 `null`이다.** 늘 알리면 안내가 배경 소음이 되어 진짜 잘린 경우를
+ * 가린다. 반대로 알리지 않으면 EUR(1994~)에서 40년·50년·전체가 같은 차트를 그리는데
+ * 이유를 알 수 없어, 사용자는 버튼이 먹지 않는다고 여긴다.
+ *
+ * 커버리지를 아직 모르면 알리지 않는다 — 모르는 것과 잘린 것은 다르다.
+ */
+export function presetClampNotice(
+  preset: Preset,
+  coverage: CoverageRow | null,
+): RangeNotice | null {
+  const wanted = requestedStart(preset);
+  const floor = coverageFloor(coverage);
+  if (wanted === null || floor === null || coverage === null) return null;
+  if (wanted >= floor) return null;
+  // 통화 코드 뒤에 조사를 붙이지 않는다 — USD는 "유에스디", EUR은 "이유알"로 읽혀
+  // 받침이 갈린다. 쌍점으로 끊으면 조사 선택 자체가 없어진다.
+  return {
+    kind: "clamped_to_coverage",
+    message: `${coverage.currency}: ${floor}부터 축적되어 있어 그 구간만 표시합니다.`,
+  };
 }
 
 /**
@@ -102,6 +158,12 @@ interface FxWorkspaceState {
   series: SeriesResponse | null;
   collecting: SeriesCollecting | null;
   notice: RangeNotice | null;
+  /**
+   * 프리셋이 축적 범위를 넘어 잘렸을 때의 안내 (FR-019). `notice`와 **따로 둔다** —
+   * 그쪽은 선택 날짜에 대한 안내라 날짜 입력 아래에 나온다. 차트 이야기를 거기서 하면
+   * 사용자가 무엇에 대한 말인지 알 수 없다.
+   */
+  presetNotice: RangeNotice | null;
   loading: boolean;
   error: string | null;
   /** 이어 보기가 진행 중인가. 중복 요청을 막는 첫 겹이다 (FR-005). */
@@ -157,6 +219,7 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
   series: null,
   collecting: null,
   notice: null,
+  presetNotice: null,
   loading: false,
   error: null,
   loadingMore: false,
@@ -183,6 +246,7 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
       const cov = await covPromise;
       const row = cov.coverage.find((c) => c.currency === currency) ?? null;
       const from = presetStart(preset, row);
+      const presetNotice = presetClampNotice(preset, row);
       const to = row?.coveredThrough ?? from;
 
       const [latest, daily, series] = await Promise.all([
@@ -201,6 +265,7 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
 
       set({
         coverage: cov.coverage,
+        presetNotice,
         latest,
         daily,
         series: collecting ? null : (series as SeriesResponse),
@@ -235,7 +300,15 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
     const row = get().coverageFor();
     const from = presetStart(preset, row);
     const to = row?.coveredThrough ?? from;
-    set({ preset, loading: true, error: null, collecting: null });
+    // FR-019 — 잘렸으면 그 사실을 알린다. 세우지 않으면 EUR에서 40년·50년·전체가
+    // 같은 차트인데 이유를 알 수 없다 (SC-012).
+    set({
+      preset,
+      presetNotice: presetClampNotice(preset, row),
+      loading: true,
+      error: null,
+      collecting: null,
+    });
     try {
       const series = await apiClient.get<SeriesResponse | SeriesCollecting>(
         `/api/fx/series?currency=${currency}&from=${from}&to=${to}`,

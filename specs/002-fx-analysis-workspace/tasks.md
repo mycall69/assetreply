@@ -119,11 +119,11 @@ plan.md의 웹 애플리케이션 구조를 따른다: `backend/src/`, `backend/
 ### Implementation for User Story 2
 
 - [X] T039 [US2] `backend/src/api/routes/series.py`의 응답 포인트에 `isProvisional`을 추가 (contracts/rest-api 변경분)
-- [X] T040 [P] [US2] `frontend/src/components/fx/PeriodPresets.tsx`에 기간 프리셋 6단계(1개월/6개월/1년/5년/10년/전체) 구현 (FR-015, spec Assumptions)
+- [X] T040 [P] [US2] `frontend/src/components/fx/PeriodPresets.tsx`에 기간 프리셋 구현 (FR-015, spec Assumptions). **2026-09-27 반복: 6단계 → 10단계(20·30·40·50년 추가). T093·T095가 넓힌다**
 - [X] T041 [P] [US2] `frontend/src/components/fx/TrendChart.tsx`에 차트 구현 — **미수집** 구간 분리(2026-09-27 반복: 휴장일은 이어 그린다), 잠정 구간 스타일 구분, 범례 (FR-017, FR-017a)
 - [X] T042 [US2] `frontend/src/components/fx/TrendChart.tsx`와 `frontend/src/stores/fxWorkspaceStore.ts`를 연결해 강조선·날짜 라벨·점 표식을 선택 날짜에 묶고, 차트 지정 시 **가장 가까운 실제 포인트**의 날짜를 선택 (FR-016, contracts/ui-interaction)
 - [X] T043 [US2] `frontend/src/components/fx/TrendChart.tsx`에 선택 날짜가 현재 기간 밖일 때의 안내를 구현하고 **선택 날짜를 임의로 바꾸지 않음** (contracts/ui-interaction)
-- [X] T044 [US2] `frontend/src/components/fx/PeriodPresets.tsx`에서 `GET /api/fx/coverage`로 통화별 축적 범위를 받아, 프리셋 구간이 그보다 이를 때 실제 범위만 표시하고 그 사실을 알림 (FR-019)
+- [X] T044 [US2] `frontend/src/components/fx/PeriodPresets.tsx`에서 `GET /api/fx/coverage`로 통화별 축적 범위를 받아, 프리셋 구간이 그보다 이를 때 실제 범위만 표시하고 그 사실을 알림 (FR-019). **2026-09-27 반복: "알림" 절반이 구현되지 않은 채였다 — `clamped_to_coverage` 종류만 선언되고 만드는 곳이 없었다. T094가 채운다**
 
 **Checkpoint**: 추이 확인과 시점 지정이 동작한다.
 
@@ -226,6 +226,24 @@ plan.md의 웹 애플리케이션 구조를 따른다: `backend/src/`, `backend/
 - [X] T087 [US4] `frontend/src/components/fx/TodayRefresh.tsx`에 요청 귀속 구현 — 요청 시점의 통화를 클로저에 담고 응답 시점의 통화와 비교한다. 안내·오류는 어느 통화의 것인지와 함께 보관해 통화가 바뀌면 자연히 감춰지게 한다 (FR-036c)
 - [X] T088 `backend/src/ingestion/today.py`의 `store_provisional`에 잠정 불변식 강제 — 오늘이 아닌 날짜는 잠정으로 저장할 수 없다. 날짜를 오늘로 제한하면 "통화당 최대 1행"은 기본 키에서 자동으로 따라온다. `backend/tests/integration/test_provisional_invariant.py`에 6건 검증 (FR-037c)
 - [X] T089 잠정 잔존 탐지·노출 구현 — `backend/src/repository/fx_rate.py`의 `oldest_stale_provisional`로 통화별 가장 오래된 잔존을 찾고, `GET /api/fx/coverage`가 `staleProvisional`로 내려주며, `frontend/src/components/CollectionStatus.tsx`가 해당 통화 행에 날짜와 해소 방법을 함께 표시한다. **오늘 날짜의 잠정은 잔존으로 세지 않는다** — 매일 경고가 떠서 신호가 무의미해진다 (FR-043a, FR-043b, SC-007b)
+
+---
+
+## Phase 9: Iteration 2026-09-27 — 장기 프리셋과 클램프 알림
+
+**Purpose**: 프리셋을 10단계로 넓히고, FR-019가 요구했으나 구현되지 않았던 "잘린 사실을
+알린다"를 채운다.
+
+**서버는 손대지 않는다.** 서버는 프리셋을 모르고, 화면이 날짜로 환산해 `from`~`to`를 보낸다.
+
+- [X] T090 `frontend/tests/PeriodPresets.test.tsx`를 만든다 — 10개 프리셋이 모두 나오는지, 활성 표시가 하나뿐인지, 누르면 그 키로 알리는지 검증한다 (FR-015)
+- [X] T091 [P] `frontend/tests/presetRange.test.ts`를 만든다 — `presetStart`가 20·30·40·50년을 올바로 환산하는지, **축적 시작일보다 이르면 그 날짜로 잘리는지** 검증한다. 윤년 경계(2월 29일)를 사례로 쓴다 (FR-015, FR-019)
+- [X] T092 [P] `frontend/tests/presetClampNotice.test.ts`를 만든다 — 잘렸을 때 `clamped_to_coverage` 알림이 생기고, **잘리지 않았으면 생기지 않는지** 검증한다. 늘 알리면 안내가 배경 소음이 되어 진짜 잘린 경우를 가린다 (FR-019, SC-012)
+- [X] T093 `frontend/src/stores/fxWorkspaceStore.ts`의 `Preset` 타입과 `PRESETS` 목록에 `20y`·`30y`·`40y`·`50y`를 더하고 `presetStart`에 분기를 만든다. `else if`가 아홉 개로 늘어나므로 연수 표를 두어 반복을 없앤다 (FR-015)
+- [X] T094 `frontend/src/stores/fxWorkspaceStore.ts`에서 **잘렸을 때 알림을 만든다.** 요청한 시작일과 실제 시작일이 다르면 `clamped_to_coverage`를 세운다. 지금은 종류만 선언돼 있고 만드는 곳이 없다 (FR-019, SC-012)
+- [X] T095 `frontend/src/components/fx/PeriodPresets.tsx`에 `flex-wrap`을 넣는다. 10개가 한 줄에 들어가지 않으면 **뒤쪽 프리셋을 누를 수 없다** (FR-015)
+- [X] T096 `frontend/src/app/fx/page.tsx`의 `presetLabel` 맵에 네 항목을 더한다. 빠지면 차트 제목이 `20y`처럼 키를 그대로 노출한다 (FR-015)
+- [X] T097 품질 게이트 — `cd frontend && npx vitest run && npx tsc --noEmit && npx eslint .`
 
 ---
 
