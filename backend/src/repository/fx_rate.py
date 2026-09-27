@@ -73,6 +73,38 @@ async def page_before(
         stmt.order_by(FxRate.quote_date.desc()).limit(limit))).scalars())
 
 
+async def quote_dates_before(
+    session: AsyncSession, currency_code: str, *, before: dt.date | None, limit: int
+) -> list[dt.date]:
+    """`before` 미만의 **고시일만** 최신순으로 `limit`건 (004 FR-008).
+
+    행 전체가 아니라 날짜만 읽는 이유는 호출부가 구간별 마지막 날짜를 고르는 데에만
+    쓰기 때문이다. 주·월 단위 한 페이지를 만들려면 그 몇 배의 날짜를 훑어야 하는데,
+    행 전체를 옮기면 버려질 데이터가 대부분이다.
+
+    **구간 경계를 여기서 계산하지 않는다.** 주·월의 정의는 `api/services/period_rows.py`
+    한 곳에만 있다 — SQL에 두면 DB마다 주 정의가 달라 조용히 다른 묶음이 된다
+    (헌법 DB 운영 규약).
+    """
+    stmt = select(FxRate.quote_date).where(FxRate.currency_code == currency_code)
+    if before is not None:
+        stmt = stmt.where(FxRate.quote_date < before)
+    return list((await session.execute(
+        stmt.order_by(FxRate.quote_date.desc()).limit(limit))).scalars())
+
+
+async def rows_on(
+    session: AsyncSession, currency_code: str, dates: list[dt.date]
+) -> list[FxRate]:
+    """지정한 고시일들의 행 (004 FR-008). 순서는 보장하지 않는다."""
+    if not dates:
+        return []
+    return list((await session.execute(
+        select(FxRate).where(
+            FxRate.currency_code == currency_code,
+            FxRate.quote_date.in_(dates)))).scalars())
+
+
 async def series(
     session: AsyncSession, currency_code: str, start: dt.date, end: dt.date,
     *, confirmed_only: bool = False,

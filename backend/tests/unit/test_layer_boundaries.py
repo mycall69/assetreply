@@ -102,3 +102,26 @@ def test_일자별_조회_서비스가_계산을_직접_하지_않는다() -> No
         if isinstance(n, ast.ImportFrom) and n.module
     }
     assert any("simulation" in m for m in imported), "순수 함수를 재사용하지 않는다"
+
+
+def test_기간_단위_서비스가_라우트를_임포트하지_않는다() -> None:
+    """T041 — 헌법 원칙 IV.
+
+    `api/services/period_rows.py`는 조회와 표현 **사이**에 있다. 라우트를 알게 되면
+    구간 판정을 HTTP 없이 단독으로 테스트할 수 없어 원칙 III도 함께 무너진다.
+    """
+    path = SRC / "api" / "services" / "period_rows.py"
+    offenders = [m for m in _imports(path) if m.startswith("src.api.routes")]
+    assert offenders == [], f"period_rows 계층 위반: {offenders}"
+
+
+def test_리포지토리가_구간_정의를_갖지_않는다() -> None:
+    """T041, 004 — 주·월의 정의는 `period_rows.py` 한 곳에만 있어야 한다.
+
+    SQL에 두면 DB마다 주 정의가 달라(MySQL은 일요일 시작, PostgreSQL은 ISO 월요일
+    시작) 같은 질의가 **오류 없이 다른 묶음**을 돌려준다 (헌법 DB 운영 규약).
+    """
+    body = (SRC / "repository" / "fx_rate.py").read_text(encoding="utf-8")
+    for token in ("YEARWEEK", "WEEKDAY", "DAYOFWEEK", "DATEDIFF", 'extract("week"',
+                  "extract('week'", "monthrange"):
+        assert token not in body, f"리포지토리에 구간 정의: {token}"

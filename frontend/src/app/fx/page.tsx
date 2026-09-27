@@ -9,6 +9,7 @@
 
 import { useEffect } from "react";
 import { CurrencyTabs } from "@/components/fx/CurrencyTabs";
+import { PeriodTabs } from "@/components/fx/PeriodTabs";
 import { DailyTable } from "@/components/fx/DailyTable";
 import { DateHighlightInput } from "@/components/fx/DateHighlightInput";
 import { RateSummary } from "@/components/fx/RateSummary";
@@ -20,8 +21,9 @@ import { useFxWorkspaceStore } from "@/stores/fxWorkspaceStore";
 
 export default function FxPage() {
   const {
-    currency, selectedDate, preset, latest, daily, series, collecting, notice,
-    loading, error, setCurrency, setPreset, selectDate, loadAll, loadMoreDaily,
+    currency, selectedDate, preset, period, latest, daily, series, collecting,
+    notice, loading, error, loadingMore, loadMoreError, tableEpoch,
+    setCurrency, setPreset, setPeriod, selectDate, loadAll, loadMoreDaily,
   } = useFxWorkspaceStore();
 
   useEffect(() => {
@@ -82,16 +84,28 @@ export default function FxPage() {
           </section>
 
           <section>
-            <div className="mb-2 flex items-center justify-between">
+            {/*
+              왼쪽이 "무엇을 볼지", 오른쪽이 "가져갈지"다. 내려받기는 표 안에 둔다
+              (contracts/ui-wireframes.md W1).
+            */}
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-sm font-semibold">일자별 환율 상세</h3>
+              <PeriodTabs value={period} onChange={(p) => void setPeriod(p)} />
             </div>
-            {daily && (
+            {daily ? (
               <DailyTable
                 data={daily}
                 selectedDate={selectedDate}
                 onSelect={(d) => void selectDate(d)}
                 onLoadMore={() => void loadMoreDaily()}
+                loadingMore={loadingMore}
+                loadError={loadMoreError}
+                resetKey={tableEpoch}
               />
+            ) : (
+              <p role="status" className="rounded-lg border border-gray-200 px-4 py-6 text-center text-sm text-gray-500">
+                ⟳ 불러오는 중…
+              </p>
             )}
           </section>
         </>

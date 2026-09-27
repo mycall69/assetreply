@@ -25,7 +25,7 @@
 | 프레임워크 | FastAPI, SQLAlchemy 2.x async |
 | 언어 (프론트엔드) | TypeScript 5.x (`strict`), Next.js 16 App Router, React 19 |
 | 상태 관리 | Zustand (헌법 원칙 VII) |
-| DB | MySQL 8.0+ — **윈도 함수**(`ROW_NUMBER() OVER PARTITION BY`) 사용 |
+| DB | MySQL 8.0+ — **ORM 표준 질의만** 사용. 구간 묶기는 서비스가 한다 (research R4-2) |
 | 테스트 | pytest·pytest-asyncio / Vitest·React Testing Library |
 | 타입·린트 | mypy strict, ruff / tsc, eslint |
 | 집계 위치 | **서버** (research R4-1) |
@@ -50,7 +50,7 @@ NEEDS CLARIFICATION 없음. 명세가 설계로 미룬 항목은 research에서 
 | VII. 반응형 UI | ✅ | 상태는 Zustand. 스크롤이 UI를 막지 않는다 |
 | VIII. 한국어 문서화 | ✅ | 모든 산출물·주석·커밋이 한국어 |
 | IX. MVP/YAGNI | ✅ | 가상 스크롤·집계 테이블·뷰를 도입하지 않는다(R4-1, R4-6) |
-| DB 운영 규약 | ✅ | 윈도 함수는 표준 SQL이다. 스키마 변경이 없어 마이그레이션도 없다 |
+| DB 운영 규약 | ✅ | 방언 문법을 쓰지 않는다. 주 정의가 DB마다 달라 구간 묶기를 SQL 밖에 둔다. 스키마 변경이 없어 마이그레이션도 없다 |
 | 명세 작성 규약 | ✅ | FR 신설 시 plan 추적성·tasks 참조를 같은 작업 단위에서 갱신한다 |
 
 **위반 0건.** Complexity Tracking 불필요.
@@ -84,9 +84,9 @@ specs/004-fx-table-scroll-periods/
 
 ```
 backend/src/
-├── repository/fx_rate.py          # [변경] 주·월 기준일 페이지 조회 추가
+├── repository/fx_rate.py          # [변경] 고시일 목록·지정 행 조회 추가
 ├── api/services/
-│   ├── period_rows.py             # [신규] 기준일 판정·구간 범위·진행 중 판정
+│   ├── period_rows.py             # [신규] 기준일 판정·구간 범위·진행 중 판정·구간 페이지
 │   └── daily_query.py             # [변경] period 매개변수 전달
 └── api/routes/daily.py            # [변경] period 질의 매개변수, 응답 필드 4종
 

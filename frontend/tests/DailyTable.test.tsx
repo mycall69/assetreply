@@ -14,15 +14,21 @@ const DERIVED = {
   cashBuy: "1358.54", cashSell: "1353.66", remitSend: "1356.78", remitReceive: "1355.42",
 };
 
+/** 일 단위에서는 `periodFrom == periodTo == date`이고 진행 중이 아니다 (004 계약). */
+const day = (date: string, baseRate: string, isProvisional: boolean) => ({
+  date, baseRate, isProvisional, derived: DERIVED,
+  periodFrom: date, periodTo: date, isOngoing: false,
+});
+
 const DATA: DailyResponse = {
-  currency: "USD", quoteUnit: 1,
+  currency: "USD", period: "daily", quoteUnit: 1,
   appliedSpread: { cashBuy: "0.001800", cashSell: "0.001800", remitSend: "0.000500", remitReceive: "0.000500" },
   spreadBasis: "current",
   rows: [
-    { date: "2026-08-30", baseRate: "1354.200000", isProvisional: true, derived: DERIVED },
-    { date: "2026-08-29", baseRate: "1356.100000", isProvisional: false, derived: DERIVED },
+    day("2026-08-30", "1354.200000", true),
+    day("2026-08-29", "1356.100000", false),
     // 08-16 ~ 08-28은 고시 없음 — 행이 없는 것이 정상
-    { date: "2026-08-15", baseRate: "1368.500000", isProvisional: false, derived: DERIVED },
+    day("2026-08-15", "1368.500000", false),
   ],
   hasMore: true,
   oldestReturned: "2026-08-15",
@@ -65,10 +71,5 @@ describe("일자별 상세 표", () => {
     render(<DailyTable data={DATA} selectedDate={null} onSelect={onSelect} onLoadMore={vi.fn()} />);
     await userEvent.click(screen.getByText("2026-08-29"));
     expect(onSelect).toHaveBeenCalledWith("2026-08-29");
-  });
-
-  it("더 보기가 있으면 버튼을 노출한다", () => {
-    render(<DailyTable data={DATA} selectedDate={null} onSelect={vi.fn()} onLoadMore={vi.fn()} />);
-    expect(screen.getByRole("button", { name: "더 보기" })).toBeInTheDocument();
   });
 });

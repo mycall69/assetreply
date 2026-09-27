@@ -12,6 +12,8 @@ import type {
   CoverageRow,
   DailyResponse,
   LatestResponse,
+  PeriodRow,
+  PeriodUnit,
   SeriesCollecting,
   SeriesResponse,
 } from "@/lib/types";
@@ -59,6 +61,29 @@ export function presetStart(preset: Preset, coverage: CoverageRow | null): strin
   return floor && wanted < floor ? floor : wanted;
 }
 
+/**
+ * 선택 날짜가 속한 구간의 행 (004 FR-019, research R4-7).
+ *
+ * **기준일만으로는 판정할 수 없다.** 주·월 단위에서 선택 날짜가 기준일인 경우가 오히려
+ * 드물어, 기준일과 대조하면 강조가 거의 사라진다 — 사용자는 선택이 풀린 것으로
+ * 오해한다. 그래서 행이 덮는 구간(`periodFrom`~`periodTo`)으로 판정한다.
+ *
+ * 순수 함수로 두는 이유는 이미 받은 행으로 답할 수 있는 질문이기 때문이다. 서버가
+ * 판정하면 선택 날짜가 바뀔 때마다 재조회해야 한다.
+ */
+export function highlightedRow(
+  daily: DailyResponse | null,
+  selectedDate: string | null,
+): PeriodRow | null {
+  if (daily === null || selectedDate === null) return null;
+  // ISO 날짜 문자열은 사전순 비교가 곧 시간순 비교다.
+  return (
+    daily.rows.find(
+      (r) => r.periodFrom <= selectedDate && selectedDate <= r.periodTo,
+    ) ?? null
+  );
+}
+
 export interface RangeNotice {
   readonly kind: "out_of_range" | "clamped_to_coverage";
   readonly message: string;
@@ -69,6 +94,8 @@ interface FxWorkspaceState {
   /** 화면 전체가 공유하는 하나의 선택 날짜 (FR-008). */
   selectedDate: string | null;
   preset: Preset;
+  /** 표가 행을 고르는 기준 (004 FR-006). 화면 세션 안에서만 유지한다. */
+  period: PeriodUnit;
   coverage: CoverageRow[];
   latest: LatestResponse | null;
   daily: DailyResponse | null;
@@ -77,10 +104,23 @@ interface FxWorkspaceState {
   notice: RangeNotice | null;
   loading: boolean;
   error: string | null;
+  /** 이어 보기가 진행 중인가. 중복 요청을 막는 첫 겹이다 (FR-005). */
+  loadingMore: boolean;
+  /**
+   * 이어 보기 실패. `error`와 **따로 둔다** — 표 아래에서 말해야 할 일을 상단 경고로
+   * 올리면 표가 멀쩡한데 화면이 고장 난 것처럼 보인다 (FR-004).
+   */
+  loadMoreError: string | null;
+  /**
+   * 표가 통째로 바뀔 때마다 증가한다. 화면은 이 값이 바뀌면 스크롤을 처음으로
+   * 되돌린다 (FR-005b). 상태에 두는 이유는 표를 바꾸는 경로가 여럿이기 때문이다.
+   */
+  tableEpoch: number;
 
   coverageFor: (currency?: CurrencyCode) => CoverageRow | null;
   setCurrency: (c: CurrencyCode) => Promise<void>;
   setPreset: (p: Preset) => Promise<void>;
+  setPeriod: (p: PeriodUnit) => Promise<void>;
   selectDate: (date: string) => Promise<void>;
   loadAll: () => Promise<void>;
   loadMoreDaily: () => Promise<void>;
@@ -110,6 +150,7 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
   currency: "USD",
   selectedDate: null,
   preset: "1y",
+  period: "daily",
   coverage: [],
   latest: null,
   daily: null,
@@ -118,6 +159,9 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
   notice: null,
   loading: false,
   error: null,
+  loadingMore: false,
+  loadMoreError: null,
+  tableEpoch: 0,
 
   coverageFor: (currency) => {
     const code = currency ?? get().currency;
@@ -143,7 +187,8 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
 
       const [latest, daily, series] = await Promise.all([
         apiClient.get<LatestResponse>(`/api/fx/latest?currency=${currency}`),
-        apiClient.get<DailyResponse>(`/api/fx/daily?currency=${currency}`),
+        apiClient.get<DailyResponse>(
+          `/api/fx/daily?currency=${currency}&period=${get().period}`),
         apiClient.get<SeriesResponse | SeriesCollecting>(
           `/api/fx/series?currency=${currency}&from=${from}&to=${to}`,
         ),
@@ -210,6 +255,38 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
   },
 
   /**
+   * 기간 단위를 바꾸면 표를 새 단위로 다시 받는다 (004 FR-010, FR-011).
+   *
+   * **선택 날짜는 건드리지 않는다** (FR-019b). 기준일로 옮겨 놓으면 일 단위로
+   * 돌아왔을 때 원래 고른 날짜를 잃는다. 강조 대상만 구간으로 찾는다 (research R4-7).
+   *
+   * 실패해도 단위 선택은 유지한다. 되돌리고 오류만 보이면 사용자는 클릭이 먹지
+   * 않은 것으로 여긴다 (002 FR-010에서 같은 판단을 했다).
+   */
+  setPeriod: async (period) => {
+    const { currency } = get();
+    // 1겹: 전환 즉시 비운다. 한 프레임도 이전 단위가 남지 않는다 (FR-010, SC-010).
+    set({
+      period,
+      daily: null,
+      loadingMore: false,
+      loadMoreError: null,
+      error: null,
+      tableEpoch: get().tableEpoch + 1,
+    });
+    try {
+      const body = await apiClient.get<DailyResponse>(
+        `/api/fx/daily?currency=${currency}&period=${period}`,
+      );
+      // 2겹: 도착한 응답의 단위를 현재 선택과 대조한다 (FR-011, research R4-8).
+      if (body.period !== get().period) return;
+      set({ daily: body });
+    } catch (err) {
+      set({ error: message(err, "표를 불러오지 못했습니다.") });
+    }
+  },
+
+  /**
    * 선택 날짜 변경은 **대체로 아무것도 다시 받지 않는다**. 예외는 선택 날짜가 표의
    * 현재 표시 범위 밖일 때뿐이다 (FR-022a).
    */
@@ -238,25 +315,55 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
     next.setUTCDate(next.getUTCDate() + 1);
     try {
       const body = await apiClient.get<DailyResponse>(
-        `/api/fx/daily?currency=${get().currency}&before=${iso(next)}`,
+        `/api/fx/daily?currency=${get().currency}&period=${get().period}` +
+          `&before=${iso(next)}`,
       );
-      set({ daily: body });
+      // 쌓아 둔 행을 **버린다**. 이어 붙이면 30년을 건너뛸 때 그 사이 전부를 한꺼번에
+      // 받게 된다 (FR-005a). 스크롤 위치도 처음으로 되돌린다 (FR-005b).
+      set({
+        daily: body,
+        loadMoreError: null,
+        tableEpoch: get().tableEpoch + 1,
+      });
     } catch (err) {
       set({ error: message(err, "표를 불러오지 못했습니다.") });
     }
   },
 
-  /** 더 과거를 이어 받는다 (FR-026). 기존 행 뒤에 붙인다. */
+  /**
+   * 더 과거를 이어 받는다 (FR-026, 004 FR-001). **기존 배열 끝에 덧붙인다** — 전체를
+   * 교체하면 보던 위치가 처음으로 튄다 (FR-003, research R4-6).
+   *
+   * 끝에 도달했거나 이미 불러오는 중이면 아무것도 하지 않는다. 중복 요청은 오류 없이
+   * 성공하면서 같은 행을 두 번 그린다 (FR-005, SC-003, SC-004).
+   */
   loadMoreDaily: async () => {
-    const { currency, daily } = get();
-    if (daily === null || !daily.hasMore) return;
+    const { currency, daily, loadingMore } = get();
+    if (daily === null || !daily.hasMore || loadingMore) return;
+    set({ loadingMore: true, loadMoreError: null });
     try {
       const more = await apiClient.get<DailyResponse>(
-        `/api/fx/daily?currency=${currency}&before=${daily.oldestReturned}`,
+        `/api/fx/daily?currency=${currency}&period=${get().period}` +
+          `&before=${daily.oldestReturned}`,
       );
-      set({ daily: { ...more, rows: [...daily.rows, ...more.rows] } });
+      // 뒤늦게 도착한 이전 단위의 응답은 버린다 (FR-011). 단위를 대조하지 않으면
+      // 주 단위 표에 일 단위 행이 **오류 없이** 이어 붙는다.
+      if (more.period !== get().period) {
+        set({ loadingMore: false });
+        return;
+      }
+      const current = get().daily;
+      set({
+        daily: { ...more, rows: [...(current?.rows ?? []), ...more.rows] },
+        loadingMore: false,
+      });
     } catch (err) {
-      set({ error: message(err, "이어서 불러오지 못했습니다.") });
+      // 이미 표시된 행은 그대로 둔다 (FR-004). 조용히 멈추면 사용자는 데이터가
+      // 거기서 끝난 것으로 오해한다.
+      set({
+        loadingMore: false,
+        loadMoreError: message(err, "이어서 불러오지 못했습니다."),
+      });
     }
   },
 
@@ -266,7 +373,8 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
     try {
       const [latest, daily] = await Promise.all([
         apiClient.get<LatestResponse>(`/api/fx/latest?currency=${currency}`),
-        apiClient.get<DailyResponse>(`/api/fx/daily?currency=${currency}`),
+        apiClient.get<DailyResponse>(
+          `/api/fx/daily?currency=${currency}&period=${get().period}`),
       ]);
       set({ latest, daily });
     } catch (err) {

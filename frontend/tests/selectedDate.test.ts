@@ -18,10 +18,12 @@ const COVERAGE: CoverageRow[] = [{
 const DERIVED = { cashBuy: "1", cashSell: "1", remitSend: "1", remitReceive: "1" };
 
 const DAILY: DailyResponse = {
-  currency: "USD", quoteUnit: 1, appliedSpread: DERIVED, spreadBasis: "current",
+  currency: "USD", period: "daily", quoteUnit: 1, appliedSpread: DERIVED, spreadBasis: "current",
   rows: [
-    { date: "2026-08-29", baseRate: "1356.100000", isProvisional: false, derived: DERIVED },
-    { date: "2026-08-14", baseRate: "1372.300000", isProvisional: false, derived: DERIVED },
+    { date: "2026-08-29", baseRate: "1356.100000", isProvisional: false, derived: DERIVED,
+      periodFrom: "2026-08-29", periodTo: "2026-08-29", isOngoing: false },
+    { date: "2026-08-14", baseRate: "1372.300000", isProvisional: false, derived: DERIVED,
+      periodFrom: "2026-08-14", periodTo: "2026-08-14", isOngoing: false },
   ],
   hasMore: true, oldestReturned: "2026-08-14",
 };

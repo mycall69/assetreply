@@ -16,13 +16,14 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.errors import UnknownCurrency
+from src.api.errors import InvalidQuery, UnknownCurrency
 from src.api.services.collection_gate import (
     CollectionDecision,
     decide_collection,
     ensure_background_job,
 )
-from src.api.services.daily_query import daily_page, derive_for_row
+from src.api.services.daily_query import PeriodRow, daily_page, derive_for_row
+from src.api.services.period_rows import PERIOD_UNITS, PeriodUnit
 from src.api.services.series_query import missing_days
 from src.config.settings import SUPPORTED_CURRENCIES as SUPPORTED
 from src.config.settings import load_settings
@@ -47,12 +48,20 @@ def _spread_json(spread: SpreadSet) -> dict[str, str]:
 async def get_daily(
     session: Annotated[AsyncSession, Depends(get_session)],
     currency: Annotated[str, Query(description="통화 코드")],
+    period: Annotated[str, Query(description="daily · weekly · monthly")] = "daily",
     before: Annotated[dt.date | None, Query(description="이 날짜 미만만 반환")] = None,
     limit: Annotated[int | None, Query(ge=1, le=200)] = None,
 ) -> Json | JSONResponse:
     code = currency.upper()
     if code not in SUPPORTED:
         raise UnknownCurrency(f"지원하지 않는 통화입니다: {currency}")
+
+    # 알 수 없는 값을 **조용히 `daily`로 떨어뜨리지 않는다.** 화면이 잘못된 값을 보냈는데
+    # 정상 응답이 오면 그 버그가 드러나지 않는다 (contracts/rest-api).
+    if period not in PERIOD_UNITS:
+        raise InvalidQuery(
+            f"period는 {' · '.join(PERIOD_UNITS)} 중 하나여야 합니다: {period}")
+    unit: PeriodUnit = period  # type: ignore[assignment]
 
     settings = load_settings()
     page_size = limit if limit is not None else settings.daily_page_size
@@ -73,24 +82,44 @@ async def get_daily(
             "progressUrl": f"/api/fx/progress?jobId={job_id}",
         })
 
-    page = await daily_page(session, code, before=before, limit=page_size)
+    page = await daily_page(
+        session, code, before=before, limit=page_size, unit=unit)
 
     return {
         "currency": code,
-        "quoteUnit": page.rows[0].quote_unit if page.rows else 1,
+        "period": page.unit,
+        "quoteUnit": page.rows[0].rate.quote_unit if page.rows else 1,
         "appliedSpread": _spread_json(page.spread),
         # 파생값은 "현재 스프레드를 과거에 적용한 가정"이다. 화면이 이를 밝혀야 한다(FR-024).
         "spreadBasis": "current",
-        "rows": [{
-            "date": r.quote_date.isoformat(),
-            "baseRate": str(r.base_rate),
-            "isProvisional": r.is_provisional,
-            "derived": _derived_json(r.base_rate, page.spread),
-        } for r in page.rows],
+        "rows": [_row_json(r, page.spread) for r in page.rows],
         "hasMore": page.has_more,
         "oldestReturned": (
             page.oldest_returned.isoformat() if page.oldest_returned else None),
     }
+
+
+def _row_json(row: PeriodRow, spread: SpreadSet) -> Json:
+    """표 한 행. **세 사실을 각각 따로 싣는다** (FR-015b).
+
+    `shiftedFrom`은 **옮겨졌을 때만 키를 넣는다**(FR-014). 정상 상태에 값을 두면 화면이
+    존재 여부가 아니라 내용을 검사해야 한다 — 002·003이 세운 규약이다.
+
+    `isOngoing`은 반대로 항상 명시한다. "확인했고 아니다"와 "확인하지 않았다"가
+    구별되어야 하는 값이다.
+    """
+    body: Json = {
+        "date": row.rate.quote_date.isoformat(),
+        "baseRate": str(row.rate.base_rate),
+        "isProvisional": row.rate.is_provisional,
+        "derived": _derived_json(row.rate.base_rate, spread),
+        "periodFrom": row.period_from.isoformat(),
+        "periodTo": row.period_to.isoformat(),
+        "isOngoing": row.is_ongoing,
+    }
+    if row.shifted_from is not None:
+        body["shiftedFrom"] = row.shifted_from.isoformat()
+    return body
 
 
 def _derived_json(base_rate: object, spread: SpreadSet) -> dict[str, str]:

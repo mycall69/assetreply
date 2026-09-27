@@ -13,11 +13,13 @@ const SPREAD = {
 };
 
 const DATA: DailyResponse = {
-  currency: "USD", quoteUnit: 1, appliedSpread: SPREAD, spreadBasis: "current",
+  currency: "USD", period: "daily", quoteUnit: 1, appliedSpread: SPREAD, spreadBasis: "current",
   rows: [
     { date: "2026-08-30", baseRate: "1354.200000", isProvisional: true,
+      periodFrom: "2026-08-30", periodTo: "2026-08-30", isOngoing: false,
       derived: { cashBuy: "1356.64", cashSell: "1351.76", remitSend: "1354.88", remitReceive: "1353.52" } },
     { date: "2026-08-29", baseRate: "1356.100000", isProvisional: false,
+      periodFrom: "2026-08-29", periodTo: "2026-08-29", isOngoing: false,
       derived: { cashBuy: "1358.54", cashSell: "1353.66", remitSend: "1356.78", remitReceive: "1355.42" } },
   ],
   hasMore: false, oldestReturned: "2026-08-29",
@@ -71,5 +73,64 @@ describe("일자별 상세 CSV", () => {
   it("행이 없어도 머리글은 남는다", () => {
     const csv = buildDailyCsv({ ...DATA, rows: [] });
     expect(csv).toContain("날짜,매매기준율");
+  });
+});
+
+/**
+ * 004 T033 — FR-016a, FR-016b, FR-016c, SC-018, SC-019, SC-020.
+ *
+ * **표시가 파일에서 빠지면 화면에서 막은 오해가 파일에서 되살아난다.** 파일만 본
+ * 사람은 2026-08-14를 그냥 8월 데이터로 읽지, 8월 31일의 대체값인 줄 모른다.
+ */
+const WEEKLY: DailyResponse = {
+  ...DATA, period: "weekly",
+  rows: [
+    { date: "2026-07-16", baseRate: "1401.200000", isProvisional: false,
+      periodFrom: "2026-07-13", periodTo: "2026-07-19",
+      shiftedFrom: "2026-07-17", isOngoing: false,
+      derived: { cashBuy: "1", cashSell: "1", remitSend: "1", remitReceive: "1" } },
+    { date: "2026-07-24", baseRate: "1383.800000", isProvisional: false,
+      periodFrom: "2026-07-20", periodTo: "2026-07-26", isOngoing: true,
+      derived: { cashBuy: "1", cashSell: "1", remitSend: "1", remitReceive: "1" } },
+  ],
+  hasMore: true, oldestReturned: "2026-07-24",
+};
+
+describe("기간 단위 내려받기", () => {
+  it("파일의 기간 단위가 화면과 같다", () => {
+    // FR-016a, SC-018 — 화면에서 30행을 보다가 17,000행 파일을 받으면 사용자는
+    // 무엇을 받았는지 확인하려고 파일을 열어야 한다.
+    expect(buildDailyCsv(WEEKLY)).toContain("# 기간 단위,주별");
+    expect(buildDailyCsv(DATA)).toContain("# 기간 단위,일별");
+    expect(buildDailyCsv({ ...WEEKLY, period: "monthly" })).toContain("# 기간 단위,월별");
+  });
+
+  it("원래 기준일이 열로 남는다", () => {
+    // FR-016b, SC-019 — 빠지면 파일만 본 사람은 그 날짜를 금요일 값으로 읽는다.
+    const line = buildDailyCsv(WEEKLY).split("\n").find((l) => l.startsWith("2026-07-16"));
+    expect(line).toContain("2026-07-17");
+  });
+
+  it("옮겨지지 않은 행의 원래 기준일 칸은 비어 있다", () => {
+    const line = buildDailyCsv(WEEKLY).split("\n").find((l) => l.startsWith("2026-07-24"));
+    expect(line).not.toContain("2026-07-17");
+  });
+
+  it("진행 중 여부가 열로 남는다", () => {
+    const lines = buildDailyCsv(WEEKLY).split("\n");
+    expect(lines.find((l) => l.startsWith("2026-07-24"))).toMatch(/예$/);
+    expect(lines.find((l) => l.startsWith("2026-07-16"))).toMatch(/아니오$/);
+  });
+
+  it("열 머리글에 두 열이 더해진다", () => {
+    expect(buildDailyCsv(WEEKLY)).toContain("확정 여부,원래 기준일,진행 중");
+  });
+
+  it("담긴 범위를 머리말에 밝힌다", () => {
+    // FR-016c, SC-020 — 범위를 밝히지 않으면 사용자는 표 전체를 받았다고 믿는다.
+    // 3페이지를 훑고 90행을 받았는데 그것이 60년치라고 오해한다.
+    const csv = buildDailyCsv(WEEKLY);
+    expect(csv).toContain("# 담긴 범위,2026-07-24 ~ 2026-07-16 (2행)");
+    expect(csv).toContain("화면에 쌓인 행만 담깁니다");
   });
 });

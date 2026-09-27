@@ -168,12 +168,34 @@ export interface DailyRow {
   derived: DerivedRates;
 }
 
+/** 표의 기간 단위 (004 FR-006). 기본값은 `daily`다 (FR-007). */
+export type PeriodUnit = "daily" | "weekly" | "monthly";
+
+/**
+ * 기간 단위가 적용된 표 행 (004 contracts/rest-api.md).
+ *
+ * `periodFrom`~`periodTo`는 이 행이 덮는 구간이다. 선택 날짜가 어느 행에 속하는지
+ * **화면이** 판정하려면 필요하다 — 기준일만으로는 알 수 없다 (FR-019, research R4-7).
+ *
+ * `shiftedFrom`은 **옮겨졌을 때만 키가 있다**(FR-014). 정상 상태에 값을 두면 화면이
+ * 존재 여부가 아니라 내용을 검사해야 한다.
+ *
+ * `isOngoing`은 항상 명시된다 — "확인했고 아니다"와 "확인하지 않았다"가 구별되어야 한다.
+ */
+export interface PeriodRow extends DailyRow {
+  periodFrom: string;
+  periodTo: string;
+  shiftedFrom?: string;
+  isOngoing: boolean;
+}
+
 export interface DailyResponse {
   currency: CurrencyCode;
+  period: PeriodUnit;
   quoteUnit: number;
   appliedSpread: DerivedRates;
   spreadBasis: "current";
-  rows: DailyRow[];
+  rows: PeriodRow[];
   hasMore: boolean;
   oldestReturned: string | null;
 }

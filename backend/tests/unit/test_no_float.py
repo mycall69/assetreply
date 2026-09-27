@@ -72,3 +72,24 @@ def test_예외_허용_파일이_근거를_남긴다() -> None:
         assert matches, f"{name}을 찾지 못했다"
         body = matches[0].read_text(encoding="utf-8")
         assert "원칙 VI" in body, f"{name}에 면제 근거가 없다"
+
+
+def test_기간_단위_경로에_float이_없다() -> None:
+    """T042 — 헌법 원칙 VI, 004 FR-009.
+
+    주·월 단위는 구간의 평균·시가·고가·저가를 산출하지 않는다. 집계가 없으므로
+    `float`이 필요할 자리도 없다 — 생겼다면 어딘가에서 값을 계산하고 있다는 뜻이다.
+    """
+    paths = [
+        SRC / "api" / "services" / "period_rows.py",
+        SRC / "api" / "services" / "daily_query.py",
+        SRC / "repository" / "fx_rate.py",
+    ]
+    offenders: list[str] = []
+    for path in paths:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                    and node.func.id == "float"):
+                offenders.append(f"{path.name}:{node.lineno}")
+    assert offenders == [], f"기간 단위 경로에 float (원칙 VI): {offenders}"
