@@ -103,3 +103,72 @@ class Test종료_처리:
     async def test_진행_중_작업이_없어도_안전하다(self, session_factory) -> None:
         """정상 종료 경로에서 늘 불리므로 빈 상태에서도 예외가 없어야 한다."""
         await _finalize_on_shutdown(session_factory, "USD")
+
+
+class Test소스_수명:
+    """워커는 데이터 소스의 수명을 **직접 관리해야 한다.**
+
+    `EcosClient`는 `async with`로 열어야 HTTP 세션이 생긴다. 열지 않은 채 넘기면
+    첫 호출에서 `RuntimeError`가 나고, `run_once`는 `SourceError`만 잡으므로 그 예외가
+    `worker_loop`의 광범위 `except`까지 올라가 "수집에 실패했습니다"로만 남는다.
+
+    실제로 이 상태였다 — 수집이 한 번도 성공하지 못했는데 화면에는 작업이 생기고
+    끝나는 것처럼 보였다.
+    """
+
+    async def test_열지_않은_소스는_거부한다(self, session_factory, settings) -> None:
+        class 미개방소스:
+            """`async with` 없이 쓰면 예외를 내는 소스."""
+
+            def __init__(self) -> None:
+                self.opened = False
+
+            async def __aenter__(self):
+                self.opened = True
+                return self
+
+            async def __aexit__(self, *exc: object) -> None:
+                self.opened = False
+
+            async def fetch_daily_rates(self, *a: object, **k: object):
+                if not self.opened:
+                    raise RuntimeError("열어야 합니다")
+                return await StubSource(QUOTES).fetch_daily_rates(*a, **k)  # type: ignore[arg-type]
+
+            async def verify_item_mapping(self, currency_code: str):
+                return await StubSource().verify_item_mapping(currency_code)
+
+        queue = StartQueue()
+        source = 미개방소스()
+        task = asyncio.create_task(
+            worker_loop(session_factory, source, queue, settings=settings))
+        await queue.request("USD")
+        await asyncio.sleep(0.5)
+        task.cancel()
+        with __import__("contextlib").suppress(asyncio.CancelledError):
+            await task
+
+        # 워커가 소스를 열었다면 수집이 진행된다.
+        async with session_factory() as s:
+            rates = list((await s.execute(select(FxRate))).scalars())
+        assert rates, "워커가 소스를 열지 않아 수집이 한 건도 되지 않았다"
+
+    async def test_종료_시_소스를_닫는다(self, session_factory, settings) -> None:
+        """HTTP 세션이 남으면 프로세스가 깨끗하게 끝나지 않는다."""
+        closed: list[bool] = []
+
+        class 추적소스(StubSource):
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc: object) -> None:
+                closed.append(True)
+
+        queue = StartQueue()
+        task = asyncio.create_task(
+            worker_loop(session_factory, 추적소스(QUOTES), queue, settings=settings))
+        await asyncio.sleep(0.05)
+        task.cancel()
+        with __import__("contextlib").suppress(asyncio.CancelledError):
+            await task
+        assert closed, "종료 시 소스를 닫지 않았다"

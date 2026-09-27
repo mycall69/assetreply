@@ -96,7 +96,13 @@ class FxRawResponse(Base):
     requested_to: Mapped[dt.date] = mapped_column(Date)
     http_status: Mapped[int] = mapped_column(SmallInteger)
     result_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    body: Mapped[str] = mapped_column(Text)
+    # 한 해치 응답이 **TEXT(65,535바이트)를 넘는다.** 1964년이 197행에 57KB였고,
+    # 거래일이 많은 해(약 260행)는 75KB에 이른다. 청크를 줄이면 호출 수가 늘어 일일
+    # 한도를 더 쓰므로, 컬럼을 키우는 쪽이 맞다.
+    #
+    # `length`를 주면 SQLAlchemy가 MySQL에서 MEDIUMTEXT(16MB)를 고른다. 다른 DB에서는
+    # 각자의 대용량 텍스트 타입이 선택되므로 이식성 규약을 지킨다(헌법 DB 운영 규약).
+    body: Mapped[str] = mapped_column(Text(length=16_777_215))
     received_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
     job_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("fx_collection_job.id"), nullable=True)

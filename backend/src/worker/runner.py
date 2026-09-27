@@ -145,7 +145,16 @@ async def worker_loop(
     """
     cfg = settings or load_settings()
     current: str | None = None
+
+    # **소스를 열어야 한다.** `EcosClient`는 `async with`로 들어가야 HTTP 세션이 생긴다.
+    # 열지 않은 채 쓰면 첫 호출에서 `RuntimeError`가 나는데, `run_once`는 `SourceError`만
+    # 잡으므로 그 예외가 아래 광범위 `except`까지 올라가 "수집에 실패했습니다"로만 남는다.
+    # 실제로 이 상태였다 — 수집이 한 번도 성공하지 못했는데 작업은 생기고 끝나는 것처럼
+    # 보였다. 소스가 컨텍스트 관리자가 아니면(테스트 스텁 등) 그대로 쓴다.
+    opener = getattr(source, "__aenter__", None)
     try:
+        if opener is not None:
+            source = await opener()
         while True:
             current = await queue.pop()
             try:
@@ -163,6 +172,12 @@ async def worker_loop(
             await _finalize_on_shutdown(session_factory, current)
             queue.done(current)
         raise
+    finally:
+        # HTTP 세션이 남으면 프로세스가 깨끗하게 끝나지 않는다.
+        closer = getattr(source, "__aexit__", None)
+        if closer is not None:
+            with contextlib.suppress(Exception):
+                await closer(None, None, None)
 
 
 async def _finalize_on_shutdown(
