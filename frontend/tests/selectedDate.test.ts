@@ -50,11 +50,16 @@ describe("선택 날짜 단일 상태", () => {
     expect(url).toContain("before=2019-03-15");
   });
 
-  it("조회 가능 범위 밖이면 알리고 상태를 바꾸지 않는다", async () => {
+  it("조회 가능 범위 밖이면 알리되 선택은 반영한다", async () => {
+    // 2026-09-27 변경 — 이전에는 선택을 거절하고 이전 날짜를 유지했다. 그러면 안내는
+    // "범위 밖"이라 말하는데 입력은 다른 날짜를 보여줘, 사용자에게는 **클릭이 먹지
+    // 않은 것처럼** 보인다. FR-010은 "값을 반환하지 않는다"를 요구할 뿐 선택을
+    // 거절하라고 하지 않았다. (.specify/bugs/fx-stale-date-and-tab/)
     const get = vi.spyOn(apiClient, "get");
     await useFxWorkspaceStore.getState().selectDate("1900-01-01");
-    expect(useFxWorkspaceStore.getState().selectedDate).toBe("2026-08-29");
+    expect(useFxWorkspaceStore.getState().selectedDate).toBe("1900-01-01");
     expect(useFxWorkspaceStore.getState().notice?.kind).toBe("out_of_range");
+    // 값은 여전히 받지 않는다 — FR-010이 요구하는 것은 이쪽이다.
     expect(get).not.toHaveBeenCalled();
   });
 

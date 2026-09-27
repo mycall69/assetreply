@@ -18,7 +18,14 @@ export function CurrencyTabs({
   onChange: (c: CurrencyCode) => void;
 }) {
   return (
-    <div role="tablist" aria-label="통화 선택" className="inline-flex rounded-lg border border-gray-300">
+    // 컨테이너에 옅은 배경을 둔다. 없으면 활성 탭의 `bg-white`가 **흰 페이지 배경 위
+    // 흰색**이 되어 선택 상태가 보이지 않는다. 분절 컨트롤의 표준 형태는 컨테이너가
+    // 회색, 활성 항목이 흰색이다 — 후자만 있으면 절반만 가져온 것이다.
+    <div
+      role="tablist"
+      aria-label="통화 선택"
+      className="inline-flex rounded-lg border border-gray-300 bg-gray-100 p-0.5"
+    >
       {CURRENCIES.map(({ code, name }) => {
         const active = code === value;
         return (
@@ -28,8 +35,10 @@ export function CurrencyTabs({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(code)}
-            className={`px-4 py-2 text-sm first:rounded-l-lg last:rounded-r-lg ${
-              active ? "bg-white font-semibold text-gray-900 shadow-sm" : "text-gray-500"
+            className={`rounded-md px-4 py-2 text-sm transition ${
+              active
+                ? "bg-white font-semibold text-gray-900 shadow-sm"
+                : "text-gray-600 hover:text-gray-900"
             }`}
           >
             {code} <span className="text-xs text-gray-400">({name})</span>

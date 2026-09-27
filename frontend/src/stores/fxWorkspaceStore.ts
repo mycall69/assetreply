@@ -217,7 +217,10 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
     const cov = get().coverageFor();
     const notice = checkRange(date, cov);
     if (notice) {
-      set({ notice });
+      // **선택 자체는 반영한다.** FR-010은 "값을 반환하지 않는다"를 요구할 뿐 선택을
+      // 거절하라고 하지 않았다. 입력값을 이전 날짜로 되돌리면 안내는 범위 밖이라
+      // 말하는데 화면은 다른 날짜를 보여줘, 사용자에게는 클릭이 먹지 않은 것처럼 보인다.
+      set({ selectedDate: date, notice });
       return;
     }
     set({ selectedDate: date, notice: null });
