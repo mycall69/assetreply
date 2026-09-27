@@ -72,7 +72,7 @@ specs/004-fx-table-scroll-periods/
 ├── plan.md               # 이 문서
 ├── research.md           # R4-1 ~ R4-8
 ├── data-model.md
-├── quickstart.md         # 검증 시나리오 20개
+├── quickstart.md         # 검증 시나리오 21개
 ├── contracts/
 │   ├── rest-api.md
 │   └── ui-wireframes.md
@@ -97,7 +97,9 @@ frontend/src/
 │   └── PeriodRowBadges.tsx        # [신규] 옮겨진 기준일·진행 중 표시
 ├── hooks/useInfiniteScroll.ts     # [신규] 스크롤 끝 감지
 ├── stores/fxWorkspaceStore.ts     # [변경] period 상태, 전환 잔존 방지, 구간 강조
-└── lib/csv.ts                     # [변경] 기간 단위·원래 기준일·진행 중 열
+├── lib/types.ts                   # [변경] PeriodUnit·PeriodRow 타입
+├── lib/csv.ts                     # [변경] 기간 단위·원래 기준일·진행 중·범위 머리말
+└── app/fx/page.tsx                # [변경] PeriodTabs 배치, 내려받기 행 수
 ```
 
 **구조 선택**: 웹 애플리케이션. 001~003이 세운 배치를 잇는다.
@@ -110,6 +112,7 @@ frontend/src/
 | 요구사항 | 설계 근거 |
 |----------|-----------|
 | FR-001·003 (이어 보기·위치 유지) | research R4-3·R4-6, `useInfiniteScroll`, ui-wireframes W3 |
+| FR-001a·SC-001b (짧은 표) | research R4-6, `useInfiniteScroll` 가시성 기반, quickstart 1a |
 | FR-002·004 (끝 알림·실패 처리) | ui-wireframes W3, quickstart 3·4 |
 | FR-005 (중복 방지) | research R4-3 (커서 방식), quickstart 3 |
 | FR-005a·005b (표 재수신·위치 초기화) | ui-wireframes W6, quickstart 14 |
@@ -122,7 +125,7 @@ frontend/src/
 | FR-015a (진행 중) | data-model 5절, ui-wireframes W2 |
 | FR-015b (표시 구별) | research R4-4, contracts/rest-api 세 필드 분리 |
 | FR-016 (열·서식 계승) | 002 `DailyTable` 재사용 |
-| FR-016a·016b (내려받기) | research R4-5, contracts/rest-api 내려받기 절, ui-wireframes W7 |
+| FR-016a·016b·016c (내려받기) | research R4-5, contracts/rest-api 내려받기 절, ui-wireframes W7 |
 | FR-017·018 (파생·잠정) | 002 경로 그대로, quickstart 17 |
 | FR-019·019a·019b (구간 강조) | research R4-7, ui-wireframes W4 |
 | FR-020 (빈 구간 강조 없음) | ui-wireframes W4, quickstart 13 |
@@ -141,6 +144,7 @@ frontend/src/
 | SC-015·016 (진행 중·표시 구별) | quickstart 9·10 |
 | SC-017 (재수신 분량) | ui-wireframes W6, quickstart 14 |
 | SC-018·019 (파일 단위·표시) | quickstart 15·16 |
+| SC-020 (범위 표시) | contracts/rest-api 내려받기 표, ui-wireframes W7, quickstart 15 |
 
 ## 위험과 대응
 
@@ -160,7 +164,7 @@ frontend/src/
 - [data-model.md](./data-model.md) — 스키마 변경 없음, 파생 값 정의
 - [contracts/rest-api.md](./contracts/rest-api.md) — 기존 엔드포인트 확장
 - [contracts/ui-wireframes.md](./contracts/ui-wireframes.md) — W1 ~ W7
-- [quickstart.md](./quickstart.md) — 검증 시나리오 20개
+- [quickstart.md](./quickstart.md) — 검증 시나리오 21개
 
 ## 다음 단계
 
