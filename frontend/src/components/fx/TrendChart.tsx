@@ -8,7 +8,8 @@
  * - 잠정 구간 구분 (FR-017a)
  * - 선택 날짜가 현재 기간 밖일 때의 안내 (contracts/ui-interaction)
  *
- * 결측 구간을 잇지 않는 규칙은 001의 `FxChart`가 이미 지킨다(FR-017, 헌법 원칙 V).
+ * 미수집 구간을 잇지 않고 휴장일은 이어 그리는 규칙은 001의 `FxChart`가 이미 지킨다
+ * (FR-017, 2026-09-27 반복으로 개정).
  */
 
 import { FxChart } from "@/components/FxChart";
@@ -83,7 +84,7 @@ export function TrendChart({
             ╌ 잠정 ({provisionalCount}개)
           </span>
         )}
-        <span>▨ 고시 없음 · ╌╌ 미수집</span>
+        <span>╌╌ 미수집</span>
         {series.downsampled && (
           <span>
             표시 {series.points.length}개 / 원본 {series.sourcePointCount}개 (LTTB)

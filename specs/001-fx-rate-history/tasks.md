@@ -179,7 +179,7 @@ plan.md의 웹 애플리케이션 구조를 따른다: `backend/src/`, `backend/
 - [X] T073 [US3] `backend/tests/unit/test_downsample.py`에 LTTB 극값 보존 테스트 — 구간 내 최대·최소가 결과에 남는지
 - [X] T074 [P] [US3] `backend/tests/integration/test_series_api.py`에 `gaps` 산출 테스트 — `no_quote`와 `not_collected`가 구분되어 반환됨 (FR-032)
 - [X] T075 [US3] `backend/tests/integration/test_series_api.py`에 차트 요청의 자동 수집 유발 테스트 — 임계값 초과 시 `202` (FR-032a)
-- [X] T076 [P] [US3] `frontend/tests/FxChart.test.tsx`에 결측 구간 미연결 테스트 — `gaps` 구간에서 시리즈가 분리되는지
+- [X] T076 [P] [US3] `frontend/tests/chartSeries.test.ts`에 결측 구간 분리 테스트 — `gaps` 구간에서 시리즈가 분리되는지 (2026-09-27 반복: **미수집만** 분리하도록 T121~T123이 개정한다)
 
 ### Implementation for User Story 3
 
@@ -254,6 +254,26 @@ plan.md의 웹 애플리케이션 구조를 따른다: `backend/src/`, `backend/
 - [X] T118 `backend/src/api/routes/collect.py`와 `backend/src/api/services/collection_gate.py`의 `BACKFILL_START` 상수를 제거하고 `settings.probe_start(code)`를 사용 (T117 의존)
 - [X] T119 `backend/src/ingestion/collector.py`의 `next_start_date`·`_record_coverage`·`_record_first_available`을 역방향 백필에 맞춰 수정 — 커버리지가 탐색 시작일보다 늦으면 앞 구간부터, 커버리지는 양방향 확장, 더 이른 제공일 발견 시 갱신 (FR-002, FR-002a, T116 의존)
 - [X] T120 [P] `frontend/src/stores/chartStore.ts`의 "전체" 프리셋을 커버리지 기반으로 변경하고 `layout.tsx`·`EmptyState.tsx`의 1995 문구 제거 (FR-002, FR-029)
+
+---
+
+---
+
+## Phase 8: Iteration 2026-09-27 — 휴장일 구간의 선 연결
+
+**Purpose**: FR-032·FR-032b 개정을 반영한다. 휴장일은 잇고 미수집은 끊는다.
+
+**서버는 손대지 않는다.** `gaps`가 이미 `reason`을 실어 보내며(T074가 검증), 구별 수단이
+계약에 이미 있다.
+
+- [X] T121 `frontend/tests/chartSeries.test.ts`를 갱신한다 — `splitSeriesAtGaps`가 `no_quote`에서는 나누지 **않고** `not_collected`에서만 나누는지 검증한다. 기존 `gap을 경계로 시리즈를 나눈다`·`여러 gap을 모두 반영한다`가 `no_quote` 픽스처를 쓰므로 함께 고친다 (FR-032)
+- [X] T122 [P] `frontend/tests/chartSeries.test.ts`에 **두 사유가 섞인 경우**를 더한다 — 한 구간에 `no_quote`와 `not_collected`가 함께 있을 때 후자에서만 끊기는지. 섞이지 않은 픽스처만 두면 `reason`을 아예 안 보는 구현도 절반은 통과한다 (FR-032, FR-032b)
+- [X] T123 `frontend/src/lib/chartSeries.ts`의 `splitSeriesAtGaps`가 `reason`을 보게 한다. `no_quote`는 경계로 삼지 않는다. 포인트를 만들어내지 않는 성질은 그대로다 — 나누는 기준만 바뀐다 (FR-032, FR-032b, 헌법 원칙 V)
+- [X] T124 `frontend/src/components/FxChart.tsx`의 범례에서 `▨ 고시 없음 N구간`을 걷어내고 `╌ 미수집 N구간`만 남긴다. 이어 그리는 구간을 "없음"이라 부르면 화면과 말이 어긋난다 (contracts/ui-chart)
+- [X] T125 [P] `frontend/tests/TrendChart.test.tsx`의 `고시 없음` 범례 단언을 갱신한다 (002 FR-017)
+- [X] T126 `frontend/src/components/fx/TrendChart.tsx`의 범례 문구 `▨ 고시 없음 · ╌╌ 미수집`을 `╌╌ 미수집`으로 줄인다 (002 FR-017)
+- [X] T127 품질 게이트 — `cd frontend && npx vitest run && npx tsc --noEmit && npx eslint .`
+- [ ] T128 quickstart 시나리오 8의 결측 렌더링을 브라우저에서 확인한다. 휴장일이 이어지고 미수집이 끊기는지, 휴장일 툴팁이 여전히 결측 사유를 보여주는지 본다
 
 ---
 

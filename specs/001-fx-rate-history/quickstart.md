@@ -217,7 +217,10 @@ SELECT quote_date, base_rate FROM fx_rate WHERE currency_code='USD' AND quote_da
 브라우저 개발자 도구의 Performance 탭에서 조작 시작부터 프레임 갱신 완료까지를 측정하고,
 `/api/fx/series` 응답 시간을 Network 탭에서 함께 기록한다.
 
-결측 구간은 선으로 이어지지 않아야 한다.
+**결측 렌더링 (FR-032, FR-032b)**: 휴장일(`no_quote`) 구간은 **선이 이어져** 있어야 하고,
+미수집(`not_collected`) 구간은 **끊어져** 있어야 한다. 범례에 `╌╌ 미수집 N구간`만 나오고
+`▨ 고시 없음`은 나오지 않는다. 휴장일 위에 포인터를 올리면 값 대신 결측 사유가 나온다 —
+선이 이어져도 그 날짜에 값이 있다고 말하지는 않는다.
 
 ### 9. 차트가 유발하는 자동 수집 (FR-032a)
 

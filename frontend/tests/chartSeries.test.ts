@@ -1,8 +1,15 @@
 /**
- * 차트 시리즈 구성 테스트 (T076) — contracts/ui-chart.md.
+ * 차트 시리즈 구성 테스트 (T076, T121, T122) — contracts/ui-chart.md.
  *
- * **결측 구간에서 시리즈를 분리해야 한다.** Lightweight Charts는 포인트 사이를 기본적으로
- * 직선 연결하므로, 값을 넣지 않는 것만으로는 부족하다 (헌법 원칙 V, FR-032).
+ * **`reason`에 따라 다르게 그린다** (2026-09-27 반복으로 개정된 FR-032·FR-032b).
+ *
+ * | `reason` | 뜻 | 선 |
+ * |----------|-----|-----|
+ * | `no_quote` | 휴장일·주말 — 그날은 시장이 열리지 않아 **값이 존재하지 않는다** | 잇는다 |
+ * | `not_collected` | 아직 수집 안 함 — 값이 존재할 수 있는데 받지 않았다 | 끊는다 |
+ *
+ * 미수집을 이으면 **구멍 위에 온전한 선**이 그려져 사용자가 데이터를 다 가졌다고 믿는다.
+ * 반대로 휴장일마다 끊으면 1년 보기에서 50구간 넘게 쪼개져 추세가 읽히지 않는다.
  *
  * 캔버스 렌더링 대신 데이터 준비 로직을 검증한다 — 원칙 위반이 발생하는 지점이 여기다.
  */
@@ -17,11 +24,27 @@ const POINTS: SeriesPoint[] = [
   { date: "2005-03-20", baseRate: "1011.00" },
 ];
 
-const GAPS: SeriesGap[] = [{ from: "2005-03-18", to: "2005-03-19", reason: "no_quote" }];
+/** 2005-03-18(금)·19(토)는 휴장 — 주말이 그대로 이 모양이다. */
+const HOLIDAY: SeriesGap[] = [
+  { from: "2005-03-18", to: "2005-03-19", reason: "no_quote" },
+];
+
+const UNCOLLECTED: SeriesGap[] = [
+  { from: "2005-03-18", to: "2005-03-19", reason: "not_collected" },
+];
 
 describe("결측 구간 분리", () => {
-  it("gap을 경계로 시리즈를 나눈다", () => {
-    const segments = splitSeriesAtGaps(POINTS, GAPS);
+  it("휴장일에서는 나누지 않는다", () => {
+    // FR-032 — 그날은 시장이 열리지 않아 값이 존재하지 않는다. 실제로 존재하는 두
+    // 고시일을 잇는 것은 값을 만들어내는 것이 아니다.
+    const segments = splitSeriesAtGaps(POINTS, HOLIDAY);
+    expect(segments).toHaveLength(1);
+    expect(segments[0].map((p) => p.date)).toEqual(POINTS.map((p) => p.date));
+  });
+
+  it("미수집 구간에서는 나눈다", () => {
+    // FR-032 — 이으면 아직 받지 않은 구간 위에 온전한 선이 그려진다.
+    const segments = splitSeriesAtGaps(POINTS, UNCOLLECTED);
     expect(segments).toHaveLength(2);
     expect(segments[0].map((p) => p.date)).toEqual([
       "2005-03-15", "2005-03-16", "2005-03-17",
@@ -33,28 +56,42 @@ describe("결측 구간 분리", () => {
     expect(splitSeriesAtGaps(POINTS, [])).toHaveLength(1);
   });
 
-  it("여러 gap을 모두 반영한다", () => {
-    // 포인트 3개(15·17·20)를 gap 2개가 가르므로 3구간이 된다
+  it("두 사유가 섞이면 미수집에서만 끊는다", () => {
+    // T122 — 섞이지 않은 픽스처만 두면 `reason`을 아예 안 보는 구현도 절반은 통과한다.
+    // 포인트 3개(15·17·20) 중 16일은 휴장, 18~19일은 미수집이므로 2구간이 된다.
     const gaps: SeriesGap[] = [
       { from: "2005-03-16", to: "2005-03-16", reason: "no_quote" },
       { from: "2005-03-18", to: "2005-03-19", reason: "not_collected" },
     ];
     const points = POINTS.filter((p) => p.date !== "2005-03-16");
     const segments = splitSeriesAtGaps(points, gaps);
-    expect(segments).toHaveLength(3);
     expect(segments.map((s) => s.map((p) => p.date))).toEqual([
-      ["2005-03-15"], ["2005-03-17"], ["2005-03-20"],
+      ["2005-03-15", "2005-03-17"], ["2005-03-20"],
     ]);
   });
 
+  it("휴장일만 여럿이면 끝까지 한 덩어리다", () => {
+    // 1년 보기에서 주말만 50구간 넘게 잡힌다. 그때마다 끊으면 추세가 읽히지 않는다.
+    const weekends: SeriesGap[] = [
+      { from: "2005-03-16", to: "2005-03-16", reason: "no_quote" },
+      { from: "2005-03-18", to: "2005-03-19", reason: "no_quote" },
+    ];
+    expect(splitSeriesAtGaps(POINTS, weekends)).toHaveLength(1);
+  });
+
   it("결측 구간에 포인트를 만들어내지 않는다", () => {
-    const all = splitSeriesAtGaps(POINTS, GAPS).flat();
+    // 헌법 원칙 V — 잇는 것과 값을 만드는 것은 다르다. 포인트 수는 그대로다.
+    const all = splitSeriesAtGaps(POINTS, UNCOLLECTED).flat();
     expect(all).toHaveLength(POINTS.length);
     expect(all.map((p) => p.date)).not.toContain("2005-03-18");
+
+    const joined = splitSeriesAtGaps(POINTS, HOLIDAY).flat();
+    expect(joined).toHaveLength(POINTS.length);
+    expect(joined.map((p) => p.date)).not.toContain("2005-03-18");
   });
 
   it("빈 입력은 빈 결과다", () => {
-    expect(splitSeriesAtGaps([], GAPS)).toEqual([]);
+    expect(splitSeriesAtGaps([], UNCOLLECTED)).toEqual([]);
   });
 });
 

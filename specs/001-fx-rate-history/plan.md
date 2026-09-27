@@ -206,6 +206,7 @@ spec의 모든 요구사항이 어느 설계 산출물에서 다뤄지는지 대
 | FR-021~027 (스프레드·파생 환율) | data-model `fx_spread`·도메인 계산, research R7, contracts/rest-api |
 | FR-023 (계산식) | data-model 도메인 계산 절 |
 | FR-028~033 (차트) | contracts/rest-api `GET /api/fx/series`, contracts/ui-chart, research R5 |
+| FR-032·032b (결측 렌더링) | contracts/ui-chart §결측 구간 렌더링 — `reason`별 규칙 (2026-09-27 반복) |
 | FR-029~031 (기간 선택·가리키기·이동) | contracts/ui-chart, contracts/ui-sketches S3 |
 | UI 상태별 화면 배치 | contracts/ui-sketches S1~S7 |
 | FR-034~035b (진행률·대기 임계값) | contracts/sse-progress, research R4 |

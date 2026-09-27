@@ -3,9 +3,9 @@
 /**
  * 환율 추이 차트 (T081, T083, T084) — contracts/ui-chart.md, ui-sketches S3.
  *
- * **결측 구간에서 시리즈를 분리한다.** Lightweight Charts는 포인트 사이를 직선으로
- * 잇기 때문에, 값을 넣지 않는 것만으로는 없는 데이터가 있는 것처럼 보인다
- * (헌법 원칙 V, FR-032).
+ * **미수집 구간에서 시리즈를 분리한다.** Lightweight Charts는 포인트 사이를 직선으로
+ * 잇기 때문에, 값을 넣지 않는 것만으로는 아직 받지 않은 구간이 채워진 것처럼 보인다
+ * (헌법 원칙 V, FR-032). 휴장일은 값이 존재하지 않는 날이므로 이어 그린다.
  *
  * 툴팁은 원본 문자열을 표시한다 — 렌더링용 `number` 변환값을 보여주면 정밀도가 손실된
  * 값을 사용자가 보게 된다.
@@ -44,7 +44,7 @@ export function FxChart({
     });
     chart.current = instance;
 
-    // 구간마다 별도 시리즈 — 결측 구간이 선으로 이어지지 않게 한다
+    // 구간마다 별도 시리즈 — 미수집 구간이 선으로 이어지지 않게 한다
     const lookup = new Map<string, string>();
     for (const segment of splitSeriesAtGaps(data.points, data.gaps)) {
       const series = instance.addSeries(LineSeries, {
@@ -72,7 +72,8 @@ export function FxChart({
     };
   }, [data]);
 
-  const noQuote = data.gaps.filter((g) => g.reason === "no_quote").length;
+  // 휴장일 구간 수는 세지 않는다. 이어 그리는 구간을 "없음"이라 부르면 화면과 말이
+  // 어긋난다 — 선은 이어져 있는데 범례는 비었다고 말하게 된다 (T124).
   const notCollected = data.gaps.filter((g) => g.reason === "not_collected").length;
 
   return (
@@ -102,7 +103,6 @@ export function FxChart({
 
       {/* 다운샘플링 사실을 숨기지 않는다 — 사용자가 보는 것이 전수가 아니다 */}
       <footer className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500">
-        {noQuote > 0 && <span>▨ 고시 없음 {noQuote}구간</span>}
         {notCollected > 0 && <span>╌ 미수집 {notCollected}구간</span>}
         <span className="ml-auto">
           {data.downsampled

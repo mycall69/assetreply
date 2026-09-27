@@ -66,8 +66,11 @@ describe("추이 차트", () => {
     expect(screen.getByRole("status").textContent).toContain("수집을 시작했습니다");
   });
 
-  it("결측 구간 정보를 범례에 밝힌다", () => {
+  it("미수집 구간만 범례에 밝힌다", () => {
+    // T125 — 휴장일은 이어 그리므로 "고시 없음"이라 부르지 않는다. 이어진 선을 두고
+    // 없다고 말하면 화면과 범례가 어긋난다 (2026-09-27 반복).
     render(<TrendChart {...base} series={SERIES} selectedDate={null} />);
-    expect(screen.getByText(/고시 없음/)).toBeInTheDocument();
+    expect(screen.getByText(/미수집/)).toBeInTheDocument();
+    expect(screen.queryByText(/고시 없음/)).toBeNull();
   });
 });

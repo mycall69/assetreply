@@ -113,14 +113,14 @@ plan.md의 웹 애플리케이션 구조를 따른다: `backend/src/`, `backend/
 
 - [X] T035 [P] [US2] `backend/tests/integration/test_series_provisional.py`에 시계열 응답의 `isProvisional` 필드 테스트 작성 (FR-017a)
 - [X] T036 [P] [US2] `backend/tests/unit/test_downsample_endpoints.py`에 **다운샘플링 후에도 첫 점과 끝 점이 항상 남는지** 테스트 작성 (FR-017b, research R2-4 — 현재 구현이 만족하지만 검증이 없어 교체 시 조용히 깨진다)
-- [X] T037 [P] [US2] `frontend/tests/TrendChart.test.tsx`에 차트 테스트 작성 — 선택 날짜 강조선, 결측 구간 미연결, 잠정 구간 구분, **차트의 마지막 표시 시점이 요약의 기준 날짜와 일치** (FR-016, FR-017, FR-017a, SC-007a)
+- [X] T037 [P] [US2] `frontend/tests/TrendChart.test.tsx`에 차트 테스트 작성 — 선택 날짜 강조선, **미수집** 구간 미연결(2026-09-27 반복: 휴장일은 이어 그린다), 잠정 구간 구분, **차트의 마지막 표시 시점이 요약의 기준 날짜와 일치** (FR-016, FR-017, FR-017a, SC-007a)
 - [X] T038 [US2] `frontend/tests/selectedDate.test.tsx`에 연동 테스트 작성 — 세 경로 중 어디서 바꿔도 나머지가 따라오고, **날짜 변경만으로는 네트워크 호출이 발생하지 않음** (FR-009, SC-002, contracts/ui-interaction 갱신 범위 표)
 
 ### Implementation for User Story 2
 
 - [X] T039 [US2] `backend/src/api/routes/series.py`의 응답 포인트에 `isProvisional`을 추가 (contracts/rest-api 변경분)
 - [X] T040 [P] [US2] `frontend/src/components/fx/PeriodPresets.tsx`에 기간 프리셋 6단계(1개월/6개월/1년/5년/10년/전체) 구현 (FR-015, spec Assumptions)
-- [X] T041 [P] [US2] `frontend/src/components/fx/TrendChart.tsx`에 차트 구현 — 결측 구간 분리, 잠정 구간 스타일 구분, 범례 (FR-017, FR-017a)
+- [X] T041 [P] [US2] `frontend/src/components/fx/TrendChart.tsx`에 차트 구현 — **미수집** 구간 분리(2026-09-27 반복: 휴장일은 이어 그린다), 잠정 구간 스타일 구분, 범례 (FR-017, FR-017a)
 - [X] T042 [US2] `frontend/src/components/fx/TrendChart.tsx`와 `frontend/src/stores/fxWorkspaceStore.ts`를 연결해 강조선·날짜 라벨·점 표식을 선택 날짜에 묶고, 차트 지정 시 **가장 가까운 실제 포인트**의 날짜를 선택 (FR-016, contracts/ui-interaction)
 - [X] T043 [US2] `frontend/src/components/fx/TrendChart.tsx`에 선택 날짜가 현재 기간 밖일 때의 안내를 구현하고 **선택 날짜를 임의로 바꾸지 않음** (contracts/ui-interaction)
 - [X] T044 [US2] `frontend/src/components/fx/PeriodPresets.tsx`에서 `GET /api/fx/coverage`로 통화별 축적 범위를 받아, 프리셋 구간이 그보다 이를 때 실제 범위만 표시하고 그 사실을 알림 (FR-019)
