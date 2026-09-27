@@ -9,7 +9,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "@/lib/apiClient";
-import { subscribeProgress } from "@/lib/progressStream";
+import { subscribeCollection } from "@/lib/collectionStream";
 
 describe("API 요청 주소", () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -57,10 +57,14 @@ describe("진행률 SSE 주소", () => {
     }
     vi.stubGlobal("EventSource", FakeEventSource);
 
-    const unsubscribe = subscribeProgress(7, { onProgress: vi.fn(), onCompleted: vi.fn() });
+    // 2026-09-27: 검사 대상을 죽은 `progressStream`에서 살아 있는 `collectionStream`으로
+    // 옮겼다. 이 단언이 없어지면 SSE 주소가 절대 경로로 바뀌어도 아무도 모른다.
+    const unsubscribe = subscribeCollection("USD", {
+      onSnapshot: vi.fn(), onIdle: vi.fn(), onEvent: vi.fn(),
+    });
     unsubscribe();
 
-    expect(created[0]).toBe("/api/fx/progress?jobId=7");
+    expect(created[0]).toBe("/api/fx/collection/stream?currency=USD");
     expect(created[0]).not.toMatch(/^https?:\/\//);
     vi.unstubAllGlobals();
   });
