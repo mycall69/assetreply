@@ -11,6 +11,8 @@
 
 ## 1. 신규 테이블
 
+**테이블 9개다.** 작업·점유 둘을 한 절에 묶어 설명하므로 소제목은 8개로 보인다.
+
 ### `stock` — 종목
 
 사용자가 검색해 고른 종목만 들어온다. 전체 목록을 미리 쌓지 않는다 (research R5-2).
@@ -23,7 +25,6 @@
 | `name` | `VARCHAR(128)` | NOT NULL | 표시용 이름 |
 | `currency` | `CHAR(3)` | NOT NULL | 거래 통화. 환전 여부와 수익률 기준을 가른다 |
 | `first_available_date` | `DATE` | NULL 허용 | 출처가 값을 주기 시작한 날. 수집 중 발견해 기록 |
-| `delisted_through` | `DATE` | NULL 허용 | 시세가 끊긴 날. FR-014a의 근거 |
 | `ingested_at` | `DATETIME` | NOT NULL | |
 
 **유니크**: `(market, symbol)`
@@ -115,9 +116,18 @@ FR-044의 "빠진 구간만 받는다"와 FR-045의 재개가 이것에 기댄�
 
 ### `stock_collection_job` · `stock_collection_lock`
 
-003이 `fx_collection_job`·`fx_collection_lock`에서 만든 모양을 그대로 잇되 종목 단위로
-둔다. 점유는 **자산군을 가로질러 공유하지 않는다** — FX 수집 중에 주식 수집을 막을
-이유가 없고 출처가 달라 호출 한도도 따로다.
+**컬럼은 003의 `fx_collection_job`·`fx_collection_lock`과 같다.** 통화 컬럼
+(`currency_code`) 자리에 `stock_id`(FK)가 들어가는 것만 다르다.
+
+| 테이블 | 003의 대응 | 바뀌는 것 |
+|--------|-----------|----------|
+| `stock_collection_job` | `fx_collection_job` | `currency_code` → `stock_id` |
+| `stock_collection_lock` | `fx_collection_lock` | `currency_code` → `stock_id` |
+
+컬럼을 새로 적지 않고 참조하는 이유는, 두 곳에 적으면 한쪽만 고쳐 어긋나기 때문이다.
+
+점유는 **자산군을 가로질러 공유하지 않는다** — FX 수집 중에 주식 수집을 막을 이유가
+없고 출처가 달라 호출 한도도 따로다 (research R5-7).
 
 ### `stock_setting` — 수수료·세율
 

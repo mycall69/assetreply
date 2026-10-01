@@ -25,7 +25,7 @@
 | 프레임워크 | FastAPI, SQLAlchemy 2.x async, aiohttp |
 | 언어 (프론트엔드) | TypeScript 5.x (`strict`), Next.js 16 App Router, React 19 |
 | 상태 관리 | Zustand (헌법 원칙 VII) |
-| DB | MySQL 8.0+ — 신규 테이블 8개, Alembic 마이그레이션 |
+| DB | MySQL 8.0+ — 신규 테이블 9개, Alembic 마이그레이션 |
 | 테스트 | pytest·pytest-asyncio / Vitest·React Testing Library |
 | 타입·린트 | mypy strict, ruff / tsc, eslint |
 | 시세 출처 | **Yahoo Finance chart 엔드포인트** (research R5-1) — 비공식 |
@@ -93,10 +93,13 @@ backend/src/
 │       ├── parse.py               #   일봉·배당·분할로 정규화
 │       └── errors.py
 ├── simulation/
-│   └── reinvest.py                # [신규] **순수 함수.** 재투자 시뮬레이션
+│   ├── reinvest.py                # [신규] **순수 함수.** 재투자 시뮬레이션
+│   └── money.py                   # [신규] 정밀도 규칙을 한 곳으로 (원칙 VI)
 ├── repository/
 │   ├── stock.py                   # [신규] 종목·커버리지
-│   └── stock_price.py             # [신규] 시세·배당·분할
+│   ├── stock_price.py             # [신규] 시세·배당·분할
+│   ├── stock_job.py               # [신규] 작업·점유
+│   └── stock_setting.py           # [신규] 수수료·세율
 ├── api/
 │   ├── services/
 │   │   ├── stock_simulation.py    # [신규] 조회·환산·페이지 조합
@@ -104,15 +107,18 @@ backend/src/
 │   └── routes/
 │       ├── stock_search.py        # [신규]
 │       ├── stock_simulation.py    # [신규]
+│       ├── stock_series.py        # [신규] 차트용 시계열
+│       ├── stock_progress.py      # [신규] 진행 상태 SSE
 │       └── stock_settings.py      # [신규]
 ├── worker/
 │   └── stock_runner.py            # [신규] 003 구조 계승. 점유는 FX와 분리
+├── config/settings.py             # [변경] 시세 출처 설정
 └── db/
-    ├── models.py                  # [변경] 테이블 8개 추가
+    ├── models.py                  # [변경] 테이블 9개 추가
     └── migrations/                # [신규] 리비전 1개
 
 frontend/src/
-├── app/stock/page.tsx             # [신규] 시뮬레이션 화면
+├── app/stocks/page.tsx            # [신규] 시뮬레이션 화면 (기존 가드가 `stocks`를 전제)
 ├── components/stock/
 │   ├── StockSearch.tsx            # [신규] 검색·선택
 │   ├── SimulationForm.tsx         # [신규] 시작일·원금·재투자
@@ -120,8 +126,11 @@ frontend/src/
 │   ├── PerformanceTable.tsx       # [신규] 표 (004의 스크롤 방식)
 │   ├── PerformanceChart.tsx       # [신규] 잔고·수익률
 │   ├── SimulationHistory.tsx      # [신규] 이력·선택
-│   └── ComparisonChart.tsx        # [신규] 비교
+│   ├── ComparisonChart.tsx        # [신규] 비교
+│   └── CollectingNotice.tsx       # [신규] 수집 진행
+├── components/shell/Sidebar.tsx   # [변경] 주식 메뉴 연결
 ├── stores/stockStore.ts           # [신규]
+├── lib/types.ts                   # [변경] 시뮬레이션 타입
 ├── lib/simulationHistory.ts       # [신규] localStorage 보관
 └── app/settings/page.tsx          # [변경] 수수료·세율 추가
 ```
@@ -143,8 +152,8 @@ DB·HTTP를 모르는 함수여야 참조 구현과 같은 입력을 넣어 같�
 
 | 요구사항 | 설계 근거 |
 |----------|-----------|
-| FR-001, FR-003 (입력) | contracts/rest-api `GET /api/stock/simulation` 질의 매개변수 |
-| FR-002, FR-002a, FR-002b, FR-002c (종목 선택·검색) | contracts/rest-api `GET /api/stock/search`, ui-wireframes W1, research R5-2 |
+| FR-001, FR-003 (입력) | contracts/rest-api `GET /api/stocks/simulation` 질의 매개변수 |
+| FR-002, FR-002a, FR-002b, FR-002c (종목 선택·검색) | contracts/rest-api `GET /api/stocks/search`, ui-wireframes W1, research R5-2 |
 | FR-004, SC-016 (시세 없음) | contracts/rest-api 오류표 `unknown_stock`, quickstart 20 |
 | FR-005 (상장 이전) | contracts/rest-api 오류표 `before_listing`, quickstart 18 |
 | FR-006, FR-008, FR-009 (매수·재투자) | `simulation/reinvest.py`, research R5-4, quickstart 6 |
@@ -155,7 +164,7 @@ DB·HTTP를 모르는 함수여야 참조 구현과 같은 입력을 넣어 같�
 | FR-013, SC-003, SC-004 (잔고·총자산) | data-model 3절, quickstart 5 |
 | FR-014, SC-002 (재현성) | research R5-3 — 원주가는 바뀌지 않는다 |
 | FR-014a, FR-014b, SC-026, SC-027 (시세 단절) | contracts/rest-api `asOf`·`isFinal`, ui-wireframes W2, quickstart 16 |
-| FR-015, FR-016 (설정 항목) | contracts/rest-api `/api/stock/settings`, data-model `stock_setting` |
+| FR-015, FR-016 (설정 항목) | contracts/rest-api `/api/stocks/settings`, data-model `stock_setting` |
 | FR-017, SC-007 (설정 반영) | contracts/rest-api 설정 절, ui-wireframes 갱신 범위, quickstart 13 |
 | FR-018, SC-008 (적용 조건 표시) | contracts/rest-api `condition`, quickstart 13 |
 | FR-019, FR-020, FR-021, FR-022, FR-023, SC-009 (초기 환전) | `api/services/stock_fx.py`, data-model 6절, research R5-6, quickstart 9 |
@@ -163,7 +172,7 @@ DB·HTTP를 모르는 함수여야 참조 구현과 같은 입력을 넣어 같�
 | FR-026 (월 행의 빈 칸) | contracts/rest-api 월 행 키 생략, quickstart 7 |
 | FR-029, FR-030, SC-012 (스크롤) | 004의 방식 계승, ui-wireframes W4, quickstart 14 |
 | FR-031, FR-032, SC-013 (보드) | contracts/rest-api `summary`, ui-wireframes W2, quickstart 5 |
-| FR-033, FR-034 (차트) | ui-wireframes W3, 001의 결측 렌더링 규칙, quickstart 15 |
+| FR-033, FR-034, SC-032 (차트) | contracts/rest-api `GET /api/stocks/simulation/series`, ui-wireframes W3, 001의 결측 렌더링 규칙, quickstart 15 |
 | FR-035, FR-036, SC-014 (이력) | `lib/simulationHistory.ts`, ui-wireframes W5, quickstart 17 |
 | FR-037, FR-037a, FR-037b, SC-018 (이력 보관) | research R5-10, ui-wireframes W5, quickstart 17 |
 | FR-038, FR-039, FR-040, SC-015 (비교) | ui-wireframes W6, quickstart 17 |
@@ -180,6 +189,7 @@ DB·HTTP를 모르는 함수여야 참조 구현과 같은 입력을 넣어 같�
 | SC-001 (응답 시간) | quickstart 3 — 시세가 보관된 경우의 기준이다 |
 | SC-011 (재투자 차이) | quickstart 6 |
 | SC-030, SC-031 (검색 표시·직접 입력 금지) | contracts/rest-api 검색 응답, ui-wireframes W1, quickstart 1 |
+| FR-050, SC-033 (메뉴 연결) | tasks T046 — 002 FR-005의 반대 조건. 기존 가드 3건을 함께 갱신한다 |
 
 ## 위험과 대응
 
@@ -225,8 +235,8 @@ DB·HTTP를 모르는 함수여야 참조 구현과 같은 입력을 넣어 같�
 
 ## Phase 1 산출물
 
-- [data-model.md](./data-model.md) — 신규 테이블 8개, 정밀도 규칙, 매수 산식
-- [contracts/rest-api.md](./contracts/rest-api.md) — 엔드포인트 4개
+- [data-model.md](./data-model.md) — 신규 테이블 9개, 정밀도 규칙, 매수 산식
+- [contracts/rest-api.md](./contracts/rest-api.md) — 엔드포인트 5개
 - [contracts/ui-wireframes.md](./contracts/ui-wireframes.md) — W1 ~ W7
 - [quickstart.md](./quickstart.md) — 검증 시나리오 22개
 

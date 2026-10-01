@@ -12,7 +12,7 @@
 
 ---
 
-## `GET /api/stock/search` — 종목 검색
+## `GET /api/stocks/search` — 종목 검색
 
 사용자가 코드를 직접 입력하지 않도록 한다 (FR-002a).
 
@@ -51,7 +51,7 @@
 
 ---
 
-## `GET /api/stock/simulation` — 시뮬레이션 실행과 표 페이지
+## `GET /api/stocks/simulation` — 시뮬레이션 실행과 표 페이지
 
 ### 질의 매개변수
 
@@ -176,7 +176,7 @@ FR-014b가 이 둘을 요구한다. 상장폐지·거래정지로 시세가 끊�
   "jobId": 17,
   "missingFrom": "2021-08-01",
   "missingThrough": "2024-12-31",
-  "progressUrl": "/api/stock/progress?jobId=17"
+  "progressUrl": "/api/stocks/progress?jobId=17"
 }
 ```
 
@@ -203,7 +203,53 @@ FR-014b가 이 둘을 요구한다. 상장폐지·거래정지로 시세가 끊�
 
 ---
 
-## `GET /api/stock/progress` — 수집 진행 (SSE)
+## `GET /api/stocks/simulation/series` — 차트용 시계열
+
+표와 **같은 조건**을 받아 전 구간 포인트를 돌려준다. 001의 `GET /api/fx/series`와 같은
+모양이며 다운샘플링 규약을 그대로 쓴다.
+
+**별도 엔드포인트로 두는 이유**: 표 응답에 실으면 페이지를 넘길 때마다 같은 시계열이
+재전송된다. 60년치면 표 행이 960개다.
+
+### 질의 매개변수
+
+표와 같다 — `market`·`symbol`·`start`·`principal`·`principalCurrency`·`reinvest`.
+여기에 `maxPoints`(선택, 기본 2000)를 더한다.
+
+### 200 응답
+
+```json
+{
+  "from": "2021-08-02",
+  "to": "2024-08-01",
+  "principalCurrency": "KRW",
+  "downsampled": false,
+  "algorithm": "lttb",
+  "sourcePointCount": 37,
+  "points": [
+    { "date": "2021-08-02", "balance": "0", "returnRate": "0.000000" },
+    { "date": "2024-08-01", "balance": "201500", "returnRate": "1.388300" }
+  ],
+  "gaps": [{ "from": "2024-08-02", "to": "2024-12-31", "reason": "not_collected" }]
+}
+```
+
+**표와 같은 계산 결과를 쓴다.** 같은 순수 함수를 같은 입력으로 부르므로 어긋날 수 없다 —
+다른 경로를 타면 표의 마지막 행과 차트의 끝점이 달라진다 (SC-032).
+
+`gaps`는 001이 정한 `reason`(`no_quote`·`not_collected`)을 그대로 쓴다. 화면은 **휴장일은
+잇고 미수집은 끊는다** (001 FR-032, 2026-09-27 반복으로 개정).
+
+`balance`·`returnRate`는 **원금 통화 기준**이다(FR-041). 기준 통화를 응답에 실어 화면이
+축 레이블에 쓴다.
+
+### 오류
+
+표와 같다. 미수집 구간이 있으면 같은 `202 collecting`을 준다.
+
+---
+
+## `GET /api/stocks/progress` — 수집 진행 (SSE)
 
 003이 만든 수집 스트림과 같은 모양이다. `EventSource`의 자동 재연결에 의존하며
 `error`에서 닫지 않는다.
@@ -217,7 +263,7 @@ FR-014b가 이 둘을 요구한다. 상장폐지·거래정지로 시세가 끊�
 
 ---
 
-## `GET` · `PUT /api/stock/settings` — 수수료·세율
+## `GET` · `PUT /api/stocks/settings` — 수수료·세율
 
 ```json
 { "tradeFeeRate": "0.000150", "dividendTaxRate": "0.154000", "isDefault": true }
