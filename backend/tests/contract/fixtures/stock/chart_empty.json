@@ -1,0 +1,17 @@
+{
+  "chart": {
+    "result": [
+      {
+        "meta": {
+          "symbol": "005930.KS",
+          "currency": "KRW",
+          "gmtoffset": 32400,
+          "exchangeName": "KSC",
+          "instrumentType": "EQUITY",
+          "firstTradeDate": 171644400
+        }
+      }
+    ],
+    "error": null
+  }
+}

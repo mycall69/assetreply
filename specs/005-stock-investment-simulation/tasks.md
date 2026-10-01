@@ -43,10 +43,10 @@ description: "Task list template for feature implementation"
 
 **Purpose**: 스키마와 공통 타입. 이 기능은 신규 테이블 9개로 시작한다.
 
-- [ ] T001 `backend/src/db/models.py`에 테이블 9개를 정의한다 — `stock`, `stock_price`, `stock_dividend`, `stock_split`, `stock_raw_response`, `stock_coverage`, `stock_collection_job`, `stock_collection_lock`, `stock_setting`. 금액·비율은 전부 `DECIMAL`이며 `FLOAT`/`DOUBLE`은 곧바로 원칙 VI 위반이다 (data-model 1절)
-- [ ] T002 `backend/src/db/migrations/`에 리비전 하나를 만든다. `stock_raw_response.body`는 **처음부터 `MEDIUMTEXT`**다 — 001이 `TEXT`(65,535바이트)를 넘겨 마이그레이션을 한 번 더 했던 자리다 (data-model 1절)
-- [ ] T003 [P] `backend/src/config/settings.py`에 시세 출처 설정을 더한다 — 기본 URL, **보수적인 호출 간격**, 동시 호출 수, 재시도 정책. 코드가 아닌 설정으로 선언한다 (헌법 원칙 II). 공격적 폴링이 차단의 주된 원인이다 (research R5-1)
-- [ ] T004 [P] `frontend/src/lib/types.ts`에 `StockSearchResult`·`SimulationRow`·`SimulationSummary`·`SimulationCondition`·`ExchangeInfo` 타입을 더한다 (contracts/rest-api)
+- [X] T001 `backend/src/db/models.py`에 테이블 9개를 정의한다 — `stock`, `stock_price`, `stock_dividend`, `stock_split`, `stock_raw_response`, `stock_coverage`, `stock_collection_job`, `stock_collection_lock`, `stock_setting`. 금액·비율은 전부 `DECIMAL`이며 `FLOAT`/`DOUBLE`은 곧바로 원칙 VI 위반이다 (data-model 1절)
+- [X] T002 `backend/src/db/migrations/`에 리비전 하나를 만든다. `stock_raw_response.body`는 **처음부터 `MEDIUMTEXT`**다 — 001이 `TEXT`(65,535바이트)를 넘겨 마이그레이션을 한 번 더 했던 자리다 (data-model 1절)
+- [X] T003 [P] `backend/src/config/settings.py`에 시세 출처 설정을 더한다 — 기본 URL, **보수적인 호출 간격**, 동시 호출 수, 재시도 정책. 코드가 아닌 설정으로 선언한다 (헌법 원칙 II). 공격적 폴링이 차단의 주된 원인이다 (research R5-1)
+- [X] T004 [P] `frontend/src/lib/types.ts`에 `StockSearchResult`·`SimulationRow`·`SimulationSummary`·`SimulationCondition`·`ExchangeInfo` 타입을 더한다 (contracts/rest-api)
 
 ---
 
@@ -58,34 +58,34 @@ description: "Task list template for feature implementation"
 
 ### 정밀도 (원칙 VI의 뿌리)
 
-- [ ] T005 [P] `backend/tests/unit/test_money.py`를 작성한다 — 통화별 자릿수(KRW·JPY 0, USD·EUR 2), 수량 버림, 수익률 6자리를 검증한다. **원화·엔화에 소수점 금액은 존재하지 않는다** (data-model 4절)
-- [ ] T006 `backend/src/simulation/money.py`에 정밀도 규칙을 **한 곳으로** 모은다 — 통화별 자릿수 표, 수량 버림, 반올림 헬퍼. 흩뿌리면 한 군데만 틀려도 **그 통화만 조용히 어긋난다** (data-model 4절, 헌법 원칙 VI)
+- [X] T005 [P] `backend/tests/unit/test_money.py`를 작성한다 — 통화별 자릿수(KRW·JPY 0, USD·EUR 2), 수량 버림, 수익률 6자리를 검증한다. **원화·엔화에 소수점 금액은 존재하지 않는다** (data-model 4절)
+- [X] T006 `backend/src/simulation/money.py`에 정밀도 규칙을 **한 곳으로** 모은다 — 통화별 자릿수 표, 수량 버림, 반올림 헬퍼. 흩뿌리면 한 군데만 틀려도 **그 통화만 조용히 어긋난다** (data-model 4절, 헌법 원칙 VI)
 
 ### 출처 어댑터 (원칙 II)
 
-- [ ] T007 [P] `backend/tests/contract/fixtures/`에 시세 응답 픽스처를 저장한다 — 일봉·배당·분할이 있는 종목, 분할만 있는 종목, 빈 응답, 오류 응답. **테스트가 실제 API를 호출하면 원칙 III 위반이다**
-- [ ] T008 [P] `backend/tests/contract/test_stock_source_parse.py`를 작성한다 — 픽스처에서 일봉·배당·분할이 정규화되는지, **원시 시가·종가와 수정종가가 구분되는지** 검증한다 (FR-011, FR-012)
-- [ ] T009 [P] `backend/tests/contract/test_stock_source_errors.py`를 작성한다 — 호출 한도·인증 실패·빈 결과가 각각 다른 오류로 구별되는지 검증한다. **"결과 없음"과 "출처가 죽음"을 같게 다루면** 사용자는 그 종목이 존재하지 않는다고 읽는다 (contracts/rest-api 오류표)
-- [ ] T010 `backend/src/ingestion/yahoo/parse.py`에 정규화를 만든다. **출처 고유 필드명이 이 디렉터리 밖으로 나가지 않는다** (헌법 원칙 II)
-- [ ] T011 `backend/src/ingestion/yahoo/errors.py`에 출처 오류 타입을 만든다 — 001의 `ingestion/ecos/errors.py`와 같은 모양
-- [ ] T012 `backend/src/ingestion/yahoo/client.py`에 비동기 호출을 만든다 — `aiohttp`, 세마포어로 동시 호출 제한, 지수 백오프 + 지터. **동기 호출은 원칙 I 위반이다** (헌법 원칙 I·II)
-- [ ] T013 [P] `backend/tests/unit/test_layer_boundaries.py`에 검사를 더한다 — 출처 고유 필드명(`adjclose`·`gmtoffset`·`chartPreviousClose` 등)이 `ingestion/yahoo/` 밖에 없는지 (헌법 원칙 II)
+- [X] T007 [P] `backend/tests/contract/fixtures/`에 시세 응답 픽스처를 저장한다 — 일봉·배당·분할이 있는 종목, 분할만 있는 종목, 빈 응답, 오류 응답. **테스트가 실제 API를 호출하면 원칙 III 위반이다**
+- [X] T008 [P] `backend/tests/contract/test_stock_source_parse.py`를 작성한다 — 픽스처에서 일봉·배당·분할이 정규화되는지, **원시 시가·종가와 수정종가가 구분되는지** 검증한다 (FR-011, FR-012)
+- [X] T009 [P] `backend/tests/contract/test_stock_source_errors.py`를 작성한다 — 호출 한도·인증 실패·빈 결과가 각각 다른 오류로 구별되는지 검증한다. **"결과 없음"과 "출처가 죽음"을 같게 다루면** 사용자는 그 종목이 존재하지 않는다고 읽는다 (contracts/rest-api 오류표)
+- [X] T010 `backend/src/ingestion/yahoo/parse.py`에 정규화를 만든다. **출처 고유 필드명이 이 디렉터리 밖으로 나가지 않는다** (헌법 원칙 II)
+- [X] T011 `backend/src/ingestion/yahoo/errors.py`에 출처 오류 타입을 만든다 — 001의 `ingestion/ecos/errors.py`와 같은 모양
+- [X] T012 `backend/src/ingestion/yahoo/client.py`에 비동기 호출을 만든다 — `aiohttp`, 세마포어로 동시 호출 제한, 지수 백오프 + 지터. **동기 호출은 원칙 I 위반이다** (헌법 원칙 I·II)
+- [X] T013 [P] `backend/tests/unit/test_layer_boundaries.py`에 검사를 더한다 — 출처 고유 필드명(`adjclose`·`gmtoffset`·`chartPreviousClose` 등)이 `ingestion/yahoo/` 밖에 없는지 (헌법 원칙 II)
 
 ### 저장
 
-- [ ] T014 [P] `backend/tests/integration/test_stock_upsert.py`를 작성한다 — 같은 `(stock_id, quote_date)`를 두 번 저장해도 한 행이고 `ingested_at`이 보존되는지 검증한다 (헌법 시계열 불변식)
-- [ ] T015 `backend/src/repository/stock.py`에 종목·커버리지 조회·저장을 만든다. upsert는 `db/dialect.py`의 헬퍼만 호출한다 — 방언 구문을 직접 쓰면 헌법 위반이다
-- [ ] T016 `backend/src/repository/stock_price.py`에 시세·배당·분할 조회·저장을 만든다. 구간 조회는 001의 `series`와 같은 모양이다. **분할 이벤트는 제공처가 준 그대로 저장하고 다시 읽을 수 있어야 한다** — 제공처를 믿기로 한 이상(FR-010a) 틀렸을 때 되짚을 수단이 이 기록뿐이다 (FR-010b, SC-017)
-- [ ] T017 [P] `backend/tests/integration/test_stock_coverage.py`를 작성한다 — 커버리지 기록과 **빠진 구간 계산**이 맞는지 검증한다 (FR-044)
+- [X] T014 [P] `backend/tests/integration/test_stock_upsert.py`를 작성한다 — 같은 `(stock_id, quote_date)`를 두 번 저장해도 한 행이고 `ingested_at`이 보존되는지 검증한다 (헌법 시계열 불변식)
+- [X] T015 `backend/src/repository/stock.py`에 종목·커버리지 조회·저장을 만든다. upsert는 `db/dialect.py`의 헬퍼만 호출한다 — 방언 구문을 직접 쓰면 헌법 위반이다
+- [X] T016 `backend/src/repository/stock_price.py`에 시세·배당·분할 조회·저장을 만든다. 구간 조회는 001의 `series`와 같은 모양이다. **분할 이벤트는 제공처가 준 그대로 저장하고 다시 읽을 수 있어야 한다** — 제공처를 믿기로 한 이상(FR-010a) 틀렸을 때 되짚을 수단이 이 기록뿐이다 (FR-010b, SC-017)
+- [X] T017 [P] `backend/tests/integration/test_stock_coverage.py`를 작성한다 — 커버리지 기록과 **빠진 구간 계산**이 맞는지 검증한다 (FR-044)
 
 ### 수집 (003 구조 계승)
 
-- [ ] T018 [P] `backend/tests/integration/test_stock_collection.py`를 작성한다 — 요청 구간만 받는지(FR-043), 같은 구간을 다시 받지 않는지(FR-044, SC-022), 중단 후 **중단 지점부터** 이어받는지(FR-045, SC-023) 검증한다. 스텁 소스를 쓰며 네트워크 없이 통과해야 한다
-- [ ] T019 `backend/src/worker/stock_runner.py`에 수집 워커를 만든다. 003의 `worker/runner.py` 구조를 잇되 **점유는 FX와 분리한다** — 출처가 다르므로 호출 한도도 따로다 (research R5-7)
-- [ ] T020 [P] `backend/tests/integration/test_stock_lock.py`를 작성한다 — 같은 종목의 수집이 진행 중이면 새 작업을 만들지 않고 그 작업 ID를 주는지 검증한다 (FR-048, SC-028)
-- [ ] T021 `backend/src/repository/stock_job.py`에 작업·점유를 만든다. 003의 `repository/job.py`·`collection_lock.py`와 같은 모양
-- [ ] T022 `backend/src/api/routes/stock_progress.py`에 진행 상태 SSE를 만든다. **`error`에서 `close()`하지 않는다** — `EventSource`의 자동 재연결에 의존한다 (003이 001에서 얻은 교훈)
-- [ ] T023 보관한 시세에 **출처와 받은 시각**이 남는지 확인하는 검증을 `backend/tests/integration/test_stock_upsert.py`에 더한다 (FR-046, 헌법 시계열 불변식)
+- [X] T018 [P] `backend/tests/integration/test_stock_collection.py`를 작성한다 — 요청 구간만 받는지(FR-043), 같은 구간을 다시 받지 않는지(FR-044, SC-022), 중단 후 **중단 지점부터** 이어받는지(FR-045, SC-023) 검증한다. 스텁 소스를 쓰며 네트워크 없이 통과해야 한다
+- [X] T019 `backend/src/worker/stock_runner.py`에 수집 워커를 만든다. 003의 `worker/runner.py` 구조를 잇되 **점유는 FX와 분리한다** — 출처가 다르므로 호출 한도도 따로다 (research R5-7)
+- [X] T020 [P] `backend/tests/integration/test_stock_lock.py`를 작성한다 — 같은 종목의 수집이 진행 중이면 새 작업을 만들지 않고 그 작업 ID를 주는지 검증한다 (FR-048, SC-028)
+- [X] T021 `backend/src/repository/stock_job.py`에 작업·점유를 만든다. 003의 `repository/job.py`·`collection_lock.py`와 같은 모양
+- [X] T022 `backend/src/api/routes/stock_progress.py`에 진행 상태 SSE를 만든다. **`error`에서 `close()`하지 않는다** — `EventSource`의 자동 재연결에 의존한다 (003이 001에서 얻은 교훈)
+- [X] T023 보관한 시세에 **출처와 받은 시각**이 남는지 확인하는 검증을 `backend/tests/integration/test_stock_upsert.py`에 더한다 (FR-046, 헌법 시계열 불변식)
 
 **Checkpoint**: 시세를 받아 저장하고 재개할 수 있다 — 사용자 스토리 착수 가능
 
@@ -103,35 +103,35 @@ description: "Task list template for feature implementation"
 
 > **이 테스트들을 먼저 작성하고 실패를 확인한 뒤 구현한다**
 
-- [ ] T024 [P] [US1] `backend/tests/unit/test_reinvest_core.py` — **순수 함수** 시뮬레이터를 검증한다. 초기 1회 매수(FR-006), 정수 매수와 예수금 보존(FR-007, SC-006), 월 첫 거래일 행 생성(FR-025), **제공처가 준 분할 이벤트를 그대로 반영**(FR-010, FR-010a) — 가격 점프로 재판정하지 않는다. **역분할에서 정수로 떨어지지 않으면 버리는지**도 본다 — 올리거나 반올림하면 없던 주식이 생기는데 오류가 나지 않는다 (FR-010). DB·HTTP 없이 단독으로 돈다 (헌법 원칙 IV)
-- [ ] T025 [P] [US1] `backend/tests/unit/test_buy_quantity.py` — 매수 수량 산식을 검증한다. **수수료를 포함한 총액이 예수금을 넘지 않는** 최대 정수인지, **예수금이 음수가 되지 않는지**(SC-024) 확인한다. 수량을 시가로만 정하고 수수료를 나중에 빼는 구현은 여기서 걸린다 (FR-007a, FR-007b, SC-025)
-- [ ] T026 [P] [US1] `backend/tests/unit/test_reinvest_balance.py` — 잔고가 **보유 주식 수 × 그 행의 시가**이고 예수금을 포함하지 않는지, 총자산이 잔고+예수금인지 검증한다 (FR-013, SC-003, SC-004)
-- [ ] T027 [P] [US1] `backend/tests/unit/test_no_adjusted_price.py` — 시뮬레이터가 **수정종가를 읽지 않는지** 정적·동적으로 검사한다. 섞으면 배당이 이중 계산되는데 값은 그럴듯하다 (FR-011, SC-005)
-- [ ] T028 [P] [US1] `backend/tests/integration/test_stock_search_api.py` — 국내·미국·일본 종목이 모두 검색되는지(FR-002), 응답에 **시장과 거래 통화**가 함께 오는지(FR-002b), 출처 실패와 "결과 없음"이 구별되는지 검증한다 (contracts/rest-api)
-- [ ] T029 [P] [US1] `backend/tests/integration/test_simulation_api.py` — 표 응답의 행 구조, 커서 페이지, `hasMore`를 검증한다. **월 행에 배당 키가 없는지**(FR-026) 확인한다 — 0을 넣으면 "배당이 0원"과 "배당이 없음"을 구별할 수 없다
-- [ ] T030 [P] [US1] `backend/tests/integration/test_simulation_errors.py` — 상장 이전 시작일이 400 `before_listing`인지(FR-005), 시세를 얻을 수 없을 때 **빈 표가 아니라 사유**가 오는지(FR-004, SC-016) 검증한다
-- [ ] T031 [P] [US1] `frontend/tests/StockSearch.test.tsx` — 검색 결과에 시장·통화가 보이는지, **코드 직접 입력 칸이 없는지**(SC-031), 키보드로 고를 수 있는지 검증한다 (FR-002a, SC-030)
-- [ ] T032 [P] [US1] `frontend/tests/PerformanceTable.test.tsx` — 열 구성, 월 행의 빈 배당 칸, **날짜가 실제 거래일인지**(FR-028) 검증한다
-- [ ] T033 [P] [US1] `frontend/tests/PerformanceBoard.test.tsx` — 투자 원금·수익·수익률이 보이는지, **기준 구간이 함께 드러나는지**(FR-031) 검증한다. **보드의 수치와 표 마지막 행의 대응 수치가 같은지**도 본다 — 어긋나면 사용자는 어느 쪽이 맞는지 알 수 없다 (FR-032, SC-013)
+- [X] T024 [P] [US1] `backend/tests/unit/test_reinvest_core.py` — **순수 함수** 시뮬레이터를 검증한다. 초기 1회 매수(FR-006), 정수 매수와 예수금 보존(FR-007, SC-006), 월 첫 거래일 행 생성(FR-025), **제공처가 준 분할 이벤트를 그대로 반영**(FR-010, FR-010a) — 가격 점프로 재판정하지 않는다. **역분할에서 정수로 떨어지지 않으면 버리는지**도 본다 — 올리거나 반올림하면 없던 주식이 생기는데 오류가 나지 않는다 (FR-010). DB·HTTP 없이 단독으로 돈다 (헌법 원칙 IV)
+- [X] T025 [P] [US1] `backend/tests/unit/test_buy_quantity.py` — 매수 수량 산식을 검증한다. **수수료를 포함한 총액이 예수금을 넘지 않는** 최대 정수인지, **예수금이 음수가 되지 않는지**(SC-024) 확인한다. 수량을 시가로만 정하고 수수료를 나중에 빼는 구현은 여기서 걸린다 (FR-007a, FR-007b, SC-025)
+- [X] T026 [P] [US1] `backend/tests/unit/test_reinvest_balance.py` — 잔고가 **보유 주식 수 × 그 행의 시가**이고 예수금을 포함하지 않는지, 총자산이 잔고+예수금인지 검증한다 (FR-013, SC-003, SC-004)
+- [X] T027 [P] [US1] `backend/tests/unit/test_no_adjusted_price.py` — 시뮬레이터가 **수정종가를 읽지 않는지** 정적·동적으로 검사한다. 섞으면 배당이 이중 계산되는데 값은 그럴듯하다 (FR-011, SC-005)
+- [X] T028 [P] [US1] `backend/tests/integration/test_stock_search_api.py` — 국내·미국·일본 종목이 모두 검색되는지(FR-002), 응답에 **시장과 거래 통화**가 함께 오는지(FR-002b), 출처 실패와 "결과 없음"이 구별되는지 검증한다 (contracts/rest-api)
+- [X] T029 [P] [US1] `backend/tests/integration/test_simulation_api.py` — 표 응답의 행 구조, 커서 페이지, `hasMore`를 검증한다. **월 행에 배당 키가 없는지**(FR-026) 확인한다 — 0을 넣으면 "배당이 0원"과 "배당이 없음"을 구별할 수 없다
+- [X] T030 [P] [US1] `backend/tests/integration/test_simulation_errors.py` — 상장 이전 시작일이 400 `before_listing`인지(FR-005), 시세를 얻을 수 없을 때 **빈 표가 아니라 사유**가 오는지(FR-004, SC-016) 검증한다
+- [X] T031 [P] [US1] `frontend/tests/StockSearch.test.tsx` — 검색 결과에 시장·통화가 보이는지, **코드 직접 입력 칸이 없는지**(SC-031), 키보드로 고를 수 있는지 검증한다 (FR-002a, SC-030)
+- [X] T032 [P] [US1] `frontend/tests/PerformanceTable.test.tsx` — 열 구성, 월 행의 빈 배당 칸, **날짜가 실제 거래일인지**(FR-028) 검증한다
+- [X] T033 [P] [US1] `frontend/tests/PerformanceBoard.test.tsx` — 투자 원금·수익·수익률이 보이는지, **기준 구간이 함께 드러나는지**(FR-031) 검증한다. **보드의 수치와 표 마지막 행의 대응 수치가 같은지**도 본다 — 어긋나면 사용자는 어느 쪽이 맞는지 알 수 없다 (FR-032, SC-013)
 
 ### Implementation for User Story 1
 
-- [ ] T034 [US1] `backend/src/simulation/reinvest.py`에 **순수 함수** 시뮬레이터의 핵심을 만든다 — 일별 시세·분할·조건을 받아 행 목록을 돌려준다. `repository`·`api`·`db`를 임포트하지 않는다 (헌법 원칙 IV, research R5-4)
-- [ ] T035 [US1] `backend/src/simulation/reinvest.py`에 매수 수량 산식을 넣는다. `수량 = ⌊예수금 ÷ (시가 × (1 + 수수료율))⌋` (data-model 5절, FR-007a)
-- [ ] T036 [US1] `backend/src/api/services/stock_simulation.py`에 조회·조합을 만든다. 계산은 `simulation/`에 **위임만** 한다 — 여기서 직접 계산하면 원칙 IV 위반이고, 001의 `test_layer_boundaries`가 같은 검사를 한다
-- [ ] T037 [US1] `backend/src/api/routes/stock_search.py`에 검색 엔드포인트를 만든다. **검색 실패와 "결과 없음"을 구별한다** — 출처가 죽었는데 빈 목록을 주면 사용자는 그 종목이 존재하지 않는다고 읽는다. 목록을 미리 쌓지 않고 검색 시점에 출처에 묻는다 — **신규 상장 종목이 빠지지 않는 근거다**(FR-002c, research R5-2) (contracts/rest-api)
-- [ ] T038 [US1] `backend/src/api/routes/stock_simulation.py`에 시뮬레이션 엔드포인트를 만든다. 금액·비율은 전부 **문자열**로 직렬화한다 — JSON `number`는 IEEE 754라 원칙 VI를 API 경계에서 무력화한다
-- [ ] T039 [US1] `backend/src/api/routes/stock_simulation.py`에 커서 페이지(`before`·`limit`)를 더한다. 004의 방식을 잇는다 (FR-029)
-- [ ] T040 [P] [US1] `frontend/src/components/stock/StockSearch.tsx`를 만든다. **코드를 직접 입력하는 칸을 두지 않는다** — 확정은 목록에서 고르는 것으로만 이루어진다 (FR-002a, ui-wireframes W1)
-- [ ] T041 [P] [US1] `frontend/src/components/stock/SimulationForm.tsx`를 만든다 — 시작일·원금·통화·재투자 여부 (FR-001, FR-003)
-- [ ] T042 [P] [US1] `frontend/src/components/stock/PerformanceBoard.tsx`를 만든다. **기준 구간을 함께 쓴다** (FR-031, ui-wireframes W2)
-- [ ] T043 [P] [US1] `frontend/src/components/stock/PerformanceTable.tsx`를 만든다. 004의 `DailyTable`이 세운 형태를 잇는다 (FR-024, ui-wireframes W4)
-- [ ] T044 [US1] `frontend/src/stores/stockStore.ts`를 만든다 — 종목·조건·결과·로딩 상태 (헌법 원칙 VII)
-- [ ] T045 [US1] `frontend/src/app/stocks/page.tsx`를 만들어 화면을 조립한다. **경로는 복수(`stocks`)다** — 기존 가드 `noUnbuiltAssetRoutes.test.ts`가 그 이름을 전제하므로 단수로 두면 가드가 실패가 아니라 **통과**한다 (ui-wireframes W1)
-- [ ] T046 [US1] `frontend/src/components/shell/Sidebar.tsx`의 주식 메뉴를 `/stocks`로 연결하고 "준비중"을 걷어낸다. 함께 **기존 테스트 3건을 갱신한다** — `frontend/tests/noUnbuiltAssetRoutes.test.ts`의 `UNBUILT`에서 `stocks`를 빼고 `hrefs` 기대값에 `/stocks`를 더하며, `frontend/tests/Sidebar.test.tsx`의 "준비되지 않은 자산군" 목록과 `준비중` 개수(6 → 5)를 고친다. 남겨 두면 US1 체크포인트에서 전체 테스트가 실패한다 — 004에서 002의 `더 보기` 테스트가 같은 모양이었다 (FR-050, SC-033, 002 FR-005)
-- [ ] T047 [P] [US1] `frontend/tests/PerformanceTableScroll.test.tsx` — 스크롤로 이어 보는지, **`더 보기` 버튼이 없는지**, 끝에 도달하면 알리는지 검증한다 (FR-029, FR-030, SC-012)
-- [ ] T048 [US1] `frontend/src/components/stock/PerformanceTable.tsx`에 004의 `useInfiniteScroll`을 붙인다. 감시 지점이 처음부터 보이면 스크롤 없이도 시작된다 (FR-029)
-- [ ] T049 [P] [US1] `backend/tests/integration/test_simulation_reproducible.py` — 같은 입력을 두 번 실행해 결과가 같은지 검증한다. **원주가는 바뀌지 않지만 수정주가는 바뀐다** — 재현성이 원주가에 기대는 근거다 (FR-014, SC-002)
+- [X] T034 [US1] `backend/src/simulation/reinvest.py`에 **순수 함수** 시뮬레이터의 핵심을 만든다 — 일별 시세·분할·조건을 받아 행 목록을 돌려준다. `repository`·`api`·`db`를 임포트하지 않는다 (헌법 원칙 IV, research R5-4)
+- [X] T035 [US1] `backend/src/simulation/reinvest.py`에 매수 수량 산식을 넣는다. `수량 = ⌊예수금 ÷ (시가 × (1 + 수수료율))⌋` (data-model 5절, FR-007a)
+- [X] T036 [US1] `backend/src/api/services/stock_simulation.py`에 조회·조합을 만든다. 계산은 `simulation/`에 **위임만** 한다 — 여기서 직접 계산하면 원칙 IV 위반이고, 001의 `test_layer_boundaries`가 같은 검사를 한다
+- [X] T037 [US1] `backend/src/api/routes/stock_search.py`에 검색 엔드포인트를 만든다. **검색 실패와 "결과 없음"을 구별한다** — 출처가 죽었는데 빈 목록을 주면 사용자는 그 종목이 존재하지 않는다고 읽는다. 목록을 미리 쌓지 않고 검색 시점에 출처에 묻는다 — **신규 상장 종목이 빠지지 않는 근거다**(FR-002c, research R5-2) (contracts/rest-api)
+- [X] T038 [US1] `backend/src/api/routes/stock_simulation.py`에 시뮬레이션 엔드포인트를 만든다. 금액·비율은 전부 **문자열**로 직렬화한다 — JSON `number`는 IEEE 754라 원칙 VI를 API 경계에서 무력화한다
+- [X] T039 [US1] `backend/src/api/routes/stock_simulation.py`에 커서 페이지(`before`·`limit`)를 더한다. 004의 방식을 잇는다 (FR-029)
+- [X] T040 [P] [US1] `frontend/src/components/stock/StockSearch.tsx`를 만든다. **코드를 직접 입력하는 칸을 두지 않는다** — 확정은 목록에서 고르는 것으로만 이루어진다 (FR-002a, ui-wireframes W1)
+- [X] T041 [P] [US1] `frontend/src/components/stock/SimulationForm.tsx`를 만든다 — 시작일·원금·통화·재투자 여부 (FR-001, FR-003)
+- [X] T042 [P] [US1] `frontend/src/components/stock/PerformanceBoard.tsx`를 만든다. **기준 구간을 함께 쓴다** (FR-031, ui-wireframes W2)
+- [X] T043 [P] [US1] `frontend/src/components/stock/PerformanceTable.tsx`를 만든다. 004의 `DailyTable`이 세운 형태를 잇는다 (FR-024, ui-wireframes W4)
+- [X] T044 [US1] `frontend/src/stores/stockStore.ts`를 만든다 — 종목·조건·결과·로딩 상태 (헌법 원칙 VII)
+- [X] T045 [US1] `frontend/src/app/stocks/page.tsx`를 만들어 화면을 조립한다. **경로는 복수(`stocks`)다** — 기존 가드 `noUnbuiltAssetRoutes.test.ts`가 그 이름을 전제하므로 단수로 두면 가드가 실패가 아니라 **통과**한다 (ui-wireframes W1)
+- [X] T046 [US1] `frontend/src/components/shell/Sidebar.tsx`의 주식 메뉴를 `/stocks`로 연결하고 "준비중"을 걷어낸다. 함께 **기존 테스트 3건을 갱신한다** — `frontend/tests/noUnbuiltAssetRoutes.test.ts`의 `UNBUILT`에서 `stocks`를 빼고 `hrefs` 기대값에 `/stocks`를 더하며, `frontend/tests/Sidebar.test.tsx`의 "준비되지 않은 자산군" 목록과 `준비중` 개수(6 → 5)를 고친다. 남겨 두면 US1 체크포인트에서 전체 테스트가 실패한다 — 004에서 002의 `더 보기` 테스트가 같은 모양이었다 (FR-050, SC-033, 002 FR-005)
+- [X] T047 [P] [US1] `frontend/tests/PerformanceTableScroll.test.tsx` — 스크롤로 이어 보는지, **`더 보기` 버튼이 없는지**, 끝에 도달하면 알리는지 검증한다 (FR-029, FR-030, SC-012)
+- [X] T048 [US1] `frontend/src/components/stock/PerformanceTable.tsx`에 004의 `useInfiniteScroll`을 붙인다. 감시 지점이 처음부터 보이면 스크롤 없이도 시작된다 (FR-029)
+- [X] T049 [P] [US1] `backend/tests/integration/test_simulation_reproducible.py` — 같은 입력을 두 번 실행해 결과가 같은지 검증한다. **원주가는 바뀌지 않지만 수정주가는 바뀐다** — 재현성이 원주가에 기대는 근거다 (FR-014, SC-002)
 
 **Checkpoint**: 종목을 골라 성과를 볼 수 있다. **여기까지가 MVP다**
 
@@ -161,7 +161,7 @@ description: "Task list template for feature implementation"
 - [ ] T059 [US2] `backend/src/simulation/reinvest.py`에 배당 처리를 더한다 — 세후 배당금 산출, 배당락 행 생성, 재투자 매수 (FR-008, FR-009, FR-027)
 - [ ] T060 [US2] `backend/src/simulation/reinvest.py`에 같은 날 이벤트 순서를 못박는다. **분할 먼저, 배당 나중** (spec Assumptions)
 - [ ] T061 [US2] `backend/src/api/routes/stock_settings.py`에 설정 조회·변경을 만든다 (FR-015, FR-016)
-- [ ] T062 [US2] `backend/src/repository/stock_setting.py`에 전역 단일 행 조회·저장을 만든다 (data-model `stock_setting`)
+- [X] T062 [US2] `backend/src/repository/stock_setting.py`에 전역 단일 행 조회·저장을 만든다 (data-model `stock_setting`)
 - [ ] T063 [US2] `backend/src/api/routes/stock_simulation.py`의 응답에 `condition`을 더한다 — 적용된 수수료율·세율. 설정은 언제든 바뀌므로 **값만 남으면 어느 조건의 결과인지 알 수 없다** (FR-018)
 - [ ] T064 [US2] `frontend/src/components/stock/PerformanceTable.tsx`에 배당락 행 표시를 더한다. 월 행과 구별되게 한다 (FR-025, ui-wireframes W4)
 - [ ] T065 [US2] `frontend/src/app/settings/page.tsx`에 수수료·세율 입력을 더한다. 002의 스프레드 설정과 같은 자리다 (FR-015, FR-016)

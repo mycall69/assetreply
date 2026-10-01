@@ -18,12 +18,19 @@ from src.api.errors import (
     OutOfRange,
     UnknownCurrency,
 )
+from src.api.services.stock_simulation import BeforeListing, NoPriceData
 from src.db.session import init_engine, shutdown_engine
 from src.ingestion.ecos.errors import (
     ItemMappingChanged,
     SourceAuthError,
     SourceRateLimited,
     SourceUnavailable,
+)
+from src.ingestion.yahoo.errors import (
+    StockSourceAuthError,
+    StockSourceRateLimited,
+    StockSourceUnavailable,
+    StockSymbolNotFound,
 )
 
 
@@ -106,6 +113,39 @@ def create_app() -> FastAPI:
     async def _source_unavailable(_: Request, exc: SourceUnavailable) -> JSONResponse:
         return _json(502, "source_unavailable", "데이터 출처의 응답이 유효하지 않습니다.")
 
+    @app.exception_handler(BeforeListing)
+    async def _before_listing(_: Request, exc: BeforeListing) -> JSONResponse:
+        # **조용히 첫 거래일로 옮기지 않는다** — 옮기면 사용자는 자신이 고른 날짜부터
+        # 계산됐다고 믿는다 (FR-005).
+        return _json(400, "before_listing", str(exc))
+
+    @app.exception_handler(NoPriceData)
+    async def _no_price_data(_: Request, exc: NoPriceData) -> JSONResponse:
+        # **빈 표를 보여주지 않는다** — 사용자는 성과가 0이라고 읽는다 (FR-004).
+        return _json(404, "no_price_data", str(exc))
+
+    @app.exception_handler(StockSymbolNotFound)
+    async def _stock_not_found(_: Request, exc: StockSymbolNotFound) -> JSONResponse:
+        return _json(404, "unknown_stock",
+                     str(exc) or "시세 출처가 그 종목을 알지 못합니다.")
+
+    @app.exception_handler(StockSourceUnavailable)
+    async def _stock_unavailable(
+        _: Request, exc: StockSourceUnavailable
+    ) -> JSONResponse:
+        return _json(502, "source_unavailable", "시세 출처가 응답하지 않습니다.")
+
+    @app.exception_handler(StockSourceRateLimited)
+    async def _stock_rate_limited(
+        _: Request, exc: StockSourceRateLimited
+    ) -> JSONResponse:
+        return _json(503, "source_rate_limited",
+                     "시세 출처의 호출 한도를 소진했습니다. 잠시 뒤 다시 시도하세요.")
+
+    @app.exception_handler(StockSourceAuthError)
+    async def _stock_auth(_: Request, exc: StockSourceAuthError) -> JSONResponse:
+        return _json(502, "source_unavailable", "시세 출처가 요청을 거절했습니다.")
+
     @app.exception_handler(SourceRateLimited)
     async def _rate_limited(_: Request, exc: SourceRateLimited) -> JSONResponse:
         return _json(503, "source_rate_limited",
@@ -133,6 +173,9 @@ def create_app() -> FastAPI:
     from src.api.routes import rates as rates_routes
     from src.api.routes import series as series_routes
     from src.api.routes import spreads as spread_routes
+    from src.api.routes import stock_progress as stock_progress_routes
+    from src.api.routes import stock_search as stock_search_routes
+    from src.api.routes import stock_simulation as stock_simulation_routes
     from src.api.routes import today as today_routes
 
     app.include_router(rates_routes.router)
@@ -145,6 +188,10 @@ def create_app() -> FastAPI:
     app.include_router(collect_routes.router)
     app.include_router(collection_routes.router)
     app.include_router(job_routes.router)
+    # 005 — 주식 투자 시뮬레이션
+    app.include_router(stock_search_routes.router)
+    app.include_router(stock_progress_routes.router)
+    app.include_router(stock_simulation_routes.router)
 
     return app
 

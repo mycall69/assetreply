@@ -1,0 +1,29 @@
+{
+  "quotes": [
+    {
+      "exchange": "KSC",
+      "shortname": "SAMSUNG ELECTRONICS CO LTD",
+      "quoteType": "EQUITY",
+      "symbol": "005930.KS",
+      "longname": "Samsung Electronics Co., Ltd.",
+      "isYahooFinance": true
+    },
+    {
+      "exchange": "KSC",
+      "shortname": "SAMSUNG ELECTRONICS PFD",
+      "quoteType": "EQUITY",
+      "symbol": "005935.KS",
+      "longname": "Samsung Electronics Co., Ltd.",
+      "isYahooFinance": true
+    },
+    {
+      "exchange": "NMS",
+      "shortname": "ETF",
+      "quoteType": "ETF",
+      "symbol": "SMSN.IL",
+      "longname": "Samsung GDR",
+      "isYahooFinance": true
+    }
+  ],
+  "count": 3
+}

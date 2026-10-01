@@ -284,3 +284,154 @@ export interface EventsResponse {
   /** 0보다 크면 이 기록은 불완전하다 (FR-018b). */
   eventsDropped: number;
 }
+
+/* ───────────────────────── 005: 주식 투자 시뮬레이션 ───────────────────────── */
+
+/** 거래 시장. 시세 출처의 식별 체계를 따른다. */
+export type StockMarket = "KRX" | "NASDAQ" | "NYSE" | "AMEX" | "TSE";
+
+/** 투자 원금으로 고를 수 있는 통화 (FR-003). */
+export type PrincipalCurrency = "KRW" | "USD" | "JPY" | "EUR";
+
+/**
+ * 검색 결과 한 항목 (FR-002a).
+ *
+ * **시장과 통화를 함께 준다**(FR-002b). 같은 이름이 여러 시장에 있을 수 있고,
+ * 통화가 다르면 환전 여부와 수익률 기준이 달라진다.
+ */
+export interface StockSearchResult {
+  market: StockMarket;
+  symbol: string;
+  name: string;
+  currency: string;
+}
+
+/** 표 행의 종류 (FR-025). 월 첫 거래일 스냅샷과 배당락일 둘뿐이다. */
+export type SimulationRowKind = "month_first" | "dividend";
+
+/**
+ * 성과 표 한 행.
+ *
+ * `dividendPerShare`·`dividendYield`는 **배당락 행에만 있다**(FR-026). 월 행에 0을
+ * 넣으면 "배당이 0원"과 "배당이 없음"을 구별할 수 없다.
+ *
+ * `fxRate`·`fxRateDate`는 외화 종목일 때만 있다. `fxRateDate`가 `date`와 다를 수
+ * 있다 — 주식 거래일과 환율 고시일은 일치하지 않는다 (FR-041c).
+ */
+export interface SimulationRow {
+  date: string;
+  kind: SimulationRowKind;
+  openPrice: DecimalString;
+  dividendPerShare?: DecimalString;
+  dividendYield?: DecimalString;
+  boughtShares: number;
+  heldShares: number;
+  cash: DecimalString;
+  principal: DecimalString;
+  balance: DecimalString;
+  profit: DecimalString;
+  returnRate: DecimalString;
+  fxRate?: DecimalString;
+  fxRateDate?: string;
+}
+
+/**
+ * 성과 요약 (FR-031).
+ *
+ * `asOf`는 계산이 **어느 날짜까지**인지다. 시세가 끊기면 오늘이 아니고 `isFinal`이
+ * 거짓이 된다 (FR-014b). `isFinal`은 항상 명시된다 — "확인했고 아니다"와 "확인하지
+ * 않았다"가 구별되어야 한다.
+ */
+export interface SimulationSummary {
+  principal: DecimalString;
+  profit: DecimalString;
+  returnRate: DecimalString;
+  asOf: string;
+  isFinal: boolean;
+}
+
+/**
+ * 시뮬레이션에 적용된 조건 (FR-018).
+ *
+ * 수수료율·세율을 함께 싣는 이유는 설정이 언제든 바뀌기 때문이다. 결과만 남으면
+ * **어느 조건에서 나온 수치인지 알 수 없다.**
+ */
+export interface SimulationCondition {
+  start: string;
+  principal: DecimalString;
+  principalCurrency: PrincipalCurrency;
+  reinvest: boolean;
+  tradeFeeRate: DecimalString;
+  dividendTaxRate: DecimalString;
+}
+
+/**
+ * 초기 환전 정보 (FR-019~022). 원금 통화와 종목 통화가 다를 때만 있다.
+ *
+ * **평가 환산과 다른 환율이다.** 초기 환전은 실제로 돈을 바꾸는 1회 행위라 현금 살 때
+ * 환율에 우대가 붙고, 평가는 값어치를 재는 것이라 매매기준율을 쓴다 (FR-041b).
+ */
+export interface ExchangeInfo {
+  rate: DecimalString;
+  rateDate: string;
+  kind: "cash_buy_discounted";
+  spreadDiscount: DecimalString;
+}
+
+export interface SimulationResponse {
+  stock: StockSearchResult;
+  condition: SimulationCondition;
+  summary: SimulationSummary;
+  exchange?: ExchangeInfo;
+  rows: SimulationRow[];
+  hasMore: boolean;
+  oldestReturned: string | null;
+}
+
+/** 수집 중 응답 (FR-047). 부분 결과를 200으로 내려보내지 않는다 (FR-049). */
+export interface SimulationCollecting {
+  status: "collecting";
+  market: StockMarket;
+  symbol: string;
+  jobId: number;
+  missingFrom: string;
+  missingThrough: string;
+  progressUrl: string;
+}
+
+/** 차트용 시계열 한 점. 금액·비율은 **원금 통화 기준**이다 (FR-041). */
+export interface SimulationPoint {
+  date: string;
+  balance: DecimalString;
+  returnRate: DecimalString;
+}
+
+export interface SimulationSeriesResponse {
+  from: string;
+  to: string;
+  principalCurrency: PrincipalCurrency;
+  downsampled: boolean;
+  algorithm: string;
+  sourcePointCount: number;
+  points: SimulationPoint[];
+  gaps: SeriesGap[];
+}
+
+/** 수수료·세율 (FR-015, FR-016). 통화별이 아니라 전역 하나다. */
+export interface StockSettings {
+  tradeFeeRate: DecimalString;
+  dividendTaxRate: DecimalString;
+  isDefault: boolean;
+}
+
+/** 이력 한 항목 (FR-036). 종목명만 남기면 같은 종목의 다른 조건을 구분할 수 없다. */
+export interface SimulationHistoryEntry {
+  id: string;
+  stock: StockSearchResult;
+  start: string;
+  principal: DecimalString;
+  principalCurrency: PrincipalCurrency;
+  reinvest: boolean;
+  returnRate: DecimalString;
+  savedAt: string;
+}

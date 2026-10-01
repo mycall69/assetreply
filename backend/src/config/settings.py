@@ -114,6 +114,21 @@ class Settings:
     ecos_retry_max_attempts: int = 5
     ecos_retry_base_delay_ms: int = 1000
 
+    # ── 주식 시세 출처 (005 research R5-1) ──
+    #
+    # **문서화되지 않은 비공식 엔드포인트다.** Yahoo가 2017년 공식 API를 종료한 뒤
+    # 대체 공개 API를 내놓지 않았고, 이 호출은 예고 없이 바뀌거나 막힐 수 있다.
+    # 헌법 원칙 II의 "이용약관 준수" 항목이 미충족이며, 그 이탈은 005 plan의
+    # Complexity Tracking에 기록돼 있다.
+    #
+    # **호출 간격을 보수적으로 잡는다.** 공격적 폴링이 차단의 주된 원인이다.
+    stock_source_base_url: str = "https://query1.finance.yahoo.com"
+    stock_chunk_delay_ms: int = 1500
+    stock_max_concurrent: int = 1
+    stock_retry_max_attempts: int = 4
+    stock_retry_base_delay_ms: int = 2000
+    stock_request_timeout_seconds: int = 20
+
     # ── 수집 동작 ──
     collection_sync_threshold_days: int = 30
     job_history_success_retention_days: int = 90
@@ -207,6 +222,14 @@ def load_settings(env_file: Path | None = None) -> Settings:
         ecos_max_concurrent_currencies=_env_int("ECOS_MAX_CONCURRENT_CURRENCIES", 3, minimum=1),
         ecos_retry_max_attempts=_env_int("ECOS_RETRY_MAX_ATTEMPTS", 5, minimum=1),
         ecos_retry_base_delay_ms=_env_int("ECOS_RETRY_BASE_DELAY_MS", 1000),
+        stock_source_base_url=_env_str(
+            "STOCK_SOURCE_BASE_URL", "https://query1.finance.yahoo.com"),
+        stock_chunk_delay_ms=_env_int("STOCK_CHUNK_DELAY_MS", 1500),
+        stock_max_concurrent=_env_int("STOCK_MAX_CONCURRENT", 1, minimum=1),
+        stock_retry_max_attempts=_env_int("STOCK_RETRY_MAX_ATTEMPTS", 4, minimum=1),
+        stock_retry_base_delay_ms=_env_int("STOCK_RETRY_BASE_DELAY_MS", 2000),
+        stock_request_timeout_seconds=_env_int(
+            "STOCK_REQUEST_TIMEOUT_SECONDS", 20, minimum=1),
         collection_sync_threshold_days=_env_int("COLLECTION_SYNC_THRESHOLD_DAYS", 30),
         job_history_success_retention_days=_env_int("JOB_HISTORY_SUCCESS_RETENTION_DAYS", 90),
         daily_page_size=_env_int("DAILY_PAGE_SIZE", 30, minimum=1),

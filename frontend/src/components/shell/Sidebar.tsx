@@ -24,7 +24,7 @@ export interface MenuItem {
 export const MENU: readonly MenuItem[] = [
   { label: "대시보드" },
   { label: "외환", href: "/fx" },
-  { label: "주식" },
+  { label: "주식", href: "/stocks" },
   { label: "가상자산" },
   { label: "예금" },
   { label: "부동산" },

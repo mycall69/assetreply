@@ -236,3 +236,195 @@ class FxCollectionLock(Base):
     job_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("fx_collection_job.id"))
     acquired_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
     heartbeat_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
+
+
+# ─────────────────────────── 005: 주식 투자 시뮬레이션 ───────────────────────────
+#
+# 헌법 시계열 불변식을 따른다 — `(종목, 날짜)` 유니크 키와 upsert, `source`·`ingested_at`,
+# 원본과 정규화의 분리 저장, **수정주가와 원주가의 구분**.
+#
+# `fx_*`와 테이블을 합치지 않는다. 그쪽은 통화 단위이고 여기는 종목 단위라, 한 테이블에
+# 섞으면 키 설계가 둘 다 어색해지고 FX 질의가 주식 행을 걸러내야 한다 (005 research R5-7).
+
+#: 주가·배당금 정밀도. 출처가 주는 자릿수를 깎지 않는다 (005 data-model 4절).
+PRICE = Numeric(20, 6, asdecimal=True)
+
+
+class Stock(Base):
+    """종목. 사용자가 검색해 고른 것만 들어온다.
+
+    전체 목록을 미리 쌓지 않는 이유는 갱신 시점을 관리해야 하고 그 관리가 틀리면
+    **조용히 낡은 목록을 보여주기** 때문이다 (research R5-2).
+
+    `currency`를 종목에 두는 이유는 시장과 통화가 1:1이 아닐 수 있어서다. 종목마다
+    확정해 두면 환산 경로가 행 단위로 흔들리지 않는다.
+    """
+
+    __tablename__ = "stock"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    market: Mapped[str] = mapped_column(String(8))
+    symbol: Mapped[str] = mapped_column(String(32))
+    name: Mapped[str] = mapped_column(String(128))
+    currency: Mapped[str] = mapped_column(String(3))
+    # 출처가 실제로 값을 주기 시작한 날. 수집 중 발견해 기록한다 (FR-005).
+    first_available_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    ingested_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
+
+    __table_args__ = (Index("ux_stock_market_symbol", "market", "symbol", unique=True),)
+
+
+class StockPrice(Base):
+    """일별 시세.
+
+    **원주가와 수정주가를 나란히 두되 계산은 원주가만 쓴다** (FR-011, FR-012).
+    수정주가는 배당·분할을 소급 반영한 값이라, 거기에 배당을 또 더하면 같은 배당이 두 번
+    들어간다. 값은 그럴듯하고 차트도 매끄러워 알아챌 신호가 없다.
+
+    수정주가는 **나중에 배당·분할이 생기면 과거 값이 바뀐다.** 원주가는 바뀌지 않는다 —
+    재현성(FR-014)이 원주가에 기대는 근거다.
+    """
+
+    __tablename__ = "stock_price"
+
+    stock_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("stock.id"), primary_key=True)
+    quote_date: Mapped[dt.date] = mapped_column(Date, primary_key=True)
+    open_raw: Mapped[Decimal] = mapped_column(PRICE)
+    close_raw: Mapped[Decimal] = mapped_column(PRICE)
+    close_adjusted: Mapped[Decimal | None] = mapped_column(PRICE, nullable=True)
+    source: Mapped[str] = mapped_column(String(64))
+    ingested_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
+
+
+class StockDividend(Base):
+    """배당 이벤트. 배당락일을 지급 시점으로 다룬다.
+
+    **세전 금액을 저장한다.** 세율은 설정이라 바뀌며(FR-016), 세후를 저장하면 세율을
+    바꿨을 때 과거 행이 낡아 FR-017이 요구하는 재산출이 불가능해진다.
+    """
+
+    __tablename__ = "stock_dividend"
+
+    stock_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("stock.id"), primary_key=True)
+    ex_date: Mapped[dt.date] = mapped_column(Date, primary_key=True)
+    amount_per_share: Mapped[Decimal] = mapped_column(PRICE)
+    source: Mapped[str] = mapped_column(String(64))
+    ingested_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
+
+
+class StockSplit(Base):
+    """분할·병합 이벤트.
+
+    **비율을 분자·분모 정수로 보관한다.** 소수로 저장하면 3:1 분할이 `0.333333…`이 되어
+    보유 주식 수 계산에 오차가 들어간다. 병합(역분할)은 `numerator < denominator`다.
+
+    이 테이블이 FR-010b가 요구하는 "적용한 이벤트의 기록"이다. 제공처를 그대로 믿기로
+    했으므로(FR-010a), 틀렸을 때 되짚을 수단이 이것뿐이다.
+    """
+
+    __tablename__ = "stock_split"
+
+    stock_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("stock.id"), primary_key=True)
+    effective_date: Mapped[dt.date] = mapped_column(Date, primary_key=True)
+    numerator: Mapped[int] = mapped_column(Integer)
+    denominator: Mapped[int] = mapped_column(Integer)
+    source: Mapped[str] = mapped_column(String(64))
+    ingested_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
+
+
+class StockRawResponse(Base):
+    """원본 응답 기록.
+
+    주식 일봉은 한 번에 수천 행이 오므로 **처음부터 `MEDIUMTEXT`로 둔다.** 001이
+    `fx_raw_response`에서 `TEXT`(65,535바이트)를 넘겨 마이그레이션을 한 번 더 했다.
+    """
+
+    __tablename__ = "stock_raw_response"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    # 검색 응답은 종목이 아직 없다.
+    stock_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("stock.id"), nullable=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    requested_from: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    requested_to: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    body: Mapped[str] = mapped_column(Text(length=16_777_215))
+    status_code: Mapped[int] = mapped_column(SmallInteger)
+    received_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
+
+    __table_args__ = (Index("ix_stock_raw_received", "received_at"),)
+
+
+class StockCoverage(Base):
+    """수집 구간. 종목당 한 행.
+
+    FR-044의 "빠진 구간만 받는다"와 FR-045의 재개가 여기에 기댄다. `fx_coverage`와
+    합치지 않는다 — 그쪽은 통화 단위이고 여기는 종목 단위다.
+    """
+
+    __tablename__ = "stock_coverage"
+
+    stock_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("stock.id"), primary_key=True)
+    covered_from: Mapped[dt.date] = mapped_column(Date)
+    covered_through: Mapped[dt.date] = mapped_column(Date)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())
+
+
+class StockCollectionJob(Base):
+    """수집 작업 이력. 컬럼은 `FxCollectionJob`과 같고 통화 자리에 종목이 들어간다."""
+
+    __tablename__ = "stock_collection_job"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    stock_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("stock.id"))
+    range_start: Mapped[dt.date] = mapped_column(Date)
+    range_end: Mapped[dt.date] = mapped_column(Date)
+    status: Mapped[JobStatus] = mapped_column(
+        Enum(JobStatus, native_enum=False, length=16))
+    chunks_total: Mapped[int] = mapped_column(Integer)
+    chunks_done: Mapped[int] = mapped_column(Integer, default=0)
+    started_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
+    finished_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (Index("ix_stock_job_status", "stock_id", "status"),)
+
+
+class StockCollectionLock(Base):
+    """종목별 단일 수집 작업 잠금.
+
+    기본 키 INSERT 충돌이 곧 "이미 진행 중"을 뜻한다 (003이 FX에서 쓴 것과 같은 수단).
+
+    **점유를 자산군을 가로질러 공유하지 않는다.** FX 수집 중에 주식 수집을 막을 이유가
+    없고 출처가 달라 호출 한도도 따로다 (research R5-7).
+    """
+
+    __tablename__ = "stock_collection_lock"
+
+    stock_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("stock.id"), primary_key=True)
+    job_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("stock_collection_job.id"))
+    acquired_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
+    heartbeat_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())
+
+
+class StockSetting(Base):
+    """수수료·세율. **전역 단일 행**이다.
+
+    `fx_spread`는 통화별이지만 이쪽은 하나다. 시장별로 수수료가 다른 것이 현실이지만
+    명세가 하나로 받는다 (FR-015).
+    """
+
+    __tablename__ = "stock_setting"
+
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, default=1)
+    trade_fee_rate: Mapped[Decimal] = mapped_column(SPREAD)
+    dividend_tax_rate: Mapped[Decimal] = mapped_column(SPREAD)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())

@@ -125,3 +125,28 @@ def test_리포지토리가_구간_정의를_갖지_않는다() -> None:
     for token in ("YEARWEEK", "WEEKDAY", "DAYOFWEEK", "DATEDIFF", 'extract("week"',
                   "extract('week'", "monthrange"):
         assert token not in body, f"리포지토리에 구간 정의: {token}"
+
+
+# ─────────────────────────── 005: 주식 시세 출처 ───────────────────────────
+
+#: 시세 출처 응답의 고유 필드명. 어댑터 밖에서 등장하면 원칙 II 위반이다.
+STOCK_SOURCE_TOKENS = ("adjclose", "gmtoffset", "chartPreviousClose",
+                       "quoteType", "splitRatio", "firstTradeDate")
+
+
+def test_시세_출처_필드명이_어댑터_밖에_없다() -> None:
+    """T013 — 헌법 원칙 II.
+
+    출처를 교체할 때 손댈 지점이 한곳으로 모여야 한다. **출처가 막히는 것은 "언젠가"가
+    아니라 "언제"의 문제로 전제한다** (005 research R5-1).
+    """
+    adapter = SRC / "ingestion" / "yahoo"
+    offenders: list[str] = []
+    for path in SRC.rglob("*.py"):
+        if adapter in path.parents or "migrations" in path.parts:
+            continue
+        body = path.read_text(encoding="utf-8")
+        for token in STOCK_SOURCE_TOKENS:
+            if token in body:
+                offenders.append(f"{path.relative_to(SRC)}: {token}")
+    assert offenders == [], f"시세 출처 고유 개념 노출: {offenders}"
