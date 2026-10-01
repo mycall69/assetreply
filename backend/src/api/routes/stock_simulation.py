@@ -10,47 +10,25 @@
 from __future__ import annotations
 
 import datetime as dt
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.errors import InvalidQuery
-from src.api.services.stock_fx import cash_buy_spread, load_rates
 from src.api.services.stock_simulation import (
     ConvertedRow,
     SimulationResult,
+    check_principal_currency,
     page,
-    run_simulation,
+    parse_principal,
+    prepare,
 )
 from src.db.session import get_session
-from src.ingestion.yahoo.errors import StockSymbolNotFound
-from src.repository.stock import find_stock
-from src.repository.stock_setting import get_settings
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 
 Json = dict[str, object]
-
-#: 원금으로 고를 수 있는 통화 (FR-003).
-PRINCIPAL_CURRENCIES = ("KRW", "USD", "JPY", "EUR")
-
-
-def parse_principal(raw: str) -> Decimal:
-    """원금을 `Decimal`로 읽는다.
-
-    문자열로 받는 이유는 응답과 같다 — 경계에서 정밀도를 잃지 않는다. 숫자가 아니면
-    **조용히 0으로 떨어뜨리지 않는다.** 0이면 수익률이 0으로 나오는데 오류가 없다.
-    """
-    try:
-        amount = Decimal(raw)
-    except (InvalidOperation, ValueError) as exc:
-        raise InvalidQuery(f"원금이 숫자가 아닙니다: {raw}") from exc
-    if amount <= 0:
-        raise InvalidQuery("원금은 0보다 커야 합니다.")
-    return amount
-
 
 def row_json(converted: ConvertedRow) -> Json:
     """표 한 행.
@@ -112,36 +90,19 @@ async def get_simulation(
     limit: Annotated[int, Query(ge=1, le=200)] = 30,
 ) -> Json:
     """시뮬레이션을 실행하고 표 한 페이지를 돌려준다."""
-    if principal_currency not in PRINCIPAL_CURRENCIES:
-        raise InvalidQuery(
-            f"원금 통화는 {' · '.join(PRINCIPAL_CURRENCIES)} 중 하나여야 합니다: "
-            f"{principal_currency}")
+    check_principal_currency(principal_currency)
     amount = parse_principal(principal)
-
-    stock = await find_stock(session, market, symbol)
-    if stock is None:
-        raise StockSymbolNotFound(f"알 수 없는 종목입니다: {market}:{symbol}")
 
     # 끝은 기본적으로 어제다. 오늘 시세는 장중에 바뀌므로 재현성이 깨진다.
     finish = end or (dt.date.today() - dt.timedelta(days=1))
 
-    settings = await get_settings(session)
-
-    # 원금 통화와 종목 통화가 같으면 환전이 없다 (FR-023).
-    lookup = None
-    spread = None
-    if principal_currency != stock.currency:
-        lookup = await load_rates(session, stock.currency, start, finish)
-        spread = await cash_buy_spread(session, stock.currency)
-
-    result = await run_simulation(
-        session, int(stock.id),
-        start=start, end=finish, principal=amount,
-        currency=stock.currency, reinvest=reinvest,
-        fee_rate=settings.trade_fee_rate, tax_rate=settings.dividend_tax_rate,
-        listed_on=stock.first_available_date,
-        principal_currency=principal_currency,
-        lookup=lookup, spread=spread)
+    # **차트와 같은 함수를 같은 입력으로 부른다.** 각 라우트가 따로 조립하면 한쪽만
+    # 설정이나 환율 적용을 빠뜨려도 오류 없이 다른 숫자가 나온다 (SC-032).
+    prepared = await prepare(
+        session, market=market, symbol=symbol, start=start, end=finish,
+        principal=amount, principal_currency=principal_currency,
+        reinvest=reinvest)
+    stock, settings, result = prepared.stock, prepared.settings, prepared.result
 
     rows, has_more = page(result.rows, before, limit)
 

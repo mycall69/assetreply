@@ -13,12 +13,23 @@ from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass, replace
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.services.stock_fx import InitialExchange, build_exchange
+from src.api.errors import InvalidQuery
+from src.api.services.stock_fx import (
+    InitialExchange,
+    build_exchange,
+    cash_buy_spread,
+    load_rates,
+)
+from src.db.models import Stock
+from src.ingestion.yahoo.errors import StockSymbolNotFound
 from src.repository import stock_price as price_repo
+from src.repository.stock import find_stock
+from src.repository.stock_setting import Settings as StockSettings
+from src.repository.stock_setting import get_settings
 from src.simulation.fx_convert import (  # noqa: E501
     RateLookup,
     resolve_rate,
@@ -63,6 +74,41 @@ class SimulationResult:
     as_of: dt.date | None
     is_final: bool
     exchange: InitialExchange | None = None
+    #: 구간 안에서 **실제로 시세가 있는 날짜**. 차트의 결측 구간 판정에 쓴다.
+    #: 행 날짜(월 첫 거래일·배당락일)로는 판정할 수 없다 — 그 사이의 거래일이
+    #: 전부 비어 보여 멀쩡한 구간이 미수집으로 끊긴다 (FR-034).
+    quote_dates: frozenset[dt.date] = frozenset()
+
+
+#: 원금으로 고를 수 있는 통화 (FR-003).
+PRINCIPAL_CURRENCIES = ("KRW", "USD", "JPY", "EUR")
+
+
+def parse_principal(raw: str) -> Decimal:
+    """원금을 `Decimal`로 읽는다.
+
+    문자열로 받는 이유는 응답과 같다 — 경계에서 정밀도를 잃지 않는다. 숫자가 아니면
+    **조용히 0으로 떨어뜨리지 않는다.** 0이면 수익률이 0으로 나오는데 오류가 없다.
+    """
+    try:
+        amount = Decimal(raw)
+    except (InvalidOperation, ValueError) as exc:
+        raise InvalidQuery(f"원금이 숫자가 아닙니다: {raw}") from exc
+    if amount <= 0:
+        raise InvalidQuery("원금은 0보다 커야 합니다.")
+    return amount
+
+
+def check_principal_currency(code: str) -> None:
+    """원금 통화를 검증한다 (FR-003).
+
+    표와 차트가 같은 규칙을 써야 한다 — 한쪽만 통화를 거르면 같은 조건이 한 화면에서
+    거절되고 다른 화면에서 통과한다.
+    """
+    if code not in PRINCIPAL_CURRENCIES:
+        raise InvalidQuery(
+            f"원금 통화는 {' · '.join(PRINCIPAL_CURRENCIES)} 중 하나여야 합니다: "
+            f"{code}")
 
 
 class BeforeListing(Exception):
@@ -147,14 +193,17 @@ async def run_simulation(
     # 요청 끝(보통 어제)까지 시세가 있으면 최종이다. 끊겼으면 그 사실이 드러나야 한다.
     is_final = as_of >= end
 
+    quote_dates = frozenset(r.quote_date for r in bars_rows)
+
     if lookup is None or exchange is None:
         # 원금 통화와 종목 통화가 같다. 환전도 환산도 없다 (FR-023).
         return SimulationResult(
-            rows=[ConvertedRow(r) for r in rows], as_of=as_of, is_final=is_final)
+            rows=[ConvertedRow(r) for r in rows], as_of=as_of, is_final=is_final,
+            quote_dates=quote_dates)
 
     return SimulationResult(
         rows=[_convert(r, lookup, principal_currency, principal) for r in rows],
-        as_of=as_of, is_final=is_final, exchange=exchange)
+        as_of=as_of, is_final=is_final, exchange=exchange, quote_dates=quote_dates)
 
 
 def _convert(
@@ -216,3 +265,54 @@ def page(
     candidates = [r for r in rows if before is None or r.row.date < before]
     chunk = candidates[:limit]
     return chunk, len(candidates) > limit
+
+
+@dataclass(frozen=True, slots=True)
+class Prepared:
+    """조회에 필요한 것을 한 번에 모아 둔 결과.
+
+    표와 차트가 **같은 함수를 같은 입력으로** 부르게 하려고 둔다. 각 라우트가 따로
+    조립하면 한쪽만 설정이나 환율 적용을 빠뜨려도 오류 없이 다른 숫자가 나온다
+    (SC-032).
+    """
+
+    stock: Stock
+    settings: StockSettings
+    result: SimulationResult
+
+
+async def prepare(
+    session: AsyncSession,
+    *,
+    market: str,
+    symbol: str,
+    start: dt.date,
+    end: dt.date,
+    principal: Decimal,
+    principal_currency: str,
+    reinvest: bool,
+) -> Prepared:
+    """종목·설정·환율을 읽어 시뮬레이션을 돌린다."""
+    stock = await find_stock(session, market, symbol)
+    if stock is None:
+        raise StockSymbolNotFound(f"알 수 없는 종목입니다: {market}:{symbol}")
+
+    settings = await get_settings(session)
+
+    # 원금 통화와 종목 통화가 같으면 환전이 없다 (FR-023).
+    lookup = None
+    spread = None
+    if principal_currency != stock.currency:
+        lookup = await load_rates(session, stock.currency, start, end)
+        spread = await cash_buy_spread(session, stock.currency)
+
+    result = await run_simulation(
+        session, int(stock.id),
+        start=start, end=end, principal=principal,
+        currency=stock.currency, reinvest=reinvest,
+        fee_rate=settings.trade_fee_rate, tax_rate=settings.dividend_tax_rate,
+        listed_on=stock.first_available_date,
+        principal_currency=principal_currency,
+        lookup=lookup, spread=spread)
+
+    return Prepared(stock=stock, settings=settings, result=result)

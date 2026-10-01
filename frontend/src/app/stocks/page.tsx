@@ -9,6 +9,7 @@
  */
 
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
+import { PerformanceChart } from "@/components/stock/PerformanceChart";
 import { PerformanceTable } from "@/components/stock/PerformanceTable";
 import { SimulationForm } from "@/components/stock/SimulationForm";
 import { StockSearch } from "@/components/stock/StockSearch";
@@ -18,7 +19,7 @@ import { useStockStore } from "@/stores/stockStore";
 export default function StocksPage() {
   const {
     input, rows, summary, exchange, hasMore, collecting,
-    loading, loadingMore, error, loadMoreError,
+    series, seriesError, loading, loadingMore, error, loadMoreError,
     setInput, run, loadMore, refreshIfRan,
   } = useStockStore();
 
@@ -87,6 +88,24 @@ export default function StocksPage() {
           currency={input.principalCurrency}
           exchange={exchange ?? undefined}
         />
+      )}
+
+      {summary !== null && (
+        <section>
+          <h3 className="mb-2 text-sm font-semibold">성과 추이</h3>
+          {seriesError !== null ? (
+            // 표는 그대로 둔다 — 차트가 빈 것과 결과가 없는 것은 다른 사건이다.
+            <p role="alert" className="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {seriesError}
+            </p>
+          ) : (
+            <PerformanceChart
+              series={series}
+              collecting={collecting}
+              loading={loading}
+            />
+          )}
+        </section>
       )}
 
       {summary !== null && (

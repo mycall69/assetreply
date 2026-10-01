@@ -15,6 +15,7 @@ import type {
   SimulationCondition,
   SimulationResponse,
   SimulationRow,
+  SimulationSeriesResponse,
   SimulationSummary,
   StockSearchResult,
 } from "@/lib/types";
@@ -35,6 +36,15 @@ interface StockState {
   exchange: ExchangeInfo | null;
   hasMore: boolean;
   oldestReturned: string | null;
+  /** 차트용 전 구간 시계열 (FR-033). 표와 **같은 조건**으로 따로 받는다. */
+  series: SimulationSeriesResponse | null;
+  /**
+   * 차트만 실패했을 때의 사유.
+   *
+   * **표를 지우지 않는다.** 차트가 비는 것과 결과가 없는 것은 다른 사건인데,
+   * 한 덩어리로 다루면 멀쩡한 표까지 사라져 사용자는 조건이 틀렸다고 읽는다.
+   */
+  seriesError: string | null;
   collecting: SimulationCollecting | null;
   loading: boolean;
   loadingMore: boolean;
@@ -85,6 +95,8 @@ export const useStockStore = create<StockState>((set, get) => ({
   exchange: null,
   hasMore: false,
   oldestReturned: null,
+  series: null,
+  seriesError: null,
   collecting: null,
   loading: false,
   loadingMore: false,
@@ -113,8 +125,8 @@ export const useStockStore = create<StockState>((set, get) => ({
     }
     set({
       rows: [], summary: null, condition: null, exchange: null,
-      hasMore: false, oldestReturned: null, collecting: null,
-      loading: true, error: null, loadMoreError: null,
+      hasMore: false, oldestReturned: null, series: null, seriesError: null,
+      collecting: null, loading: true, error: null, loadMoreError: null,
     });
     try {
       const body = await apiClient.get<SimulationResponse | SimulationCollecting>(
@@ -133,8 +145,21 @@ export const useStockStore = create<StockState>((set, get) => ({
         exchange: result.exchange ?? null,
         hasMore: result.hasMore,
         oldestReturned: result.oldestReturned,
-        loading: false,
       });
+
+      // **표가 수집 중이 아님을 확인한 뒤에 받는다.** 나란히 보내면 같은 구간에
+      // 수집 요청이 두 번 나가고, 둘 다 작업을 만들려 해 하나는 점유에 걸린다.
+      try {
+        const series = await apiClient.get<SimulationSeriesResponse>(
+          `/api/stocks/simulation/series?${query}`,
+        );
+        set({ series, loading: false });
+      } catch (err) {
+        set({
+          seriesError: message(err, "차트를 불러오지 못했습니다."),
+          loading: false,
+        });
+      }
     } catch (err) {
       set({ error: message(err, "시뮬레이션에 실패했습니다."), loading: false });
     }

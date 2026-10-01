@@ -210,14 +210,14 @@ description: "Task list template for feature implementation"
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T080 [P] [US4] `frontend/tests/PerformanceChart.test.tsx` — 잔고와 수익률이 함께 그려지는지, 축이 구별되는지 검증한다 (FR-033)
-- [ ] T081 [P] [US4] `frontend/tests/PerformanceChartGaps.test.tsx` — **휴장일은 선을 잇고 미수집 구간은 끊는지** 검증한다. 001이 2026-09-27 반복에서 정한 규칙이다 (FR-034)
+- [X] T080 [P] [US4] `frontend/tests/PerformanceChart.test.tsx` — 잔고와 수익률이 함께 그려지는지, 축이 구별되는지 검증한다 (FR-033)
+- [X] T081 [P] [US4] `frontend/tests/PerformanceChartGaps.test.tsx` — **휴장일은 선을 잇고 미수집 구간은 끊는지** 검증한다. 001이 2026-09-27 반복에서 정한 규칙이다 (FR-034)
 
 ### Implementation for User Story 4
 
-- [ ] T082 [US4] `frontend/src/components/stock/PerformanceChart.tsx`를 만든다. 001의 `chartSeries.ts`가 쓰는 `reason`별 분리 규칙을 그대로 쓴다 (FR-033, FR-034, ui-wireframes W3)
-- [ ] T083 [US4] `backend/src/api/routes/stock_series.py`에 차트용 시계열 엔드포인트를 만든다. 표와 **같은 순수 함수를 같은 입력으로** 부른다 — 다른 경로를 타면 표의 마지막 행과 차트의 끝점이 달라진다. `maxPoints` 초과 시 001의 `simulation/downsample.py`를 재사용한다 (FR-033, SC-032, contracts/rest-api)
-- [ ] T083a [P] [US4] `backend/tests/integration/test_stock_series_api.py` — 포인트가 **원금 통화 기준**인지(FR-041), `gaps`의 `reason`이 구분되는지(FR-034), **표 마지막 행과 시계열 끝점이 일치하는지**(SC-032) 검증한다
+- [X] T082 [US4] `frontend/src/components/stock/PerformanceChart.tsx`를 만든다. 001의 `chartSeries.ts`가 쓰는 `reason`별 분리 규칙을 그대로 쓴다 (FR-033, FR-034, ui-wireframes W3)
+- [X] T083 [US4] `backend/src/api/routes/stock_series.py`에 차트용 시계열 엔드포인트를 만든다. 표와 **같은 순수 함수를 같은 입력으로** 부른다 — 다른 경로를 타면 표의 마지막 행과 차트의 끝점이 달라진다. `maxPoints` 초과 시 001의 `simulation/downsample.py`를 재사용한다 (FR-033, SC-032, contracts/rest-api)
+- [X] T083a [P] [US4] `backend/tests/integration/test_stock_series_api.py` — 포인트가 **원금 통화 기준**인지(FR-041), `gaps`의 `reason`이 구분되는지(FR-034), **표 마지막 행과 시계열 끝점이 일치하는지**(SC-032) 검증한다
 
 **Checkpoint**: 성과의 흐름이 보인다
 

@@ -58,7 +58,7 @@ export function formatYield(value: DecimalString, digits = 2): string {
 }
 
 /** 소수점을 `places`만큼 오른쪽으로 옮긴다. 문자열 조작이라 정밀도를 잃지 않는다. */
-function shiftDecimal(value: DecimalString, places: number): string {
+export function shiftDecimal(value: DecimalString, places: number): string {
   const negative = value.trimStart().startsWith("-");
   const digits = value.replace("-", "");
   const [whole, fraction = ""] = digits.split(".");

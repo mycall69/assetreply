@@ -186,6 +186,7 @@ def create_app() -> FastAPI:
     from src.api.routes import spreads as spread_routes
     from src.api.routes import stock_progress as stock_progress_routes
     from src.api.routes import stock_search as stock_search_routes
+    from src.api.routes import stock_series as stock_series_routes
     from src.api.routes import stock_settings as stock_settings_routes
     from src.api.routes import stock_simulation as stock_simulation_routes
     from src.api.routes import today as today_routes
@@ -204,6 +205,7 @@ def create_app() -> FastAPI:
     app.include_router(stock_search_routes.router)
     app.include_router(stock_progress_routes.router)
     app.include_router(stock_simulation_routes.router)
+    app.include_router(stock_series_routes.router)
     app.include_router(stock_settings_routes.router)
 
     return app

@@ -18,7 +18,8 @@
  * 보여준다 — 선을 잇는 것과 값이 있다고 말하는 것은 다르다.
  */
 
-import type { SeriesGap, SeriesPoint } from "./types";
+import { shiftDecimal } from "./format";
+import type { SeriesGap, SeriesPoint, SimulationPoint } from "./types";
 
 /** 차트 라이브러리에 넘길 형태. `raw`는 표시용 원본 문자열이다. */
 export interface ChartDatum {
@@ -32,10 +33,10 @@ export interface ChartDatum {
  *
  * 각 구간은 별도 시리즈로 그려야 선이 이어지지 않는다.
  */
-export function splitSeriesAtGaps(
-  points: SeriesPoint[],
+export function splitSeriesAtGaps<T extends { date: string }>(
+  points: T[],
   gaps: SeriesGap[],
-): SeriesPoint[][] {
+): T[][] {
   if (points.length === 0) return [];
 
   // 휴장일은 걸러낸다. 여기서 거르지 않으면 주말마다 시리즈가 쪼개진다.
@@ -43,8 +44,8 @@ export function splitSeriesAtGaps(
   if (breaks.length === 0) return [points];
 
   const boundaries = [...breaks].sort((a, b) => a.from.localeCompare(b.from));
-  const segments: SeriesPoint[][] = [];
-  let current: SeriesPoint[] = [];
+  const segments: T[][] = [];
+  let current: T[] = [];
 
   for (const point of points) {
     const crossed = boundaries.some(
@@ -70,5 +71,33 @@ export function splitSeriesAtGaps(
 export function toChartData(points: SeriesPoint[]): ChartDatum[] {
   return points
     .map((p) => ({ time: p.date, value: Number(p.baseRate), raw: p.baseRate }))
+    .sort((a, b) => a.time.localeCompare(b.time));
+}
+
+/**
+ * 성과 차트용 변환 (005 FR-033).
+ *
+ * **수익률은 백분율 축으로 그린다.** `0.2067`을 그대로 두면 눈금이 0~0.2라 읽히지
+ * 않고, 잔고(8만)와 같은 축에 놓이면 바닥에 붙어 평평해 보인다 — 사용자는 수익이
+ * 없었다고 읽는다.
+ *
+ * 소수점은 **문자열로 옮긴다**. `* 100`은 부동소수 곱이라 `0.1 * 100 = 10.000000000000002`가
+ * 되고, 헌법 원칙 VI가 렌더링 경계에서 무너진다. 그래도 라이브러리가 `number`를
+ * 요구하므로 마지막에 한 번 변환하되 **원본 문자열을 함께 보존한다** — 사용자에게
+ * 보이는 값에는 원본을 쓴다.
+ */
+export function toPerformanceData(
+  points: SimulationPoint[],
+  field: "balance" | "returnRate",
+): ChartDatum[] {
+  return points
+    .map((p) => {
+      const raw = field === "balance" ? p.balance : p.returnRate;
+      return {
+        time: p.date,
+        value: Number(field === "returnRate" ? shiftDecimal(raw, 2) : raw),
+        raw,
+      };
+    })
     .sort((a, b) => a.time.localeCompare(b.time));
 }
