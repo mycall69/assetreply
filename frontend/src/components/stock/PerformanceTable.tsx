@@ -21,16 +21,23 @@ const COLUMNS = [
   "예수금", "투자금", "잔고", "투자 수익", "수익율",
 ] as const;
 
+/** 외화 종목에만 붙는 열 (FR-041c). */
+const FX_COLUMN = "환율";
+
 export function PerformanceTable({
   rows,
   currency,
+  stockCurrency,
   hasMore,
   loadingMore = false,
   loadError = null,
   onLoadMore,
 }: {
   rows: SimulationRow[];
+  /** 표시 기준 통화 — 원금 통화다 (FR-041). */
   currency: string;
+  /** 종목의 거래 통화. 원금 통화와 다르면 환율 열이 붙는다. */
+  stockCurrency?: string;
   hasMore: boolean;
   loadingMore?: boolean;
   loadError?: string | null;
@@ -39,6 +46,24 @@ export function PerformanceTable({
   // 실패한 동안에는 감시를 끊는다. 즉시 다시 관찰하면 같은 오류를 무한히 반복한다.
   const open = hasMore && !loadingMore && loadError === null;
   const sentinel = useInfiniteScroll(onLoadMore, open);
+
+  // 외화 종목일 때만 환율 열을 둔다. 늘 두면 국내 종목에서 빈 열이 남는다.
+  const showFx = rows.some((r) => r.fxRate !== undefined);
+
+  // **한 행에 두 통화가 섞인다.** 시작가·주당 배당금은 종목 통화이고, 예수금·투자금·
+  // 잔고·투자 수익은 원금 통화다(FR-041). 표기하지 않으면 사용자가 같은 단위로 읽어
+  // 시작가와 잔고를 머릿속에서 곱해 보고 숫자가 안 맞는다고 여긴다.
+  const foreign = stockCurrency !== undefined && stockCurrency !== currency;
+  const heading = (column: string): string => {
+    if (!foreign) return column;
+    if (column === "시작가" || column === "주당 배당금") {
+      return `${column} (${stockCurrency})`;
+    }
+    if (["예수금", "투자금", "잔고", "투자 수익"].includes(column)) {
+      return `${column} (${currency})`;
+    }
+    return column;
+  };
 
   if (rows.length === 0) {
     return (
@@ -54,7 +79,7 @@ export function PerformanceTable({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-200 text-xs text-gray-500">
-              {COLUMNS.map((c, i) => (
+              {[...COLUMNS, ...(showFx ? [FX_COLUMN] : [])].map((c, i) => (
                 <th
                   key={c}
                   scope="col"
@@ -62,7 +87,7 @@ export function PerformanceTable({
                     i === 0 ? "text-left" : "text-right"
                   }`}
                 >
-                  {c}
+                  {heading(c)}
                 </th>
               ))}
             </tr>
@@ -119,6 +144,25 @@ export function PerformanceTable({
                 <td className="px-3 py-2 text-right tabular-nums">
                   {formatPercent(row.returnRate)}
                 </td>
+                {showFx && (
+                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                    {row.fxRate !== undefined ? formatRate(row.fxRate) : ""}
+                    {/*
+                      FR-041c — 쓴 환율의 날짜가 기준일과 다를 수 있다. 주식 거래일과
+                      환율 고시일은 일치하지 않는다. **기호만으로 전달하지 않는다.**
+                    */}
+                    {row.fxRateDate !== undefined && row.fxRateDate !== row.date && (
+                      <span
+                        role="img"
+                        className="ml-1"
+                        title={`${row.date}에 환율 고시가 없어 ${row.fxRateDate} 값을 썼습니다`}
+                        aria-label={`${row.date}에 환율 고시가 없어 ${row.fxRateDate} 값을 썼습니다`}
+                      >
+                        📅
+                      </span>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

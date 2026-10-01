@@ -116,7 +116,11 @@ def simulate(
     분할 후 주식 수에 붙는다 (spec Assumptions).
     """
     ordered = sorted(bars, key=lambda b: b.date)
-    by_split = {s.date: s for s in splits}
+    # **적용일로 맵을 만들지 않는다.** 분할 적용일이 우리가 가진 거래일 목록에
+    # 없으면(휴일이거나 그 날짜를 받지 못했으면) 분할이 조용히 사라지고, 보유 주식이
+    # 배수로 틀리는데 오류가 나지 않는다. 날짜 순으로 훑으며 "지나간 분할"을 적용한다.
+    pending_splits = sorted(splits, key=lambda s: s.date)
+    next_split = 0
     by_dividend: dict[dt.date, Decimal] = {}
     for d in dividends:
         # 같은 날 여러 배당은 합산해 하나로 다룬다 (spec Assumptions).
@@ -133,10 +137,12 @@ def simulate(
         if bar.date < condition.start.replace(day=1):
             continue
 
-        # (0) 분할을 먼저 적용한다. 배당은 분할 후 주식 수에 붙는다.
-        split = by_split.get(bar.date)
-        if split is not None:
+        # (0) 이 거래일까지의 분할을 먼저 적용한다. 배당은 분할 후 주식 수에 붙는다.
+        while (next_split < len(pending_splits)
+               and pending_splits[next_split].date <= bar.date):
+            split = pending_splits[next_split]
             held = apply_split(held, split.numerator, split.denominator)
+            next_split += 1
 
         is_month_first = bar.date in month_firsts
 

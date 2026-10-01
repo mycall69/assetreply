@@ -17,7 +17,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.errors import InvalidQuery
+from src.api.services.stock_fx import cash_buy_spread, load_rates
 from src.api.services.stock_simulation import (
+    ConvertedRow,
     SimulationResult,
     page,
     run_simulation,
@@ -26,7 +28,6 @@ from src.db.session import get_session
 from src.ingestion.yahoo.errors import StockSymbolNotFound
 from src.repository.stock import find_stock
 from src.repository.stock_setting import get_settings
-from src.simulation.reinvest import Row
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 
@@ -51,12 +52,13 @@ def parse_principal(raw: str) -> Decimal:
     return amount
 
 
-def row_json(row: Row) -> Json:
+def row_json(converted: ConvertedRow) -> Json:
     """표 한 행.
 
     `dividendPerShare`·`dividendYield`는 **배당락 행에만** 넣는다(FR-026). 정상 상태에
     값을 두면 화면이 존재 여부가 아니라 내용을 검사해야 한다.
     """
+    row = converted.row
     body: Json = {
         "date": row.date.isoformat(),
         "kind": row.kind,
@@ -73,6 +75,10 @@ def row_json(row: Row) -> Json:
         body["dividendPerShare"] = str(row.dividend_per_share)
     if row.dividend_yield is not None:
         body["dividendYield"] = str(row.dividend_yield)
+    # FR-041c — 그 행의 평가 환산에 쓴 환율과 **실제로 쓴 날짜**. 기준일과 다를 수 있다.
+    if converted.fx_rate is not None and converted.fx_rate_date is not None:
+        body["fxRate"] = str(converted.fx_rate)
+        body["fxRateDate"] = converted.fx_rate_date.isoformat()
     return body
 
 
@@ -82,7 +88,7 @@ def summary_json(result: SimulationResult, principal: Decimal) -> Json:
     `asOf`는 계산이 어느 날짜까지인지다. `isFinal`은 **항상 명시한다** — "확인했고
     아니다"와 "확인하지 않았다"가 구별되어야 한다 (FR-014b).
     """
-    latest = result.rows[0] if result.rows else None
+    latest = result.rows[0].row if result.rows else None
     return {
         "principal": str(principal),
         "profit": str(latest.profit if latest else Decimal("0")),
@@ -120,12 +126,22 @@ async def get_simulation(
     finish = end or (dt.date.today() - dt.timedelta(days=1))
 
     settings = await get_settings(session)
+
+    # 원금 통화와 종목 통화가 같으면 환전이 없다 (FR-023).
+    lookup = None
+    spread = None
+    if principal_currency != stock.currency:
+        lookup = await load_rates(session, stock.currency, start, finish)
+        spread = await cash_buy_spread(session, stock.currency)
+
     result = await run_simulation(
         session, int(stock.id),
         start=start, end=finish, principal=amount,
         currency=stock.currency, reinvest=reinvest,
         fee_rate=settings.trade_fee_rate, tax_rate=settings.dividend_tax_rate,
-        listed_on=stock.first_available_date)
+        listed_on=stock.first_available_date,
+        principal_currency=principal_currency,
+        lookup=lookup, spread=spread)
 
     rows, has_more = page(result.rows, before, limit)
 
@@ -144,7 +160,13 @@ async def get_simulation(
             "dividendTaxRate": str(settings.dividend_tax_rate),
         },
         "summary": summary_json(result, amount),
+        **({"exchange": {
+            "rate": str(result.exchange.rate),
+            "rateDate": result.exchange.rate_date.isoformat(),
+            "kind": "cash_buy_discounted",
+            "spreadDiscount": str(result.exchange.spread_discount),
+        }} if result.exchange is not None else {}),
         "rows": [row_json(r) for r in rows],
         "hasMore": has_more,
-        "oldestReturned": rows[-1].date.isoformat() if rows else None,
+        "oldestReturned": rows[-1].row.date.isoformat() if rows else None,
     }

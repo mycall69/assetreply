@@ -12,14 +12,21 @@ import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
 import { PerformanceTable } from "@/components/stock/PerformanceTable";
 import { SimulationForm } from "@/components/stock/SimulationForm";
 import { StockSearch } from "@/components/stock/StockSearch";
+import { useEffect } from "react";
 import { useStockStore } from "@/stores/stockStore";
 
 export default function StocksPage() {
   const {
     input, rows, summary, exchange, hasMore, collecting,
     loading, loadingMore, error, loadMoreError,
-    setInput, run, loadMore,
+    setInput, run, loadMore, refreshIfRan,
   } = useStockStore();
+
+  // FR-017 — 설정 화면에 다녀왔을 수 있다. 이미 실행한 결과가 있으면 새 값으로
+  // 다시 받는다. 갱신하지 않으면 화면은 정상으로 보이면서 낡은 값을 보여준다.
+  useEffect(() => {
+    void refreshIfRan();
+  }, [refreshIfRan]);
 
   const currency = input.stock?.currency ?? "KRW";
 
@@ -77,7 +84,7 @@ export default function StocksPage() {
       {summary !== null && (
         <PerformanceBoard
           summary={summary}
-          currency={currency}
+          currency={input.principalCurrency}
           exchange={exchange ?? undefined}
         />
       )}
@@ -87,7 +94,8 @@ export default function StocksPage() {
           <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
           <PerformanceTable
             rows={rows}
-            currency={currency}
+            currency={input.principalCurrency}
+            stockCurrency={currency}
             hasMore={hasMore}
             loadingMore={loadingMore}
             loadError={loadMoreError}

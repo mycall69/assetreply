@@ -31,3 +31,11 @@ class CollectionInProgress(Exception):
 
 class InvalidQuery(Exception):
     """필수 질의 매개변수가 없거나 조합이 잘못됨 (003, 400)."""
+
+
+class InvalidSetting(Exception):
+    """주식 설정 값이 허용 범위를 벗어남 (005 FR-015, FR-016, 422).
+
+    조용히 기본값으로 떨어뜨리지 않는다 — 수수료·세금이 사라진 결과가 나오는데
+    값은 그럴듯하고 오류도 없다.
+    """

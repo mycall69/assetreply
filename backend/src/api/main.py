@@ -14,10 +14,12 @@ from fastapi.responses import JSONResponse
 from src.api.errors import (
     CollectionInProgress,
     InvalidQuery,
+    InvalidSetting,
     InvalidSpread,
     OutOfRange,
     UnknownCurrency,
 )
+from src.api.services.stock_fx import FxUnavailable
 from src.api.services.stock_simulation import BeforeListing, NoPriceData
 from src.db.session import init_engine, shutdown_engine
 from src.ingestion.ecos.errors import (
@@ -113,6 +115,15 @@ def create_app() -> FastAPI:
     async def _source_unavailable(_: Request, exc: SourceUnavailable) -> JSONResponse:
         return _json(502, "source_unavailable", "데이터 출처의 응답이 유효하지 않습니다.")
 
+    @app.exception_handler(InvalidSetting)
+    async def _invalid_setting(_: Request, exc: InvalidSetting) -> JSONResponse:
+        return _json(422, "invalid_setting", str(exc))
+
+    @app.exception_handler(FxUnavailable)
+    async def _fx_unavailable(_: Request, exc: FxUnavailable) -> JSONResponse:
+        # 환산할 수 없다는 사실이 드러나야 한다. 값을 만들어내지 않는다 (원칙 V).
+        return _json(409, 'fx_unavailable', str(exc))
+
     @app.exception_handler(BeforeListing)
     async def _before_listing(_: Request, exc: BeforeListing) -> JSONResponse:
         # **조용히 첫 거래일로 옮기지 않는다** — 옮기면 사용자는 자신이 고른 날짜부터
@@ -175,6 +186,7 @@ def create_app() -> FastAPI:
     from src.api.routes import spreads as spread_routes
     from src.api.routes import stock_progress as stock_progress_routes
     from src.api.routes import stock_search as stock_search_routes
+    from src.api.routes import stock_settings as stock_settings_routes
     from src.api.routes import stock_simulation as stock_simulation_routes
     from src.api.routes import today as today_routes
 
@@ -192,6 +204,7 @@ def create_app() -> FastAPI:
     app.include_router(stock_search_routes.router)
     app.include_router(stock_progress_routes.router)
     app.include_router(stock_simulation_routes.router)
+    app.include_router(stock_settings_routes.router)
 
     return app
 

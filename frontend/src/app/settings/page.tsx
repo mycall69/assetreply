@@ -10,7 +10,12 @@
 import { useEffect, useState } from "react";
 import { RestoreDefaultsDialog } from "@/components/settings/RestoreDefaultsDialog";
 import { SpreadForm } from "@/components/settings/SpreadForm";
-import type { DerivedRates, SpreadRow } from "@/lib/types";
+import {
+  StockSettingsForm,
+  type StockSettingsChange,
+} from "@/components/settings/StockSettingsForm";
+import { ApiError, apiClient } from "@/lib/apiClient";
+import type { DerivedRates, SpreadRow, StockSettings } from "@/lib/types";
 import { useFxWorkspaceStore } from "@/stores/fxWorkspaceStore";
 import { useSpreadStore } from "@/stores/spreadStore";
 
@@ -53,7 +58,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-3xl space-y-6">
       <h2 className="text-xl font-bold tracking-tight">외화 스프레드</h2>
 
       {error && (
@@ -72,6 +77,9 @@ export default function SettingsPage() {
         />
       )}
 
+      {/* 005 — 주식 매매 조건. 002의 스프레드 설정과 같은 자리에 둔다 (FR-015). */}
+      <StockSettingsSection />
+
       {pending !== null && (
         <RestoreDefaultsDialog
           scope={pending}
@@ -79,6 +87,62 @@ export default function SettingsPage() {
           onConfirm={() => void onConfirmRestore()}
           onCancel={() => setPending(null)}
         />
+      )}
+    </div>
+  );
+}
+
+
+/**
+ * 주식 설정 구역 (T065) — 005 FR-015, FR-016.
+ *
+ * 스프레드 설정과 **상태를 공유하지 않는다.** 서로 다른 자산군의 설정이라 한쪽의
+ * 실패가 다른 쪽을 가리면 사용자가 무엇이 저장됐는지 알 수 없다.
+ */
+function StockSettingsSection() {
+  const [value, setValue] = useState<StockSettings | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        setValue(await apiClient.get<StockSettings>("/api/stocks/settings"));
+      } catch (err) {
+        setFailure(
+          err instanceof ApiError ? err.message : "주식 설정을 불러오지 못했습니다.",
+        );
+      }
+    })();
+  }, []);
+
+  const save = async (change: StockSettingsChange) => {
+    try {
+      const saved = await apiClient.put<StockSettings>(
+        "/api/stocks/settings",
+        change,
+      );
+      setValue(saved);
+      setNotice("저장했습니다. 시뮬레이션을 다시 실행하면 새 값이 반영됩니다.");
+      setFailure(null);
+    } catch (err) {
+      setFailure(
+        err instanceof ApiError ? err.message : "주식 설정을 저장하지 못했습니다.",
+      );
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <h2 className="text-xl font-bold tracking-tight">주식 매매 조건</h2>
+      {failure !== null && (
+        <p role="alert" className="rounded border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {failure}
+        </p>
+      )}
+      {notice !== null && <p className="text-sm text-gray-600">{notice}</p>}
+      {value !== null && (
+        <StockSettingsForm value={value} onSave={(c) => void save(c)} />
       )}
     </div>
   );

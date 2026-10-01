@@ -146,26 +146,26 @@ description: "Task list template for feature implementation"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T050 [P] [US2] `backend/tests/unit/test_dividend_rows.py` — 배당락 행이 생기는지, 주당 배당금과 배당율이 채워지는지, **월 행에는 그 키가 없는지** 검증한다 (FR-025, FR-026)
-- [ ] T051 [P] [US2] `backend/tests/unit/test_reinvest_on.py` — 재투자가 켜지면 세후 배당금을 예수금에 더한 뒤 **그날 시가로 예수금 전액**을 써서 정수 매수하는지, 배당락 행이 **재투자까지 반영된 상태**인지 검증한다 (FR-008, FR-027)
-- [ ] T052 [P] [US2] `backend/tests/unit/test_reinvest_off.py` — 재투자가 꺼지면 세후 배당금이 예수금에 쌓이기만 하고 보유 주식이 늘지 않는지 검증한다 (FR-009)
-- [ ] T053 [P] [US2] `backend/tests/unit/test_dividend_tax.py` — 세율이 세전 배당금에 적용되는지, 세율을 바꾸면 결과가 달라지는지 검증한다. **저장은 세전이다** — 세후를 저장하면 세율을 바꿨을 때 과거 행이 낡는다 (FR-016, data-model `stock_dividend`)
-- [ ] T054 [P] [US2] `backend/tests/unit/test_same_day_events.py` — 같은 날 배당과 분할이 겹치면 **분할을 먼저 적용하고 배당을 계산**하는지, 같은 날 여러 배당이 합산되는지 검증한다 (spec Assumptions, Edge Cases)
-- [ ] T055 [P] [US2] `backend/tests/integration/test_reinvest_difference.py` — 재투자 켬/끔의 보유 주식 수가 다른지 검증한다 (SC-011)
-- [ ] T056 [P] [US2] `backend/tests/integration/test_settings_api.py` — 수수료·세율 조회·변경, 범위 밖 값이 422인지, `isDefault`가 맞는지 검증한다 (FR-015, FR-016)
-- [ ] T057 [P] [US2] `backend/tests/integration/test_settings_applied.py` — 설정을 바꾸면 **새 값 기준으로 다시 제시되는지**(FR-017, SC-007), 응답에 **적용된 수수료율·세율이 실리는지**(FR-018, SC-008) 검증한다. 갱신되지 않으면 화면은 정상으로 보이면서 낡은 값을 보여준다
-- [ ] T058 [P] [US2] `frontend/tests/StockSettings.test.tsx` — 설정 화면의 두 항목과 기본값 표시를 검증한다
+- [X] T050 [P] [US2] `backend/tests/unit/test_dividend_rows.py` — 배당락 행이 생기는지, 주당 배당금과 배당율이 채워지는지, **월 행에는 그 키가 없는지** 검증한다 (FR-025, FR-026)
+- [X] T051 [P] [US2] `backend/tests/unit/test_reinvest_on.py` — 재투자가 켜지면 세후 배당금을 예수금에 더한 뒤 **그날 시가로 예수금 전액**을 써서 정수 매수하는지, 배당락 행이 **재투자까지 반영된 상태**인지 검증한다 (FR-008, FR-027)
+- [X] T052 [P] [US2] `backend/tests/unit/test_reinvest_off.py` — 재투자가 꺼지면 세후 배당금이 예수금에 쌓이기만 하고 보유 주식이 늘지 않는지 검증한다 (FR-009)
+- [X] T053 [P] [US2] `backend/tests/unit/test_dividend_tax.py` — 세율이 세전 배당금에 적용되는지, 세율을 바꾸면 결과가 달라지는지 검증한다. **저장은 세전이다** — 세후를 저장하면 세율을 바꿨을 때 과거 행이 낡는다 (FR-016, data-model `stock_dividend`)
+- [X] T054 [P] [US2] `backend/tests/unit/test_same_day_events.py` — 같은 날 배당과 분할이 겹치면 **분할을 먼저 적용하고 배당을 계산**하는지, 같은 날 여러 배당이 합산되는지 검증한다 (spec Assumptions, Edge Cases)
+- [X] T055 [P] [US2] `backend/tests/integration/test_reinvest_difference.py` — 재투자 켬/끔의 보유 주식 수가 다른지 검증한다 (SC-011)
+- [X] T056 [P] [US2] `backend/tests/integration/test_settings_api.py` — 수수료·세율 조회·변경, 범위 밖 값이 422인지, `isDefault`가 맞는지 검증한다 (FR-015, FR-016)
+- [X] T057 [P] [US2] `backend/tests/integration/test_settings_applied.py` — 설정을 바꾸면 **새 값 기준으로 다시 제시되는지**(FR-017, SC-007), 응답에 **적용된 수수료율·세율이 실리는지**(FR-018, SC-008) 검증한다. 갱신되지 않으면 화면은 정상으로 보이면서 낡은 값을 보여준다
+- [X] T058 [P] [US2] `frontend/tests/StockSettings.test.tsx` — 설정 화면의 두 항목과 기본값 표시를 검증한다
 
 ### Implementation for User Story 2
 
-- [ ] T059 [US2] `backend/src/simulation/reinvest.py`에 배당 처리를 더한다 — 세후 배당금 산출, 배당락 행 생성, 재투자 매수 (FR-008, FR-009, FR-027)
-- [ ] T060 [US2] `backend/src/simulation/reinvest.py`에 같은 날 이벤트 순서를 못박는다. **분할 먼저, 배당 나중** (spec Assumptions)
-- [ ] T061 [US2] `backend/src/api/routes/stock_settings.py`에 설정 조회·변경을 만든다 (FR-015, FR-016)
+- [X] T059 [US2] `backend/src/simulation/reinvest.py`에 배당 처리를 더한다 — 세후 배당금 산출, 배당락 행 생성, 재투자 매수 (FR-008, FR-009, FR-027)
+- [X] T060 [US2] `backend/src/simulation/reinvest.py`에 같은 날 이벤트 순서를 못박는다. **분할 먼저, 배당 나중** (spec Assumptions)
+- [X] T061 [US2] `backend/src/api/routes/stock_settings.py`에 설정 조회·변경을 만든다 (FR-015, FR-016)
 - [X] T062 [US2] `backend/src/repository/stock_setting.py`에 전역 단일 행 조회·저장을 만든다 (data-model `stock_setting`)
-- [ ] T063 [US2] `backend/src/api/routes/stock_simulation.py`의 응답에 `condition`을 더한다 — 적용된 수수료율·세율. 설정은 언제든 바뀌므로 **값만 남으면 어느 조건의 결과인지 알 수 없다** (FR-018)
-- [ ] T064 [US2] `frontend/src/components/stock/PerformanceTable.tsx`에 배당락 행 표시를 더한다. 월 행과 구별되게 한다 (FR-025, ui-wireframes W4)
-- [ ] T065 [US2] `frontend/src/app/settings/page.tsx`에 수수료·세율 입력을 더한다. 002의 스프레드 설정과 같은 자리다 (FR-015, FR-016)
-- [ ] T066 [US2] `frontend/src/stores/stockStore.ts`에 설정 변경 시 결과를 **다시 받는** 경로를 만든다 (FR-017, ui-wireframes 갱신 범위)
+- [X] T063 [US2] `backend/src/api/routes/stock_simulation.py`의 응답에 `condition`을 더한다 — 적용된 수수료율·세율. 설정은 언제든 바뀌므로 **값만 남으면 어느 조건의 결과인지 알 수 없다** (FR-018)
+- [X] T064 [US2] `frontend/src/components/stock/PerformanceTable.tsx`에 배당락 행 표시를 더한다. 월 행과 구별되게 한다 (FR-025, ui-wireframes W4)
+- [X] T065 [US2] `frontend/src/app/settings/page.tsx`에 수수료·세율 입력을 더한다. 002의 스프레드 설정과 같은 자리다 (FR-015, FR-016)
+- [X] T066 [US2] `frontend/src/stores/stockStore.ts`에 설정 변경 시 결과를 **다시 받는** 경로를 만든다 (FR-017, ui-wireframes 갱신 범위)
 
 **Checkpoint**: 배당 재투자의 효과를 켰다 껐다 하며 볼 수 있다
 
@@ -180,22 +180,22 @@ description: "Task list template for feature implementation"
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T067 [P] [US3] `backend/tests/unit/test_initial_exchange.py` — 초기 환전이 **현금 살 때 환율에 스프레드의 10%만 적용**한 값인지 검증한다. 우대 방향을 반대로 잡으면 환전 금액이 조용히 달라진다 (FR-019, FR-020)
-- [ ] T068 [P] [US3] `backend/tests/unit/test_valuation_fx.py` — 평가 환산이 **매매기준율**을 쓰는지, 현금 살 때 환율이나 우대가 섞이지 않는지 검증한다. 섞으면 잔고가 매수 스프레드만큼 크게 나온다 (FR-041b, SC-021)
-- [ ] T069 [P] [US3] `backend/tests/unit/test_fx_missing_day.py` — 기준일에 고시가 없으면 **가장 가까운 이전 고시일**을 쓰고 **그 날짜를 함께 돌려주는지** 검증한다. 밝히지 않으면 곧바로 원칙 V 위반이다 (FR-041c, research R5-6)
-- [ ] T070 [P] [US3] `backend/tests/integration/test_simulation_fx.py` — 외화 종목 응답에 `exchange`와 행별 `fxRate`·`fxRateDate`가 오는지, **행마다 환율이 다른지**(초기 환율 하나로 전 구간을 환산하지 않는지) 검증한다 (FR-021, FR-041a, SC-009, SC-020)
-- [ ] T071 [P] [US3] `backend/tests/integration/test_simulation_no_fx.py` — 원금 통화와 종목 통화가 같으면 환전이 일어나지 않는지(FR-023), 환율이 아예 없으면 409 `fx_unavailable`인지 검증한다
-- [ ] T072 [P] [US3] `frontend/tests/PerformanceBoardFx.test.tsx` — 보드에 적용 환율·날짜와 **기준 통화**가 드러나는지 검증한다 (FR-041, SC-019)
+- [X] T067 [P] [US3] `backend/tests/unit/test_initial_exchange.py` — 초기 환전이 **현금 살 때 환율에 스프레드의 10%만 적용**한 값인지 검증한다. 우대 방향을 반대로 잡으면 환전 금액이 조용히 달라진다 (FR-019, FR-020)
+- [X] T068 [P] [US3] `backend/tests/unit/test_valuation_fx.py` — 평가 환산이 **매매기준율**을 쓰는지, 현금 살 때 환율이나 우대가 섞이지 않는지 검증한다. 섞으면 잔고가 매수 스프레드만큼 크게 나온다 (FR-041b, SC-021)
+- [X] T069 [P] [US3] `backend/tests/unit/test_fx_missing_day.py` — 기준일에 고시가 없으면 **가장 가까운 이전 고시일**을 쓰고 **그 날짜를 함께 돌려주는지** 검증한다. 밝히지 않으면 곧바로 원칙 V 위반이다 (FR-041c, research R5-6)
+- [X] T070 [P] [US3] `backend/tests/integration/test_simulation_fx.py` — 외화 종목 응답에 `exchange`와 행별 `fxRate`·`fxRateDate`가 오는지, **행마다 환율이 다른지**(초기 환율 하나로 전 구간을 환산하지 않는지) 검증한다 (FR-021, FR-041a, SC-009, SC-020)
+- [X] T071 [P] [US3] `backend/tests/integration/test_simulation_no_fx.py` — 원금 통화와 종목 통화가 같으면 환전이 일어나지 않는지(FR-023), 환율이 아예 없으면 409 `fx_unavailable`인지 검증한다
+- [X] T072 [P] [US3] `frontend/tests/PerformanceBoardFx.test.tsx` — 보드에 적용 환율·날짜와 **기준 통화**가 드러나는지 검증한다 (FR-041, SC-019)
 
 ### Implementation for User Story 3
 
-- [ ] T073 [US3] `backend/src/api/services/stock_fx.py`에 **초기 환전**을 만든다 — 현금 살 때 환율에 우대 적용. 실제로 돈을 바꾸는 1회 행위다 (FR-019, FR-020)
-- [ ] T074 [US3] `backend/src/api/services/stock_fx.py`에 **평가 환산**을 만든다 — 매매기준율. 환전이 아니라 값어치를 재는 것이다. 두 함수를 한 이름으로 합치지 않는다 (FR-041b, research R5-6)
-- [ ] T075 [US3] `backend/src/api/services/stock_fx.py`에 고시 없는 날의 대체를 만든다 — 가장 가까운 이전 고시일과 **그 날짜를 함께** 돌려준다 (FR-041c, FR-022)
-- [ ] T076 [US3] `backend/src/api/services/stock_simulation.py`에 기준일별 환산을 붙인다. **초기 환율 하나로 전 구간을 환산하지 않는다** — 그러면 그 뒤의 환율 변동이 통째로 사라져, 주가는 올랐는데 환율이 내려 실제로는 손실인 구간이 이익으로 보인다 (FR-041a)
-- [ ] T077 [US3] `backend/src/api/routes/stock_simulation.py`의 응답에 `exchange`와 행별 `fxRate`·`fxRateDate`를 더한다 (contracts/rest-api)
-- [ ] T078 [US3] `frontend/src/components/stock/PerformanceBoard.tsx`에 환전 정보와 **기준 통화 표시**를 더한다 (FR-041, ui-wireframes W2)
-- [ ] T079 [US3] `frontend/src/components/stock/PerformanceTable.tsx`에 환율 열과 **옮겨진 환율 날짜 표시**를 더한다. 기호만으로 전달하지 않는다 (FR-041c, ui-wireframes W4)
+- [X] T073 [US3] `backend/src/api/services/stock_fx.py`에 **초기 환전**을 만든다 — 현금 살 때 환율에 우대 적용. 실제로 돈을 바꾸는 1회 행위다 (FR-019, FR-020)
+- [X] T074 [US3] `backend/src/api/services/stock_fx.py`에 **평가 환산**을 만든다 — 매매기준율. 환전이 아니라 값어치를 재는 것이다. 두 함수를 한 이름으로 합치지 않는다 (FR-041b, research R5-6)
+- [X] T075 [US3] `backend/src/api/services/stock_fx.py`에 고시 없는 날의 대체를 만든다 — 가장 가까운 이전 고시일과 **그 날짜를 함께** 돌려준다 (FR-041c, FR-022)
+- [X] T076 [US3] `backend/src/api/services/stock_simulation.py`에 기준일별 환산을 붙인다. **초기 환율 하나로 전 구간을 환산하지 않는다** — 그러면 그 뒤의 환율 변동이 통째로 사라져, 주가는 올랐는데 환율이 내려 실제로는 손실인 구간이 이익으로 보인다 (FR-041a)
+- [X] T077 [US3] `backend/src/api/routes/stock_simulation.py`의 응답에 `exchange`와 행별 `fxRate`·`fxRateDate`를 더한다 (contracts/rest-api)
+- [X] T078 [US3] `frontend/src/components/stock/PerformanceBoard.tsx`에 환전 정보와 **기준 통화 표시**를 더한다 (FR-041, ui-wireframes W2)
+- [X] T079 [US3] `frontend/src/components/stock/PerformanceTable.tsx`에 환율 열과 **옮겨진 환율 날짜 표시**를 더한다. 기호만으로 전달하지 않는다 (FR-041c, ui-wireframes W4)
 
 **Checkpoint**: 외화 종목을 원화 기준으로 볼 수 있다
 

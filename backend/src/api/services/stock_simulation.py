@@ -12,12 +12,20 @@
 from __future__ import annotations
 
 import datetime as dt
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.services.stock_fx import InitialExchange, build_exchange
 from src.repository import stock_price as price_repo
+from src.simulation.fx_convert import (  # noqa: E501
+    RateLookup,
+    resolve_rate,
+    to_foreign,
+    to_principal,
+)
+from src.simulation.money import quantize_rate
 from src.simulation.reinvest import (
     Condition,
     DayBar,
@@ -29,6 +37,20 @@ from src.simulation.reinvest import (
 
 
 @dataclass(frozen=True, slots=True)
+class ConvertedRow:
+    """원금 통화로 환산된 행 (FR-041a).
+
+    `fx_rate`·`fx_rate_date`는 **그 행의 평가 환산에 쓴** 매매기준율과 날짜다.
+    기준일과 날짜가 다를 수 있다 — 주식 거래일과 환율 고시일은 일치하지 않는다
+    (FR-041c).
+    """
+
+    row: Row
+    fx_rate: Decimal | None = None
+    fx_rate_date: dt.date | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class SimulationResult:
     """시뮬레이션 전체 결과. 페이지는 호출부가 자른다.
 
@@ -37,9 +59,10 @@ class SimulationResult:
     한다.
     """
 
-    rows: list[Row]
+    rows: list[ConvertedRow]
     as_of: dt.date | None
     is_final: bool
+    exchange: InitialExchange | None = None
 
 
 class BeforeListing(Exception):
@@ -69,6 +92,9 @@ async def run_simulation(
     fee_rate: Decimal,
     tax_rate: Decimal,
     listed_on: dt.date | None = None,
+    principal_currency: str | None = None,
+    lookup: RateLookup | None = None,
+    spread: Decimal | None = None,
 ) -> SimulationResult:
     """시세를 읽어 순수 함수에 넘기고 결과를 돌려준다.
 
@@ -93,22 +119,93 @@ async def run_simulation(
     dividend_rows = await price_repo.dividends(session, stock_id, start, end)
     split_rows = await price_repo.splits(session, stock_id, start, end)
 
+    # **환전은 실제로 매수가 일어나는 첫 거래일에 한다.** 투자 시작 날짜가 아니다 —
+    # 돈은 살 때 바꾸며, 시작 날짜가 휴일이면 그날의 환율도 없다.
+    exchange: InitialExchange | None = None
+    if lookup is not None and spread is not None:
+        exchange = build_exchange(
+            lookup, bars_rows[0].quote_date, spread, currency)
+
+    # 원금 통화와 종목 통화가 다르면 **환전된 금액**으로 시뮬레이션한다. 시뮬레이터는
+    # 종목 통화 세계에서만 돌고, 환산은 그 결과를 원금 통화로 되돌리는 일이다.
+    working_principal = (
+        to_foreign(principal, exchange.rate, currency)
+        if exchange is not None else principal
+    )
+    principal_currency = principal_currency or currency
+
     rows = simulate(
         [DayBar(r.quote_date, r.open_raw) for r in bars_rows],
         [DividendOn(d.ex_date, d.amount_per_share) for d in dividend_rows],
         [SplitOn(s.effective_date, s.numerator, s.denominator) for s in split_rows],
         Condition(
-            start=start, principal=principal, currency=currency,
+            start=start, principal=working_principal, currency=currency,
             reinvest=reinvest, fee_rate=fee_rate, tax_rate=tax_rate),
     )
 
     as_of = bars_rows[-1].quote_date
     # 요청 끝(보통 어제)까지 시세가 있으면 최종이다. 끊겼으면 그 사실이 드러나야 한다.
     is_final = as_of >= end
-    return SimulationResult(rows=rows, as_of=as_of, is_final=is_final)
+
+    if lookup is None or exchange is None:
+        # 원금 통화와 종목 통화가 같다. 환전도 환산도 없다 (FR-023).
+        return SimulationResult(
+            rows=[ConvertedRow(r) for r in rows], as_of=as_of, is_final=is_final)
+
+    return SimulationResult(
+        rows=[_convert(r, lookup, principal_currency, principal) for r in rows],
+        as_of=as_of, is_final=is_final, exchange=exchange)
 
 
-def page(rows: list[Row], before: dt.date | None, limit: int) -> tuple[list[Row], bool]:
+def _convert(
+    row: Row,
+    lookup: RateLookup,
+    principal_currency: str,
+    original_principal: Decimal,
+) -> ConvertedRow:
+    """행의 금액을 **그 기준일의 환율로** 원금 통화로 바꾼다 (FR-041a).
+
+    초기 환전 환율 하나로 전 구간을 환산하면 그 뒤의 환율 변동이 통째로 사라진다 —
+    주가는 올랐는데 환율이 내려 실제로는 손실인 구간이 이익으로 보인다.
+
+    평가 환산에는 **매매기준율**을 쓴다. 현금 살 때 환율과 우대는 실제로 돈을 바꾸는
+    초기 환전에만 적용된다 (FR-041b).
+    """
+    resolved = resolve_rate(lookup, row.date)
+    if resolved is None:
+        # 그 기준일 이전의 환율이 하나도 없다. 값을 만들어내지 않는다.
+        return ConvertedRow(row)
+    rate, used = resolved
+
+    converted = Row(
+        date=row.date,
+        kind=row.kind,
+        open_price=row.open_price,
+        bought_shares=row.bought_shares,
+        held_shares=row.held_shares,
+        cash=to_principal(row.cash, rate, principal_currency),
+        # **원금은 사용자가 낸 그 금액이다.** 시뮬레이터 안의 `principal`은 환전된
+        # 종목 통화 금액이라, 그것을 쓰면 원금 통화 잔고에서 종목 통화 원금을 빼게 된다.
+        principal=original_principal,
+        balance=to_principal(row.balance, rate, principal_currency),
+        profit=to_principal(row.balance + row.cash, rate, principal_currency)
+        - original_principal,
+        return_rate=row.return_rate,
+        dividend_per_share=row.dividend_per_share,
+        dividend_yield=row.dividend_yield,
+    )
+    # 수익률은 환산 후 금액으로 다시 낸다 — 환율 변동이 수익률에 들어가야 한다.
+    rate_value = (
+        quantize_rate(converted.profit / converted.principal)
+        if converted.principal > 0 else Decimal("0")
+    )
+    converted = replace(converted, return_rate=rate_value)
+    return ConvertedRow(converted, fx_rate=rate, fx_rate_date=used)
+
+
+def page(
+    rows: list[ConvertedRow], before: dt.date | None, limit: int
+) -> tuple[list[ConvertedRow], bool]:
     """커서 방식 페이지 (FR-029).
 
     004가 정한 것과 같다 — 오프셋을 쓰지 않는다. 수집이 조회 중에 행을 추가해도
@@ -116,6 +213,6 @@ def page(rows: list[Row], before: dt.date | None, limit: int) -> tuple[list[Row]
 
     `(페이지, 더 있는가)`를 돌려준다.
     """
-    candidates = [r for r in rows if before is None or r.date < before]
+    candidates = [r for r in rows if before is None or r.row.date < before]
     chunk = candidates[:limit]
     return chunk, len(candidates) > limit

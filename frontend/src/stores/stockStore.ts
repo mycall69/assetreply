@@ -44,6 +44,13 @@ interface StockState {
   setInput: (next: Partial<SimulationInput>) => void;
   run: () => Promise<void>;
   loadMore: () => Promise<void>;
+  /**
+   * 설정이 바뀐 뒤 결과를 다시 받는다 (FR-017).
+   *
+   * 아직 실행한 적이 없으면 아무것도 하지 않는다 — 설정 화면에 들렀다는 이유로
+   * 시뮬레이션이 시작되면 사용자가 요청하지 않은 출처 호출이 나간다.
+   */
+  refreshIfRan: () => Promise<void>;
 }
 
 const message = (err: unknown, fallback: string): string =>
@@ -85,6 +92,11 @@ export const useStockStore = create<StockState>((set, get) => ({
   loadMoreError: null,
 
   setInput: (next) => set({ input: { ...get().input, ...next } }),
+
+  refreshIfRan: async () => {
+    if (get().summary === null) return;
+    await get().run();
+  },
 
   /**
    * 시뮬레이션을 실행한다.
