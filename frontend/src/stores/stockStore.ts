@@ -8,11 +8,18 @@
 
 import { create } from "zustand";
 import { ApiError, apiClient } from "@/lib/apiClient";
+import type { ComparisonItem } from "@/components/stock/ComparisonChart";
+import {
+  loadHistory,
+  removeHistory,
+  saveHistory,
+} from "@/lib/simulationHistory";
 import type {
   ExchangeInfo,
   PrincipalCurrency,
   SimulationCollecting,
   SimulationCondition,
+  SimulationHistoryEntry,
   SimulationResponse,
   SimulationRow,
   SimulationSeriesResponse,
@@ -51,6 +58,14 @@ interface StockState {
   error: string | null;
   loadMoreError: string | null;
 
+  /** 이력 (FR-035). **조건만 담긴다** — 결과는 설정·환율이 바뀌면 달라진다. */
+  history: SimulationHistoryEntry[];
+  historySaveError: string | null;
+  selectedHistory: string[];
+  comparison: ComparisonItem[];
+  comparing: boolean;
+  comparisonError: string | null;
+
   setInput: (next: Partial<SimulationInput>) => void;
   run: () => Promise<void>;
   loadMore: () => Promise<void>;
@@ -61,13 +76,23 @@ interface StockState {
    * 시뮬레이션이 시작되면 사용자가 요청하지 않은 출처 호출이 나간다.
    */
   refreshIfRan: () => Promise<void>;
+  restoreHistory: () => void;
+  toggleHistory: (id: string) => void;
+  removeHistoryEntry: (id: string) => void;
+  compareSelected: () => Promise<void>;
 }
 
 const message = (err: unknown, fallback: string): string =>
   err instanceof ApiError ? err.message : fallback;
 
 /** 조건을 질의 문자열로. 원금은 **문자열 그대로** 보낸다 (헌법 원칙 VI). */
-export function toQuery(input: SimulationInput): string {
+export function toQuery(input: {
+  stock: StockSearchResult | null;
+  start: string;
+  principal: string;
+  principalCurrency: PrincipalCurrency;
+  reinvest: boolean;
+}): string {
   const stock = input.stock;
   if (stock === null) return "";
   const params = new URLSearchParams({
@@ -102,6 +127,12 @@ export const useStockStore = create<StockState>((set, get) => ({
   loadingMore: false,
   error: null,
   loadMoreError: null,
+  history: [],
+  historySaveError: null,
+  selectedHistory: [],
+  comparison: [],
+  comparing: false,
+  comparisonError: null,
 
   setInput: (next) => set({ input: { ...get().input, ...next } }),
 
@@ -118,8 +149,9 @@ export const useStockStore = create<StockState>((set, get) => ({
    * (002 FR-036c·003 FR-028·004 FR-010과 같은 계열).
    */
   run: async () => {
-    const query = toQuery(get().input);
-    if (query === "") {
+    const { input } = get();
+    const query = toQuery(input);
+    if (input.stock === null || query === "") {
       set({ error: "종목을 먼저 고르세요." });
       return;
     }
@@ -145,6 +177,19 @@ export const useStockStore = create<StockState>((set, get) => ({
         exchange: result.exchange ?? null,
         hasMore: result.hasMore,
         oldestReturned: result.oldestReturned,
+      });
+
+      // FR-035 — 실행한 조건을 이력에 남긴다. **결과는 넣지 않는다**(R5-9).
+      const saved = saveHistory({
+        stock: input.stock,
+        start: input.start,
+        principal: input.principal,
+        principalCurrency: input.principalCurrency,
+        reinvest: input.reinvest,
+      });
+      set({
+        history: loadHistory(),
+        historySaveError: saved.ok ? null : saved.reason,
       });
 
       // **표가 수집 중이 아님을 확인한 뒤에 받는다.** 나란히 보내면 같은 구간에
@@ -191,5 +236,83 @@ export const useStockStore = create<StockState>((set, get) => ({
         loadMoreError: message(err, "이어서 불러오지 못했습니다."),
       });
     }
+  },
+
+  /** 저장소에서 이력을 읽는다. 첫 화면 진입에 한 번 부른다 (FR-037). */
+  restoreHistory: () => set({ history: loadHistory() }),
+
+  toggleHistory: (id) => {
+    const selected = get().selectedHistory;
+    set({
+      selectedHistory: selected.includes(id)
+        ? selected.filter((x) => x !== id)
+        : [...selected, id],
+    });
+  },
+
+  removeHistoryEntry: (id) => {
+    const result = removeHistory(id);
+    set({
+      history: loadHistory(),
+      selectedHistory: get().selectedHistory.filter((x) => x !== id),
+      // 지운 항목이 비교에 올라가 있었으면 함께 내린다 — 남겨 두면 목록에 없는
+      // 선이 차트에 남아 사용자가 어느 조건인지 확인할 길이 없다.
+      comparison: get().comparison.filter((c) => c.id !== id),
+      historySaveError: result.ok ? null : result.reason,
+    });
+  },
+
+  /**
+   * 고른 이력을 **지금 다시 계산해서** 겹친다 (FR-038).
+   *
+   * 저장된 결과를 쓰지 않는 이유는 R5-9와 같다 — 설정과 환율이 바뀌면 달라지는데,
+   * 저장된 값을 겹치면 어느 시점의 조건에서 나온 선인지 알 수 없다.
+   */
+  compareSelected: async () => {
+    const { history, selectedHistory } = get();
+    const targets = history.filter((e) => selectedHistory.includes(e.id));
+    if (targets.length < 2) return;
+
+    set({ comparing: true, comparisonError: null, comparison: [] });
+
+    const items: ComparisonItem[] = [];
+    const failed: string[] = [];
+
+    for (const entry of targets) {
+      const query = toQuery({
+        stock: entry.stock,
+        start: entry.start,
+        principal: entry.principal,
+        principalCurrency: entry.principalCurrency,
+        reinvest: entry.reinvest,
+      });
+      try {
+        const body = await apiClient.get<SimulationSeriesResponse | SimulationCollecting>(
+          `/api/stocks/simulation/series?${query}`,
+        );
+        if ("status" in body && body.status === "collecting") {
+          // FR-049 — 부분 결과를 완성된 선처럼 겹치지 않는다.
+          failed.push(entry.stock.name);
+          continue;
+        }
+        items.push({
+          id: entry.id,
+          label: entry.stock.name,
+          start: entry.start,
+          series: body as SimulationSeriesResponse,
+        });
+      } catch {
+        failed.push(entry.stock.name);
+      }
+    }
+
+    set({
+      comparison: items,
+      comparing: false,
+      // 조용히 빠지면 사용자는 그 종목이 비교에서 졌다고 읽는다.
+      comparisonError: failed.length === 0
+        ? null
+        : `${failed.join(" · ")}의 시계열을 불러오지 못했습니다.`,
+    });
   },
 }));

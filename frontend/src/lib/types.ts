@@ -424,7 +424,13 @@ export interface StockSettings {
   isDefault: boolean;
 }
 
-/** 이력 한 항목 (FR-036). 종목명만 남기면 같은 종목의 다른 조건을 구분할 수 없다. */
+/**
+ * 이력 한 항목 (FR-036). 종목명만 남기면 같은 종목의 다른 조건을 구분할 수 없다.
+ *
+ * **수익률은 들어 있지 않다.** 결과는 설정(수수료·세율)과 환율의 함수라 바뀌는데,
+ * 저장해 두면 그 사실이 드러나지 않아 **조용히 낡은 값**이 목록에 남는다 (R5-9).
+ * 지금의 수익률은 비교를 실행해 받은 시계열이 말한다.
+ */
 export interface SimulationHistoryEntry {
   id: string;
   stock: StockSearchResult;
@@ -432,6 +438,5 @@ export interface SimulationHistoryEntry {
   principal: DecimalString;
   principalCurrency: PrincipalCurrency;
   reinvest: boolean;
-  returnRate: DecimalString;
   savedAt: string;
 }

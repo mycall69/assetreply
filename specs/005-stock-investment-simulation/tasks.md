@@ -232,17 +232,17 @@ description: "Task list template for feature implementation"
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T084 [P] [US5] `frontend/tests/simulationHistory.test.ts` — 이력에 **종목·시작일·원금·재투자 여부**가 모두 남는지(FR-036, SC-014), 같은 종목의 다른 조건이 구별되는지, 브라우저를 닫았다 열어도 남는지 검증한다 (FR-037)
-- [ ] T085 [P] [US5] `frontend/tests/simulationHistory.test.ts`에 **저장 실패 처리**를 더한다 — 보관 한계에 닿으면 조용히 실패하지 않고 알리는지 (research R5-10)
-- [ ] T086 [P] [US5] `frontend/tests/SimulationHistory.test.tsx` — **이 브라우저에만 저장된다는 안내**가 보이는지(FR-037a, SC-018), 항목을 지울 수 있는지(FR-037b) 검증한다
-- [ ] T087 [P] [US5] `frontend/tests/ComparisonChart.test.tsx` — 고른 항목들의 수익률이 한 차트에 겹치는지(FR-038), **비교 기준이 드러나는지**(FR-039, SC-015), 시작일이 다르면 각 시작 시점이 드러나는지(FR-040) 검증한다
+- [X] T084 [P] [US5] `frontend/tests/simulationHistory.test.ts` — 이력에 **종목·시작일·원금·재투자 여부**가 모두 남는지(FR-036, SC-014), 같은 종목의 다른 조건이 구별되는지, 브라우저를 닫았다 열어도 남는지 검증한다 (FR-037)
+- [X] T085 [P] [US5] `frontend/tests/simulationHistory.test.ts`에 **저장 실패 처리**를 더한다 — 보관 한계에 닿으면 조용히 실패하지 않고 알리는지 (research R5-10)
+- [X] T086 [P] [US5] `frontend/tests/SimulationHistory.test.tsx` — **이 브라우저에만 저장된다는 안내**가 보이는지(FR-037a, SC-018), 항목을 지울 수 있는지(FR-037b) 검증한다
+- [X] T087 [P] [US5] `frontend/tests/ComparisonChart.test.tsx` — 고른 항목들의 수익률이 한 차트에 겹치는지(FR-038), **비교 기준이 드러나는지**(FR-039, SC-015), 시작일이 다르면 각 시작 시점이 드러나는지(FR-040) 검증한다
 
 ### Implementation for User Story 5
 
-- [ ] T088 [US5] `frontend/src/lib/simulationHistory.ts`에 `localStorage` 보관을 만든다. **조건만 저장한다** — 결과는 설정·환율이 바뀌면 달라지므로 저장하면 조용히 낡는다 (research R5-9, R5-10)
-- [ ] T089 [US5] `frontend/src/components/stock/SimulationHistory.tsx`를 만든다. 안내와 삭제 수단을 둔다 (FR-035~037b, ui-wireframes W5)
-- [ ] T090 [US5] `frontend/src/components/stock/ComparisonChart.tsx`를 만든다. **수익률(%)로 겹친다** — 통화가 다른 잔고를 같은 축에 놓으면 숫자 크기가 달라 한쪽이 평평해지고, 사용자는 그 종목이 움직이지 않았다고 읽는다 (FR-038~040, ui-wireframes W6)
-- [ ] T091 [US5] `frontend/src/stores/stockStore.ts`에 이력 선택과 비교 실행을 더한다
+- [X] T088 [US5] `frontend/src/lib/simulationHistory.ts`에 `localStorage` 보관을 만든다. **조건만 저장한다** — 결과는 설정·환율이 바뀌면 달라지므로 저장하면 조용히 낡는다 (research R5-9, R5-10)
+- [X] T089 [US5] `frontend/src/components/stock/SimulationHistory.tsx`를 만든다. 안내와 삭제 수단을 둔다 (FR-035~037b, ui-wireframes W5)
+- [X] T090 [US5] `frontend/src/components/stock/ComparisonChart.tsx`를 만든다. **수익률(%)로 겹친다** — 통화가 다른 잔고를 같은 축에 놓으면 숫자 크기가 달라 한쪽이 평평해지고, 사용자는 그 종목이 움직이지 않았다고 읽는다 (FR-038~040, ui-wireframes W6)
+- [X] T091 [US5] `frontend/src/stores/stockStore.ts`에 이력 선택과 비교 실행을 더한다
 
 **Checkpoint**: 다섯 스토리 모두 독립적으로 동작한다
 

@@ -19,3 +19,34 @@ class NoopIntersectionObserver implements IntersectionObserver {
 if (!("IntersectionObserver" in globalThis)) {
   globalThis.IntersectionObserver = NoopIntersectionObserver;
 }
+
+// 이 환경의 jsdom은 `localStorage`를 **멤버가 없는 빈 객체**로 노출한다. 005의 이력
+// 보관(FR-037)은 저장소 동작 자체가 요구사항이라 최소 구현을 둔다.
+//
+// 메서드를 인스턴스가 아니라 `Storage.prototype`에 두는 이유가 있다 — 테스트가 그
+// 자리에 실패를 주입해 **보관 한계에 닿았을 때 알리는지**를 검증한다 (research R5-10).
+// 인스턴스에 직접 두면 스파이가 걸리지 않아 그 경로가 검증되지 않은 채 통과한다.
+if (typeof Storage === "function" && typeof localStorage?.clear !== "function") {
+  const data = new Map<string, string>();
+  Object.assign(Storage.prototype, {
+    getItem(key: string): string | null {
+      return data.has(key) ? (data.get(key) as string) : null;
+    },
+    setItem(key: string, value: string): void {
+      data.set(key, String(value));
+    },
+    removeItem(key: string): void {
+      data.delete(key);
+    },
+    clear(): void {
+      data.clear();
+    },
+    key(index: number): string | null {
+      return [...data.keys()][index] ?? null;
+    },
+  });
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    value: Object.create(Storage.prototype) as Storage,
+  });
+}

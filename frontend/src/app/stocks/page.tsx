@@ -11,6 +11,8 @@
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
 import { PerformanceChart } from "@/components/stock/PerformanceChart";
 import { PerformanceTable } from "@/components/stock/PerformanceTable";
+import { ComparisonChart } from "@/components/stock/ComparisonChart";
+import { SimulationHistory } from "@/components/stock/SimulationHistory";
 import { SimulationForm } from "@/components/stock/SimulationForm";
 import { StockSearch } from "@/components/stock/StockSearch";
 import { useEffect } from "react";
@@ -20,7 +22,10 @@ export default function StocksPage() {
   const {
     input, rows, summary, exchange, hasMore, collecting,
     series, seriesError, loading, loadingMore, error, loadMoreError,
+    history, historySaveError, selectedHistory, comparison, comparing,
+    comparisonError,
     setInput, run, loadMore, refreshIfRan,
+    restoreHistory, toggleHistory, removeHistoryEntry, compareSelected,
   } = useStockStore();
 
   // FR-017 — 설정 화면에 다녀왔을 수 있다. 이미 실행한 결과가 있으면 새 값으로
@@ -28,6 +33,11 @@ export default function StocksPage() {
   useEffect(() => {
     void refreshIfRan();
   }, [refreshIfRan]);
+
+  // FR-037 — 이력은 브라우저에 있다. 서버에서 오지 않으므로 화면이 열릴 때 읽는다.
+  useEffect(() => {
+    restoreHistory();
+  }, [restoreHistory]);
 
   const currency = input.stock?.currency ?? "KRW";
 
@@ -121,6 +131,24 @@ export default function StocksPage() {
             onLoadMore={() => void loadMore()}
           />
         </section>
+      )}
+
+      <SimulationHistory
+        entries={history}
+        selected={selectedHistory}
+        comparing={comparing}
+        saveError={historySaveError}
+        onToggle={toggleHistory}
+        onRemove={removeHistoryEntry}
+        onCompare={() => void compareSelected()}
+      />
+
+      {(comparing || comparison.length > 0) && (
+        <ComparisonChart
+          items={comparison}
+          loading={comparing}
+          error={comparisonError}
+        />
       )}
     </div>
   );
