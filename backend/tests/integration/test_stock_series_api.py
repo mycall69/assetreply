@@ -148,26 +148,26 @@ class Test표와의_일치:
 
 
 class Test결측_구간:
-    async def test_휴장일과_미수집이_구분된다(self, client) -> None:
-        """FR-034 — 화면이 휴장일은 잇고 미수집은 끊는 근거다 (001 FR-032)."""
-        body = await series(client, end="2021-12-31")
+    async def test_휴장일이_구분된다(self, client) -> None:
+        """FR-034 — 화면이 휴장일을 이어 그리는 근거다 (001 FR-032)."""
+        body = await series(client)
         reasons = {g["reason"] for g in body["gaps"]}
         assert "no_quote" in reasons, "커버리지 안의 휴장일이 표시되지 않았다"
-        assert "not_collected" in reasons, "커버리지 밖 구간이 표시되지 않았다"
 
-    async def test_커버리지_밖이_미수집이다(self, client) -> None:
-        body = await series(client, end="2021-12-31")
-        not_collected = [g for g in body["gaps"] if g["reason"] == "not_collected"]
-        assert any(g["from"] == "2021-12-01" and g["to"] == "2021-12-31"
-                   for g in not_collected), not_collected
+    async def test_커버리지_밖을_물으면_200이_아니라_202다(self, client) -> None:
+        """FR-049 — 받은 만큼만 계산한 값은 멀쩡해 보이지만 틀렸다."""
+        res = await client.get("/api/stocks/simulation/series",
+                               params={**PARAMS, "end": "2021-12-31"})
+        assert res.status_code == 202, res.text
 
-    async def test_주말이_미수집으로_분류되지_않는다(self, client) -> None:
-        """끊어 그리면 사용자는 받지 못한 구간이 있다고 읽는다."""
+    async def test_200_응답의_결측은_모두_휴장일이다(self, client) -> None:
+        """미수집이 있으면 202로 막히므로, 200에 미수집이 섞여 있을 수 없다.
+
+        섞여 있다면 게이트가 느슨해졌다는 뜻이고, 그때 사용자는 **구멍이 있는 구간의
+        부분 결과**를 최종 결과로 읽게 된다.
+        """
         body = await series(client)
-        for gap in body["gaps"]:
-            if gap["reason"] != "not_collected":
-                continue
-            assert gap["from"] > "2021-11-30" or gap["to"] < "2021-08-01", gap
+        assert [g for g in body["gaps"] if g["reason"] == "not_collected"] == []
 
 
 class Test원금_통화:

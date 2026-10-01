@@ -93,3 +93,50 @@ def test_기간_단위_경로에_float이_없다() -> None:
                     and node.func.id == "float"):
                 offenders.append(f"{path.name}:{node.lineno}")
     assert offenders == [], f"기간 단위 경로에 float (원칙 VI): {offenders}"
+
+
+# ─────────────────────────── 005: 주식 시뮬레이션 ───────────────────────────
+
+#: 금액을 다루는 **api 계층** 모듈. `FINANCIAL_LAYERS`에 `api`가 없는 것은 의도된
+#: 것이다 — 그 계층 대부분은 금액을 만지지 않는다. 만지는 곳만 이름으로 묶는다.
+STOCK_MONEY_MODULES = (
+    "api/services/stock_simulation.py",
+    "api/services/stock_series.py",
+    "api/services/stock_fx.py",
+    "api/routes/stock_simulation.py",
+    "api/routes/stock_series.py",
+    "simulation/reinvest.py",
+    "simulation/money.py",
+    "simulation/fx_convert.py",
+)
+
+
+def test_주식_금액_경로에_float이_없다() -> None:
+    """T100 — 헌법 원칙 VI.
+
+    **참조 구현이 JS `number`를 쓰므로 이식 과정 전체가 위험 구간이다.** 옮겨 적다가
+    `float()` 하나가 섞이면 수수료·세율 곱셈에서 끝자리가 흔들리는데, 표는 멀쩡해
+    보이고 테스트도 근사 비교라면 통과한다.
+    """
+    offenders: list[str] = []
+    for rel in STOCK_MONEY_MODULES:
+        path = SRC / rel
+        assert path.exists(), f"{rel}이 없다 — 경로가 바뀌면 검사가 조용히 비어 버린다"
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                    and node.func.id == "float"):
+                offenders.append(f"{rel}:{node.lineno}")
+    assert offenders == [], f"주식 금액 경로에 float (원칙 VI): {offenders}"
+
+
+def test_주식_금액_경로에_float_주석이_없다() -> None:
+    offenders: list[str] = []
+    for rel in STOCK_MONEY_MODULES:
+        tree = ast.parse((SRC / rel).read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.AnnAssign)
+                    and isinstance(node.annotation, ast.Name)
+                    and node.annotation.id == "float"):
+                offenders.append(f"{rel}:{node.lineno}")
+    assert offenders == [], f"주식 금액 경로에 float 주석: {offenders}"

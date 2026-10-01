@@ -150,3 +150,17 @@ def test_시세_출처_필드명이_어댑터_밖에_없다() -> None:
             if token in body:
                 offenders.append(f"{path.relative_to(SRC)}: {token}")
     assert offenders == [], f"시세 출처 고유 개념 노출: {offenders}"
+
+
+def test_재투자_시뮬레이터가_단독으로_선다() -> None:
+    """T102 — 헌법 원칙 IV.
+
+    `simulation/reinvest.py`가 DB·HTTP를 모르기 때문에 **참조 구현(Apps Script)과
+    같은 입력을 넣어 같은 출력이 나오는지 단위 테스트로 확인할 수 있다**(research
+    R5-4). 임포트가 하나라도 생기면 그 대조가 통합 테스트가 되고, 정밀도 차이가 다른
+    실패에 묻힌다 — 원칙 III도 함께 무너진다.
+    """
+    path = SRC / "simulation" / "reinvest.py"
+    forbidden = ("src.repository", "src.api", "src.db", "src.ingestion")
+    offenders = [m for m in _imports(path) if m.startswith(forbidden)]
+    assert offenders == [], f"reinvest 계층 위반: {offenders}"

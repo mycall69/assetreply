@@ -15,7 +15,7 @@ from sqlalchemy import select
 
 from src.api.main import create_app
 from src.db.dialect import upsert
-from src.db.models import Stock, StockDividend, StockPrice
+from src.db.models import Stock, StockCoverage, StockDividend, StockPrice
 from src.db.session import get_session
 
 D = dt.date.fromisoformat
@@ -39,6 +39,11 @@ async def setup(session_factory):
         await upsert(s, StockDividend, [{
             "stock_id": stock_id, "ex_date": D("2021-09-01"),
             "amount_per_share": Decimal("300"), "source": "yahoo:chart"}])
+        # 픽스처는 "이미 수집을 마친 상태"를 흉내낸다. 커버리지를 적지 않으면
+        # 요청 구간이 미수집으로 판정돼 202가 돌아간다 (FR-047).
+        await upsert(s, StockCoverage, [{
+            "stock_id": stock_id, "covered_from": D("2021-08-01"),
+            "covered_through": D("2021-11-30")}], preserve=())
         await s.commit()
     return session_factory, stock_id
 

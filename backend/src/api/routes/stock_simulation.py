@@ -14,8 +14,10 @@ from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.services.stock_collect import collecting_json, plan_collection
 from src.api.services.stock_simulation import (
     ConvertedRow,
     SimulationResult,
@@ -23,6 +25,8 @@ from src.api.services.stock_simulation import (
     page,
     parse_principal,
     prepare,
+    require_start_available,
+    require_stock,
 )
 from src.db.session import get_session
 
@@ -66,7 +70,10 @@ def summary_json(result: SimulationResult, principal: Decimal) -> Json:
     `asOf`는 계산이 어느 날짜까지인지다. `isFinal`은 **항상 명시한다** — "확인했고
     아니다"와 "확인하지 않았다"가 구별되어야 한다 (FR-014b).
     """
-    latest = result.rows[0].row if result.rows else None
+    # **표의 마지막 행이 아니라 마지막 거래일의 상태다.** 표에서 가져오면 "어제
+    # 기준"이라 적어 두고 그 달 첫 거래일의 수치를 보여주게 된다 — 최대 한 달이
+    # 어긋나는데 숫자는 그럴듯하다.
+    latest = result.latest.row if result.latest is not None else None
     return {
         "principal": str(principal),
         "profit": str(latest.profit if latest else Decimal("0")),
@@ -88,13 +95,23 @@ async def get_simulation(
     end: Annotated[dt.date | None, Query()] = None,
     before: Annotated[dt.date | None, Query(description="이 날짜 미만만 반환")] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 30,
-) -> Json:
+) -> Json | JSONResponse:
     """시뮬레이션을 실행하고 표 한 페이지를 돌려준다."""
     check_principal_currency(principal_currency)
     amount = parse_principal(principal)
 
     # 끝은 기본적으로 어제다. 오늘 시세는 장중에 바뀌므로 재현성이 깨진다.
     finish = end or (dt.date.today() - dt.timedelta(days=1))
+
+    # **받지 못한 구간이 있으면 계산하지 않는다**(FR-049). 받은 만큼만 계산한
+    # 수익률은 값이 멀쩡해 보이지만 틀렸고, 사용자는 그것을 최종 결과로 읽는다.
+    stock = await require_stock(session, market, symbol)
+    # 상장 이전 판정이 **수집보다 먼저다.** 뒤로 미루면 상장 수십 년 전부터의
+    # 구간이 미수집으로 보여 수집이 시작되고, 받을 수 없는 데이터를 기다리게 된다.
+    await require_start_available(session, stock, start)
+    collecting = await plan_collection(session, stock, start, finish)
+    if collecting is not None:
+        return JSONResponse(status_code=202, content=collecting_json(stock, collecting))
 
     # **차트와 같은 함수를 같은 입력으로 부른다.** 각 라우트가 따로 조립하면 한쪽만
     # 설정이나 환율 적용을 빠뜨려도 오류 없이 다른 숫자가 나온다 (SC-032).

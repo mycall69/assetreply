@@ -14,6 +14,7 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass, replace
 from decimal import Decimal, InvalidOperation
+from functools import partial
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -43,7 +44,7 @@ from src.simulation.reinvest import (
     DividendOn,
     Row,
     SplitOn,
-    simulate,
+    simulate_detailed,
 )
 
 
@@ -71,6 +72,9 @@ class SimulationResult:
     """
 
     rows: list[ConvertedRow]
+    #: **마지막 거래일의 상태.** 요약은 여기서 가져온다 — 표의 마지막 행에서 가져오면
+    #: "어제 기준"이라 적어 두고 그 달 첫 거래일의 수치를 보여주게 된다.
+    latest: ConvertedRow | None
     as_of: dt.date | None
     is_final: bool
     exchange: InitialExchange | None = None
@@ -155,8 +159,7 @@ async def run_simulation(
     if earliest is None:
         raise NoPriceData("그 종목의 시세를 얻을 수 없습니다.")
     if start < earliest:
-        raise BeforeListing(
-            f"{earliest.isoformat()}부터 시세가 있습니다. 그 이전은 계산할 수 없습니다.")
+        raise BeforeListing(_before_listing_message(earliest))
 
     bars_rows = await price_repo.prices(session, stock_id, start, end)
     if not bars_rows:
@@ -180,7 +183,7 @@ async def run_simulation(
     )
     principal_currency = principal_currency or currency
 
-    rows = simulate(
+    outcome = simulate_detailed(
         [DayBar(r.quote_date, r.open_raw) for r in bars_rows],
         [DividendOn(d.ex_date, d.amount_per_share) for d in dividend_rows],
         [SplitOn(s.effective_date, s.numerator, s.denominator) for s in split_rows],
@@ -188,6 +191,7 @@ async def run_simulation(
             start=start, principal=working_principal, currency=currency,
             reinvest=reinvest, fee_rate=fee_rate, tax_rate=tax_rate),
     )
+    rows = outcome.rows
 
     as_of = bars_rows[-1].quote_date
     # 요청 끝(보통 어제)까지 시세가 있으면 최종이다. 끊겼으면 그 사실이 드러나야 한다.
@@ -198,16 +202,22 @@ async def run_simulation(
     if lookup is None or exchange is None:
         # 원금 통화와 종목 통화가 같다. 환전도 환산도 없다 (FR-023).
         return SimulationResult(
-            rows=[ConvertedRow(r) for r in rows], as_of=as_of, is_final=is_final,
-            quote_dates=quote_dates)
+            rows=[ConvertedRow(r) for r in rows],
+            latest=ConvertedRow(outcome.latest) if outcome.latest else None,
+            as_of=as_of, is_final=is_final, quote_dates=quote_dates)
 
+    convert = partial(_convert, lookup=lookup,
+                      principal_currency=principal_currency,
+                      original_principal=principal)
     return SimulationResult(
-        rows=[_convert(r, lookup, principal_currency, principal) for r in rows],
+        rows=[convert(r) for r in rows],
+        latest=convert(outcome.latest) if outcome.latest else None,
         as_of=as_of, is_final=is_final, exchange=exchange, quote_dates=quote_dates)
 
 
 def _convert(
     row: Row,
+    *,
     lookup: RateLookup,
     principal_currency: str,
     original_principal: Decimal,
@@ -281,6 +291,46 @@ class Prepared:
     result: SimulationResult
 
 
+async def require_stock(session: AsyncSession, market: str, symbol: str) -> Stock:
+    """종목을 찾는다. 없으면 404로 올린다.
+
+    **빈 결과를 돌려주지 않는다.** 사용자는 그 종목의 성과가 0이라고 읽는다.
+    """
+    stock = await find_stock(session, market, symbol)
+    if stock is None:
+        raise StockSymbolNotFound(f"알 수 없는 종목입니다: {market}:{symbol}")
+    return stock
+
+
+def _before_listing_message(earliest: dt.date) -> str:
+    return f"{earliest.isoformat()}부터 시세가 있습니다. 그 이전은 계산할 수 없습니다."
+
+
+async def earliest_available(session: AsyncSession, stock: Stock) -> dt.date | None:
+    """그 종목에서 계산을 시작할 수 있는 가장 이른 날짜.
+
+    **상장일과 "우리가 받아 둔 첫 시세"는 다르다.** 전자를 알면 그것을 쓰고, 모르면
+    후자를 근거로 삼는다. 둘 다 없으면 `None` — 아직 받아 본 적이 없다는 뜻이지
+    시세가 없다는 뜻이 아니다.
+    """
+    if stock.first_available_date is not None:
+        return stock.first_available_date
+    return await price_repo.first_quote_date(session, int(stock.id))
+
+
+async def require_start_available(
+    session: AsyncSession, stock: Stock, start: dt.date
+) -> None:
+    """시작 날짜가 시세 범위 안인지 본다 (FR-005).
+
+    **수집을 시작하기 전에 판정한다.** 뒤로 미루면 상장 수십 년 전부터의 구간이
+    미수집으로 보여 수집이 시작되고, 사용자는 받을 수 없는 데이터를 기다린다.
+    """
+    earliest = await earliest_available(session, stock)
+    if earliest is not None and start < earliest:
+        raise BeforeListing(_before_listing_message(earliest))
+
+
 async def prepare(
     session: AsyncSession,
     *,
@@ -293,10 +343,7 @@ async def prepare(
     reinvest: bool,
 ) -> Prepared:
     """종목·설정·환율을 읽어 시뮬레이션을 돌린다."""
-    stock = await find_stock(session, market, symbol)
-    if stock is None:
-        raise StockSymbolNotFound(f"알 수 없는 종목입니다: {market}:{symbol}")
-
+    stock = await require_stock(session, market, symbol)
     settings = await get_settings(session)
 
     # 원금 통화와 종목 통화가 같으면 환전이 없다 (FR-023).

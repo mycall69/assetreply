@@ -14,7 +14,7 @@ from sqlalchemy import select
 
 from src.api.main import create_app
 from src.db.dialect import upsert
-from src.db.models import FxRate, Stock, StockPrice
+from src.db.models import FxRate, Stock, StockCoverage, StockPrice
 from src.db.session import get_session
 
 D = dt.date.fromisoformat
@@ -42,6 +42,11 @@ async def client(session_factory):
             "base_rate": Decimal(v), "quote_unit": 1,
             "source": "ECOS:731Y001", "is_provisional": False}
             for d, v in FX.items()])
+        # 픽스처는 "이미 수집을 마친 상태"를 흉내낸다. 커버리지를 적지 않으면
+        # 요청 구간이 미수집으로 판정돼 202가 돌아간다 (FR-047).
+        await upsert(s, StockCoverage, [{
+            "stock_id": stock_id, "covered_from": D("2021-08-01"),
+            "covered_through": D("2021-10-31")}], preserve=())
         await s.commit()
 
     app = create_app()

@@ -252,38 +252,39 @@ description: "Task list template for feature implementation"
 
 ### 수집 중 사용자 경험 (전 스토리 공통)
 
-- [ ] T092 [P] `backend/tests/integration/test_collecting_response.py` — 미수집 구간이 있으면 **202 `collecting`**이 오는지(FR-047), **부분 결과가 200으로 나가지 않는지**(FR-049, SC-029), 진행 상태가 **갱신 없이 10초 이상 멈추지 않는지**(SC-001a) 검증한다. 받는 도중의 수익률은 값이 멀쩡해 보이지만 틀렸다
-- [ ] T093 `backend/src/api/routes/stock_simulation.py`에 202 경로를 만든다. 001·002가 정한 수집 중 응답 규약을 잇는다 (FR-047, contracts/rest-api)
-- [ ] T094 [P] `frontend/tests/CollectingNotice.test.tsx` — 수집 진행이 보이는지, **부분 결과가 표로 먼저 나오지 않는지** 검증한다 (FR-049, SC-029)
-- [ ] T095 `frontend/src/components/stock/CollectingNotice.tsx`를 만들고 `stockStore`에 SSE 구독을 붙인다 (FR-047, ui-wireframes W7)
+- [X] T092 [P] `backend/tests/integration/test_collecting_response.py` — 미수집 구간이 있으면 **202 `collecting`**이 오는지(FR-047), **부분 결과가 200으로 나가지 않는지**(FR-049, SC-029), 진행 상태가 **갱신 없이 10초 이상 멈추지 않는지**(SC-001a) 검증한다. 받는 도중의 수익률은 값이 멀쩡해 보이지만 틀렸다
+- [X] T093 `backend/src/api/routes/stock_simulation.py`에 202 경로를 만든다. 001·002가 정한 수집 중 응답 규약을 잇는다 (FR-047, contracts/rest-api)
+- [X] T094 [P] `frontend/tests/CollectingNotice.test.tsx` — 수집 진행이 보이는지, **부분 결과가 표로 먼저 나오지 않는지** 검증한다 (FR-049, SC-029)
+- [X] T095 `frontend/src/components/stock/CollectingNotice.tsx`를 만들고 `stockStore`에 SSE 구독을 붙인다 (FR-047, ui-wireframes W7)
 
 ### 시세 단절
 
-- [ ] T096 [P] `backend/tests/integration/test_delisted.py` — 시세가 끊긴 종목에서 **마지막 시세일까지만** 계산하는지, `asOf`가 오늘이 아니고 `isFinal`이 거짓인지 검증한다 (FR-014a, SC-026)
-- [ ] T097 `backend/src/api/services/stock_simulation.py`에 시세 단절 판정을 더한다. **마지막 시세를 오늘까지 이어 그리지 않는다** — 없는 값을 만드는 것이라 원칙 V 위반이다 (FR-014a)
-- [ ] T098 [P] `frontend/tests/PerformanceBoardAsOf.test.tsx` — 계산의 마지막 날이 오늘이 아니면 **표와 보드 양쪽에서** 드러나는지 검증한다 (FR-014b, SC-027)
-- [ ] T099 `frontend/src/components/stock/PerformanceBoard.tsx`에 기준일 안내를 더한다. 상장폐지는 대개 큰 손실인데 알리지 않으면 화면에는 폐지 직전 수익률이 남는다 (FR-014b)
+- [X] T096 [P] `backend/tests/integration/test_delisted.py` — 시세가 끊긴 종목에서 **마지막 시세일까지만** 계산하는지, `asOf`가 오늘이 아니고 `isFinal`이 거짓인지 검증한다 (FR-014a, SC-026)
+- [X] T097 `backend/src/api/services/stock_simulation.py`에 시세 단절 판정을 더한다. **마지막 시세를 오늘까지 이어 그리지 않는다** — 없는 값을 만드는 것이라 원칙 V 위반이다 (FR-014a)
+- [X] T098 [P] `frontend/tests/PerformanceBoardAsOf.test.tsx` — 계산의 마지막 날이 오늘이 아니면 **표와 보드 양쪽에서** 드러나는지 검증한다 (FR-014b, SC-027)
+- [X] T099 `frontend/src/components/stock/PerformanceBoard.tsx`에 기준일 안내를 더한다. 상장폐지는 대개 큰 손실인데 알리지 않으면 화면에는 폐지 직전 수익률이 남는다 (FR-014b)
 
 ### 헌법 게이트
 
-- [ ] T100 [P] `backend/tests/unit/test_no_float.py`에 검사를 더한다 — `simulation/`·`repository/`의 주식 경로에 `float(` 사용이 없는지. **참조 구현이 JS `number`를 쓰므로 이식 과정 전체가 위험 구간이다** (헌법 원칙 VI)
-- [ ] T101 [P] `backend/tests/unit/test_no_interpolation.py`에 검사를 더한다 — 주식 경로에 값을 채우는 코드가 없는지. 휴장일·상장 이전 구간·배당 없는 달을 값으로 메우지 않는다 (FR-042, SC-010, 헌법 원칙 V)
-- [ ] T102 [P] `backend/tests/unit/test_layer_boundaries.py`에 검사를 더한다 — `simulation/reinvest.py`가 `repository`·`api`·`db`를 임포트하지 않는지 (헌법 원칙 IV)
-- [ ] T103 [P] `backend/tests/unit/test_orm_types.py`에 검사를 더한다 — 신규 8개 테이블의 금액·비율 컬럼에 `Float`가 없는지 (헌법 원칙 VI)
-- [ ] T104 `backend/src`·`backend/tests`에 mypy strict와 ruff를 통과시킨다
-- [ ] T105 `frontend/`에 `npx tsc --noEmit`과 `npx eslint .`를 통과시킨다. `any` 사용 금지
-- [ ] T106 `backend/`에서 커버리지 80% 이상을 확인한다 — `cd backend && .venv/bin/python -m pytest -q --cov=src` (헌법 품질 게이트)
-- [ ] T107 `backend/tests/`와 `frontend/tests/` 전체 스위트가 **네트워크 차단 상태에서** 통과하는지 확인한다 (헌법 원칙 III)
+- [X] T100 [P] `backend/tests/unit/test_no_float.py`에 검사를 더한다 — `simulation/`·`repository/`의 주식 경로에 `float(` 사용이 없는지. **참조 구현이 JS `number`를 쓰므로 이식 과정 전체가 위험 구간이다** (헌법 원칙 VI)
+- [X] T101 [P] `backend/tests/unit/test_no_interpolation.py`에 검사를 더한다 — 주식 경로에 값을 채우는 코드가 없는지. 휴장일·상장 이전 구간·배당 없는 달을 값으로 메우지 않는다 (FR-042, SC-010, 헌법 원칙 V)
+- [X] T102 [P] `backend/tests/unit/test_layer_boundaries.py`에 검사를 더한다 — `simulation/reinvest.py`가 `repository`·`api`·`db`를 임포트하지 않는지 (헌법 원칙 IV)
+- [X] T103 [P] `backend/tests/unit/test_orm_types.py`에 검사를 더한다 — 신규 8개 테이블의 금액·비율 컬럼에 `Float`가 없는지 (헌법 원칙 VI)
+- [X] T104 `backend/src`에 mypy strict를, `backend/src`·`backend/tests`에 ruff를 통과시킨다. **mypy의 설정 범위는 `src`뿐이다**(`pyproject.toml`의 `files = ["src"]`) — 001~004가 세운 범위이며 `tests`를 넣으면 기존 66개 파일에 478건이 뜬다. 범위를 넓힐지는 005 밖의 결정으로 남긴다
+- [X] T105 `frontend/`에 `npx tsc --noEmit`과 `npx eslint .`를 통과시킨다. `any` 사용 금지
+- [X] T106 `backend/`에서 커버리지 80% 이상을 확인한다 — `cd backend && .venv/bin/python -m pytest -q --cov=src` (헌법 품질 게이트)
+- [X] T107 `backend/tests/`와 `frontend/tests/` 전체 스위트가 **네트워크 차단 상태에서** 통과하는지 확인한다 (헌법 원칙 III)
 
 ### 참조 구현 대조
 
-- [ ] T108 `backend/tests/unit/test_reference_parity.py` — 참조 Apps Script와 **같은 조건**에서 보유 주식 수와 배당 내역이 일치하는지 검증한다. **수수료를 0%로 두고 대조한다** — 참조 구현은 수수료를 다루지 않는다(주석 "수수료 X"). 순수 함수라 이 대조가 단위 테스트로 가능하다 (research R5-4)
+- [X] T108 `backend/tests/unit/test_reference_parity.py` — 참조 Apps Script와 **같은 조건**에서 보유 주식 수와 배당 내역이 일치하는지 검증한다. **수수료를 0%로 두고 대조한다** — 참조 구현은 수수료를 다루지 않는다(주석 "수수료 X"). 분할 적용 조건은 의도된 차이이므로(FR-010a) 분할 없는 입력으로 대조한다. 순수 함수라 이 대조가 단위 테스트로 가능하다 (research R5-4)
+- [X] T108a `backend/src/simulation/reinvest.py` — 대조가 잡은 차이를 고친다: **배당락일에 산 주식에는 배당이 붙지 않는다.** 배당은 그날 거래 시작 전의 보유 수에 붙는다 (spec Assumptions "배당락일에 산 주식", FR-008)
 
 ### 마무리
 
 - [ ] T109 `specs/005-stock-investment-simulation/quickstart.md`의 검증 시나리오 22개를 순서대로 수동 실행하고 결과를 기록한다. 시나리오 3이 **시세가 보관된 경우 30초 이내**(SC-001)를, 시나리오 2가 **수집 중 진행 표시**(SC-001a)를 확인한다. **새 종목을 연달아 여럿 돌리는 것은 피한다** — 출처가 호출 한도를 공개하지 않으며 공격적 폴링을 막는다
-- [ ] T110 `README.md`의 현재 상태 표에 005를 더하고 자산군 진행을 갱신한다
-- [ ] T111 `CLAUDE.md`의 현재 상태 절을 갱신한다 — 주식 자산군 추가와 **가상자산이 006으로 남아 있다는 사실**을 적는다 (plan Complexity Tracking)
+- [X] T110 `README.md`의 현재 상태 표에 005를 더하고 자산군 진행을 갱신한다
+- [X] T111 `CLAUDE.md`의 현재 상태 절을 갱신한다 — 주식 자산군 추가와 **가상자산이 006으로 남아 있다는 사실**을 적는다 (plan Complexity Tracking)
 
 ---
 

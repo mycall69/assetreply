@@ -104,3 +104,67 @@ def test_잠금_테이블의_기본키가_범위와_통화다() -> None:
     """FR-036a: 수집 잠금과 새로고침 잠금이 같은 통화에서 공존해야 한다 (T003)."""
     pk = [c.name for c in Base.metadata.tables["fx_collection_lock"].primary_key.columns]
     assert set(pk) == {"scope", "currency_code"}, f"기본 키가 {pk}"
+
+
+# ─────────────────────────── 005: 주식 시뮬레이션 ───────────────────────────
+
+#: 005가 더한 금액·비율 컬럼 (T103).
+STOCK_MONETARY_COLUMNS = {
+    ("stock_price", "open_raw"),
+    ("stock_price", "close_raw"),
+    ("stock_price", "close_adjusted"),
+    ("stock_dividend", "amount_per_share"),
+    ("stock_setting", "trade_fee_rate"),
+    ("stock_setting", "dividend_tax_rate"),
+}
+
+
+def test_주식_금액_컬럼이_Decimal로_매핑된다() -> None:
+    """T103 — 헌법 원칙 VI. `asdecimal=False`면 float으로 돌아와 원칙이 무력화된다."""
+    tables = Base.metadata.tables
+    for table_name, col_name in STOCK_MONETARY_COLUMNS:
+        assert table_name in tables, f"{table_name} 테이블이 없다"
+        col = tables[table_name].columns[col_name]
+        assert isinstance(col.type, Numeric), f"{table_name}.{col_name}가 Numeric이 아니다"
+        assert col.type.asdecimal is True, f"{table_name}.{col_name}.asdecimal이 False"
+        assert col.type.python_type is Decimal
+
+
+def test_분할_비율이_정수다() -> None:
+    """분할은 **비율이 아니라 분자·분모**다.
+
+    `1.5`로 저장하면 3:2 분할과 15:10 분할을 구별할 수 없고, 무엇보다 소수로 적는
+    순간 주식 수 계산이 부동소수를 탄다 (원칙 VI).
+    """
+    from sqlalchemy import Integer
+
+    cols = Base.metadata.tables["stock_split"].columns
+    assert isinstance(cols["numerator"].type, Integer)
+    assert isinstance(cols["denominator"].type, Integer)
+
+
+def test_data_model의_주식_테이블이_모두_정의된다() -> None:
+    expected = {
+        "stock", "stock_price", "stock_dividend", "stock_split",
+        "stock_raw_response", "stock_coverage", "stock_collection_job",
+        "stock_collection_lock", "stock_setting",
+    }
+    assert expected <= set(Base.metadata.tables), \
+        f"누락: {expected - set(Base.metadata.tables)}"
+
+
+def test_주식_시계열_복합_기본키가_종목과_날짜다() -> None:
+    """헌법 시계열 불변식 — `(자산 식별자, 날짜)` 복합 키 + upsert로 멱등성 확보."""
+    pk = [c.name for c in Base.metadata.tables["stock_price"].primary_key.columns]
+    assert pk == ["stock_id", "quote_date"]
+
+
+def test_주식_점유가_종목_단위다() -> None:
+    """research R5-7 — 자산군을 가로질러 공유하지 않는다.
+
+    통화 단위 점유와 한 테이블에 섞으면 FX 수집이 주식 수집을 막으면서 그 이유가
+    화면 어디에도 드러나지 않는다.
+    """
+    pk = [c.name for c in
+          Base.metadata.tables["stock_collection_lock"].primary_key.columns]
+    assert pk == ["stock_id"]

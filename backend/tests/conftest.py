@@ -92,3 +92,47 @@ def pytest_sessionstart(session: object) -> None:
         ) from exc
     finally:
         conn.close()
+
+
+#: 테스트가 접속해도 되는 호스트. DB는 로컬이라 허용해야 한다.
+_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
+
+
+def pytest_configure(config: object) -> None:
+    """**바깥으로 나가는 연결을 막는다** (T107, 헌법 원칙 III).
+
+    전체 스위트는 네트워크 없이 통과해야 한다. 외부 API를 부르는 테스트는 출처가
+    느리거나 막히거나 응답을 바꾸면 **우리 코드와 무관하게** 실패하고, 더 나쁘게는
+    출처의 일일 한도를 테스트가 써 버린다.
+
+    "네트워크를 쓰지 않는다"는 리뷰로 지키기 어렵다 — 어댑터 한 곳에서 스텁을
+    빠뜨리면 조용히 진짜 호출이 나가고, 그때는 통과하므로 아무도 모른다. 그래서
+    소켓 단계에서 막는다. 로컬(DB)은 허용한다.
+    """
+    import socket
+
+    real_connect = socket.socket.connect
+    real_connect_ex = socket.socket.connect_ex
+
+    def _host_of(address: object) -> str | None:
+        if isinstance(address, tuple) and address and isinstance(address[0], str):
+            return address[0]
+        return None  # 유닉스 소켓 등 — 바깥으로 나갈 수 없다
+
+    def _guard(address: object) -> None:
+        host = _host_of(address)
+        if host is not None and host not in _LOCAL_HOSTS:
+            raise RuntimeError(
+                f"테스트가 외부로 접속하려 했습니다: {host}. "
+                "출처 응답은 저장된 픽스처로 흉내 내야 합니다 (헌법 원칙 III).")
+
+    def connect(self: socket.socket, address: object) -> object:
+        _guard(address)
+        return real_connect(self, address)  # type: ignore[arg-type]
+
+    def connect_ex(self: socket.socket, address: object) -> object:
+        _guard(address)
+        return real_connect_ex(self, address)  # type: ignore[arg-type]
+
+    socket.socket.connect = connect  # type: ignore[method-assign]
+    socket.socket.connect_ex = connect_ex  # type: ignore[method-assign]

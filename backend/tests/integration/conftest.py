@@ -14,6 +14,21 @@ from src.db.session import make_session_factory
 from src.ingestion.protocols import DailyQuote, FetchOutcome, FetchResult, ItemMapping
 
 
+@pytest.fixture(autouse=True)
+def _reset_stock_queue():
+    """전역 수집 큐를 테스트 사이에 비운다.
+
+    비우지 않으면 앞 테스트가 넣어 둔 종목이 `_active`에 남아, 뒤 테스트가 같은
+    종목의 수집을 요청해도 **조용히 무시된다.** 큐가 비어 있다는 전제로 쓴 검증이
+    이유 없이 통과하거나 실패한다.
+    """
+    from src.worker.stock_queue import reset_stock_queue
+
+    reset_stock_queue()
+    yield
+    reset_stock_queue()
+
+
 @pytest.fixture
 def settings() -> Settings:
     return load_settings()

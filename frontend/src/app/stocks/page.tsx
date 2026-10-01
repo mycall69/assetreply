@@ -11,6 +11,7 @@
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
 import { PerformanceChart } from "@/components/stock/PerformanceChart";
 import { PerformanceTable } from "@/components/stock/PerformanceTable";
+import { CollectingNotice } from "@/components/stock/CollectingNotice";
 import { ComparisonChart } from "@/components/stock/ComparisonChart";
 import { SimulationHistory } from "@/components/stock/SimulationHistory";
 import { SimulationForm } from "@/components/stock/SimulationForm";
@@ -23,7 +24,7 @@ export default function StocksPage() {
     input, rows, summary, exchange, hasMore, collecting,
     series, seriesError, loading, loadingMore, error, loadMoreError,
     history, historySaveError, selectedHistory, comparison, comparing,
-    comparisonError,
+    comparisonError, progress,
     setInput, run, loadMore, refreshIfRan,
     restoreHistory, toggleHistory, removeHistoryEntry, compareSelected,
   } = useStockStore();
@@ -79,13 +80,11 @@ export default function StocksPage() {
 
       {collecting !== null && (
         // FR-047, FR-049 — 진행 상태를 보이되 부분 결과를 보여주지 않는다.
-        <p
-          role="status"
-          className="rounded border border-gray-200 px-4 py-6 text-center text-sm text-gray-600"
-        >
-          {input.stock?.name ?? "종목"}의 시세를 받고 있습니다. 완료되면 결과가
-          표시됩니다.
-        </p>
+        <CollectingNotice
+          collecting={collecting}
+          stockName={input.stock?.name ?? "종목"}
+          progress={progress}
+        />
       )}
 
       {loading && (
@@ -125,6 +124,7 @@ export default function StocksPage() {
             rows={rows}
             currency={input.principalCurrency}
             stockCurrency={currency}
+            summary={summary}
             hasMore={hasMore}
             loadingMore={loadingMore}
             loadError={loadMoreError}

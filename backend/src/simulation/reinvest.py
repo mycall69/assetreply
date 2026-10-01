@@ -101,12 +101,38 @@ def _month_first_dates(bars: list[DayBar], start: dt.date) -> set[dt.date]:
     return set(firsts.values())
 
 
+@dataclass(frozen=True, slots=True)
+class Outcome:
+    """시뮬레이션 결과 전체.
+
+    `latest`는 **마지막 거래일의 상태**다. 표에는 넣지 않는다 — 행의 종류는 월 첫
+    거래일과 배당락일 둘뿐이다(FR-025).
+
+    따로 두는 이유는 보드가 거짓말을 하지 않기 위해서다. 요약을 표의 마지막 행에서
+    가져오면 "10월 1일 기준"이라 적어 두고 **그 달 첫 거래일의 수치**를 보여주게 된다.
+    사용자가 묻는 것은 "지금 얼마가 됐나"이고, 그 답은 마지막 거래일의 값이다.
+    """
+
+    rows: list[Row]
+    latest: Row | None
+
+
 def simulate(
     bars: list[DayBar],
     dividends: list[DividendOn],
     splits: list[SplitOn],
     condition: Condition,
 ) -> list[Row]:
+    """표 행만 돌려주는 얇은 겉면. 계산은 `simulate_detailed`가 한다."""
+    return simulate_detailed(bars, dividends, splits, condition).rows
+
+
+def simulate_detailed(
+    bars: list[DayBar],
+    dividends: list[DividendOn],
+    splits: list[SplitOn],
+    condition: Condition,
+) -> Outcome:
     """일별 시세·배당·분할과 조건에서 표 행을 만든다. **최신순으로 돌려준다.**
 
     시세가 없는 날은 행을 만들지 않는다 — 없는 값을 만들어 채우지 않는다
@@ -144,6 +170,13 @@ def simulate(
             held = apply_split(held, split.numerator, split.denominator)
             next_split += 1
 
+        # **배당은 그날 시작 시점의 보유 수에 붙는다.** 배당락일은 배당 권리 없이
+        # 거래가 시작되는 날이므로, 그날 산 주식에는 배당이 붙지 않는다. 매수 뒤의
+        # 수로 계산하면 처음부터 있던 주식처럼 배당이 붙어 **시작 월이 배당 달인
+        # 조건에서 수익이 부풀려진다** — 값은 그럴듯하고 오류도 나지 않는다.
+        # 참조 구현의 `sharesAtDiv`가 같은 자리다.
+        held_at_open = held
+
         is_month_first = bar.date in month_firsts
 
         # (1) 초기 1회 매수 (FR-006). 시작 월의 첫 거래일에만 일어난다.
@@ -156,10 +189,11 @@ def simulate(
                 held += bought_initial
                 cash -= spend_for(bought_initial, bar.open_price, condition.fee_rate)
 
-        # (2) 배당 — 하루 시작 시점 보유 수가 아니라 **분할·초기 매수 반영 후**의 수다.
+        # (2) 배당 — **분할은 반영하고 그날의 매수는 반영하지 않은** 보유 수다.
         per_share = by_dividend.get(bar.date)
         if per_share is not None and per_share > 0 and invested:
-            net = Decimal(held) * per_share * (Decimal("1") - condition.tax_rate)
+            net = (Decimal(held_at_open) * per_share
+                   * (Decimal("1") - condition.tax_rate))
             cash += net
 
             bought_reinvest = 0
@@ -181,7 +215,13 @@ def simulate(
             rows.append(_row(bar, "month_first", bought_initial, held, cash, condition))
 
     rows.sort(key=lambda r: r.date, reverse=True)
-    return rows
+
+    # 마지막 거래일의 상태. **매수가 아니라 평가다** — 그날 산 주식이 없으므로 0이다.
+    latest = (
+        _row(ordered[-1], "latest", 0, held, cash, condition)
+        if ordered and invested else None
+    )
+    return Outcome(rows=rows, latest=latest)
 
 
 def _row(

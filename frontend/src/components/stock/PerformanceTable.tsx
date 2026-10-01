@@ -14,7 +14,7 @@
 
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { formatMoney, formatPercent, formatRate, formatYield } from "@/lib/format";
-import type { SimulationRow } from "@/lib/types";
+import type { SimulationRow, SimulationSummary } from "@/lib/types";
 
 const COLUMNS = [
   "날짜", "시작가", "주당 배당금", "배당율", "구매 주식수", "보유 주식",
@@ -28,6 +28,7 @@ export function PerformanceTable({
   rows,
   currency,
   stockCurrency,
+  summary,
   hasMore,
   loadingMore = false,
   loadError = null,
@@ -38,6 +39,13 @@ export function PerformanceTable({
   currency: string;
   /** 종목의 거래 통화. 원금 통화와 다르면 환율 열이 붙는다. */
   stockCurrency?: string;
+  /**
+   * 요약. **기준일 안내를 여기서도 보이기 위해서다**(FR-014b, SC-027).
+   *
+   * 보드에만 두면 표를 보던 사용자는 마지막 행을 오늘까지의 결과로 읽는다 —
+   * 상장폐지는 대개 큰 손실이라 그 오독의 대가가 크다.
+   */
+  summary?: SimulationSummary;
   hasMore: boolean;
   loadingMore?: boolean;
   loadError?: string | null;
@@ -73,8 +81,22 @@ export function PerformanceTable({
     );
   }
 
+  const cutOff = summary !== undefined && !summary.isFinal;
+
   return (
     <div className="rounded-lg border border-gray-200">
+      {cutOff && (
+        // FR-014b, SC-027 — 보드에만 두면 표를 보던 사용자는 마지막 행을 오늘까지의
+        // 결과로 읽는다. 상장폐지는 대개 큰 손실이라 그 오독의 대가가 크다.
+        <p
+          data-testid="table-asof"
+          className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800"
+        >
+          ⚠ <span className="tabular-nums">{summary.asOf}</span> 이후 시세가
+          없습니다. 아래 행은 그 날짜까지의 결과입니다.
+        </p>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>

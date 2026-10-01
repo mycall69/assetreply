@@ -26,8 +26,11 @@ async def client(session_factory):
         await upsert(s, Stock, [
             {"market": "KRX", "symbol": "005930.KS", "name": "삼성전자",
              "currency": "KRW"},
-            # 시세가 하나도 없는 종목 — 검색에는 있으나 받지 못한 경우다.
+            # 받으러 간 적이 **없는** 종목. "시세가 없다"는 결론은 이르다.
             {"market": "KRX", "symbol": "999999.KS", "name": "신규상장",
+             "currency": "KRW"},
+            # 받으러 갔는데 **한 건도 없었던** 종목. 여기서는 사유를 말해야 한다.
+            {"market": "KRX", "symbol": "888888.KS", "name": "거래없음",
              "currency": "KRW"}])
         await s.commit()
         stock_id = int((await s.execute(
@@ -36,9 +39,16 @@ async def client(session_factory):
             "stock_id": stock_id, "quote_date": D("2021-08-02"),
             "open_raw": Decimal("40000"), "close_raw": Decimal("40000"),
             "close_adjusted": Decimal("40000"), "source": "yahoo:chart"}])
-        await upsert(s, StockCoverage, [{
-            "stock_id": stock_id, "covered_from": D("2021-08-01"),
-            "covered_through": D("2021-08-31")}], preserve=())
+        empty_id = int((await s.execute(
+            select(Stock).where(Stock.symbol == "888888.KS"))).scalar_one().id)
+        await upsert(s, StockCoverage, [
+            {"stock_id": stock_id, "covered_from": D("2021-08-01"),
+             "covered_through": D("2021-08-31")},
+            # 수집을 마쳤는데 시세가 한 건도 없다 — 커버리지는 "받으러 갔다"는 기록이지
+            # "값이 있다"는 기록이 아니다.
+            {"stock_id": empty_id, "covered_from": D("2021-08-01"),
+             "covered_through": D("2021-08-31")},
+        ], preserve=())
         await s.commit()
 
     app = create_app()
@@ -72,15 +82,28 @@ class Test상장_이전:
 
 
 class Test시세_없음:
-    async def test_시세가_없으면_빈_표가_아니라_사유다(self, client) -> None:
-        """FR-004, SC-016."""
+    async def test_받아_보고도_없으면_빈_표가_아니라_사유다(self, client) -> None:
+        """FR-004, SC-016 — 빈 표를 보여주면 성과가 0이라고 읽는다."""
         res = await client.get("/api/stocks/simulation", params={
-            **BASE, "market": "KRX", "symbol": "999999.KS",
+            **BASE, "market": "KRX", "symbol": "888888.KS",
             "start": "2021-08-01", "end": "2021-08-31"})
         assert res.status_code != 200
         body = res.json()
         assert "rows" not in body
-        assert body["status"] in ("no_price_data", "unknown_stock")
+        assert body["status"] == "no_price_data"
+
+    async def test_받아_본_적이_없으면_수집부터_한다(self, client) -> None:
+        """FR-047 — 받으러 간 적이 없는데 "시세가 없다"고 말하면 틀린 결론이다.
+
+        커버리지는 **받으러 갔다**는 기록이지 **값이 있다**는 기록이 아니다. 둘을
+        섞으면 처음 고른 종목이 전부 "시세 없음"으로 보인다.
+        """
+        res = await client.get("/api/stocks/simulation", params={
+            **BASE, "market": "KRX", "symbol": "999999.KS",
+            "start": "2021-08-01", "end": "2021-08-31"})
+        assert res.status_code == 202
+        assert res.json()["status"] == "collecting"
+        assert "rows" not in res.json()
 
     async def test_알_수_없는_종목은_404다(self, client) -> None:
         res = await client.get("/api/stocks/simulation", params={

@@ -46,3 +46,36 @@ def test_기준일_선정이_행을_만들어내지_않는다() -> None:
     body = (SRC / "api" / "services" / "period_rows.py").read_text(encoding="utf-8")
     assert "FxRate(" not in body, (
         "기준일 선정이 행을 직접 만든다 — 저장된 고시일에서 고를 것 (헌법 원칙 V)")
+
+
+# ─────────────────────────── 005: 주식 시뮬레이션 ───────────────────────────
+
+
+def test_시뮬레이터가_시세를_만들어내지_않는다() -> None:
+    """T101 — 헌법 원칙 V, 005 FR-042, SC-010.
+
+    `reinvest.py`는 **받아 둔 일봉에서만** 행을 만든다. 일봉을 직접 생성하는 경로가
+    있으면 휴장일·상장 이전 구간·거래 정지 구간에 값을 채울 자리가 생긴다.
+
+    행을 직접 만드는 것이 그 구조의 서명이다 — `period_rows.py`에 `FxRate(`가 없어야
+    하는 것과 같은 검사다.
+    """
+    body = (SRC / "simulation" / "reinvest.py").read_text(encoding="utf-8")
+    assert "DayBar(" not in body, (
+        "시뮬레이터가 일봉을 직접 만든다 — 받아 둔 것에서만 고를 것 (헌법 원칙 V)")
+
+
+def test_주식_경로에_값을_채우는_코드가_없다() -> None:
+    """상장폐지·거래정지 구간을 마지막 값으로 메우면 손실이 통째로 가려진다."""
+    paths = [
+        SRC / "simulation" / "reinvest.py",
+        SRC / "api" / "services" / "stock_simulation.py",
+        SRC / "api" / "services" / "stock_series.py",
+        SRC / "repository" / "stock_price.py",
+    ]
+    offenders: list[str] = []
+    for path in paths:
+        assert path.exists(), f"{path.name}이 없다 — 검사가 조용히 비어 버린다"
+        body = path.read_text(encoding="utf-8")
+        offenders += [f"{path.name}: {t}" for t in FILL_TOKENS if t in body]
+    assert offenders == [], f"주식 경로에 보간 흔적 (헌법 원칙 V): {offenders}"

@@ -14,14 +14,18 @@ import datetime as dt
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.services.series_query import DEFAULT_MAX_POINTS
+from src.api.services.stock_collect import collecting_json, plan_collection
 from src.api.services.stock_series import build_series
 from src.api.services.stock_simulation import (
     check_principal_currency,
     parse_principal,
     prepare,
+    require_start_available,
+    require_stock,
 )
 from src.db.session import get_session
 from src.repository.stock import get_coverage
@@ -42,7 +46,7 @@ async def get_simulation_series(
     reinvest: Annotated[bool, Query()] = True,
     end: Annotated[dt.date | None, Query()] = None,
     max_points: Annotated[int, Query(alias="maxPoints", ge=2)] = DEFAULT_MAX_POINTS,
-) -> Json:
+) -> Json | JSONResponse:
     """표와 같은 조건으로 전 구간 시계열을 돌려준다."""
     check_principal_currency(principal_currency)
     amount = parse_principal(principal)
@@ -50,12 +54,22 @@ async def get_simulation_series(
     # 끝은 기본적으로 어제다. 표와 같은 기준이어야 끝점이 맞는다.
     finish = end or (dt.date.today() - dt.timedelta(days=1))
 
+    # 표와 **같은 판정**을 쓴다. 한쪽만 막으면 한쪽은 비어 있고 한쪽은 받은 만큼만
+    # 계산한 틀린 값을 보여준다 (FR-049).
+    stock = await require_stock(session, market, symbol)
+    # 상장 이전 판정이 **수집보다 먼저다.** 뒤로 미루면 상장 수십 년 전부터의
+    # 구간이 미수집으로 보여 수집이 시작되고, 받을 수 없는 데이터를 기다리게 된다.
+    await require_start_available(session, stock, start)
+    collecting = await plan_collection(session, stock, start, finish)
+    if collecting is not None:
+        return JSONResponse(status_code=202, content=collecting_json(stock, collecting))
+
     prepared = await prepare(
         session, market=market, symbol=symbol, start=start, end=finish,
         principal=amount, principal_currency=principal_currency,
         reinvest=reinvest)
 
-    covered = await get_coverage(session, int(prepared.stock.id))
+    covered = await get_coverage(session, int(stock.id))
     series = build_series(
         prepared.result, start=start, end=finish, covered=covered,
         max_points=max_points)

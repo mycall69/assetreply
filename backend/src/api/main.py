@@ -52,10 +52,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from src.config.settings import load_settings
     from src.db.session import get_session_factory
     from src.ingestion.ecos.client import EcosClient
+    from src.ingestion.yahoo.client import YahooStockClient
     from src.observability.logging_config import configure_logging
     from src.worker.queue import get_queue
     from src.worker.reconcile import reconcile_loop, reconcile_on_startup
     from src.worker.runner import worker_loop
+    from src.worker.stock_queue import get_stock_queue
+    from src.worker.stock_worker import stock_worker_loop
 
     init_engine()
     settings = load_settings()
@@ -67,11 +70,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 죽었다 살아난 직후가 가장 흔한 경우다. 기동 시 한 번 정리해 점유를 푼다.
     await reconcile_on_startup(factory)
 
+    # 005 — 주식 수집 워커. **FX와 분리한다**: 출처가 달라 호출 한도도 따로이고,
+    # 한 루프에 섞으면 환율 수집이 주식 수집을 막으면서 그 이유가 화면에 드러나지
+    # 않는다 (research R5-7). 002·003이 얻은 교훈이 여기에도 그대로 적용된다 —
+    # 엔진만 만들고 호출하는 주체를 두지 않으면 작업이 "진행 중"으로 박힌 채 멈춘다.
+    stock_client = YahooStockClient(settings)
+
     tasks = [
         asyncio.create_task(worker_loop(
             factory, EcosClient(settings), get_queue(), settings=settings)),
         asyncio.create_task(reconcile_loop(
             factory, interval_seconds=settings.reconcile_interval_seconds)),
+        asyncio.create_task(stock_worker_loop(
+            factory, stock_client, get_stock_queue())),
     ]
     try:
         yield

@@ -14,6 +14,10 @@ import {
   removeHistory,
   saveHistory,
 } from "@/lib/simulationHistory";
+import {
+  subscribeStockProgress,
+  type StockProgressSnapshot,
+} from "@/lib/stockProgressStream";
 import type {
   ExchangeInfo,
   PrincipalCurrency,
@@ -53,6 +57,8 @@ interface StockState {
    */
   seriesError: string | null;
   collecting: SimulationCollecting | null;
+  /** 수집 진행 (FR-047). 스냅샷이 오기 전에는 `null`이다 — 0/0은 멈춘 것처럼 보인다. */
+  progress: StockProgressSnapshot | null;
   loading: boolean;
   loadingMore: boolean;
   error: string | null;
@@ -84,6 +90,44 @@ interface StockState {
 
 const message = (err: unknown, fallback: string): string =>
   err instanceof ApiError ? err.message : fallback;
+
+/**
+ * 진행 구독 해제 함수. 모듈 수준에 두는 이유는 상태가 아니기 때문이다 — 화면에
+ * 그릴 것이 아니라 정리해야 할 자원이다.
+ */
+let unwatch: (() => void) | null = null;
+
+function stopWatching(): void {
+  unwatch?.();
+  unwatch = null;
+}
+
+/**
+ * 수집 진행을 구독한다.
+ *
+ * **완료 신호에 결과를 다시 요청한다.** 부분 결과를 먼저 보여주지 않는 대신
+ * (FR-049) 끝난 시점을 알려야 한다 — 알리지 않으면 사용자가 새로고침할 때까지
+ * 화면은 "받고 있습니다"에 머문다.
+ */
+function watchProgress(
+  jobId: number,
+  set: (partial: Partial<StockState>) => void,
+  get: () => StockState,
+): void {
+  stopWatching();
+  unwatch = subscribeStockProgress(jobId, {
+    onSnapshot: (progress) => set({ progress }),
+    onCompleted: () => {
+      stopWatching();
+      void get().run();
+    },
+    onFailed: (reason) => {
+      stopWatching();
+      // 조용히 멈추면 사용자는 영원히 "받고 있습니다"를 본다.
+      set({ collecting: null, progress: null, error: reason });
+    },
+  });
+}
 
 /** 조건을 질의 문자열로. 원금은 **문자열 그대로** 보낸다 (헌법 원칙 VI). */
 export function toQuery(input: {
@@ -123,6 +167,7 @@ export const useStockStore = create<StockState>((set, get) => ({
   series: null,
   seriesError: null,
   collecting: null,
+  progress: null,
   loading: false,
   loadingMore: false,
   error: null,
@@ -158,7 +203,8 @@ export const useStockStore = create<StockState>((set, get) => ({
     set({
       rows: [], summary: null, condition: null, exchange: null,
       hasMore: false, oldestReturned: null, series: null, seriesError: null,
-      collecting: null, loading: true, error: null, loadMoreError: null,
+      collecting: null, progress: null, loading: true, error: null,
+      loadMoreError: null,
     });
     try {
       const body = await apiClient.get<SimulationResponse | SimulationCollecting>(
@@ -166,7 +212,10 @@ export const useStockStore = create<StockState>((set, get) => ({
       );
       if ("status" in body && body.status === "collecting") {
         // FR-049 — 부분 결과를 완성된 결과처럼 보여주지 않는다.
-        set({ collecting: body, loading: false });
+        //
+        // **이력에도 남기지 않는다.** 아직 결과가 없는 조건이다.
+        set({ collecting: body, progress: null, loading: false });
+        watchProgress(body.jobId, set, get);
         return;
       }
       const result = body as SimulationResponse;
