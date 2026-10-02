@@ -141,3 +141,58 @@ class Test재수집:
         source = StubSource()
         await run_stock_job(session_factory, source, second)
         assert source.calls == []
+
+
+class Test출처_열기:
+    """006 T090에서 발견 — **주식 수집 워커가 출처를 열지 않았다.**
+
+    `YahooStockClient`는 `async with`로 들어가야 HTTP 세션이 생긴다. `lifespan`이 연 적 없는
+    클라이언트를 넘겨, 실제 경로의 모든 시세 수집이 "클라이언트 세션이 열려 있지 않습니다"로
+    실패했다. 003이 FX 워커에서 같은 결함을 겪고 `worker_loop`가 출처를 직접 열게
+    고쳤다(`worker/runner.py`). 스텁은 열 필요가 없어 005의 테스트가 모두 통과했다 — 그래서
+    **열어야만 동작하는 스텁**으로 본다.
+    """
+
+    class _MustOpen(StubSource):
+        def __init__(self) -> None:
+            super().__init__()
+            self.opened = False
+            self.closed = False
+
+        async def __aenter__(self):  # type: ignore[no-untyped-def]
+            self.opened = True
+            return self
+
+        async def __aexit__(self, *_: object) -> None:
+            self.closed = True
+
+        async def fetch_chart(self, symbol, date_from, date_to):  # type: ignore[no-untyped-def]
+            if not self.opened:
+                raise RuntimeError("클라이언트 세션이 열려 있지 않습니다.")
+            return await super().fetch_chart(symbol, date_from, date_to)
+
+    async def test_워커가_출처를_열고_닫는다(self, session_factory, stock_id) -> None:
+        import asyncio
+        import contextlib
+
+        from src.worker.stock_queue import StockQueue
+        from src.worker.stock_worker import stock_worker_loop
+
+        source = self._MustOpen()
+        queue = StockQueue()
+        work = await make_job(session_factory, stock_id)
+        queue.request(work)
+        task = asyncio.create_task(stock_worker_loop(session_factory, source, queue))
+        try:
+            async with asyncio.timeout(3):
+                while queue.is_active(stock_id):  # noqa: ASYNC110 — 큐에 완료 사건이 없다
+                    await asyncio.sleep(0.02)
+        finally:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+        async with session_factory() as s:
+            job = (await s.execute(select(StockCollectionJob))).scalar_one()
+        assert job.status is JobStatus.SUCCEEDED, job.last_error
+        assert source.closed, "종료 시 세션을 닫지 않으면 프로세스가 깨끗하게 끝나지 않는다"

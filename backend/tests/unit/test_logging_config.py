@@ -111,3 +111,13 @@ class Test로그_경로_해석:
         from src.config.settings import load_settings
 
         assert "backend" not in load_settings().collection_log_file().parts
+
+
+def test_테스트는_운영_수집_로그에_쓰지_않는다() -> None:
+    """006 T090에서 발견 — `TestClient(create_app())`가 `lifespan`을 돌려 수집 로거를 **실제**
+    `logs/collection.log`로 구성했고, 그 뒤 테스트의 수집·목록 사건이 운영자의 로그에 쌓였다.
+    테스트 세션은 수집 로그를 임시 경로로 보낸다(`tests/conftest.py`)."""
+    from src.config.settings import load_settings, repo_root
+
+    path = load_settings().collection_log_file()
+    assert repo_root() / "logs" not in path.parents, path
