@@ -85,41 +85,42 @@ description: "Task list for 006-stock-simulation-enhancements"
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T013 [P] [US1] `backend/tests/unit/test_search_hangul.py` — NFC 정규화, 공백 제거, 라틴 소문자화, 음절 → 초성 열, **쌍자음(ㅆ)과 홑자음(ㅅ)의 구별**, **받침 대기 판정**("서"는 마지막 글자일 때 "성"과 맞고, 마지막이 아니면 맞지 않음)을 표로 검증한다 (FR-022, research R6-5)
-- [ ] T014 [P] [US1] `backend/tests/unit/test_search_match.py` — quickstart 3의 표를 그대로 옮긴다(삼성전자, ㅅㅅㅈㅈ, 삼ㅅㅈ, 삼성ㅈ, 삼서, 삼성 전자, 005930, sk하이닉스, ㅎㅇㄴㅅ, kodex 200, ㅆ). 순위가 정확 → 앞부분 → 포함인지, 같은 순위 안에서 **일치한 이름이 짧은 순 → 코드 포인트 순 → 시장 → 코드**인지, **입력 순서를 섞어도 결과 순서가 같은지**, 상한을 넘으면 잘림을 알리는지 검증한다 (FR-020, FR-022, FR-023, FR-024, SC-002, SC-003)
-- [ ] T015 [P] [US1] `backend/tests/unit/test_search_performance.py` — 합성 종목 15,000건 색인에서 대표 검색어 100개의 처리 시간 95번째 백분위가 50ms 미만인지 검증한다. SC-001의 0.5초는 화면 입력 대기 150ms를 포함한다 (SC-001, research R6-5)
-- [ ] T016 [P] [US1] `backend/tests/unit/test_price_symbol.py` — 국내: `KOSPI`(주식·ETF·리츠) → `KRX`/`{code}.KS`/KRW, `KOSDAQ` → `KRX`/`{code}.KQ`/KRW. **ETF·리츠를 상품 구분으로 시장을 정하지 않는지**(FR-010a). **역변환**: `KRX`/`{code}.KS`·`.KQ` → 국내 종목코드, 그리고 **목록 → 시세 식별자 → 목록이 같은 종목으로 돌아오는지**(왕복) (FR-010a, FR-030, FR-030b, FR-031, research R6-6 역변환)
-- [ ] T017 [P] [US1] `backend/tests/contract/test_kiwoom_domestic.py` — T005의 실제 응답 픽스처로 국내 목록을 파싱한다. 0으로 앞을 채운 문자열, `regDay` → 날짜, **`marketName`으로 `kind`(`stock`·`etf`·`reit`)를 정하고 ETN·인프라투자금융·뮤추얼펀드를 빼는지, 처음 보는 `marketName`이면 단위 전체가 `invalid`인지**(research R6-2), 영문이 섞인 6자리 코드(`0030R0`)를 받아들이는지. **`code`가 비었거나 6자리가 아닌 행이 하나라도 있으면 단위 전체를 `invalid`로 실패시키는지** — 한 행을 조용히 버리면 그 종목만 "빠짐"이 된다. 목록의 `lastPrice`·`listCount`를 결과 타입에 싣지 않는지 (FR-010, FR-012, data-model 1절 검증 규칙)
-- [ ] T018 [P] [US1] `backend/tests/unit/test_listing_refresh_decision.py` — 갱신 판정 순수 함수를 표로 검증한다: 오늘(KST) 이미 받음 → 안 함, 갱신 중 → 안 함, 인증 실패 막힘 → 안 함, 마지막 실패 후 30분 미만 → 안 함, 오늘 5회 도달 → 안 함, 그 밖 → 함. **자정(KST) 직후에 새 날로 넘어가는지**, UTC 날짜로 판정하지 않는지 (FR-013, FR-013a, FR-013b, SC-005a, research R6-3)
-- [ ] T019 [P] [US1] `backend/tests/integration/test_listing_replace.py` — 교체 트랜잭션: **중간 쪽 실패면 아무것도 바뀌지 않는지**(FR-018), **이전 건수의 50%보다 적으면 교체하지 않고 `invalid`로 남기는지, 정확히 50%면 교체하는지**(FR-018a), 빠진 종목을 지우지 않고 `missing`으로 표시하는지(FR-019, SC-016), 다시 보이면 `listed`로 돌아오는지, **코스닥 → 코스피로 단위를 옮긴 종목이 행 하나로 남고 어느 단위가 먼저 갱신돼도 결과가 같은지**(FR-019a), 단위마다 기준 시각이 따로인지(FR-015), 실패해도 이전 목록이 그대로인지(FR-016, SC-004), 원본이 **헤더 없이** 쪽마다 남고 **지워지지 않는지**, 같은 본문을 다시 받으면 본문은 한 번만 저장되고 쪽 기록은 남는지(FR-061, research R6-13)
-- [ ] T020 [P] [US1] `backend/tests/integration/test_listing_lock.py` — 같은 단위의 갱신을 동시에 둘 요청하면 **기본 키 충돌로 하나만** 시작하는지, 기동 시 남은 점유를 풀고 심장박동이 10분 넘게 멈춘 점유를 회수하는지 (FR-014, SC-005, data-model 3절)
-- [ ] T021 [P] [US1] `backend/tests/integration/test_stock_search_local.py` — `GET /api/stocks/search`가 **외부 출처를 부르지 않는지**, 결과 필드(contracts/rest-api)가 맞는지, `lists[]`의 상태(`never`·`refreshing`·`ready`·`stale`·`failed`·`auth_blocked`)와 `reason`·`action`이 맞는지, **목록이 없을 때 오류가 아니라 200 + `lists`로 알리는지**, 갱신 중에도 **기다리지 않고** 이전 목록으로 답하는지, 상한을 넘으면 `truncated`인지, 갱신을 요청만 하는지 (FR-017, FR-024, FR-025, FR-028, FR-028a, FR-029, SC-006)
-- [ ] T022 [P] [US1] `backend/tests/integration/test_stock_search_external.py` — `GET /api/stocks/search/external`가 결과에서 **TSE만 남기는지**(국내·미국 제외), 출처 장애를 005와 같은 오류로 내는지 (FR-026)
-- [ ] T023 [P] [US1] `backend/tests/integration/test_stock_selection.py` — **검색 → 등록 → 실행** 경로로 검증한다(픽스처가 `stock` 행을 미리 넣지 않는다). `POST /api/stocks/selection`이 국내 목록 행으로 종목을 만들고, 005가 이미 저장한 같은 종목이 있으면 그것을 쓰고, 두 번 불러도 행이 하나인지. 일본 외부 결과로 등록할 때 시장이 TSE·통화가 JPY가 아니면 거절하는지. 없는 `listingId`는 `404 unknown_listing`. **미등록 국내 종목으로 시뮬레이션을 요청하면 목록으로 등록한 뒤 진행하는지**(이력 재실행 경로). **시작일은 거래일(예: 2021-08-02)로 잡는다** — T063 전에는 휴일 시작이 005 결함으로 거절된다. 이를 피하려고 픽스처에 `first_available_date`를 넣지 않는다 — 결함이 다시 가려진다 (FR-030, FR-030b, FR-033, SC-007, SC-007a, research R6-17)
-- [ ] T024 [P] [US1] `backend/tests/integration/test_listing_auth_failure.py` — 인증 실패 시 **목록 갱신만 실패**하고 이전 목록 검색·일본 검색·시뮬레이션은 정상인지, 같은 날 다시 시도하지 않는지, 막힘을 초기화(재시작 흉내)하면 같은 날이라도 다시 시도하는지, 인증 정보가 비어 있으면 갱신을 시도하지 않고 `never`·`auth_missing`·`set_credentials`인지 (FR-013b, FR-028a, FR-062)
-- [ ] T025 [P] [US1] `backend/tests/integration/test_simulation_errors.py`에 더한다 — 시세 출처가 심볼을 모르면 `404 price_symbol_unknown`, 받았는데 시세가 없으면 `404 no_price_data`로 **구별되는지** (FR-032)
-- [ ] T026 [P] [US1] `frontend/tests/searchSequence.test.ts` — 요청 번호가 최신이 아닌 응답을 버리는지. 로컬·외부가 번호를 따로 가지는지 (FR-029a, research R6-12)
-- [ ] T027 [P] [US1] `frontend/tests/StockSearchLocal.test.tsx` — 결과마다 시장·통화, 우선주 구별, ETF·리츠 표시, "목록에서 빠짐" 표시가 보이는지(글자로, 색만이 아님), 목록 기준 시각 줄이 보이는지, **결과가 비었을 때 `lists` 상태에 따라 "결과 없음"과 W2a의 "목록을 받지 못함 + 할 일"을 가르는지**, 잘림 안내가 보이는지 (FR-024, FR-025, FR-028, FR-028a, FR-029, SC-006)
-- [ ] T028 [P] [US1] `frontend/tests/StockSearchRegions.test.tsx` — 로컬 결과가 **외부 검색을 기다리지 않고** 먼저 그려지는지, 외부 검색이 지연·실패해도 로컬 영역은 영향이 없고 실패는 일본 영역에만 보이는지, 로컬 입력 대기가 150ms·외부가 300ms인지 (FR-027, SC-001, SC-015)
-- [ ] T029 [P] [US1] `frontend/tests/stockSelection.test.ts` — 결과를 고르는 순간 `/api/stocks/selection`을 부르는지, 실패하면 **실행 전에** 사유를 보이는지, 이후 시뮬레이션·이력이 **등록 응답의 식별**을 쓰는지 (FR-030, FR-030b)
+- [X] T013 [P] [US1] `backend/tests/unit/test_search_hangul.py` — NFC 정규화, 공백 제거, 라틴 소문자화, 음절 → 초성 열, **쌍자음(ㅆ)과 홑자음(ㅅ)의 구별**, **받침 대기 판정**("서"는 마지막 글자일 때 "성"과 맞고, 마지막이 아니면 맞지 않음)을 표로 검증한다 (FR-022, research R6-5)
+- [X] T014 [P] [US1] `backend/tests/unit/test_search_match.py` — quickstart 3의 표를 그대로 옮긴다(삼성전자, ㅅㅅㅈㅈ, 삼ㅅㅈ, 삼성ㅈ, 삼서, 삼성 전자, 005930, sk하이닉스, ㅎㅇㄴㅅ, kodex 200, ㅆ). 순위가 정확 → 앞부분 → 포함인지, 같은 순위 안에서 **일치한 이름이 짧은 순 → 코드 포인트 순 → 시장 → 코드**인지, **입력 순서를 섞어도 결과 순서가 같은지**, 상한을 넘으면 잘림을 알리는지 검증한다 (FR-020, FR-022, FR-023, FR-024, SC-002, SC-003)
+- [X] T015 [P] [US1] `backend/tests/unit/test_search_performance.py` — 합성 종목 15,000건 색인에서 대표 검색어 100개의 처리 시간 95번째 백분위가 50ms 미만인지 검증한다. SC-001의 0.5초는 화면 입력 대기 150ms를 포함한다 (SC-001, research R6-5)
+- [X] T016 [P] [US1] `backend/tests/unit/test_price_symbol.py` — 국내: `KOSPI`(주식·ETF·리츠) → `KRX`/`{code}.KS`/KRW, `KOSDAQ` → `KRX`/`{code}.KQ`/KRW. **ETF·리츠를 상품 구분으로 시장을 정하지 않는지**(FR-010a). **역변환**: `KRX`/`{code}.KS`·`.KQ` → 국내 종목코드, 그리고 **목록 → 시세 식별자 → 목록이 같은 종목으로 돌아오는지**(왕복) (FR-010a, FR-030, FR-030b, FR-031, research R6-6 역변환)
+- [X] T017 [P] [US1] `backend/tests/contract/test_kiwoom_domestic.py` — T005의 실제 응답 픽스처로 국내 목록을 파싱한다. 0으로 앞을 채운 문자열, `regDay` → 날짜, **`marketName`으로 `kind`(`stock`·`etf`·`reit`)를 정하고 ETN·인프라투자금융·뮤추얼펀드를 빼는지, 처음 보는 `marketName`이면 단위 전체가 `invalid`인지**(research R6-2), 영문이 섞인 6자리 코드(`0030R0`)를 받아들이는지. **`code`가 비었거나 6자리가 아닌 행이 하나라도 있으면 단위 전체를 `invalid`로 실패시키는지** — 한 행을 조용히 버리면 그 종목만 "빠짐"이 된다. 목록의 `lastPrice`·`listCount`를 결과 타입에 싣지 않는지 (FR-010, FR-012, data-model 1절 검증 규칙)
+- [X] T018 [P] [US1] `backend/tests/unit/test_listing_refresh_decision.py` — 갱신 판정 순수 함수를 표로 검증한다: 오늘(KST) 이미 받음 → 안 함, 갱신 중 → 안 함, 인증 실패 막힘 → 안 함, 마지막 실패 후 30분 미만 → 안 함, 오늘 5회 도달 → 안 함, 그 밖 → 함. **자정(KST) 직후에 새 날로 넘어가는지**, UTC 날짜로 판정하지 않는지 (FR-013, FR-013a, FR-013b, SC-005a, research R6-3)
+- [X] T019 [P] [US1] `backend/tests/integration/test_listing_replace.py` — 교체 트랜잭션: **중간 쪽 실패면 아무것도 바뀌지 않는지**(FR-018), **이전 건수의 50%보다 적으면 교체하지 않고 `invalid`로 남기는지, 정확히 50%면 교체하는지**(FR-018a), 빠진 종목을 지우지 않고 `missing`으로 표시하는지(FR-019, SC-016), 다시 보이면 `listed`로 돌아오는지, **코스닥 → 코스피로 단위를 옮긴 종목이 행 하나로 남고 어느 단위가 먼저 갱신돼도 결과가 같은지**(FR-019a), 단위마다 기준 시각이 따로인지(FR-015), 실패해도 이전 목록이 그대로인지(FR-016, SC-004), 원본이 **헤더 없이** 쪽마다 남고 **지워지지 않는지**, 같은 본문을 다시 받으면 본문은 한 번만 저장되고 쪽 기록은 남는지(FR-061, research R6-13)
+- [X] T020 [P] [US1] `backend/tests/integration/test_listing_lock.py` — 같은 단위의 갱신을 동시에 둘 요청하면 **기본 키 충돌로 하나만** 시작하는지, 기동 시 남은 점유를 풀고 심장박동이 10분 넘게 멈춘 점유를 회수하는지 (FR-014, SC-005, data-model 3절)
+- [X] T021 [P] [US1] `backend/tests/integration/test_stock_search_local.py` — `GET /api/stocks/search`가 **외부 출처를 부르지 않는지**, 결과 필드(contracts/rest-api)가 맞는지, `lists[]`의 상태(`never`·`refreshing`·`ready`·`stale`·`failed`·`auth_blocked`)와 `reason`·`action`이 맞는지, **목록이 없을 때 오류가 아니라 200 + `lists`로 알리는지**, 갱신 중에도 **기다리지 않고** 이전 목록으로 답하는지, 상한을 넘으면 `truncated`인지, 갱신을 요청만 하는지 (FR-017, FR-024, FR-025, FR-028, FR-028a, FR-029, SC-006)
+- [X] T022 [P] [US1] `backend/tests/integration/test_stock_search_external.py` — `GET /api/stocks/search/external`가 결과에서 **TSE만 남기는지**(국내·미국 제외), 출처 장애를 005와 같은 오류로 내는지 (FR-026)
+- [X] T023 [P] [US1] `backend/tests/integration/test_stock_selection.py` — **검색 → 등록 → 실행** 경로로 검증한다(픽스처가 `stock` 행을 미리 넣지 않는다). `POST /api/stocks/selection`이 국내 목록 행으로 종목을 만들고, 005가 이미 저장한 같은 종목이 있으면 그것을 쓰고, 두 번 불러도 행이 하나인지. 일본 외부 결과로 등록할 때 시장이 TSE·통화가 JPY가 아니면 거절하는지. 없는 `listingId`는 `404 unknown_listing`. **미등록 국내 종목으로 시뮬레이션을 요청하면 목록으로 등록한 뒤 진행하는지**(이력 재실행 경로). **시작일은 거래일(예: 2021-08-02)로 잡는다** — T063 전에는 휴일 시작이 005 결함으로 거절된다. 이를 피하려고 픽스처에 `first_available_date`를 넣지 않는다 — 결함이 다시 가려진다 (FR-030, FR-030b, FR-033, SC-007, SC-007a, research R6-17)
+- [X] T024 [P] [US1] `backend/tests/integration/test_listing_auth_failure.py` — 인증 실패 시 **목록 갱신만 실패**하고 이전 목록 검색·일본 검색·시뮬레이션은 정상인지, 같은 날 다시 시도하지 않는지, 막힘을 초기화(재시작 흉내)하면 같은 날이라도 다시 시도하는지, 인증 정보가 비어 있으면 갱신을 시도하지 않고 `never`·`auth_missing`·`set_credentials`인지 (FR-013b, FR-028a, FR-062)
+- [X] T025 [P] [US1] `backend/tests/integration/test_simulation_errors.py`에 더한다 — 시세 출처가 심볼을 모르면 `404 price_symbol_unknown`, 받았는데 시세가 없으면 `404 no_price_data`로 **구별되는지** (FR-032)
+- [X] T026 [P] [US1] `frontend/tests/searchSequence.test.ts` — 요청 번호가 최신이 아닌 응답을 버리는지. 로컬·외부가 번호를 따로 가지는지 (FR-029a, research R6-12)
+- [X] T027 [P] [US1] `frontend/tests/StockSearchLocal.test.tsx` — 결과마다 시장·통화, 우선주 구별, ETF·리츠 표시, "목록에서 빠짐" 표시가 보이는지(글자로, 색만이 아님), 목록 기준 시각 줄이 보이는지, **결과가 비었을 때 `lists` 상태에 따라 "결과 없음"과 W2a의 "목록을 받지 못함 + 할 일"을 가르는지**, 잘림 안내가 보이는지 (FR-024, FR-025, FR-028, FR-028a, FR-029, SC-006)
+- [X] T028 [P] [US1] `frontend/tests/StockSearchRegions.test.tsx` — 로컬 결과가 **외부 검색을 기다리지 않고** 먼저 그려지는지, 외부 검색이 지연·실패해도 로컬 영역은 영향이 없고 실패는 일본 영역에만 보이는지, 로컬 입력 대기가 150ms·외부가 300ms인지 (FR-027, SC-001, SC-015)
+- [X] T029 [P] [US1] `frontend/tests/stockSelection.test.ts` — 결과를 고르는 순간 `/api/stocks/selection`을 부르는지, 실패하면 **실행 전에** 사유를 보이는지, 이후 시뮬레이션·이력이 **등록 응답의 식별**을 쓰는지 (FR-030, FR-030b)
+- [X] T094 [P] [US1] `backend/tests/integration/test_listing_worker.py` — **구현 뒤 보강한 테스트다**(T036의 위험을 덮는 테스트가 목록에 없었다). 워커 루프가 큐의 단위를 실제로 갱신하는지, 한 단위가 실패해도 루프가 다음 단위를 처리하는지, 큐가 비면 출처를 부르지 않는지, `lifespan`이 워커와 기동 정리를 등록하는지 검증한다. 판정·교체 테스트는 모두 `refresh_unit`을 직접 부르므로 워커 등록이 빠져도 통과한다 (FR-013, FR-014)
 
 ### Implementation for User Story 1
 
-- [ ] T030 [US1] `backend/src/search/hangul.py` — 정규화·초성 열·받침 대기 판정 (FR-022, research R6-5)
-- [ ] T031 [US1] `backend/src/search/match.py` — 일치 판정, 순위, 결정적 정렬, 잘림 (FR-020, FR-023, FR-024)
-- [ ] T032 [US1] `backend/src/search/price_symbol.py` — 국내 규칙 (FR-010a, FR-030, FR-031, research R6-6)
-- [ ] T033 [US1] `backend/src/ingestion/kiwoom/parse.py` — 국내 목록 파싱과 검증. 출처 필드명은 이 파일에만 둔다 (FR-010, FR-012)
-- [ ] T034 [US1] `backend/src/repository/stock_listing.py` — upsert·`missing` 표시(지금 그 단위에 속한 행만)·갱신 기록·점유 INSERT·원본 저장(본문은 SHA-256으로 중복 제거, 기본 키 충돌은 "이미 있음"). **종목·원본 테이블에 삭제 질의를 두지 않는다** (FR-014, FR-015, FR-019, FR-019a, FR-061)
-- [ ] T035 [US1] `backend/src/api/services/listing_refresh.py` — 갱신 판정 순수 함수, 전 쪽을 받은 뒤의 검사(빈 목록·필수 필드·축소)와 한 트랜잭션 교체, 실패 종류와 사유 기록(키·토큰 없이), 인증 실패 막힘(프로세스 메모리) (FR-013, FR-013a, FR-013b, FR-015, FR-016, FR-018, FR-018a, FR-062, research R6-3, R6-4)
-- [ ] T036 [US1] `backend/src/worker/listing_worker.py`를 만들고 `backend/src/api/main.py`의 `lifespan`에 등록한다. 기동 시 점유를 풀고 정체 점유를 회수한다. **등록을 빠뜨리면 갱신 요청이 쌓이기만 하고 실행되지 않는다** — 003·005가 겪은 일이다 (FR-013, FR-014, data-model 3절)
-- [ ] T037 [US1] `backend/src/api/services/listing_index.py` — 메모리 색인. 검색마다 단위별 기준 시각의 최댓값을 읽어 바뀌었으면 다시 만든다 (SC-001, research R6-5)
-- [ ] T038 [US1] `backend/src/api/routes/stock_search.py`를 로컬 검색으로 바꾸고 `/external`(TSE만)을 분리한다. 로컬 검색은 갱신을 **요청만** 한다 (FR-017, FR-021, FR-026, FR-027, FR-028, FR-029, research R6-12)
-- [ ] T039 [US1] `backend/src/api/services/stock_selection.py`·`backend/src/api/routes/stock_selection.py`를 만들고 `main.py`에 등록한다. `stock_simulation.require_stock`은 국내·미국 미등록 종목을 **research R6-6의 역변환**으로 목록에서 찾아 등록하고, 역변환으로 찾지 못하거나 일본이면 `404 unknown_stock` + `action: reselect`로 답한다 (FR-030, FR-030b, FR-033, research R6-6, R6-17)
-- [ ] T040 [US1] `backend/src/api/main.py`의 오류 처리기를 나눈다 — 시세 출처가 심볼을 모를 때 `price_symbol_unknown`, 우리 DB에 종목이 없을 때 `unknown_stock` (FR-032)
-- [ ] T041 [US1] `frontend/src/lib/types.ts`에 검색 응답(`results`·`truncated`·`lists`)·외부 검색·등록 응답 타입을 더한다 (contracts/rest-api)
-- [ ] T042 [US1] `frontend/src/lib/searchSequence.ts` (FR-029a)
-- [ ] T043 [US1] `frontend/src/components/stock/StockSearch.tsx`를 두 영역(국내·미국 / 일본)으로 바꾼다. 로컬 입력 대기 150ms·외부 300ms, 목록 상태 줄, 잘림 안내, W2a (FR-024, FR-025, FR-027, FR-028, FR-028a, FR-029, ui-wireframes W2, W2a)
-- [ ] T044 [US1] `frontend/src/stores/stockStore.ts` — 결과를 고르면 등록하고, 등록 응답의 식별을 입력·이력에 쓴다 (FR-030, FR-030b)
+- [X] T030 [US1] `backend/src/search/hangul.py` — 정규화·초성 열·받침 대기 판정 (FR-022, research R6-5)
+- [X] T031 [US1] `backend/src/search/match.py` — 일치 판정, 순위, 결정적 정렬, 잘림 (FR-020, FR-023, FR-024)
+- [X] T032 [US1] `backend/src/search/price_symbol.py` — 국내 규칙 (FR-010a, FR-030, FR-031, research R6-6)
+- [X] T033 [US1] `backend/src/ingestion/kiwoom/parse.py` — 국내 목록 파싱과 검증. 출처 필드명은 이 파일에만 둔다 (FR-010, FR-012)
+- [X] T034 [US1] `backend/src/repository/stock_listing.py` — upsert·`missing` 표시(지금 그 단위에 속한 행만)·갱신 기록·점유 INSERT·원본 저장(본문은 SHA-256으로 중복 제거, 기본 키 충돌은 "이미 있음"). **종목·원본 테이블에 삭제 질의를 두지 않는다** (FR-014, FR-015, FR-019, FR-019a, FR-061)
+- [X] T035 [US1] `backend/src/api/services/listing_refresh.py` — 갱신 판정 순수 함수, 전 쪽을 받은 뒤의 검사(빈 목록·필수 필드·축소)와 한 트랜잭션 교체, 실패 종류와 사유 기록(키·토큰 없이), 인증 실패 막힘(프로세스 메모리) (FR-013, FR-013a, FR-013b, FR-015, FR-016, FR-018, FR-018a, FR-062, research R6-3, R6-4)
+- [X] T036 [US1] `backend/src/worker/listing_worker.py`를 만들고 `backend/src/api/main.py`의 `lifespan`에 등록한다. 기동 시 점유를 풀고 정체 점유를 회수한다. **등록을 빠뜨리면 갱신 요청이 쌓이기만 하고 실행되지 않는다** — 003·005가 겪은 일이다 (FR-013, FR-014, data-model 3절)
+- [X] T037 [US1] `backend/src/api/services/listing_index.py` — 메모리 색인. 검색마다 단위별 기준 시각을 읽어 바뀌었으면 다시 만든다. **버전은 단위별 기준 시각의 묶음이다** — 최댓값이면 같은 초에 교체된 두 단위를 구별하지 못해 뒤 단위가 다음 날까지 검색되지 않는다(구현 단계 정정) (SC-001, research R6-5)
+- [X] T038 [US1] `backend/src/api/routes/stock_search.py`를 로컬 검색으로 바꾸고 `/external`(TSE만)을 분리한다. 로컬 검색은 갱신을 **요청만** 한다 (FR-017, FR-021, FR-026, FR-027, FR-028, FR-029, research R6-12)
+- [X] T039 [US1] `backend/src/api/services/stock_selection.py`·`backend/src/api/routes/stock_selection.py`를 만들고 `main.py`에 등록한다. `stock_simulation.require_stock`은 국내·미국 미등록 종목을 **research R6-6의 역변환**으로 목록에서 찾아 등록하고, 역변환으로 찾지 못하거나 일본이면 `404 unknown_stock` + `action: reselect`로 답한다 (FR-030, FR-030b, FR-033, research R6-6, R6-17)
+- [X] T040 [US1] `backend/src/api/main.py`의 오류 처리기를 나눈다 — 시세 출처가 심볼을 모를 때 `price_symbol_unknown`, 우리 DB에 종목이 없을 때 `unknown_stock`. 출처가 모른다는 사실은 수집 워커 안에서 드러나므로, `worker/stock_worker.py`가 작업 사유에 표지를 붙이고 `stock_collect.plan_collection`이 그 표지로 끝난 종목의 수집을 되풀이하지 않는다. 진행 스트림의 `failed`에 `status`를 싣는다 (FR-032, research R6-6, contracts/rest-api 4절)
+- [X] T041 [US1] `frontend/src/lib/types.ts`에 검색 응답(`results`·`truncated`·`lists`)·외부 검색·등록 응답 타입을 더한다 (contracts/rest-api)
+- [X] T042 [US1] `frontend/src/lib/searchSequence.ts` (FR-029a)
+- [X] T043 [US1] `frontend/src/components/stock/StockSearch.tsx`를 두 영역(국내·미국 / 일본)으로 바꾼다. 로컬 입력 대기 150ms·외부 300ms, 목록 상태 줄, 잘림 안내, W2a (FR-024, FR-025, FR-027, FR-028, FR-028a, FR-029, ui-wireframes W2, W2a)
+- [X] T044 [US1] `frontend/src/stores/stockStore.ts` — 결과를 고르면 등록하고, 등록 응답의 식별을 입력·이력에 쓴다 (FR-030, FR-030b)
 
 **Checkpoint**: 국내 종목을 한글·초성으로 찾아 시뮬레이션까지 간다
 
@@ -291,6 +292,7 @@ Setup → Foundational ─┬→ US1 (MVP) ──→ US4 (미국)
 | `backend/src/api/services/listing_index.py` | T037, T074 |
 | `backend/src/api/services/stock_selection.py` | T039, T073 |
 | `backend/src/api/services/collection_gate.py` | T092 |
+| `backend/src/api/services/stock_collect.py` | T040, T051 |
 | `backend/src/api/routes/series.py`·`daily.py`·`rates.py`·`latest.py` | T093 |
 | `backend/src/search/price_symbol.py` | T032, T071 |
 | `backend/src/ingestion/kiwoom/parse.py` | T033, T070 |

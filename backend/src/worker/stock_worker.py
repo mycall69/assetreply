@@ -16,7 +16,8 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.db.models import JobStatus
-from src.repository.stock_job import advance_chunk, finish_job
+from src.ingestion.yahoo.errors import StockSymbolNotFound
+from src.repository.stock_job import advance_chunk, finish_job, symbol_unknown_error
 from src.worker.stock_queue import StockQueue, StockWork
 from src.worker.stock_runner import StockSource, collect_range
 
@@ -47,8 +48,11 @@ async def run_stock_job(
         except Exception as exc:
             _log.exception("주식 수집 실패 stock_id=%s", work.stock_id)
             # 사유를 남긴다. 조용히 끝나면 왜 멈췄는지 알 수 없고 다음 실행이 같은
-            # 곳에서 또 멈춘다.
-            await finish_job(session, work.job_id, JobStatus.FAILED, error=str(exc))
+            # 곳에서 또 멈춘다. 출처가 심볼을 모르면 표지를 붙인다 — 다음 요청이 수집을
+            # 되풀이하지 않고 "시세 출처에서 찾지 못함"으로 답하는 근거다 (006 FR-032).
+            error = (symbol_unknown_error(str(exc)) if isinstance(exc, StockSymbolNotFound)
+                     else str(exc))
+            await finish_job(session, work.job_id, JobStatus.FAILED, error=error)
             await session.commit()
             return JobStatus.FAILED
 

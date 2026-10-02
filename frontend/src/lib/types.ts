@@ -306,6 +306,95 @@ export interface StockSearchResult {
   currency: string;
 }
 
+/* ─────────────────── 006: 검색용 목록·일본 외부 검색·등록 ─────────────────── */
+
+/** 검색용 목록의 단위 (006 FR-015). 단위마다 기준 시각이 따로다. */
+export type ListingUnit = "KOSPI" | "KOSDAQ" | "NYSE" | "NASDAQ" | "AMEX";
+
+/** 단위의 화면 상태 (006 data-model 2절). */
+export type ListingState =
+  | "never" | "refreshing" | "ready" | "stale" | "failed" | "auth_blocked";
+
+/** 목록을 받지 못한 사유 (contracts `lists[].reason`). */
+export type ListingReason =
+  | "auth_missing" | "auth_failed" | "rate_limit" | "network" | "invalid";
+
+/** 사용자가 할 일 (006 FR-028a). */
+export type ListingAction = "set_credentials" | "wait" | "retry_later";
+
+export interface ListingUnitStatus {
+  unit: ListingUnit;
+  state: ListingState;
+  /** 온전히 받은 마지막 시각(UTC ISO). 한 번도 받지 못했으면 `null`. */
+  asOf: string | null;
+  reason?: ListingReason;
+  action?: ListingAction;
+}
+
+export type StockKind = "stock" | "etf" | "reit";
+
+/**
+ * 로컬 목록 검색 결과 한 줄 (006 contracts `GET /api/stocks/search`).
+ *
+ * `market`·`symbol`은 **005의 시세 식별자**다. `listedOn`은 시작 가능 날짜가 아니라
+ * **하한**이다(FR-005a).
+ */
+export interface LocalStockResult {
+  listingId: number;
+  country: "KR" | "US";
+  market: StockMarket;
+  symbol: string;
+  code: string;
+  name: string;
+  nameEn: string | null;
+  currency: string;
+  kind: StockKind;
+  listedOn: string | null;
+  /** `missing` — 목록에서 빠진 종목. 지우지 않고 표시한다(FR-019). */
+  listingStatus: "listed" | "missing";
+  match: "exact" | "prefix" | "contains";
+}
+
+export interface LocalSearchResponse {
+  query: string;
+  results: LocalStockResult[];
+  /** 상한에서 잘렸는가 (FR-024). */
+  truncated: boolean;
+  /** 결과가 없어도 항상 온다 — "결과 없음"과 "목록 없음"을 가르는 근거(FR-028). */
+  lists: ListingUnitStatus[];
+}
+
+/** 일본 외부 검색 결과 (006 contracts `GET /api/stocks/search/external`). */
+export interface ExternalStockResult {
+  market: StockMarket;
+  symbol: string;
+  name: string;
+  currency: string;
+  kind: StockKind;
+}
+
+export interface ExternalSearchResponse {
+  query: string;
+  results: ExternalStockResult[];
+}
+
+/**
+ * 검색에서 고른 것. **종목 식별이 아니다** — 식별은 등록 응답이 정한다(FR-030b).
+ * 미국 종목은 목록과 005의 거래소가 다를 수 있다(FR-030a).
+ */
+export type StockChoice =
+  | { source: "listing"; listingId: number; preview: LocalStockResult }
+  | { source: "external"; result: ExternalStockResult };
+
+/** 등록 응답 (006 contracts `POST /api/stocks/selection`). */
+export interface SelectionResponse {
+  market: StockMarket;
+  symbol: string;
+  name: string;
+  currency: string;
+  listedOn: string | null;
+}
+
 /** 표 행의 종류 (FR-025). 월 첫 거래일 스냅샷과 배당락일 둘뿐이다. */
 export type SimulationRowKind = "month_first" | "dividend";
 

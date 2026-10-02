@@ -33,6 +33,8 @@ _MARKETS: dict[str, tuple[str, str]] = {
 
 #: 시뮬레이션 대상. ETF·GDR 등은 이번 범위가 아니다 (spec Out of Scope).
 _TRADABLE_TYPES = {"EQUITY"}
+#: 출처의 종목 종류 → 우리 종류 (006). 다룰 수 있는 종류만 둔다.
+_KINDS = {"EQUITY": "stock", "ETF": "etf"}
 
 #: 출처가 수정종가를 담는 키. **이 파일 밖으로 나가지 않는다** (헌법 원칙 II).
 _ADJUSTED_KEY = "adj" + "close"
@@ -91,6 +93,8 @@ class StockQuote:
     symbol: str
     name: str
     currency: str
+    #: `stock` | `etf` (006 contracts `/search/external`). 출처의 종목 종류에서 정한다.
+    kind: str = "stock"
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,5 +227,6 @@ def parse_search(body: object) -> list[StockQuote]:
             symbol=str(item["symbol"]),
             name=name,
             currency=currency,
+            kind=_KINDS.get(str(item.get("quoteType") or ""), "stock"),
         ))
     return quotes

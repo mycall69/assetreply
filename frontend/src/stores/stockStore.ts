@@ -14,6 +14,7 @@ import {
   removeHistory,
   saveHistory,
 } from "@/lib/simulationHistory";
+import { createSequence } from "@/lib/searchSequence";
 import {
   subscribeStockProgress,
   type StockProgressSnapshot,
@@ -21,6 +22,7 @@ import {
 import type {
   ExchangeInfo,
   PrincipalCurrency,
+  SelectionResponse,
   SimulationCollecting,
   SimulationCondition,
   SimulationHistoryEntry,
@@ -28,6 +30,7 @@ import type {
   SimulationRow,
   SimulationSeriesResponse,
   SimulationSummary,
+  StockChoice,
   StockSearchResult,
 } from "@/lib/types";
 
@@ -41,6 +44,15 @@ export interface SimulationInput {
 
 interface StockState {
   input: SimulationInput;
+  /**
+   * 고른 종목을 등록하는 중 (006 FR-030b). 이 동안 `input.stock`은 비어 있다 —
+   * 이전 종목이 남으면 등록이 끝나기 전에 누른 실행이 이전 종목으로 나간다.
+   */
+  selecting: boolean;
+  /** 등록 실패 사유. **실행 전에** 보인다 — 실행하고 나서야 알면 원인이 "종목이 없다"로 보인다. */
+  selectionError: string | null;
+  /** 등록 응답의 상장일. 시작 가능 날짜가 아니라 하한이다 (006 FR-005a). */
+  listedOn: string | null;
   rows: SimulationRow[];
   summary: SimulationSummary | null;
   condition: SimulationCondition | null;
@@ -73,6 +85,13 @@ interface StockState {
   comparisonError: string | null;
 
   setInput: (next: Partial<SimulationInput>) => void;
+  /**
+   * 검색에서 고른 것을 등록하고, **등록 응답의 식별**을 입력에 쓴다 (006 FR-030b).
+   *
+   * 미국 종목은 목록과 005의 거래소가 다를 수 있어(FR-030a) 검색 결과의 식별을 그대로
+   * 쓰면 같은 종목이 둘이 된다. 이후 시뮬레이션·이력은 이 식별을 쓴다.
+   */
+  selectStock: (choice: StockChoice) => Promise<void>;
   run: () => Promise<void>;
   loadMore: () => Promise<void>;
   /**
@@ -90,6 +109,20 @@ interface StockState {
 
 const message = (err: unknown, fallback: string): string =>
   err instanceof ApiError ? err.message : fallback;
+
+/**
+ * 등록 요청 번호. 늦게 온 이전 등록 응답이 나중에 고른 종목을 덮으면, 사용자가 고른
+ * 것과 다른 종목으로 실행된다 (006 FR-029a와 같은 계열).
+ */
+const selectionSeq = createSequence();
+
+function selectionBody(choice: StockChoice): Record<string, unknown> {
+  if (choice.source === "listing") {
+    return { source: "listing", listingId: choice.listingId };
+  }
+  const { market, symbol, name, currency } = choice.result;
+  return { source: "external", market, symbol, name, currency };
+}
 
 /**
  * 진행 구독 해제 함수. 모듈 수준에 두는 이유는 상태가 아니기 때문이다 — 화면에
@@ -158,6 +191,9 @@ export const useStockStore = create<StockState>((set, get) => ({
     principalCurrency: "KRW",
     reinvest: true,
   },
+  selecting: false,
+  selectionError: null,
+  listedOn: null,
   rows: [],
   summary: null,
   condition: null,
@@ -180,6 +216,33 @@ export const useStockStore = create<StockState>((set, get) => ({
   comparisonError: null,
 
   setInput: (next) => set({ input: { ...get().input, ...next } }),
+
+  selectStock: async (choice) => {
+    const id = selectionSeq.next();
+    set({
+      input: { ...get().input, stock: null },
+      selecting: true,
+      selectionError: null,
+      listedOn: null,
+    });
+    try {
+      const body = await apiClient.post<SelectionResponse>(
+        "/api/stocks/selection", selectionBody(choice));
+      if (!selectionSeq.isLatest(id)) return;
+      const { market, symbol, name, currency, listedOn } = body;
+      set({
+        input: { ...get().input, stock: { market, symbol, name, currency } },
+        selecting: false,
+        listedOn,
+      });
+    } catch (err) {
+      if (!selectionSeq.isLatest(id)) return;
+      set({
+        selecting: false,
+        selectionError: message(err, "고른 종목을 등록하지 못했습니다. 다시 고르세요."),
+      });
+    }
+  },
 
   refreshIfRan: async () => {
     if (get().summary === null) return;

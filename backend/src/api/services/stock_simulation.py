@@ -18,15 +18,15 @@ from functools import partial
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.errors import InvalidQuery
+from src.api.errors import InvalidQuery, UnknownStock
 from src.api.services.stock_fx import (
     InitialExchange,
     build_exchange,
     cash_buy_spread,
     load_rates,
 )
+from src.api.services.stock_selection import register_from_price_symbol
 from src.db.models import Stock
-from src.ingestion.yahoo.errors import StockSymbolNotFound
 from src.repository import stock_price as price_repo
 from src.repository.stock import find_stock
 from src.repository.stock_setting import Settings as StockSettings
@@ -292,13 +292,20 @@ class Prepared:
 
 
 async def require_stock(session: AsyncSession, market: str, symbol: str) -> Stock:
-    """종목을 찾는다. 없으면 404로 올린다.
+    """종목을 찾는다. 없으면 검색용 목록으로 등록을 시도하고, 그래도 없으면 404로 올린다.
 
     **빈 결과를 돌려주지 않는다.** 사용자는 그 종목의 성과가 0이라고 읽는다.
+
+    006 FR-030b — 이력(브라우저)은 DB와 따로 살아, 이력에서 다시 실행한 종목이 아직 등록되지 않았을
+    수 있다. 국내 종목은 목록으로 등록한 뒤 진행한다. 일본이거나 목록에서 찾지 못하면 "검색에서 다시
+    고르세요"로 답한다 — 시세 출처가 모르는 것(`price_symbol_unknown`)과 다른 사유다(FR-032).
     """
     stock = await find_stock(session, market, symbol)
     if stock is None:
-        raise StockSymbolNotFound(f"알 수 없는 종목입니다: {market}:{symbol}")
+        stock = await register_from_price_symbol(session, market, symbol)
+    if stock is None:
+        raise UnknownStock(
+            f"목록에서 찾을 수 없는 종목입니다: {market}:{symbol}. 검색에서 다시 고르세요.")
     return stock
 
 

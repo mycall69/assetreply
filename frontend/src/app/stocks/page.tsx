@@ -24,8 +24,8 @@ export default function StocksPage() {
     input, rows, summary, exchange, hasMore, collecting,
     series, seriesError, loading, loadingMore, error, loadMoreError,
     history, historySaveError, selectedHistory, comparison, comparing,
-    comparisonError, progress,
-    setInput, run, loadMore, refreshIfRan,
+    comparisonError, progress, selecting, selectionError,
+    setInput, selectStock, run, loadMore, refreshIfRan,
     restoreHistory, toggleHistory, removeHistoryEntry, compareSelected,
   } = useStockStore();
 
@@ -52,10 +52,19 @@ export default function StocksPage() {
       </header>
 
       <section className="space-y-3 rounded-lg border border-gray-200 p-4">
+        {/* 006 FR-030b — 고르는 순간 등록한다. 식별은 등록 응답이 정한다. */}
         <StockSearch
           value={input.stock}
-          onSelect={(stock) => setInput({ stock })}
+          onSelect={(choice) => void selectStock(choice)}
         />
+        {selecting && (
+          <p className="pl-14 text-xs text-gray-500">종목을 등록하는 중…</p>
+        )}
+        {selectionError !== null && (
+          <p role="alert" className="pl-14 text-xs text-red-700">
+            {selectionError}
+          </p>
+        )}
         <SimulationForm
           values={{
             start: input.start,
@@ -63,7 +72,7 @@ export default function StocksPage() {
             principalCurrency: input.principalCurrency,
             reinvest: input.reinvest,
           }}
-          disabled={loading || input.stock === null}
+          disabled={loading || selecting || input.stock === null}
           onChange={(next) => setInput(next)}
           onSubmit={() => void run()}
         />

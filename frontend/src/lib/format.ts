@@ -73,3 +73,19 @@ function trimTo(value: string, digits: number): string {
   if (digits === 0) return whole;
   return `${whole}.${(fraction ?? "").padEnd(digits, "0").slice(0, digits)}`;
 }
+
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+/**
+ * 목록 기준 시각(UTC ISO)을 한국 시간 `MM-DD HH:mm`으로 (006 FR-029).
+ *
+ * 하루의 경계가 한국 시간이라(spec Assumptions) 화면도 그 시각으로 보인다. 브라우저의
+ * 시간대에 기대지 않는다 — 다른 시간대에서 열면 "오늘 받음"이 어제 날짜로 보인다.
+ */
+export function formatKst(iso: string): string {
+  const shifted = new Date(Date.parse(iso) + KST_OFFSET_MS);
+  if (Number.isNaN(shifted.getTime())) return iso;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())} `
+    + `${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}`;
+}

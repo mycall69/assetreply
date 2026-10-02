@@ -39,3 +39,15 @@ class InvalidSetting(Exception):
     조용히 기본값으로 떨어뜨리지 않는다 — 수수료·세금이 사라진 결과가 나오는데
     값은 그럴듯하고 오류도 없다.
     """
+
+
+class UnknownStock(Exception):
+    """우리 DB에 없고 검색용 목록으로도 등록할 수 없는 종목 (006 FR-030b, 404).
+
+    시세 출처가 심볼을 모르는 것(`price_symbol_unknown`)과 다르다 — 이쪽은 **검색에서 다시 고르면**
+    풀린다. 그래서 응답에 할 일(`action: reselect`)을 싣는다.
+    """
+
+
+class UnknownListing(Exception):
+    """검색용 목록에 없는 행 (006 contracts `POST /api/stocks/selection`, 404)."""

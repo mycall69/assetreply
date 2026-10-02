@@ -127,6 +127,8 @@ backend/
 │   │   └── series.py·daily.py·rates.py·latest.py  # 변경 — 외환 202에 state·busyWith, jobId null 허용 (FR-046a)
 │   ├── simulation/fx_convert.py     # 변경 — per_unit
 │   ├── worker/listing_worker.py     # 신규 — 목록 갱신 워커 (R6-3)
+│   ├── worker/listing_queue.py      # 신규 — 갱신 요청 큐(단위로 중복 거르기). 주식 큐와 섞지 않는다
+│   ├── worker/stock_worker.py       # 변경 — 출처가 심볼을 모르면 작업 사유에 표지 (FR-032, R6-6)
 │   ├── db/models.py                 # 변경 — 신규 테이블 5개
 │   ├── db/migrations/versions/      # 신규 마이그레이션 1개
 │   └── config/settings.py           # 변경 — 키움·목록 설정 (data-model 7절)
@@ -202,7 +204,7 @@ frontend/
 | FR-030a (미국은 티커로 같은 종목) | research R6-6, contracts/rest-api `/selection`, quickstart 12 |
 | FR-030b, SC-007a (고른 종목 등록) | research R6-17, research R6-6 역변환(이력 재실행 경로), `api/services/stock_selection.py`, `search/price_symbol.py` 왕복 검사, contracts/rest-api `/selection`·종목 미등록 절, quickstart 10 |
 | FR-031, SC-008 (시장·기호 정확히) | research R6-6, 계약 테스트(클래스 주식), quickstart 11·12 |
-| FR-032 (출처가 모름 ≠ 시세 없음) | research R6-6, contracts/rest-api `price_symbol_unknown`, quickstart 12 |
+| FR-032 (출처가 모름 ≠ 시세 없음) | research R6-6(수집 작업의 표지), contracts/rest-api `price_symbol_unknown`·진행 스트림 `status`, quickstart 12 |
 | FR-033 (005 이력 유효) | data-model 8절, research R6-17 재실행 경로 |
 | FR-040 (원화 원금 환전 규칙 유지) | 005 `stock_fx.py`, research R6-9 |
 | FR-041 (첫 매수일 환율) | 005 `build_exchange` 유지, quickstart 16 |

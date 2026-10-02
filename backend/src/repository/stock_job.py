@@ -20,6 +20,35 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import JobStatus, StockCollectionJob, StockCollectionLock
 
+#: 시세 출처가 심볼을 모른다는 실패의 표지 (006 FR-032). `last_error` 앞에 붙인다 — 005·001의
+#: 테이블 구조를 바꾸지 않는다(data-model). 이 표지가 없으면 다음 요청이 같은 수집을 다시 시작해
+#: 화면은 "받고 있습니다"를 되풀이하고, 사유는 "시세 없음"과 구별되지 않는다.
+SYMBOL_UNKNOWN = "price_symbol_unknown"
+_SYMBOL_UNKNOWN_PREFIX = f"{SYMBOL_UNKNOWN}: "
+
+
+def symbol_unknown_error(message: str) -> str:
+    """`last_error`에 남길 문구. 표지를 붙인다."""
+    return f"{_SYMBOL_UNKNOWN_PREFIX}{message}"
+
+
+def split_error(last_error: str | None) -> tuple[str | None, str | None]:
+    """`last_error`를 (표지, 사람이 읽을 사유)로 나눈다. 표지가 없으면 표지는 `None`."""
+    if last_error is not None and last_error.startswith(_SYMBOL_UNKNOWN_PREFIX):
+        return SYMBOL_UNKNOWN, last_error[len(_SYMBOL_UNKNOWN_PREFIX):]
+    return None, last_error
+
+
+async def symbol_unknown(session: AsyncSession, stock_id: int) -> bool:
+    """그 종목의 **마지막 작업**이 "출처가 심볼을 모름"으로 끝났는가."""
+    last = (await session.execute(
+        select(StockCollectionJob.status, StockCollectionJob.last_error)
+        .where(StockCollectionJob.stock_id == stock_id)
+        .order_by(StockCollectionJob.id.desc()).limit(1))).first()
+    if last is None or last[0] is not JobStatus.FAILED:
+        return False
+    return split_error(last[1])[0] == SYMBOL_UNKNOWN
+
 
 async def get_job(
     session: AsyncSession, job_id: int

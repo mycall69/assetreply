@@ -16,8 +16,9 @@ from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Stock
+from src.ingestion.yahoo.errors import StockSymbolNotFound
 from src.repository.stock import get_coverage, missing_ranges
-from src.repository.stock_job import acquire_or_get_running
+from src.repository.stock_job import acquire_or_get_running, symbol_unknown
 from src.worker.stock_queue import StockWork, get_stock_queue
 from src.worker.stock_runner import CHUNK_DAYS, split_into_chunks
 
@@ -58,6 +59,11 @@ async def plan_collection(
     gaps = missing_ranges(covered, start, end)
     if not gaps:
         return None
+    # 006 FR-032 — 마지막 수집이 "출처가 심볼을 모름"으로 끝났으면 다시 받으러 가지 않는다.
+    # 가면 같은 실패를 되풀이하고, 화면은 "받고 있습니다"와 실패를 번갈아 보인다.
+    if await symbol_unknown(session, stock_id):
+        raise StockSymbolNotFound(
+            f"시세 출처에서 그 종목을 찾지 못했습니다: {stock.market}:{stock.symbol}")
 
     missing_from = min(g[0] for g in gaps)
     missing_through = max(g[1] for g in gaps)

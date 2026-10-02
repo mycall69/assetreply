@@ -18,6 +18,8 @@ from src.api.errors import (
     InvalidSpread,
     OutOfRange,
     UnknownCurrency,
+    UnknownListing,
+    UnknownStock,
 )
 from src.api.services.stock_fx import FxUnavailable
 from src.api.services.stock_simulation import BeforeListing, NoPriceData
@@ -52,8 +54,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from src.config.settings import load_settings
     from src.db.session import get_session_factory
     from src.ingestion.ecos.client import EcosClient
+    from src.ingestion.kiwoom.client import KiwoomClient
     from src.ingestion.yahoo.client import YahooStockClient
     from src.observability.logging_config import configure_logging
+    from src.worker.listing_queue import get_listing_queue
+    from src.worker.listing_worker import listing_worker_loop
+    from src.worker.listing_worker import startup as listing_startup
     from src.worker.queue import get_queue
     from src.worker.reconcile import reconcile_loop, reconcile_on_startup
     from src.worker.runner import worker_loop
@@ -69,12 +75,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # 죽었다 살아난 직후가 가장 흔한 경우다. 기동 시 한 번 정리해 점유를 푼다.
     await reconcile_on_startup(factory)
+    # 006 — 목록 갱신 점유도 같다. 프로세스가 하나라 남은 점유는 죽은 프로세스의 것이다.
+    await listing_startup(factory)
 
     # 005 — 주식 수집 워커. **FX와 분리한다**: 출처가 달라 호출 한도도 따로이고,
     # 한 루프에 섞으면 환율 수집이 주식 수집을 막으면서 그 이유가 화면에 드러나지
     # 않는다 (research R5-7). 002·003이 얻은 교훈이 여기에도 그대로 적용된다 —
     # 엔진만 만들고 호출하는 주체를 두지 않으면 작업이 "진행 중"으로 박힌 채 멈춘다.
     stock_client = YahooStockClient(settings)
+    # 006 — 검색용 목록 갱신 워커. 등록하지 않으면 갱신 요청이 큐에 쌓이기만 하고
+    # 실행되지 않는다(003·005가 겪은 일). 클라이언트는 수명 내내 하나 — 토큰을 메모리에
+    # 두고 만료 10분 전에 갱신한다.
+    listing_client = KiwoomClient(settings)
+    await listing_client.__aenter__()
 
     tasks = [
         asyncio.create_task(worker_loop(
@@ -83,6 +96,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             factory, interval_seconds=settings.reconcile_interval_seconds)),
         asyncio.create_task(stock_worker_loop(
             factory, stock_client, get_stock_queue())),
+        asyncio.create_task(listing_worker_loop(
+            factory, listing_client, get_listing_queue(), settings=settings)),
     ]
     try:
         yield
@@ -92,6 +107,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         for task in tasks:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
+        await listing_client.__aexit__(None, None, None)
         await shutdown_engine()
 
 
@@ -147,9 +163,22 @@ def create_app() -> FastAPI:
         return _json(404, "no_price_data", str(exc))
 
     @app.exception_handler(StockSymbolNotFound)
-    async def _stock_not_found(_: Request, exc: StockSymbolNotFound) -> JSONResponse:
-        return _json(404, "unknown_stock",
-                     str(exc) or "시세 출처가 그 종목을 알지 못합니다.")
+    async def _price_symbol_unknown(_: Request, exc: StockSymbolNotFound) -> JSONResponse:
+        # 006 FR-032 — "그 종목에 시세가 없다"(`no_price_data`)나 "우리 DB에 없다"
+        # (`unknown_stock`)와 섞지 않는다. 섞으면 식별자 변환 결함이 "데이터 없는
+        # 종목"으로 위장돼 고쳐지지 않는다.
+        return _json(404, "price_symbol_unknown",
+                     str(exc) or "시세 출처에서 그 종목을 찾지 못했습니다.")
+
+    @app.exception_handler(UnknownStock)
+    async def _unknown_stock(_: Request, exc: UnknownStock) -> JSONResponse:
+        # 검색에서 다시 고르면 풀린다 — 할 일을 함께 싣는다 (006 FR-030b).
+        return JSONResponse(status_code=404, content={
+            "status": "unknown_stock", "message": str(exc), "action": "reselect"})
+
+    @app.exception_handler(UnknownListing)
+    async def _unknown_listing(_: Request, exc: UnknownListing) -> JSONResponse:
+        return _json(404, "unknown_listing", str(exc))
 
     @app.exception_handler(StockSourceUnavailable)
     async def _stock_unavailable(
@@ -197,6 +226,7 @@ def create_app() -> FastAPI:
     from src.api.routes import spreads as spread_routes
     from src.api.routes import stock_progress as stock_progress_routes
     from src.api.routes import stock_search as stock_search_routes
+    from src.api.routes import stock_selection as stock_selection_routes
     from src.api.routes import stock_series as stock_series_routes
     from src.api.routes import stock_settings as stock_settings_routes
     from src.api.routes import stock_simulation as stock_simulation_routes
@@ -214,6 +244,8 @@ def create_app() -> FastAPI:
     app.include_router(job_routes.router)
     # 005 — 주식 투자 시뮬레이션
     app.include_router(stock_search_routes.router)
+    # 006 — 고른 종목 등록 (FR-030b)
+    app.include_router(stock_selection_routes.router)
     app.include_router(stock_progress_routes.router)
     app.include_router(stock_simulation_routes.router)
     app.include_router(stock_series_routes.router)

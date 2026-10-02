@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.collection_stream import format_sse
 from src.db.models import JobStatus
 from src.db.session import get_session
-from src.repository.stock_job import get_job
+from src.repository.stock_job import get_job, split_error
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 
@@ -61,8 +61,12 @@ async def stream_body(
             yield format_sse("completed", {"jobId": job_id})
             return
         if job.status in (JobStatus.FAILED, JobStatus.PARTIAL):
-            yield format_sse("failed", {
-                "jobId": job_id, "reason": job.last_error or "수집에 실패했습니다."})
+            # 006 FR-032 — 출처가 심볼을 모른 실패는 `status`로 구별해 알린다. 표지는 사유에서 뗀다.
+            status, reason = split_error(job.last_error)
+            failed: Json = {"jobId": job_id, "reason": reason or "수집에 실패했습니다."}
+            if status is not None:
+                failed["status"] = status
+            yield format_sse("failed", failed)
             return
 
         frames += 1
