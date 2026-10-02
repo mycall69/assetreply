@@ -1,0 +1,1 @@
+{"status": 200, "cont_yn": "N", "next_key": "", "note": "손으로 만든 픽스처 — 한도 초과는 일부러 일으키지 않는다. 모양은 실제 오류 응답(error_auth_token.json)을 본떴다: HTTP 200, return_code는 넓은 분류, 세부 코드는 return_msg의 [NNNN:]. return_code 값 5는 추정이며 판정은 세부 코드로 한다"}

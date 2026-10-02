@@ -18,10 +18,10 @@
 | `id` | BIGINT | PK, 자동 증가 | |
 | `country` | CHAR(2) | NOT NULL | `KR` \| `US` |
 | `code` | VARCHAR(16) | NOT NULL | 국내 종목코드(6자리) 또는 미국 티커. **출처 표기 그대로** |
-| `unit` | VARCHAR(8) | NOT NULL | 지금 속한 단위: `KOSPI`·`KOSDAQ`·`KR_ETF`·`KR_REIT`·`NYSE`·`NASDAQ`·`AMEX` |
+| `unit` | VARCHAR(8) | NOT NULL | 지금 속한 단위: `KOSPI`·`KOSDAQ`·`NYSE`·`NASDAQ`·`AMEX`. 국내 ETF·리츠는 `KOSPI`다(research R6-2) |
 | `name_ko` | VARCHAR(128) | NULL 허용 | 한글 종목명. 미국 종목은 출처가 비워 줄 수 있다 |
 | `name_en` | VARCHAR(256) | NULL 허용 | 영문 종목명. 미국만 |
-| `kind` | VARCHAR(8) | NOT NULL | `stock` \| `etf` \| `reit` |
+| `kind` | VARCHAR(8) | NOT NULL | `stock` \| `etf` \| `reit`. 국내는 출처의 `marketName`(거래소·코스닥 → `stock`, ETF → `etf`, 리츠 → `reit`), 미국은 `isEtf`(`Y` → `etf`, 그 밖 → `stock`) |
 | `listed_on` | DATE | NULL 허용 | 상장일. 국내만. **시작 가능 날짜가 아니라 하한이다**(FR-005a) |
 | `status` | VARCHAR(8) | NOT NULL, 기본 `listed` | `listed` \| `missing`("목록에서 빠짐") |
 | `first_seen_at` | TIMESTAMP | NOT NULL | 처음 목록에서 본 시각 |
@@ -34,8 +34,11 @@
 
 **검증 규칙**
 
-- `code`는 비어 있을 수 없다. 국내는 6자리여야 한다. 어기는 행이 있으면 그 단위의 갱신 전체를
-  `invalid`로 실패시킨다 — 한 행을 조용히 버리면 그 종목만 "빠짐"이 된다.
+- `code`는 비어 있을 수 없다. 국내는 **6자리**여야 한다(숫자만은 아니다 — `0030R0`). 어기는 행이 있으면
+  그 단위의 갱신 전체를 `invalid`로 실패시킨다 — 한 행을 조용히 버리면 그 종목만 "빠짐"이 된다.
+- 국내 `marketName`이 `ETN`·`ETN(변동성)`·`ETN(손실제한)`·`인프라투자금융`·`뮤추얼펀드`인 행은 **저장하지
+  않는다**(범위 밖). **처음 보는 `marketName`이 있으면 그 단위의 갱신 전체를 `invalid`로 실패시킨다**
+  (research R6-2).
 - `name_ko`와 `name_en`이 둘 다 비면 찾을 수 없는 종목이 된다. 티커로는 찾히므로 저장은 한다.
 - **목록의 `lastPrice`·`listCount`는 저장하지 않는다.** 정렬에 가격을 쓰지 않기로 했고
   (Clarifications Q4), 저장하면 시세가 두 출처에서 섞일 자리가 생긴다(FR-012).

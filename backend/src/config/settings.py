@@ -14,6 +14,7 @@ from __future__ import annotations
 import datetime as dt
 import os
 from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Final
 
@@ -23,6 +24,9 @@ _ROOT_MARKER: Final = ".env.example"
 
 # 축적 대상 통화. 탐색 시작일은 통화마다 다르다 (FR-002).
 SUPPORTED_CURRENCIES: Final = ("USD", "JPY", "EUR")
+
+#: 키움 REST API의 실행 모드 (006 research R6-1). 모드마다 도메인과 앱 키가 따로다.
+KIWOOM_MODES: Final = ("real", "mock")
 
 
 def repo_root() -> Path:
@@ -67,6 +71,33 @@ def _env_int(key: str, default: int, *, minimum: int = 0) -> int:
 
 def _env_str(key: str, default: str = "") -> str:
     return os.getenv(key) or default
+
+
+def _env_choice(key: str, default: str, choices: tuple[str, ...]) -> str:
+    """정해진 값 중 하나. 벗어나면 기동을 거절한다.
+
+    조용히 기본값으로 떨어뜨리지 않는다 — 예를 들어 키움 모드를 잘못 적었는데 `real`로
+    떨어지면, 모의 키로 실전 도메인을 부르고 인증 실패만 반복된다.
+    """
+    value = os.getenv(key) or default
+    if value not in choices:
+        raise ValueError(f"{key}는 {' · '.join(choices)} 중 하나여야 합니다: {value!r}")
+    return value
+
+
+def _env_ratio(key: str, default: str) -> Decimal:
+    """0보다 크고 1 이하인 비율. `Decimal`로 읽는다.
+
+    금융 값은 아니지만 금융 계층의 `float` 정적 검사를 예외 없이 유지하려고 `Decimal`로 둔다.
+    """
+    raw = os.getenv(key) or default
+    try:
+        value = Decimal(raw)
+    except InvalidOperation as exc:
+        raise ValueError(f"{key}는 0보다 크고 1 이하인 수여야 합니다: {raw!r}") from exc
+    if not (Decimal("0") < value <= Decimal("1")):
+        raise ValueError(f"{key}는 0보다 크고 1 이하인 수여야 합니다: {raw!r}")
+    return value
 
 
 def _env_date(key: str) -> dt.date | None:
@@ -129,6 +160,26 @@ class Settings:
     stock_retry_base_delay_ms: int = 2000
     stock_request_timeout_seconds: int = 20
 
+    # ── 검색용 종목 목록 — 키움증권 REST API (006 research R6-1·R6-3) ──
+    #
+    # **목록에만 쓴다.** 시세·배당·분할은 005의 출처 그대로다 (006 FR-012).
+    # 키가 비어 있어도 기동은 된다 — 목록 갱신만 "인증 정보 미설정"으로 남는다 (FR-028a).
+    kiwoom_mode: str = "real"
+    kiwoom_app_key: _Secret = field(default=_Secret(""), repr=False)
+    kiwoom_app_secret: _Secret = field(default=_Secret(""), repr=False)
+    # 미국 목록은 계좌·토큰별 분당 5회로 제한된다 — 쪽 사이를 12초로 둔다 (R6-2).
+    kiwoom_us_page_delay_seconds: int = 12
+    kiwoom_kr_page_delay_seconds: int = 1
+    # 한 요청 안의 재시도. 네트워크·5xx만 다시 시도한다 — 인증 실패는 다시 시도하지 않는다.
+    kiwoom_max_retries: int = 3
+    # 갱신 실패 뒤 다음 시도까지와 목록 단위마다 하루 시도 상한 (FR-013a).
+    listing_retry_interval_minutes: int = 30
+    listing_max_attempts_per_day: int = 5
+    # 새 건수 < 이전 건수 × 이 값이면 교체하지 않는다 (FR-018a).
+    listing_shrink_threshold: Decimal = Decimal("0.5")
+    # 갱신 점유의 심장박동이 이 시간 넘게 멈추면 회수한다 (data-model 3절).
+    listing_lock_stale_minutes: int = 10
+
     # ── 수집 동작 ──
     collection_sync_threshold_days: int = 30
     job_history_success_retention_days: int = 90
@@ -168,6 +219,11 @@ class Settings:
     db_pool_size: int = 5
     db_max_overflow: int = 10
     db_pool_timeout_seconds: int = 30
+
+    @property
+    def kiwoom_credentials_present(self) -> bool:
+        """앱 키와 시크릿이 **둘 다** 있는가. 한쪽만 있으면 토큰을 받을 수 없다."""
+        return bool(self.kiwoom_app_key.reveal()) and bool(self.kiwoom_app_secret.reveal())
 
     def collection_log_file(self) -> Path:
         """수집 로그의 절대 경로.
@@ -230,6 +286,16 @@ def load_settings(env_file: Path | None = None) -> Settings:
         stock_retry_base_delay_ms=_env_int("STOCK_RETRY_BASE_DELAY_MS", 2000),
         stock_request_timeout_seconds=_env_int(
             "STOCK_REQUEST_TIMEOUT_SECONDS", 20, minimum=1),
+        kiwoom_mode=_env_choice("KIWOOM_MODE", "real", KIWOOM_MODES),
+        kiwoom_app_key=_Secret(_env_str("KIWOOM_APP_KEY")),
+        kiwoom_app_secret=_Secret(_env_str("KIWOOM_APP_SECRET")),
+        kiwoom_us_page_delay_seconds=_env_int("KIWOOM_US_PAGE_DELAY_SECONDS", 12),
+        kiwoom_kr_page_delay_seconds=_env_int("KIWOOM_KR_PAGE_DELAY_SECONDS", 1),
+        kiwoom_max_retries=_env_int("KIWOOM_MAX_RETRIES", 3, minimum=1),
+        listing_retry_interval_minutes=_env_int("LISTING_RETRY_INTERVAL_MINUTES", 30),
+        listing_max_attempts_per_day=_env_int("LISTING_MAX_ATTEMPTS_PER_DAY", 5, minimum=1),
+        listing_shrink_threshold=_env_ratio("LISTING_SHRINK_THRESHOLD", "0.5"),
+        listing_lock_stale_minutes=_env_int("LISTING_LOCK_STALE_MINUTES", 10, minimum=1),
         collection_sync_threshold_days=_env_int("COLLECTION_SYNC_THRESHOLD_DAYS", 30),
         job_history_success_retention_days=_env_int("JOB_HISTORY_SUCCESS_RETENTION_DAYS", 90),
         daily_page_size=_env_int("DAILY_PAGE_SIZE", 30, minimum=1),
