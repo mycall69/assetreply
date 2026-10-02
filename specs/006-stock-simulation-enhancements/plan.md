@@ -131,7 +131,8 @@ backend/
 │   ├── simulation/fx_convert.py     # 변경 — per_unit
 │   ├── worker/listing_worker.py     # 신규 — 목록 갱신 워커, 국내·미국 두 줄 (R6-3)
 │   ├── worker/listing_queue.py      # 신규 — 갱신 요청 큐(단위로 중복 거르기). 주식 큐와 섞지 않는다
-│   ├── worker/stock_worker.py       # 변경 — 출처가 심볼을 모르면 작업 사유에 표지 (FR-032, R6-6)
+│   ├── worker/stock_worker.py       # 변경 — 출처가 심볼을 모르면 작업 사유에 표지 (FR-032, R6-6), 출처를 연다 (T096)
+│   ├── ingestion/yahoo/errors.py    # 변경 — "구간에 시세 없음"(HTTP 400)은 빈 구간 (T097)
 │   ├── db/models.py                 # 변경 — 신규 테이블 5개
 │   ├── db/migrations/versions/      # 신규 마이그레이션 1개
 │   └── config/settings.py           # 변경 — 키움·목록 설정 (data-model 7절)

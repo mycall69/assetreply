@@ -250,7 +250,10 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T087 `frontend/`에서 `npx tsc --noEmit`과 `npx eslint .`를 통과시킨다. `any` 금지
 - [X] T088 `backend/`에서 커버리지 80% 이상을 확인한다 — `cd backend && .venv/bin/python -m pytest -q --cov=src`
 - [X] T089 `backend/tests/`와 `frontend/tests/` 전체가 **네트워크 차단 상태에서** 통과하는지 확인한다. 005가 더한 소켓 가드가 키움 호출도 막는지 본다 — `backend/tests/unit/test_network_guard.py`가 키움 도메인 접속과 aiohttp 경로(해석된 주소)가 가드에 걸리는지 검증한다 (헌법 원칙 III)
-- [ ] T090 `quickstart.md`의 시나리오 22개를 순서대로 수동 실행하고 결과를 기록한다. 시나리오 1은 인증 정보를 넣기 전에 해야 한다. 시나리오 2의 측정값으로 research R6-2를 채운다. **실제 출처를 부르므로 미국 목록은 분당 제한을 지킨다.** 시나리오마다 검증하는 FR·SC는 quickstart에 적혀 있다 — 범위 표기로 묶지 않는다(004의 교훈: 범위 표기는 검색에 걸리지 않는다)
+- [ ] T090 **부분 완료 — 엔화 시나리오(16·18-1·19-1)와 화면 조작 시나리오는 사용자가 해야 한다(quickstart "실행 기록")**. `quickstart.md`의 시나리오 22개를 순서대로 수동 실행하고 결과를 기록한다. 시나리오 1은 인증 정보를 넣기 전에 해야 한다. 시나리오 2의 측정값으로 research R6-2를 채운다. **실제 출처를 부르므로 미국 목록은 분당 제한을 지킨다.** 시나리오마다 검증하는 FR·SC는 quickstart에 적혀 있다 — 범위 표기로 묶지 않는다(004의 교훈: 범위 표기는 검색에 걸리지 않는다)
+- [X] T096 `backend/src/worker/stock_worker.py` — **T090에서 발견**: 주식 수집 워커가 출처를 열지 않아 실제 경로의 모든 시세 수집이 실패했다(005 결함). 003의 `worker_loop`처럼 출처를 열고 닫는다. 재현 테스트 `test_stock_worker.py::Test출처_열기`(열어야만 동작하는 스텁) (005 FR-043, 006 SC-007a)
+- [X] T097 `backend/src/ingestion/yahoo/errors.py` — **T090에서 발견**: 시세가 시작되기 전 구간에 대한 HTTP 400 + `chart.error`("Data doesn't exist for startDate …")를 빈 구간으로 받는다. 실제 응답을 픽스처(`chart_no_data_in_range.json`)로 계약 테스트한다. 다른 400은 그대로 오류 (006 FR-005, FR-005a)
+- [X] T098 `backend/tests/conftest.py` — **T090에서 발견**: 테스트 세션의 수집 로그를 임시 경로로 옮긴다(`TestClient`가 `lifespan`을 돌려 운영 로그에 썼다). `.env`의 값을 존중하지 않는다. 재현 테스트 `test_logging_config.py::test_테스트는_운영_수집_로그에_쓰지_않는다` (헌법 원칙 III, CLAUDE.md "로그는 두 곳")
 
 ---
 
