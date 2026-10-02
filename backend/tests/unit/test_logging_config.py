@@ -93,9 +93,11 @@ class Test로그_경로_해석:
     `be-start.sh`가 쓰는 루트 `logs/`와 갈라진다. 운영자가 두 곳을 뒤져야 한다.
     """
 
-    def test_상대_경로는_저장소_루트_기준이다(self) -> None:
+    def test_상대_경로는_저장소_루트_기준이다(self, monkeypatch) -> None:
+        # 테스트 세션은 수집 로그를 임시 경로로 옮긴다(tests/conftest.py) — 상대 경로를 명시한다.
         from src.config.settings import load_settings, repo_root
 
+        monkeypatch.setenv("COLLECTION_LOG_PATH", "logs/collection.log")
         path = load_settings().collection_log_file()
         assert path.is_absolute()
         assert path.parent.parent == repo_root()
@@ -107,9 +109,10 @@ class Test로그_경로_해석:
         monkeypatch.setenv("COLLECTION_LOG_PATH", str(target))
         assert load_settings().collection_log_file() == target
 
-    def test_기본값이_backend_아래가_아니다(self) -> None:
+    def test_기본값이_backend_아래가_아니다(self, monkeypatch) -> None:
         from src.config.settings import load_settings
 
+        monkeypatch.setenv("COLLECTION_LOG_PATH", "logs/collection.log")
         assert "backend" not in load_settings().collection_log_file().parts
 
 

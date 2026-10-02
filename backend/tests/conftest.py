@@ -48,6 +48,31 @@ def _redirect_to_test_database() -> str:
 TEST_DB_NAME = _redirect_to_test_database()
 
 
+def _redirect_collection_log() -> str:
+    """수집 로그를 임시 경로로 보낸다 (006 T090에서 발견).
+
+    `TestClient(create_app())`는 `lifespan`을 돌리고, `lifespan`은 수집 로거를
+    `COLLECTION_LOG_PATH`(기본 저장소 `logs/collection.log`)로 구성한다. 그 뒤로는 같은 테스트
+    세션의 수집·목록 사건이 **운영자의 로그 파일**에 쌓인다. DB를 따로 쓰는 것과 같은 이유로
+    로그도 따로 쓴다.
+
+    **`.env`의 값을 존중하지 않는다.** `.env.example`이 운영 경로를 적어 두므로, "이미 지정돼
+    있으면 둔다"로 하면 `.env`를 복사한 모든 환경에서 옮기지 않게 된다(실제로 그랬다). 테스트
+    전용 경로를 쓰고 싶으면 `TEST_COLLECTION_LOG_PATH`를 준다.
+    """
+    import tempfile
+
+    path = os.getenv("TEST_COLLECTION_LOG_PATH")
+    if not path:
+        directory = tempfile.mkdtemp(prefix="assetreplay-test-logs-")
+        path = os.path.join(directory, "collection.log")
+    os.environ["COLLECTION_LOG_PATH"] = path
+    return path
+
+
+TEST_COLLECTION_LOG = _redirect_collection_log()
+
+
 def pytest_sessionstart(session: object) -> None:
     """테스트 DB가 없으면 만든다.
 

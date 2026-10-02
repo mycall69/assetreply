@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -70,14 +71,29 @@ async def stock_worker_loop(
 
     **한 건이 실패해도 루프를 끝내지 않는다.** 끝내면 그 뒤의 모든 수집이 조용히
     멈추고, 화면에는 진행 표시만 남는다.
+
+    **출처를 연다**(006 T090에서 발견). `YahooStockClient`는 `async with`로 들어가야 HTTP
+    세션이 생긴다. 열지 않은 채 쓰면 모든 수집이 "클라이언트 세션이 열려 있지 않습니다"로
+    실패한다 — 003이 FX 워커에서 겪고 고친 것과 같다(`worker/runner.py`). 출처가 컨텍스트
+    관리자가 아니면(테스트 스텁 등) 그대로 쓴다.
     """
-    while True:
-        work = await queue.pop()
-        try:
-            await run_stock_job(session_factory, source, work)
-        except asyncio.CancelledError:
-            raise
-        except Exception:  # pragma: no cover — run_stock_job이 이미 삼킨다
-            _log.exception("주식 수집 루프 오류 stock_id=%s", work.stock_id)
-        finally:
-            queue.done(work.stock_id)
+    opener = getattr(source, "__aenter__", None)
+    if opener is not None:
+        source = await opener()
+    try:
+        while True:
+            work = await queue.pop()
+            try:
+                await run_stock_job(session_factory, source, work)
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # pragma: no cover — run_stock_job이 이미 삼킨다
+                _log.exception("주식 수집 루프 오류 stock_id=%s", work.stock_id)
+            finally:
+                queue.done(work.stock_id)
+    finally:
+        # HTTP 세션이 남으면 프로세스가 깨끗하게 끝나지 않는다.
+        closer = getattr(source, "__aexit__", None)
+        if closer is not None:
+            with contextlib.suppress(Exception):
+                await closer(None, None, None)
