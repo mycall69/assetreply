@@ -168,3 +168,86 @@ def test_주식_점유가_종목_단위다() -> None:
     pk = [c.name for c in
           Base.metadata.tables["stock_collection_lock"].primary_key.columns]
     assert pk == ["stock_id"]
+
+
+# ─────────────────────────── 006: 검색용 종목 목록 ───────────────────────────
+
+
+def test_검색용_목록_테이블이_모두_정의된다() -> None:
+    """T006 — data-model 1~4a절의 5개 테이블."""
+    expected = {"stock_listing", "stock_listing_refresh", "stock_listing_lock",
+                "stock_listing_raw", "stock_listing_raw_body"}
+    assert expected <= set(Base.metadata.tables), \
+        f"누락: {expected - set(Base.metadata.tables)}"
+
+
+def test_검색용_종목은_국가와_코드로_식별한다() -> None:
+    """FR-019a — 단위는 키가 아니다. 이전상장으로 단위가 바뀌어도 같은 종목이다."""
+    table = Base.metadata.tables["stock_listing"]
+    uniques = [
+        {c.name for c in idx.columns}
+        for idx in table.indexes if idx.unique
+    ] + [
+        {c.name for c in con.columns}
+        for con in table.constraints
+        if con.__class__.__name__ == "UniqueConstraint"
+    ]
+    assert {"country", "code"} in uniques, f"(country, code) 유니크가 없다: {uniques}"
+    assert not any("unit" in u for u in uniques), "단위가 키에 들어가면 이전상장 종목이 둘이 된다"
+
+
+def test_검색용_종목_컬럼_제약() -> None:
+    from sqlalchemy import Date, String
+
+    cols = Base.metadata.tables["stock_listing"].columns
+    assert isinstance(cols["code"].type, String) and cols["code"].type.length == 16
+    assert not cols["code"].nullable
+    assert isinstance(cols["unit"].type, String) and cols["unit"].type.length == 8
+    assert not cols["unit"].nullable
+    assert cols["name_ko"].nullable and cols["name_ko"].type.length == 128
+    assert cols["name_en"].nullable and cols["name_en"].type.length == 256
+    assert not cols["kind"].nullable and cols["kind"].type.length == 8
+    assert isinstance(cols["listed_on"].type, Date) and cols["listed_on"].nullable
+    assert not cols["status"].nullable
+    assert cols["status"].server_default is not None, "status 기본값(listed)이 없다"
+    for name in ("first_seen_at", "last_seen_at", "source", "ingested_at"):
+        assert name in cols, f"{name} 컬럼이 없다"
+
+
+def test_검색용_종목에_가격_컬럼이_없다() -> None:
+    """FR-012 — 목록의 가격을 저장하면 시세가 두 출처에서 섞일 자리가 생긴다."""
+    names = {c.name for c in Base.metadata.tables["stock_listing"].columns}
+    for forbidden in ("last_price", "lastprice", "price", "list_count", "listcount"):
+        assert forbidden not in names, f"{forbidden} 컬럼이 있다"
+
+
+def test_갱신_기록과_점유는_단위가_기본키다() -> None:
+    for name in ("stock_listing_refresh", "stock_listing_lock"):
+        pk = [c.name for c in Base.metadata.tables[name].primary_key.columns]
+        assert pk == ["unit"], f"{name}의 기본 키가 {pk}"
+
+
+def test_원본은_본문을_한_번만_저장한다() -> None:
+    """FR-061, 헌법 원칙 V — 본문은 해시 키 테이블에, 쪽 기록은 해시만 가리킨다 (analyze C1)."""
+    from sqlalchemy import String, Text
+
+    body = Base.metadata.tables["stock_listing_raw_body"]
+    pk = [c.name for c in body.primary_key.columns]
+    assert pk == ["sha256"]
+    assert isinstance(body.columns["sha256"].type, String)
+    assert body.columns["sha256"].type.length == 64
+    assert isinstance(body.columns["body"].type, Text)
+    assert (body.columns["body"].type.length or 0) >= 16_000_000, "MEDIUMTEXT가 아니다"
+
+    raw = Base.metadata.tables["stock_listing_raw"]
+    assert "body" not in raw.columns, "쪽 기록에 본문이 있으면 같은 본문이 반복 저장된다"
+    fks = {fk.target_fullname for fk in raw.columns["body_sha256"].foreign_keys}
+    assert fks == {"stock_listing_raw_body.sha256"}
+    assert not raw.columns["body_sha256"].nullable
+
+
+def test_005_종목_테이블이_바뀌지_않는다() -> None:
+    """data-model — 목록의 상장일을 `stock.first_available_date`에 복사하지 않는다(R6-8)."""
+    cols = {c.name for c in Base.metadata.tables["stock"].columns}
+    assert cols == {"id", "market", "symbol", "name", "currency",
+                    "first_available_date", "ingested_at"}

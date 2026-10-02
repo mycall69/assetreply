@@ -164,3 +164,39 @@ def test_재투자_시뮬레이터가_단독으로_선다() -> None:
     forbidden = ("src.repository", "src.api", "src.db", "src.ingestion")
     offenders = [m for m in _imports(path) if m.startswith(forbidden)]
     assert offenders == [], f"reinvest 계층 위반: {offenders}"
+
+
+# ─────────────────────────── 006: 검색용 종목 목록 ───────────────────────────
+
+#: 키움 응답의 고유 필드명. 어댑터 밖에서 등장하면 원칙 II 위반이다.
+KIWOOM_TOKENS = ("stk_cd", "stk_nm", "stk_enm", "stex_tp", "mrkt_tp", "regDay",
+                 "listCount", "lastPrice", "marketName")
+
+
+def test_키움_필드명이_어댑터_밖에_없다() -> None:
+    """T011 — 헌법 원칙 II. 출처를 교체할 때 손댈 지점이 한곳으로 모여야 한다."""
+    adapter = SRC / "ingestion" / "kiwoom"
+    assert adapter.is_dir(), "ingestion/kiwoom이 없다 — 없는 경계를 검사하면 조용히 통과한다"
+    offenders: list[str] = []
+    for path in SRC.rglob("*.py"):
+        if adapter in path.parents or "migrations" in path.parts:
+            continue
+        body = path.read_text(encoding="utf-8")
+        for token in KIWOOM_TOKENS:
+            if token in body:
+                offenders.append(f"{path.relative_to(SRC)}: {token}")
+    assert offenders == [], f"키움 고유 개념 노출: {offenders}"
+
+
+def test_검색_모듈이_단독으로_선다() -> None:
+    """T011 — 헌법 원칙 IV. 일치 판정·시세 식별자 변환은 DB·HTTP 없이 단독 테스트돼야 한다."""
+    package = SRC / "search"
+    assert package.is_dir(), "src/search가 없다 — 없는 모듈을 검사하면 조용히 통과한다"
+    forbidden = ("src.repository", "src.api", "src.db", "src.ingestion")
+    offenders = [
+        f"{path.name} → {module}"
+        for path in package.rglob("*.py")
+        for module in _imports(path)
+        if module.startswith(forbidden)
+    ]
+    assert offenders == [], f"search 계층 위반: {offenders}"

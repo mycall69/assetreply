@@ -70,7 +70,7 @@ description: "Task list for 006-stock-simulation-enhancements"
 - [ ] T009 [P] `backend/tests/contract/test_kiwoom_client.py` — 토큰을 **메모리에만** 두고 만료 10분 전에 갱신하는지, 연속조회가 **응답 헤더**의 `cont-yn`·`next-key`로 이어지는지, **HTTP 200 + `return_code≠0`을 실패로 판정하는지**, **세부 코드를 `return_msg`의 `[NNNN:…]`에서 뽑아 판정하는지**(실제 오류 응답은 `return_code: 3`이고 세부 코드는 메시지 안에만 있다 — 픽스처 `error_auth_token.json`·`error_invalid_token.json`), 오류 코드를 `auth`(8001·8002·8011·8012·8003·8005·8006·8009·8015·8016·8030·8031, HTTP 401)·`rate_limit`(1700~1702)·`network`(연결 실패·시간 초과·5xx)·`invalid`로 나누는지, `KIWOOM_MODE`에 따라 도메인이 바뀌는지 검증한다. aiohttp를 가짜 응답으로 바꿔 끼운다 (FR-013b, FR-060, FR-061, research R6-1, R6-3)
 - [ ] T010 `backend/src/ingestion/kiwoom/errors.py`·`client.py`를 만든다. 공식 클라이언트를 쓰지 않는다. 토큰을 DB·파일·로그에 쓰지 않는다 (FR-060, FR-061, research R6-1)
 - [ ] T011 [P] `backend/tests/unit/test_layer_boundaries.py`에 검사를 더한다 — 키움 응답 필드명(`stk_cd`·`stk_nm`·`stk_enm`·`stex_tp`·`mrkt_tp`·`regDay`·`listCount`·`lastPrice`)이 `ingestion/kiwoom/` 밖에 없는지, **`src/search/`가 존재하고** `repository`·`api`·`db`·`ingestion`을 임포트하지 않는지. 패키지가 없으면 통과하지 않고 실패해야 한다 — 없는 모듈을 검사하면 조용히 통과한다 (헌법 원칙 II·IV)
-- [ ] T012 [P] `backend/tests/unit/test_no_secret_in_events.py`에 검사를 더한다 — 키움 앱 키·시크릿·토큰 문자열이 수집 사건, `stock_listing_raw_body.body`, `stock_listing_refresh.last_error`에 남지 않는지 (FR-060, FR-061, SC-014)
+- [ ] T012 [P] `backend/tests/unit/test_no_secret_in_events.py`에 검사를 더한다 — 키움 앱 키·시크릿·토큰 문자열이 수집 사건, `stock_listing_raw_body.body`, `stock_listing_refresh.last_error`에 남지 않는지. 이 페이즈에서는 클라이언트·오류 메시지·사건 마스킹을 검사하고, **저장 계층(원본 본문·갱신 기록 사유)의 검사는 T019·T024가 맡는다** — 저장소가 US1에서 생긴다 (FR-060, FR-061, SC-014)
 
 **Checkpoint**: 테이블과 어댑터 공통 부분이 준비됐다
 

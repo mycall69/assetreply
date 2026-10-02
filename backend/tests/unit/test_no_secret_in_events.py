@@ -61,3 +61,39 @@ class Test소스_검사:
             if pattern.search(line) and "revision" not in line and "down_revision" not in line
         ]
         assert offenders == [], f"하드코딩 의심: {offenders}"
+
+
+class Test키움_비밀:
+    """T012 — 006 FR-060, FR-061, SC-014. 저장 계층(원본·갱신 기록)의 검사는 T019·T024가 맡는다."""
+
+    @staticmethod
+    def _settings():  # type: ignore[no-untyped-def]
+        from src.config.settings import Settings, _Secret
+
+        return Settings(
+            ecos_api_key=_Secret("ecos"),
+            kiwoom_app_key=_Secret("APPKEY-SENTINEL-1111"),
+            kiwoom_app_secret=_Secret("APPSECRET-SENTINEL-2222"),
+        )
+
+    def test_클라이언트_repr에_키가_없다(self) -> None:
+        from src.ingestion.kiwoom.client import KiwoomClient
+
+        text = repr(KiwoomClient(self._settings()))
+        assert "SENTINEL" not in text
+
+    def test_오류_메시지에_키가_없다(self) -> None:
+        """출처 응답 문구로 오류를 만들 때 요청에 실은 값이 섞이면 안 된다."""
+        from src.ingestion.kiwoom.errors import classify_failure
+
+        body = {"return_code": 3,
+                "return_msg": "인증에 실패했습니다[8001:App Key와 Secret Key 검증에 실패했습니다]"}
+        exc = classify_failure(200, body)
+        assert exc is not None
+        assert "SENTINEL" not in str(exc)
+        assert exc.detail_code == 8001
+
+    def test_토큰처럼_보이는_문자열을_가린다(self) -> None:
+        """사건 기록에 접근 토큰이 실려도 가려진다 — 기존 마스킹이 키움 토큰 모양도 잡는지 본다."""
+        got = mask_secrets("토큰 갱신 실패 token=Ab12Cd34Ef56Gh78Ij90Kl12Mn34Op56")
+        assert "Ab12Cd34Ef56Gh78Ij90Kl12Mn34Op56" not in (got or "")
