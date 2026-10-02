@@ -8,6 +8,7 @@ from __future__ import annotations
 import random
 
 import pytest
+
 from src.search.match import SearchEntry, SearchIndex, match_text
 
 
@@ -186,3 +187,48 @@ class Test일치_판정:
     ])
     def test_표(self, query: str, text: str, expected: str | None) -> None:
         assert match_text(query, text) == expected
+
+
+
+# ── 미국 (T067) ──────────────────────────────────────────────────────
+
+def us(key: int, name_ko: str | None, name_en: str, code: str, symbol: str | None = None,
+       market: str = "NASDAQ") -> SearchEntry:
+    """색인이 만드는 모양 — 한글명·영문명, 목록 티커와 시세 출처 티커."""
+    names = tuple(n for n in (name_ko, name_en) if n)
+    codes = (code,) if symbol is None or symbol == code else (code, symbol)
+    return SearchEntry(key=key, names=names, codes=codes, market=market, code=code)
+
+
+US = [
+    us(1, "애플", "APPLE INC", "AAPL"),
+    us(2, "테슬라", "TESLA INC", "TSLA"),
+    us(3, "엔비디아", "NVIDIA CORP", "NVDA"),
+    us(4, "버크셔 해서웨이 B", "BERKSHIRE HATHAWAY INC", "BRKb", "BRK-B", "NYSE"),
+    us(5, None, "ACME WIDGETS CORP", "ACMW", market="AMEX"),
+    us(6, "애플릭 디지털", "APPLIED DIGITAL CORP", "APLD"),
+]
+
+
+class Test미국_검색어:
+    """quickstart 5 — 애플·ㅇㅍ·apple·AAPL 네 경우 모두 애플이 나온다 (FR-021, SC-002)."""
+
+    @pytest.mark.parametrize("query", ["애플", "ㅇㅍ", "apple", "Apple", "AAPL", "aapl"])
+    def test_애플(self, query: str) -> None:
+        hits = SearchIndex(US).search(query, 20).hits
+        assert hits and hits[0].entry.key == 1, [h.entry.names for h in hits]
+
+    @pytest.mark.parametrize(("query", "key"), [
+        ("테슬라", 2), ("ㅌㅅㄹ", 2), ("tesla", 2), ("엔비디아", 3), ("nvda", 3)])
+    def test_테슬라_엔비디아(self, query: str, key: int) -> None:
+        assert SearchIndex(US).search(query, 20).hits[0].entry.key == key
+
+    def test_한글명이_없으면_영문명과_티커로만_찾는다(self) -> None:
+        index = SearchIndex(US)
+        assert index.search("acme", 20).hits[0].entry.key == 5
+        assert index.search("ACMW", 20).hits[0].entry.key == 5
+
+    def test_클래스_주식을_시세_출처_표기로도_찾는다(self) -> None:
+        index = SearchIndex(US)
+        for query in ("BRK-B", "brkb", "버크셔"):
+            assert index.search(query, 20).hits[0].entry.key == 4, query

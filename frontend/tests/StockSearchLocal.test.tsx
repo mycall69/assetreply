@@ -104,6 +104,27 @@ describe("결과 표시", () => {
   });
 });
 
+describe("미국 결과 (T095)", () => {
+  it("영문 종목명을 함께 보인다", async () => {
+    // FR-025 — 한글명이 비슷한 종목이 여럿이면 영문명이 구별의 근거다.
+    routeGet({ local: () => Promise.resolve(local([{
+      ...SAMSUNG, listingId: 7001, country: "US", market: "NASDAQ", symbol: "AAPL",
+      code: "AAPL", name: "애플", nameEn: "APPLE INC", currency: "USD", listedOn: null,
+    }])) });
+    await typeQuery("ㅇㅍ");
+    const option = await screen.findByRole("option", { name: /애플/ });
+    expect(option.textContent).toContain("APPLE INC");
+    expect(option.textContent).toMatch(/NASDAQ.*USD/);
+  });
+
+  it("국내 결과에는 영문명 자리를 두지 않는다", async () => {
+    routeGet({ local: () => Promise.resolve(local([SAMSUNG])) });
+    await typeQuery("삼성");
+    const option = await screen.findByRole("option", { name: /삼성전자/ });
+    expect(option.querySelector("[data-name-en]")).toBeNull();
+  });
+});
+
 describe("결과가 비었을 때", () => {
   it("목록이 모두 있으면 결과 없음이라고 말한다", async () => {
     routeGet({ local: () => Promise.resolve(local([])) });

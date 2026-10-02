@@ -118,3 +118,34 @@ def reset_listing_state() -> None:
     reset_listing_index()
     get_auth_blocker().reset()
     reset_listing_queue()
+
+
+def us_row(code: str, name_ko: str, name_en: str, *, etf: str = "N",
+           stex: str = "NY") -> dict[str, str]:
+    """실제 미국 응답의 한 행 모양(research R6-2)."""
+    market = {"NY": "NYSE", "ND": "NASDAQ", "NA": "AMEX"}[stex]
+    return {"stex_tp": stex, "stk_cd": code, "stk_nm": name_ko, "stk_enm": name_en,
+            "mkgb": market, "upgb": "", "isEtf": etf}
+
+
+def us_body(rows: Sequence[dict[str, str]]) -> str:
+    return json.dumps({"return_msg": "정상적으로 처리되었습니다", "list": list(rows),
+                       "return_code": 0}, ensure_ascii=False)
+
+
+APPLE = us_row("AAPL", "애플", "APPLE INC", stex="ND")
+TESLA = us_row("TSLA", "테슬라", "TESLA INC", stex="ND")
+SPY = us_row("SPY", "S&P 500 SPDR ETF", "STATE STREET SPDR S&P 500 ETF", etf="Y")
+BRK_B = us_row("BRKb", "버크셔 해서웨이 B", "BERKSHIRE HATHAWAY INC")
+ABR_D = us_row("ABR-D", "아버 리얼티 트러스트 우선주 D", "ARBOR REALTY TRUST INC SERIES D")
+
+
+async def seed_us(session_factory, unit: str, rows: Sequence[dict[str, str]], *,  # type: ignore[no-untyped-def]
+                  now: dt.datetime = NOW, settings: Settings | None = None):
+    """미국 목록을 교체 서비스로 넣는다."""
+    from src.api.services.listing_refresh import AuthBlocker, refresh_unit
+
+    source = StubListingSource({unit: [[page(us_body(rows))]]})
+    return await refresh_unit(
+        session_factory, source, unit, settings=settings or listing_settings(),
+        now=lambda: now, blocker=AuthBlocker())

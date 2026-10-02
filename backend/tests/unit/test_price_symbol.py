@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 
 import pytest
+
 from src.search.price_symbol import PriceSymbol, listing_candidates, to_price_symbol
 
 FIXTURES = Path(__file__).resolve().parent.parent / "contract" / "fixtures" / "kiwoom"
@@ -74,3 +75,85 @@ def test_실제_목록_전부가_왕복한다(unit: str) -> None:
         assert key is not None and key.country == "KR" and key.codes[0] == code, code
     # 정방향 결과가 서로 겹치지 않는다
     assert len(symbols) == len(set(codes))
+
+
+# ── 미국 (T066) ──────────────────────────────────────────────────────
+
+US_FORWARD = [
+    # 기호 없음 — 대부분
+    ("NASDAQ", "AAPL", "AAPL"),
+    # BASE.SUF — 클래스·유닛
+    ("NYSE", "BH.A", "BH-A"),
+    ("NYSE", "AAC.UN", "AAC-UN"),
+    # BASE + 소문자 — 클래스
+    ("NYSE", "BRKb", "BRK-B"),
+    ("NYSE", "BFa", "BF-A"),
+    # BASE-SER — 우선주(시리즈)
+    ("NYSE", "ABR-D", "ABR-PD"),
+    ("AMEX", "PHXE-", "PHXE-P"),
+    # BASE_p + 소문자 — 우선주(시리즈)
+    ("NYSE", "BAC_pe", "BAC-PE"),
+    ("NYSE", "AHT_pd", "AHT-PD"),
+]
+
+
+class Test미국_정방향:
+    @pytest.mark.parametrize(("unit", "code", "symbol"), US_FORWARD)
+    def test_표(self, unit: str, code: str, symbol: str) -> None:
+        """research R6-6 — 시세 출처 표기는 실제 조회로 확인했다(2026-10-02)."""
+        assert to_price_symbol(unit, code) == PriceSymbol(unit, symbol, "USD")
+
+    def test_규칙에_없는_기호는_그대로_보낸다(self) -> None:
+        """시세 출처가 모르면 "시세 출처에서 찾지 못함"으로 알린다(FR-032)."""
+        assert to_price_symbol("NYSE", "AB$C").symbol == "AB$C"
+
+    def test_거래소를_다른_거래소로_옮기지_않는다(self) -> None:
+        """FR-031."""
+        assert to_price_symbol("NASDAQ", "AAPL").market == "NASDAQ"
+
+
+class Test미국_역변환:
+    @pytest.mark.parametrize(("market", "symbol", "codes"), [
+        ("NASDAQ", "AAPL", ("AAPL",)),
+        ("NYSE", "BRK-B", ("BRK.B", "BRKb", "BRK-B")),
+        ("NYSE", "BH-A", ("BH.A", "BHa", "BH-A")),
+        ("NYSE", "ABR-PD", ("ABR-D", "ABR_pd", "ABR.PD", "ABRpd", "ABR-PD")),
+        ("AMEX", "PHXE-P", ("PHXE-", "PHXE_p", "PHXE.P", "PHXEp", "PHXE-P")),
+        ("NYSE", "BAC-PE", ("BAC-E", "BAC_pe", "BAC.PE", "BACpe", "BAC-PE")),
+    ])
+    def test_후보(self, market: str, symbol: str, codes: tuple[str, ...]) -> None:
+        key = listing_candidates(market, symbol)
+        assert key is not None and key.country == "US"
+        assert key.codes == codes
+
+    def test_거래소는_보지_않는다(self) -> None:
+        """FR-030a — 같은 티커면 거래소가 달라도 같은 종목이다."""
+        for market in ("NYSE", "NASDAQ", "AMEX"):
+            key = listing_candidates(market, "SPY")
+            assert key is not None and key.codes == ("SPY",)
+
+
+def _us_codes() -> dict[str, list[str]]:
+    return {unit: [row["stk_cd"] for row in json.loads(
+        (FIXTURES / f"{unit}_p01.json").read_text(encoding="utf-8"))["list"]]
+        for unit in ("NYSE", "NASDAQ", "AMEX")}
+
+
+def test_미국_목록_전부가_왕복하고_겹치지_않는다() -> None:
+    """research R6-6 — 12,745건에서 정방향 결과가 겹치지 않고, 역변환 후보 중 **목록에 있는 첫
+    것**이 원래 기호다(SC-007a, SC-008)."""
+    codes = _us_codes()
+    every = {c for unit_codes in codes.values() for c in unit_codes}
+    symbols: set[str] = set()
+    total = 0
+    for unit, unit_codes in codes.items():
+        for code in unit_codes:
+            ps = to_price_symbol(unit, code)
+            symbols.add(ps.symbol)
+            key = listing_candidates(ps.market, ps.symbol)
+            assert key is not None, code
+            found = next(c for c in key.codes if c in every)
+            assert found == code, (code, ps.symbol, found)
+            total += 1
+    assert total == 12745
+    assert len(symbols) == total
