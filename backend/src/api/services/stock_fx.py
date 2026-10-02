@@ -20,6 +20,7 @@ from src.simulation.fx_convert import (
     SPREAD_DISCOUNT,
     RateLookup,
     exchange_rate,
+    per_unit,
     resolve_rate,
 )
 
@@ -50,10 +51,13 @@ async def load_rates(
 
     **날짜를 옮기는 것이지 값을 채우는 것이 아니다.** 옮긴 날짜를 함께 돌려주므로
     사용자가 보는 것은 언제나 실제로 고시된 날짜와 그날의 값이다 (FR-022, FR-041c).
+
+    **1단위당 값으로 바꿔 둔다**(006 FR-042). 행의 고시 단위로 나눈다 — 엔화는 100엔당
+    값이라 그대로 쓰면 환전이 100배 틀린다. 환전과 평가가 모두 이 값을 쓴다.
     """
     margin = start - dt.timedelta(days=30)
     rows = await series(session, currency, margin, end)
-    return RateLookup({r.quote_date: r.base_rate for r in rows})
+    return RateLookup({r.quote_date: per_unit(r.base_rate, r.quote_unit) for r in rows})
 
 
 async def cash_buy_spread(session: AsyncSession, currency: str) -> Decimal:

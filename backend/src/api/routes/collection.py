@@ -59,8 +59,10 @@ async def get_stream(
     """선택한 통화의 수집 스트림 (FR-010, FR-015, FR-022)."""
     code = _validated(currency)
     return StreamingResponse(
+        # 006 — 다른 통화의 진행 여부를 프레임마다 다시 읽는다. 기다리던 화면이 그 수집이
+        # 끝난 것을 알아야 다시 요청할 수 있다 (research R6-10).
         stream_body(session, code, load_settings(),
-                    busy_with=get_queue().in_progress),
+                    busy_with_fn=lambda: get_queue().in_progress),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

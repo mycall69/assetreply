@@ -11,7 +11,10 @@
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
 import { PerformanceChart } from "@/components/stock/PerformanceChart";
 import { PerformanceTable } from "@/components/stock/PerformanceTable";
-import { CollectingNotice } from "@/components/stock/CollectingNotice";
+import {
+  CollectingNotice,
+  FxUnavailableNotice,
+} from "@/components/stock/CollectingNotice";
 import { ComparisonChart } from "@/components/stock/ComparisonChart";
 import { SimulationHistory } from "@/components/stock/SimulationHistory";
 import { SimulationForm } from "@/components/stock/SimulationForm";
@@ -24,8 +27,8 @@ export default function StocksPage() {
     input, rows, summary, exchange, hasMore, collecting,
     series, seriesError, loading, loadingMore, error, loadMoreError,
     history, historySaveError, selectedHistory, comparison, comparing,
-    comparisonError, progress, selecting, selectionError,
-    setInput, selectStock, run, loadMore, refreshIfRan,
+    comparisonError, progress, selecting, selectionError, fxBlocked,
+    setInput, selectStock, run, loadMore, refreshIfRan, dispose,
     restoreHistory, toggleHistory, removeHistoryEntry, compareSelected,
   } = useStockStore();
 
@@ -34,6 +37,9 @@ export default function StocksPage() {
   useEffect(() => {
     void refreshIfRan();
   }, [refreshIfRan]);
+
+  // 006 — 화면을 떠나면 진행 구독을 끊는다. 남기면 떠난 화면이 다시 요청을 보낸다.
+  useEffect(() => dispose, [dispose]);
 
   // FR-037 — 이력은 브라우저에 있다. 서버에서 오지 않으므로 화면이 열릴 때 읽는다.
   useEffect(() => {
@@ -85,6 +91,14 @@ export default function StocksPage() {
         >
           {error}
         </p>
+      )}
+
+      {fxBlocked !== null && (
+        // 006 W4a — 수집으로 채울 수 없는 구간. 옮기기는 눌러야 바뀐다.
+        <FxUnavailableNotice
+          blocked={fxBlocked}
+          onMove={(start) => setInput({ start })}
+        />
       )}
 
       {collecting !== null && (

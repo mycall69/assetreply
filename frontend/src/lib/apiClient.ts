@@ -29,6 +29,11 @@ export class ApiError extends Error {
     readonly httpStatus: number,
     readonly code: string,
     message: string,
+    /**
+     * 오류 본문 전체. 사유에 따라 화면이 할 일을 그려야 하는 오류가 있다 — 006의
+     * `fx_not_available_before`는 `reason`·`availableFrom`으로 "그 달로 옮기기"를 만든다.
+     */
+    readonly body: Record<string, unknown> | null = null,
   ) {
     super(message);
     this.name = "ApiError";
@@ -42,13 +47,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
-    let body: ApiErrorBody | null = null;
+    let body: (ApiErrorBody & Record<string, unknown>) | null = null;
     try {
-      body = (await res.json()) as ApiErrorBody;
+      body = (await res.json()) as ApiErrorBody & Record<string, unknown>;
     } catch {
       // 본문이 JSON이 아니면 상태 코드만으로 오류를 구성한다
     }
-    throw new ApiError(res.status, body?.status ?? "unknown", body?.message ?? res.statusText);
+    throw new ApiError(
+      res.status, body?.status ?? "unknown", body?.message ?? res.statusText, body);
   }
 
   return (await res.json()) as T;

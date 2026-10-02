@@ -14,6 +14,7 @@ import {
   removeHistory,
   saveHistory,
 } from "@/lib/simulationHistory";
+import { subscribeCollection } from "@/lib/collectionStream";
 import { createSequence } from "@/lib/searchSequence";
 import {
   subscribeStockProgress,
@@ -21,6 +22,8 @@ import {
 } from "@/lib/stockProgressStream";
 import type {
   ExchangeInfo,
+  FxCollecting,
+  FxNotAvailableBefore,
   PrincipalCurrency,
   SelectionResponse,
   SimulationCollecting,
@@ -69,6 +72,11 @@ interface StockState {
    */
   seriesError: string | null;
   collecting: SimulationCollecting | null;
+  /**
+   * 필요한 환율이 수집으로 채울 수 없는 구간이다 (006 FR-043a, W4a). 일반 오류와 따로 둔다 —
+   * 사유에 따라 "그 달로 옮기기"를 그려야 한다.
+   */
+  fxBlocked: FxNotAvailableBefore | null;
   /** 수집 진행 (FR-047). 스냅샷이 오기 전에는 `null`이다 — 0/0은 멈춘 것처럼 보인다. */
   progress: StockProgressSnapshot | null;
   loading: boolean;
@@ -101,6 +109,11 @@ interface StockState {
    * 시뮬레이션이 시작되면 사용자가 요청하지 않은 출처 호출이 나간다.
    */
   refreshIfRan: () => Promise<void>;
+  /**
+   * 화면을 떠날 때 부른다. 진행 구독을 끊는다 — 남기면 떠난 화면이 다시 요청을 보낸다
+   * (006 research R6-10 "다시 요청하는 쪽은 화면이다").
+   */
+  dispose: () => void;
   restoreHistory: () => void;
   toggleHistory: (id: string) => void;
   removeHistoryEntry: (id: string) => void;
@@ -129,10 +142,50 @@ function selectionBody(choice: StockChoice): Record<string, unknown> {
  * 그릴 것이 아니라 정리해야 할 자원이다.
  */
 let unwatch: (() => void) | null = null;
+/** 환율 수집 구독 해제 함수 (006). 주식 진행과 따로 산다 — 둘 다 끝나야 결과가 나온다. */
+let unwatchFx: (() => void) | null = null;
 
 function stopWatching(): void {
   unwatch?.();
   unwatch = null;
+  unwatchFx?.();
+  unwatchFx = null;
+}
+
+/**
+ * 환율 수집을 구독하고 **끝나면 다시 요청한다** (006 FR-046, research R6-10).
+ *
+ * 003의 통화별 스트림은 진행 중이면 `snapshot`, 아니면 5초마다 `idle`을 보낸다.
+ *
+ * - `waiting`: 다른 통화가 끝나면(`idle`의 `busyWith`가 비면) 다시 요청한다
+ * - `queued`·`collecting`: 진행을 본 뒤 `idle`이 오면 끝난 것이다. 진행을 한 번도 못 보고
+ *   `idle`이 두 번 오면 구독이 붙기 전에 끝났다고 보고 다시 요청한다 — 진행을 못 봤다고
+ *   영원히 기다리면 화면이 "받고 있습니다"에 머문다. 한 번의 `idle`로 다시 요청하지 않는
+ *   이유는 워커가 큐에서 꺼내기 직전일 수 있어서다
+ */
+function watchFx(fx: FxCollecting, get: () => StockState): void {
+  unwatchFx?.();
+  let sawActive = false;
+  let idleCount = 0;
+  const rerun = () => {
+    unwatchFx?.();
+    unwatchFx = null;
+    void get().run();
+  };
+  unwatchFx = subscribeCollection(fx.currency, {
+    onSnapshot: () => {
+      sawActive = true;
+    },
+    onIdle: (payload) => {
+      if (fx.state === "waiting") {
+        if (payload.busyWith === null) rerun();
+        return;
+      }
+      idleCount += 1;
+      if (sawActive || idleCount >= 2) rerun();
+    },
+    onEvent: () => undefined,
+  });
 }
 
 /**
@@ -147,7 +200,8 @@ function watchProgress(
   set: (partial: Partial<StockState>) => void,
   get: () => StockState,
 ): void {
-  stopWatching();
+  // 주식 진행만 갈아끼운다 — 환율 구독은 따로 산다.
+  unwatch?.();
   unwatch = subscribeStockProgress(jobId, {
     onSnapshot: (progress) => set({ progress }),
     onCompleted: () => {
@@ -203,6 +257,7 @@ export const useStockStore = create<StockState>((set, get) => ({
   series: null,
   seriesError: null,
   collecting: null,
+  fxBlocked: null,
   progress: null,
   loading: false,
   loadingMore: false,
@@ -263,10 +318,12 @@ export const useStockStore = create<StockState>((set, get) => ({
       set({ error: "종목을 먼저 고르세요." });
       return;
     }
+    // 이전 실행의 구독을 끊는다. 남기면 이전 조건의 완료 신호가 새 조건을 다시 요청한다.
+    stopWatching();
     set({
       rows: [], summary: null, condition: null, exchange: null,
       hasMore: false, oldestReturned: null, series: null, seriesError: null,
-      collecting: null, progress: null, loading: true, error: null,
+      collecting: null, fxBlocked: null, progress: null, loading: true, error: null,
       loadMoreError: null,
     });
     try {
@@ -278,7 +335,10 @@ export const useStockStore = create<StockState>((set, get) => ({
         //
         // **이력에도 남기지 않는다.** 아직 결과가 없는 조건이다.
         set({ collecting: body, progress: null, loading: false });
-        watchProgress(body.jobId, set, get);
+        // 006 — 주식 시세와 환율을 따로 기다린다. 어느 쪽이 끝나도 다시 요청하고, 서버가
+        // 둘 다 끝났는지 판정한다(FR-045).
+        if (body.jobId !== undefined) watchProgress(body.jobId, set, get);
+        if (body.fx !== undefined) watchFx(body.fx, get);
         return;
       }
       const result = body as SimulationResponse;
@@ -318,9 +378,16 @@ export const useStockStore = create<StockState>((set, get) => ({
         });
       }
     } catch (err) {
+      if (err instanceof ApiError && err.code === "fx_not_available_before" && err.body) {
+        // W4a — 같은 사유를 일반 오류로 한 번 더 말하지 않는다.
+        set({ fxBlocked: err.body as unknown as FxNotAvailableBefore, loading: false });
+        return;
+      }
       set({ error: message(err, "시뮬레이션에 실패했습니다."), loading: false });
     }
   },
+
+  dispose: () => stopWatching(),
 
   /**
    * 표를 이어 받는다 (FR-029). **기존 배열 끝에 덧붙인다** — 전체를 교체하면

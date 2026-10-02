@@ -477,15 +477,48 @@ export interface SimulationResponse {
   oldestReturned: string | null;
 }
 
-/** 수집 중 응답 (FR-047). 부분 결과를 200으로 내려보내지 않는다 (FR-049). */
+/**
+ * 환율 수집 상태 (006 contracts 5절). 003의 수집 표에서 온다.
+ *
+ * `waiting`은 **다른 통화의 수집 중**이라 시작하지 못했다는 뜻이다 — `busyWith`에 그 통화.
+ */
+export type FxCollectState = "queued" | "collecting" | "waiting";
+
+export interface FxCollecting {
+  currency: CurrencyCode;
+  state: FxCollectState;
+  busyWith: CurrencyCode | null;
+  missingFrom: string;
+  missingThrough: string;
+}
+
+/**
+ * 수집 중 응답 (FR-047). 부분 결과를 200으로 내려보내지 않는다 (FR-049).
+ *
+ * 006 — 주식 시세가 다 있으면 `jobId`·`progressUrl`·`missingFrom`·`missingThrough`가 없고,
+ * 환율이 비었으면 `fx`가 있다. 둘 다 비면 둘 다 있다 (FR-045).
+ */
 export interface SimulationCollecting {
   status: "collecting";
   market: StockMarket;
   symbol: string;
-  jobId: number;
-  missingFrom: string;
-  missingThrough: string;
-  progressUrl: string;
+  jobId?: number;
+  missingFrom?: string;
+  missingThrough?: string;
+  progressUrl?: string;
+  fx?: FxCollecting;
+}
+
+/**
+ * 수집으로 채울 수 없는 구간 (006 FR-043a, 409). **두 사유를 섞지 않는다** — 설정 밖은
+ * 설정을 바꾸면 풀리는데 "출처에 없음"으로 말하면 영영 불가능한 것으로 읽힌다.
+ */
+export interface FxNotAvailableBefore {
+  status: "fx_not_available_before";
+  reason: "before_first_quote" | "before_probe_start";
+  message: string;
+  currency: CurrencyCode;
+  availableFrom: string;
 }
 
 /** 차트용 시계열 한 점. 금액·비율은 **원금 통화 기준**이다 (FR-041). */

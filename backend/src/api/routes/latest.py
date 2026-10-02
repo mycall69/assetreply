@@ -76,14 +76,13 @@ async def get_latest(
         missing_days=missing,
         threshold_days=settings.collection_sync_threshold_days,
     ) is CollectionDecision.BACKGROUND:
-        job_id = await ensure_background_job(
-            session, code, yesterday, chunk_days=settings.ecos_chunk_days)
+        # 006 FR-046a — 수집 표를 싣는다. `jobId`는 실행 중일 때만 있다.
+        ticket = await ensure_background_job(session, code)
         return JSONResponse(status_code=202, content={
             "status": "collecting",
             "currency": code,
-            "jobId": job_id,
             "missingDays": missing,
-            "progressUrl": f"/api/fx/progress?jobId={job_id}",
+            **ticket.as_json(),
         })
 
     row = await latest_rate(session, code)

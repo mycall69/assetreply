@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.services.series_query import DEFAULT_MAX_POINTS
-from src.api.services.stock_collect import collecting_json, plan_collection
+from src.api.services.stock_collect import collecting_body
 from src.api.services.stock_series import build_series
 from src.api.services.stock_simulation import (
     check_principal_currency,
@@ -60,9 +60,11 @@ async def get_simulation_series(
     # 상장 이전 판정이 **수집보다 먼저다.** 뒤로 미루면 상장 수십 년 전부터의
     # 구간이 미수집으로 보여 수집이 시작되고, 받을 수 없는 데이터를 기다리게 된다.
     await require_start_available(session, stock, start)
-    collecting = await plan_collection(session, stock, start, finish)
+    # 006 — 주식 시세와 환율을 **함께** 본다. 둘 중 하나라도 비면 202다 (FR-045).
+    collecting = await collecting_body(
+        session, stock, principal_currency=principal_currency, start=start, end=finish)
     if collecting is not None:
-        return JSONResponse(status_code=202, content=collecting_json(stock, collecting))
+        return JSONResponse(status_code=202, content=collecting)
 
     prepared = await prepare(
         session, market=market, symbol=symbol, start=start, end=finish,

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -61,6 +61,7 @@ async def stream_body(
     settings: Settings,
     *,
     busy_with: str | None = None,
+    busy_with_fn: Callable[[], str | None] | None = None,
     max_frames: int = 0,
 ) -> AsyncIterator[str]:
     """`StreamingResponse`에 넘길 본문 생성기.
@@ -72,13 +73,18 @@ async def stream_body(
     시작하면 같은 연결로 이어진다.
 
     `max_frames`가 0보다 크면 그만큼만 내보내고 끝낸다 (테스트용).
+
+    `busy_with_fn`을 주면 **프레임마다** 다른 통화의 진행 여부를 다시 읽는다 (006). 연결할
+    때 한 번만 읽으면 다른 통화가 끝나도 끝까지 같은 값을 보내, 기다리던 화면(`waiting`)이
+    그 사실을 알 길이 없다.
     """
     seen_event_id = 0
     frames = 0
 
     while True:
+        current = busy_with_fn() if busy_with_fn is not None else busy_with
         snapshot = await build_timeline(session, currency_code, settings,
-                                        busy_with=busy_with)
+                                        busy_with=current)
         if "activeJob" in snapshot:
             yield format_sse("snapshot", snapshot)
         else:

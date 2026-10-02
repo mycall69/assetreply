@@ -1,18 +1,26 @@
-"""동기 대기 / 백그라운드 위임 분기 (T051).
+"""동기 대기 / 백그라운드 위임 분기 (T051) — 001. 006 T092에서 백그라운드 요청을 고쳤다.
 
 FR-035: 필요 구간이 임계값 이하이면 수집 완료까지 대기한 뒤 결과를 제시한다.
 FR-035a: 임계값을 초과하면 즉시 진행 상태를 제시하고 완료 후 결과를 갱신한다.
 FR-035b: 임계값은 설정값이며 기본 30일이다.
 
-날짜 조회와 차트 요청이 이 모듈을 공유한다 (FR-032a).
+날짜 조회와 차트 요청이 이 모듈을 공유한다 (FR-032a). 006의 시뮬레이션 환율 판정도
+`ensure_background_job`을 거친다 — 판정이 두 곳에 생기면 외환 화면과 시뮬레이션이 같은
+상황을 다르게 말한다 (006 analyze A1).
 """
 
 from __future__ import annotations
 
-import datetime as dt
+from dataclasses import dataclass
 from enum import StrEnum
+from typing import Literal
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.db.models import FxCollectionLock
+from src.repository.collection_lock import SCOPE_COLLECTION
+from src.worker.queue import StartQueue, get_queue
 
 
 class CollectionDecision(StrEnum):
@@ -35,27 +43,61 @@ def decide_collection(*, missing_days: int, threshold_days: int) -> CollectionDe
             else CollectionDecision.BACKGROUND)
 
 
-async def ensure_background_job(
-    session: AsyncSession, currency_code: str, end: dt.date, *, chunk_days: int
-) -> int:
-    """백그라운드 수집 작업을 확보하고 작업 ID를 돌려준다 (T099).
+CollectState = Literal["collecting", "queued", "waiting"]
 
-    이미 진행 중이면 새 작업을 만들지 않고 그 작업 ID를 준다 (FR-015b). 반환된 ID로
-    `progressUrl`을 구성하므로, 여기서 작업을 만들지 않으면 클라이언트가 구독할 대상이
-    없어진다.
+
+@dataclass(frozen=True, slots=True)
+class CollectionTicket:
+    """수집 표 (006 research R6-10). **작업 번호는 점유가 있을 때만 있다**(analyze N1).
+
+    작업 행은 워커의 `run_once`가 만들므로 큐에 넣는 시점에는 번호가 없다. 번호가 없으면
+    화면은 통화별 스트림(003)으로 진행을 본다.
     """
-    from src.config.settings import load_settings
-    from src.ingestion.collector import next_start_date, split_into_chunks
-    from src.repository.collection_lock import acquire_lock
-    from src.repository.job import create_job
 
-    start = await next_start_date(
-        session, currency_code, default=load_settings().probe_start(currency_code))
-    chunks = split_into_chunks(start, end, chunk_days=chunk_days)
-    job = await create_job(session, currency_code, start, end, chunks_total=len(chunks))
-    existing = await acquire_lock(session, currency_code, job.id)
-    if existing is not None:
-        await session.rollback()
-        return existing
-    await session.commit()
-    return job.id
+    currency: str
+    state: CollectState
+    job_id: int | None
+    busy_with: str | None
+    progress_url: str
+
+    def as_json(self) -> dict[str, object]:
+        """외환 화면 202에 싣는 필드 (006 contracts 6a절)."""
+        return {"state": self.state, "jobId": self.job_id, "busyWith": self.busy_with,
+                "progressUrl": self.progress_url}
+
+
+def _stream_url(currency_code: str) -> str:
+    return f"/api/fx/collection/stream?currency={currency_code}"
+
+
+async def ensure_background_job(
+    session: AsyncSession, currency_code: str, *, queue: StartQueue | None = None
+) -> CollectionTicket:
+    """백그라운드 수집을 **요청하고** 수집 표를 돌려준다 (006 FR-046a, T092).
+
+    **작업도 점유도 만들지 않는다.** 001의 이 함수는 작업과 점유를 만들고 워커의 큐에
+    넣지 않았다. 워커의 `run_once`는 점유를 새로 잡으려다 이미 잡혀 있으면 조용히 끝나므로,
+    그 작업은 아무도 실행하지 않는 채 점유만 쥐고 정리 루프가 회수할 때까지 그 통화의
+    수집을 막았다. 작업과 점유는 `run_once`만 만든다.
+
+    | 상황 | `state` | 작업 번호 |
+    |------|---------|-----------|
+    | 그 통화의 점유가 있다(실행 중) | `collecting` | 점유의 작업 |
+    | 큐가 받았다 / 이미 큐에 있다 | `queued` | 없음 |
+    | 다른 통화 처리 중이라 큐가 거절했다 | `waiting` | 없음 |
+
+    **큐가 거절하면 아무것도 남기지 않는다** — 미리 만든 작업은 실행되지 않는다.
+    """
+    start_queue = queue if queue is not None else get_queue()
+    running = (await session.execute(select(FxCollectionLock.job_id).where(
+        FxCollectionLock.scope == SCOPE_COLLECTION,
+        FxCollectionLock.currency_code == currency_code))).scalar_one_or_none()
+    if running is not None:
+        return CollectionTicket(currency_code, "collecting", int(running), None,
+                                f"/api/fx/progress?jobId={running}")
+
+    accepted = await start_queue.request(currency_code)
+    busy = start_queue.in_progress
+    if accepted or busy == currency_code:
+        return CollectionTicket(currency_code, "queued", None, None, _stream_url(currency_code))
+    return CollectionTicket(currency_code, "waiting", None, busy, _stream_url(currency_code))

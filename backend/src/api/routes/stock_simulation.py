@@ -17,7 +17,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.services.stock_collect import collecting_json, plan_collection
+from src.api.services.stock_collect import collecting_body
 from src.api.services.stock_simulation import (
     ConvertedRow,
     SimulationResult,
@@ -109,9 +109,11 @@ async def get_simulation(
     # 상장 이전 판정이 **수집보다 먼저다.** 뒤로 미루면 상장 수십 년 전부터의
     # 구간이 미수집으로 보여 수집이 시작되고, 받을 수 없는 데이터를 기다리게 된다.
     await require_start_available(session, stock, start)
-    collecting = await plan_collection(session, stock, start, finish)
+    # 006 — 주식 시세와 환율을 **함께** 본다. 둘 중 하나라도 비면 202다 (FR-045).
+    collecting = await collecting_body(
+        session, stock, principal_currency=principal_currency, start=start, end=finish)
     if collecting is not None:
-        return JSONResponse(status_code=202, content=collecting_json(stock, collecting))
+        return JSONResponse(status_code=202, content=collecting)
 
     # **차트와 같은 함수를 같은 입력으로 부른다.** 각 라우트가 따로 조립하면 한쪽만
     # 설정이나 환율 적용을 빠뜨려도 오류 없이 다른 숫자가 나온다 (SC-032).

@@ -21,6 +21,7 @@ from src.api.errors import (
     UnknownListing,
     UnknownStock,
 )
+from src.api.services.stock_collect import FxNotAvailableBefore
 from src.api.services.stock_fx import FxUnavailable
 from src.api.services.stock_simulation import BeforeListing, NoPriceData
 from src.db.session import init_engine, shutdown_engine
@@ -150,6 +151,14 @@ def create_app() -> FastAPI:
     async def _fx_unavailable(_: Request, exc: FxUnavailable) -> JSONResponse:
         # 환산할 수 없다는 사실이 드러나야 한다. 값을 만들어내지 않는다 (원칙 V).
         return _json(409, 'fx_unavailable', str(exc))
+
+    @app.exception_handler(FxNotAvailableBefore)
+    async def _fx_not_available(_: Request, exc: FxNotAvailableBefore) -> JSONResponse:
+        # 006 FR-043a — 수집하지 않는다. 두 사유를 섞지 않고 그 날짜를 함께 싣는다.
+        return JSONResponse(status_code=409, content={
+            "status": "fx_not_available_before", "reason": exc.reason,
+            "message": str(exc), "currency": exc.currency,
+            "availableFrom": exc.available_from.isoformat()})
 
     @app.exception_handler(BeforeListing)
     async def _before_listing(_: Request, exc: BeforeListing) -> JSONResponse:

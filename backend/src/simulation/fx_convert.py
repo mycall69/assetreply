@@ -26,6 +26,21 @@ _ONE = Decimal("1")
 _RATE_PLACES = Decimal("0.000001")
 
 
+def per_unit(rate: Decimal, quote_unit: int) -> Decimal:
+    """고시 단위로 나눈 **1단위당** 값 (006 FR-042, research R6-9).
+
+    외환 DB의 엔화는 100엔당 값이다. 단위를 버리면 원금 1,000,000원이 약 110,900엔이
+    아니라 1,109엔으로 환전된다(100배) — 주식을 한 주도 사지 못하고 수익률이 0%에
+    가깝게 나와, 그 종목이 움직이지 않았다고 읽힌다.
+
+    단위는 행마다 있다. 통화별 상수로 두면 출처가 단위를 바꿀 때 과거 행이 틀린다.
+    100은 10의 거듭제곱이라 `Decimal` 나눗셈이 정확하다.
+    """
+    if quote_unit <= 0:
+        raise ValueError(f"고시 단위는 양수여야 합니다: {quote_unit}")
+    return (rate / Decimal(quote_unit)).quantize(_RATE_PLACES)
+
+
 def exchange_rate(
     base_rate: Decimal, cash_buy_spread: Decimal, *, discount: Decimal = SPREAD_DISCOUNT
 ) -> Decimal:

@@ -124,7 +124,9 @@ backend/
 │   │   ├── stock_selection.py       # 신규
 │   │   ├── stock_simulation.py      # 변경 — 202 fx, 오류 본문
 │   │   ├── stock_series.py          # 변경 — 202 fx
-│   │   └── series.py·daily.py·rates.py·latest.py  # 변경 — 외환 202에 state·busyWith, jobId null 허용 (FR-046a)
+│   │   ├── series.py·daily.py·rates.py·latest.py  # 변경 — 외환 202에 state·busyWith, jobId null 허용 (FR-046a)
+│   │   └── collection.py            # 변경 — 스트림의 busyWith를 프레임마다 읽는다 (R6-10)
+│   ├── api/collection_stream.py     # 변경 — busy_with_fn (R6-10)
 │   ├── simulation/fx_convert.py     # 변경 — per_unit
 │   ├── worker/listing_worker.py     # 신규 — 목록 갱신 워커 (R6-3)
 │   ├── worker/listing_queue.py      # 신규 — 갱신 요청 큐(단위로 중복 거르기). 주식 큐와 섞지 않는다

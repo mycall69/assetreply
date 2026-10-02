@@ -155,21 +155,27 @@ class Test외환_화면의_202:
         assert body["busyWith"] is None
         assert body["progressUrl"] == "/api/fx/collection/stream?currency=USD"
 
-    @pytest.mark.parametrize(("path", "params"), [
-        ("/api/fx/daily", {"currency": "USD"}),
-        ("/api/fx/latest", {"currency": "USD"}),
+    @pytest.mark.parametrize(("module", "path", "params"), [
+        ("daily", "/api/fx/daily", {"currency": "USD"}),
+        ("latest", "/api/fx/latest", {"currency": "USD"}),
+        ("rates", "/api/fx/rates/USD", {"date": "2026-01-02"}),
     ])
-    async def test_일별표와_최신(self, client, path: str, params: dict[str, str]) -> None:
+    async def test_일별표_최신_날짜_조회(
+            self, client, monkeypatch, module: str, path: str, params: dict[str, str]) -> None:
+        """세 경로는 하루치만 보므로 결측이 임계값을 넘지 않는다 — 백그라운드 경로로 고정한다
+        (`test_daily_period_contract`와 같은 방법)."""
+        import importlib
+
+        from src.api.services.collection_gate import CollectionDecision
+
+        route = importlib.import_module(f"src.api.routes.{module}")
+        monkeypatch.setattr(
+            route, "decide_collection", lambda **_: CollectionDecision.BACKGROUND)
         res = await client.get(path, params=params)
         assert res.status_code == 202, res.text
         body = res.json()
         assert body["state"] == "queued" and body["jobId"] is None
-
-    async def test_날짜_조회(self, client) -> None:
-        res = await client.get("/api/fx/rates/USD", params={
-            "date": (YESTERDAY - dt.timedelta(days=150)).isoformat()})
-        assert res.status_code == 202, res.text
-        assert res.json()["state"] == "queued"
+        assert body["progressUrl"] == "/api/fx/collection/stream?currency=USD"
 
     async def test_다른_통화_처리_중이면_waiting(self, client) -> None:
         assert await get_queue().request("JPY")
