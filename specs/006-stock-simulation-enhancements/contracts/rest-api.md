@@ -191,7 +191,14 @@ research R6-17).
 ### 3. 종목 미등록 (FR-030b)
 
 국내·미국 종목이 아직 등록되지 않았으면 **검색용 목록으로 등록한 뒤 진행**한다(이력 재실행 경로).
-일본 종목이면 `404 unknown_stock`에 `"action": "reselect"`를 싣는다.
+시세 식별자에서 목록을 찾는 규칙은 research R6-6의 **역변환**이다. 역변환으로 찾지 못하면 국내·미국도
+`404 unknown_stock`에 `"action": "reselect"`를 싣는다. 일본 종목은 언제나 이렇게 답한다.
+
+```json
+{ "status": "unknown_stock",
+  "message": "목록에서 찾을 수 없는 종목입니다: NYSE:BRK-B. 검색에서 다시 고르세요.",
+  "action": "reselect" }
+```
 
 ### 4. 시세 출처가 종목을 모를 때 (FR-032)
 
