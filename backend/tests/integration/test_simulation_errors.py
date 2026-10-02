@@ -66,6 +66,18 @@ BASE = {"principal": "86997", "principalCurrency": "KRW", "reinvest": "true"}
 
 
 class Test상장_이전:
+    """006 — 수집 전 판정의 근거가 바뀌었다(research R6-8). 005는 **받아 둔 첫 시세**로 판정해
+    휴일 시작과 "더 이른 시작일"을 받으러 가지도 않고 거절했다. 이제 하한은 목록의 상장일과
+    출처가 준 시세 시작일이고, 받아 둔 시세는 수집 뒤의 시작 월 검사가 쓴다
+    (`test_start_available.py`)."""
+
+    @pytest.fixture(autouse=True)
+    async def _listed(self, session_factory) -> None:  # type: ignore[no-untyped-def]
+        from tests.integration.listing_support import SAMSUNG, reset_listing_state, seed
+
+        reset_listing_state()
+        await seed(session_factory, "KOSPI", [SAMSUNG])
+
     async def test_상장_이전_시작일은_400이다(self, client) -> None:
         """FR-005 — 조용히 첫 거래일로 옮기지 않는다."""
         res = await client.get("/api/stocks/simulation", params={
@@ -73,12 +85,14 @@ class Test상장_이전:
             "start": "1960-01-01", "end": "2021-08-31"})
         assert res.status_code == 400
         assert res.json()["status"] == "before_listing"
+        assert res.json()["basis"] == "listing"
 
     async def test_이유에_실제_시작_가능일이_드러난다(self, client) -> None:
         res = await client.get("/api/stocks/simulation", params={
             **BASE, "market": "KRX", "symbol": "005930.KS",
             "start": "1960-01-01", "end": "2021-08-31"})
-        assert "2021-08-02" in res.json()["message"]
+        assert "1975-06-11" in res.json()["message"]
+        assert res.json()["startableFrom"] == "1975-06-11"
 
 
 class Test시세_없음:
