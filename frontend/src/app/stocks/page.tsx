@@ -85,6 +85,7 @@ export default function StocksPage() {
           limit={limit}
           listedOn={listedOn}
           startable={startable}
+          stockCurrency={input.stock?.currency ?? null}
           onChange={(next) => setInput(next)}
           onSubmit={() => void run()}
         />

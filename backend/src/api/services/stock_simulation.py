@@ -18,7 +18,7 @@ from functools import partial
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.errors import InvalidQuery, UnknownStock
+from src.api.errors import CurrencyPairNotAllowed, InvalidQuery, UnknownStock
 from src.api.services.stock_fx import (
     InitialExchange,
     build_exchange,
@@ -85,8 +85,12 @@ class SimulationResult:
     quote_dates: frozenset[dt.date] = frozenset()
 
 
-#: 원금으로 고를 수 있는 통화 (FR-003).
-PRINCIPAL_CURRENCIES = ("KRW", "USD", "JPY", "EUR")
+#: 원금으로 고를 수 있는 통화 (005 FR-003). 006 FR-050d — **EUR을 뺀다.** 지원 시장(국내·미국·
+#: 일본) 중 유로로 거래되는 곳이 없어 어느 종목과도 조합이 되지 않는다.
+PRINCIPAL_CURRENCIES = ("KRW", "USD", "JPY")
+#: 형식으로 받아들이는 통화. EUR은 알지만 고를 수 없다 — 005 이력의 유로 원금 항목은 "모르는
+#: 통화"가 아니라 "막힌 조합"으로 답해야 사용자가 할 일을 안다(FR-050c).
+_KNOWN_CURRENCIES = ("KRW", "USD", "JPY", "EUR")
 
 
 def parse_principal(raw: str) -> Decimal:
@@ -104,16 +108,32 @@ def parse_principal(raw: str) -> Decimal:
     return amount
 
 
-def check_principal_currency(code: str) -> None:
-    """원금 통화를 검증한다 (FR-003).
+def allowed_principals(stock_currency: str) -> list[str]:
+    """그 종목에 고를 수 있는 원금 통화 — **원화와 종목 통화**뿐이다 (006 FR-050)."""
+    return list(dict.fromkeys(("KRW", stock_currency)))
+
+
+def check_principal_currency(code: str, stock_currency: str | None = None) -> None:
+    """원금 통화를 검증한다 (005 FR-003, 006 FR-050·050a, research R6-11).
 
     표와 차트가 같은 규칙을 써야 한다 — 한쪽만 통화를 거르면 같은 조건이 한 화면에서
-    거절되고 다른 화면에서 통과한다.
+    거절되고 다른 화면에서 통과한다. 006 — **어느 경로로 들어온 요청이든** 이 함수를 지난다
+    (이력 재실행, 직접 요청). 화면만 막으면 막았다고 믿는 동안 틀린 숫자가 계속 나온다.
+
+    `stock_currency`가 없으면 형식만 본다(종목을 찾기 전). 있으면 조합을 본다 — 원화도 종목
+    통화도 아니면 `currency_pair_not_allowed`다.
     """
-    if code not in PRINCIPAL_CURRENCIES:
+    if code not in _KNOWN_CURRENCIES:
         raise InvalidQuery(
             f"원금 통화는 {' · '.join(PRINCIPAL_CURRENCIES)} 중 하나여야 합니다: "
             f"{code}")
+    if stock_currency is None:
+        return
+    allowed = allowed_principals(stock_currency)
+    if code not in allowed:
+        what = "원화" if allowed == ["KRW"] else f"KRW 또는 종목 통화({stock_currency})"
+        raise CurrencyPairNotAllowed(
+            f"원금 통화는 {what}여야 합니다: {code}", allowed)
 
 
 class BeforeListing(Exception):
@@ -378,6 +398,8 @@ async def prepare(
 ) -> Prepared:
     """종목·설정·환율을 읽어 시뮬레이션을 돌린다."""
     stock = await require_stock(session, market, symbol)
+    # 계산하는 곳에서도 한 번 더 본다 — 라우트가 빠뜨려도 막힌 조합이 계산되지 않는다(FR-051).
+    check_principal_currency(principal_currency, stock.currency)
     settings = await get_settings(session)
 
     # 원금 통화와 종목 통화가 같으면 환전이 없다 (FR-023).

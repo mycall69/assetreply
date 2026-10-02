@@ -106,6 +106,8 @@ async def get_simulation(
     # **받지 못한 구간이 있으면 계산하지 않는다**(FR-049). 받은 만큼만 계산한
     # 수익률은 값이 멀쩡해 보이지만 틀렸고, 사용자는 그것을 최종 결과로 읽는다.
     stock = await require_stock(session, market, symbol)
+    # 006 FR-050 — 막힌 조합이면 수집도 계산도 하지 않는다. 수집보다 먼저 본다.
+    check_principal_currency(principal_currency, stock.currency)
     # 상장 이전 판정이 **수집보다 먼저다.** 뒤로 미루면 상장 수십 년 전부터의
     # 구간이 미수집으로 보여 수집이 시작되고, 받을 수 없는 데이터를 기다리게 된다.
     await require_start_available(session, stock, start)

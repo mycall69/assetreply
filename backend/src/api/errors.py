@@ -51,3 +51,15 @@ class UnknownStock(Exception):
 
 class UnknownListing(Exception):
     """검색용 목록에 없는 행 (006 contracts `POST /api/stocks/selection`, 404)."""
+
+
+class CurrencyPairNotAllowed(Exception):
+    """원금 통화가 원화도 종목 통화도 아니다 (006 FR-050, 400).
+
+    005는 이 조합을 원화를 경유하지 않고 계산해 오류 없이 틀린 수익률을 냈다(원금 1,000 EUR이
+    0.77 USD). 막는 이유와 **고를 수 있는 통화**를 함께 싣는다.
+    """
+
+    def __init__(self, message: str, allowed: list[str]) -> None:
+        super().__init__(message)
+        self.allowed = allowed

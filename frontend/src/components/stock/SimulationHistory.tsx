@@ -12,6 +12,7 @@
  */
 
 import { formatMoney } from "@/lib/format";
+import { isAllowedPrincipal, principalRule } from "@/lib/principalCurrency";
 import type { SimulationHistoryEntry } from "@/lib/types";
 
 const MIN_TO_COMPARE = 2;
@@ -80,6 +81,12 @@ export function SimulationHistory({
               <span className="text-gray-600">
                 재투자 {entry.reinvest ? "O" : "X"}
               </span>
+              {!isAllowedPrincipal(entry.principalCurrency, entry.stock.currency) && (
+                // 006 FR-050c — 005 시절의 막힌 조합. 지우지 않고 사유와 함께 남긴다.
+                <span className="text-xs text-amber-700">
+                  막힌 조합 — {principalRule(entry.stock.currency)}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => onRemove(entry.id)}

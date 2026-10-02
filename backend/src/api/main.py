@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 
 from src.api.errors import (
     CollectionInProgress,
+    CurrencyPairNotAllowed,
     InvalidQuery,
     InvalidSetting,
     InvalidSpread,
@@ -129,6 +130,13 @@ def create_app() -> FastAPI:
     @app.exception_handler(InvalidQuery)
     async def _invalid_query(_: Request, exc: InvalidQuery) -> JSONResponse:
         return _json(400, "invalid_query", str(exc) or "질의 매개변수가 올바르지 않습니다.")
+
+    @app.exception_handler(CurrencyPairNotAllowed)
+    async def _currency_pair(_: Request, exc: CurrencyPairNotAllowed) -> JSONResponse:
+        # 006 FR-050 — 고를 수 있는 통화를 함께 싣는다. 화면이 다시 고르게 한다.
+        return JSONResponse(status_code=400, content={
+            "status": "currency_pair_not_allowed", "message": str(exc),
+            "allowed": exc.allowed})
 
     @app.exception_handler(CollectionInProgress)
     async def _in_progress(_: Request, exc: CollectionInProgress) -> JSONResponse:

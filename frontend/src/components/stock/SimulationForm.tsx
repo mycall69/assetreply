@@ -12,9 +12,12 @@ import {
   isStartBlocked,
   type Startable,
 } from "@/components/stock/StartDateInput";
+import {
+  allowedPrincipals,
+  isAllowedPrincipal,
+  principalRule,
+} from "@/lib/principalCurrency";
 import type { PrincipalCurrency } from "@/lib/types";
-
-const CURRENCIES: readonly PrincipalCurrency[] = ["KRW", "USD", "JPY", "EUR"];
 
 export interface FormValues {
   start: string;
@@ -29,6 +32,7 @@ export function SimulationForm({
   limit,
   listedOn = null,
   startable = null,
+  stockCurrency = null,
   onChange,
   onSubmit,
 }: {
@@ -40,6 +44,8 @@ export function SimulationForm({
   listedOn?: string | null;
   /** 실행 뒤 서버가 알려 준 시작 가능 날짜 (006 FR-005). */
   startable?: Startable | null;
+  /** 고른 종목의 통화. 원금 통화의 선택지를 정한다 (006 FR-050). */
+  stockCurrency?: string | null;
   onChange: (next: FormValues) => void;
   onSubmit: () => void;
 }) {
@@ -47,6 +53,10 @@ export function SimulationForm({
     onChange({ ...values, [key]: value });
   // 실행 전에 막는다 — 미래이거나 하한보다 이른 시작일은 서버가 거절할 요청이다.
   const startBlocked = isStartBlocked(values.start, limit, listedOn, startable);
+  // 006 FR-050b — 종목을 바꿔 지금 통화가 허용되지 않게 되어도 **값을 바꾸지 않는다.** 원금
+  // 통화만 원화로 바꾸고 금액을 그대로 두면 1,000 USD가 1,000원이 된다.
+  const currencies = allowedPrincipals(stockCurrency);
+  const currencyAllowed = isAllowedPrincipal(values.principalCurrency, stockCurrency);
 
   return (
     <form
@@ -75,22 +85,36 @@ export function SimulationForm({
         />
       </label>
 
-      <label className="text-sm">
-        <span className="mb-1 block text-gray-500">통화</span>
-        <select
-          value={values.principalCurrency}
-          onChange={(e) =>
-            set("principalCurrency", e.target.value as PrincipalCurrency)
-          }
-          className="rounded border border-gray-300 px-2 py-1.5"
-        >
-          {CURRENCIES.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="text-sm">
+        <label>
+          <span className="mb-1 block text-gray-500">통화</span>
+          <select
+            value={values.principalCurrency}
+            onChange={(e) =>
+              set("principalCurrency", e.target.value as PrincipalCurrency)
+            }
+            className="rounded border border-gray-300 px-2 py-1.5"
+          >
+            {currencies.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+            {!currencyAllowed && (
+              // 지금 값을 그대로 보인다 — 선택지에서 사라지면 화면이 몰래 다른 통화를 보인다.
+              <option value={values.principalCurrency} disabled>
+                {values.principalCurrency}
+              </option>
+            )}
+          </select>
+        </label>
+        {!currencyAllowed && (
+          <p role="alert" className="mt-1 text-xs text-amber-800">
+            ⚠ {stockCurrency === "KRW" ? "국내 종목은" : "이 종목은"}{" "}
+            {principalRule(stockCurrency)}. 통화를 다시 고르세요.
+          </p>
+        )}
+      </div>
 
       <label className="flex items-center gap-2 py-1.5 text-sm">
         <input
@@ -103,7 +127,7 @@ export function SimulationForm({
 
       <button
         type="submit"
-        disabled={disabled || startBlocked}
+        disabled={disabled || startBlocked || !currencyAllowed}
         className="rounded bg-gray-900 px-5 py-2 text-sm text-white disabled:bg-gray-400"
       >
         시뮬레이션

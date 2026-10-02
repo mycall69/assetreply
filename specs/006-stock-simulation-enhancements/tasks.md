@@ -226,15 +226,15 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T076 [P] [US5] `backend/tests/integration/test_principal_currency_pair.py` — 국내 종목 + USD, 미국 종목 + EUR, 미국 종목 + JPY가 표·차트 **둘 다** `400 currency_pair_not_allowed`·`allowed`인지, **어떤 계산도 일어나지 않는지**(시세 수집 작업 미생성), `EUR`이 원금 통화로 더 이상 받아들여지지 않는지, 미국 종목 + USD는 환전 없이 계산되는지 (FR-050, FR-050a, FR-050d, FR-051, FR-052, SC-011)
-- [ ] T077 [P] [US5] `frontend/tests/SimulationFormCurrency.test.tsx` — 선택지가 `{KRW, 종목 통화}`이고 EUR이 없는지, **USD로 미국 종목을 보다가 국내 종목으로 바꾸면 통화 값이 그대로 남고 "다시 고르세요"가 보이며 실행이 막히는지** (FR-050b, FR-050d, SC-011a)
-- [ ] T078 [P] [US5] `frontend/tests/SimulationHistoryBlocked.test.tsx` — 005 시절 이력의 막힌 조합 항목이 **지워지지 않고** 남는지, 다시 실행·비교에 고르면 거절 사유가 보이는지, 비교에서 조용히 빠지지 않는지 (FR-050c)
+- [X] T076 [P] [US5] `backend/tests/integration/test_principal_currency_pair.py` — 국내 종목 + USD, 미국 종목 + EUR, 미국 종목 + JPY가 표·차트 **둘 다** `400 currency_pair_not_allowed`·`allowed`인지, **어떤 계산도 일어나지 않는지**(시세 수집 작업 미생성), `EUR`이 원금 통화로 더 이상 받아들여지지 않는지, 미국 종목 + USD는 환전 없이 계산되는지 (FR-050, FR-050a, FR-050d, FR-051, FR-052, SC-011)
+- [X] T077 [P] [US5] `frontend/tests/SimulationFormCurrency.test.tsx` — 선택지가 `{KRW, 종목 통화}`이고 EUR이 없는지, **USD로 미국 종목을 보다가 국내 종목으로 바꾸면 통화 값이 그대로 남고 "다시 고르세요"가 보이며 실행이 막히는지** (FR-050b, FR-050d, SC-011a)
+- [X] T078 [P] [US5] `frontend/tests/SimulationHistoryBlocked.test.tsx` — 005 시절 이력의 막힌 조합 항목이 **지워지지 않고** 남는지, 다시 실행·비교에 고르면 거절 사유가 보이는지, 비교에서 조용히 빠지지 않는지 (FR-050c)
 
 ### Implementation for User Story 5
 
-- [ ] T079 [US5] `backend/src/api/services/stock_simulation.py` — `check_principal_currency(code, stock_currency)`가 `{KRW, 종목 통화}`만 받게 하고 원금 통화 목록에서 EUR을 뺀다. 표·차트·이력 재실행이 모두 이 함수를 지나게 한다. `main.py`에 처리기를 더한다 (FR-050, FR-050a, FR-050d, FR-051, research R6-11)
-- [ ] T080 [US5] `frontend/src/components/stock/SimulationForm.tsx`·`frontend/src/stores/stockStore.ts` — 종목에 따라 선택지를 정하고, 허용되지 않게 되면 값을 바꾸지 않고 막는다 (FR-050b, FR-050d, ui-wireframes W3)
-- [ ] T081 [US5] `frontend/src/components/stock/SimulationHistory.tsx`·`stockStore.ts` — 막힌 이력 항목을 사유와 함께 표시한다 (FR-050c)
+- [X] T079 [US5] `backend/src/api/services/stock_simulation.py` — `check_principal_currency(code, stock_currency)`가 `{KRW, 종목 통화}`만 받게 하고 원금 통화 목록에서 EUR을 뺀다. 표·차트·이력 재실행이 모두 이 함수를 지나게 한다. `main.py`에 처리기를 더한다 (FR-050, FR-050a, FR-050d, FR-051, research R6-11)
+- [X] T080 [US5] `frontend/src/components/stock/SimulationForm.tsx`·`frontend/src/stores/stockStore.ts` — 종목에 따라 선택지를 정하고, 허용되지 않게 되면 값을 바꾸지 않고 막는다 (FR-050b, FR-050d, ui-wireframes W3)
+- [X] T081 [US5] `frontend/src/components/stock/SimulationHistory.tsx`·`stockStore.ts` — 막힌 이력 항목을 사유와 함께 표시한다. 비교에 고르면 서버에 묻지 않고 사유와 함께 실패 목록에 올린다. **005의 이력 화면에는 "다시 실행" 버튼이 없어** 재실행 경로의 거절은 서버(T079, T076)가 맡는다 (FR-050c)
 
 **Checkpoint**: 다섯 스토리가 모두 독립적으로 동작한다
 

@@ -15,6 +15,7 @@ import {
   saveHistory,
 } from "@/lib/simulationHistory";
 import { subscribeCollection } from "@/lib/collectionStream";
+import { isAllowedPrincipal, principalRule } from "@/lib/principalCurrency";
 import { createSequence } from "@/lib/searchSequence";
 import { DEFAULT_START } from "@/lib/startDate";
 import {
@@ -329,6 +330,11 @@ export const useStockStore = create<StockState>((set, get) => ({
       set({ error: "종목을 먼저 고르세요." });
       return;
     }
+    if (!isAllowedPrincipal(input.principalCurrency, input.stock.currency)) {
+      // 006 FR-050 — 거절당할 요청을 보내지 않는다. 서버도 같은 규칙으로 막는다.
+      set({ error: `${principalRule(input.stock.currency)}. 통화를 다시 고르세요.` });
+      return;
+    }
     // 이전 실행의 구독을 끊는다. 남기면 이전 조건의 완료 신호가 새 조건을 다시 요청한다.
     stopWatching();
     set({
@@ -476,6 +482,12 @@ export const useStockStore = create<StockState>((set, get) => ({
     const failed: string[] = [];
 
     for (const entry of targets) {
+      if (!isAllowedPrincipal(entry.principalCurrency, entry.stock.currency)) {
+        // 006 FR-050c — 조용히 빼지 않는다. 빼고 비교하면 그 종목이 진 것으로 읽힌다.
+        failed.push(`${entry.stock.name}(원금 ${entry.principalCurrency} — `
+          + `${principalRule(entry.stock.currency)})`);
+        continue;
+      }
       const query = toQuery({
         stock: entry.stock,
         start: entry.start,
