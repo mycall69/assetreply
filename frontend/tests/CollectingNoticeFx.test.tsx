@@ -17,6 +17,7 @@ import type { CollectionStreamHandlers } from "@/lib/collectionStream";
 import type { StockProgressHandlers } from "@/lib/stockProgressStream";
 import type {
   FxNotAvailableBefore,
+  JobRow,
   SimulationCollecting,
   SimulationResponse,
 } from "@/lib/types";
@@ -72,10 +73,38 @@ const snapshot = () => latestFx().handlers.onSnapshot({
   activeJob: { jobId: 5, rangeStart: "1977-01-01", chunksTotal: 4, chunksDone: 1 },
 } as never);
 
+const job = (jobId: number, status: JobRow["status"],
+  lastError: string | null = null): JobRow => ({
+  jobId, currency: "JPY", status, rangeStart: "1977-01-01", rangeEnd: "2026-10-01",
+  chunksTotal: 4, chunksDone: status === "succeeded" ? 4 : 1, startedAt: "2026-10-03T00:00:00Z",
+  finishedAt: status === "running" ? null : "2026-10-03T00:01:00Z", lastError,
+});
+
+/**
+ * 경로별로 답한다. 시뮬레이션은 준 순서대로(마지막 것을 반복), 환율 작업 조회는 `jobs`가 정한다.
+ * 돌려주는 `simulation`은 **시뮬레이션 요청만** 센다 — 작업 조회까지 세면 다시 요청했는지 알 수 없다.
+ */
 function mockGet(...bodies: unknown[]) {
+  return mockRoutes(bodies, () => []);
+}
+
+function mockRoutes(bodies: unknown[], jobs: () => JobRow[]) {
   const queue = [...bodies];
-  return vi.spyOn(apiClient, "get").mockImplementation((() =>
-    Promise.resolve(queue.length > 1 ? queue.shift() : queue[0])) as typeof apiClient.get);
+  const simulation = vi.fn();
+  const fxJobs = vi.fn();
+  const spy = vi.spyOn(apiClient, "get").mockImplementation(((path: string) => {
+    if (path.startsWith("/api/fx/jobs")) {
+      fxJobs(path);
+      try {
+        return Promise.resolve({ jobs: jobs() });
+      } catch (err) {
+        return Promise.reject(err);
+      }
+    }
+    simulation(path);
+    return Promise.resolve(queue.length > 1 ? queue.shift() : queue[0]);
+  }) as typeof apiClient.get);
+  return Object.assign(simulation, { spy, fxJobs });
 }
 
 beforeEach(() => {
@@ -171,6 +200,89 @@ describe("다시 요청", () => {
     const first = latestFx();
     await useStockStore.getState().run();
     expect(first.closed).toBe(true);
+  });
+});
+
+describe("환율 수집이 실패하면 (FR-047a)", () => {
+  /*
+   * T099 — analyze I1. **스트림의 `idle`만으로는 성공과 실패를 가를 수 없다.** 끝났다고 다시 요청하면
+   * 실패한 수집을 서버가 또 시작하고, 고쳐지지 않은 원인으로 실패가 끝없이 반복된다(T090에서 실제로
+   * 32건이 쌓였다). 끝난 작업을 조회해 실패면 사유를 보이고 멈춘다.
+   */
+  it.each([
+    ["failed", "환율 출처의 일일 호출 한도를 넘었습니다."],
+    ["partial", "환율 출처에 연결하지 못했습니다."],
+  ] as const)("진행을 본 작업이 %s로 끝나면 다시 요청하지 않고 사유를 보인다",
+    async (status, lastError) => {
+      let latest: JobRow[] = [];
+      const simulation = mockRoutes([FX_ONLY("queued"), RESULT], () => latest);
+      await useStockStore.getState().run();
+      snapshot();                                  // 작업 5가 돈다
+      latest = [job(5, status, lastError)];
+      idle();
+      await vi.waitFor(() => expect(useStockStore.getState().error).toContain(lastError));
+      expect(simulation).toHaveBeenCalledTimes(1);
+      expect(useStockStore.getState().collecting).toBeNull();
+      expect(latestFx().closed).toBe(true);
+    });
+
+  it("진행을 본 작업이 성공하면 다시 요청한다", async () => {
+    let latest: JobRow[] = [];
+    const simulation = mockRoutes([FX_ONLY("queued"), RESULT], () => latest);
+    await useStockStore.getState().run();
+    snapshot();
+    latest = [job(5, "succeeded")];
+    idle();
+    await vi.waitFor(() => expect(simulation).toHaveBeenCalledTimes(2));
+    expect(useStockStore.getState().error).toBeNull();
+  });
+
+  it("진행을 못 본 채 끝났어도 새 작업이 실패했으면 다시 요청하지 않는다", async () => {
+    // 구독이 붙기 전에 끝난 경우다. 구독할 때의 마지막 작업보다 새 작업이 있으면 그것이 이번 수집이다.
+    let latest: JobRow[] = [job(4, "succeeded")];
+    const simulation = mockRoutes([FX_ONLY("queued"), RESULT], () => latest);
+    await useStockStore.getState().run();
+    await vi.waitFor(() => expect(simulation.fxJobs).toHaveBeenCalled());
+    latest = [job(6, "failed", "환율 출처의 응답이 유효하지 않습니다.")];
+    idle();
+    idle();
+    await vi.waitFor(() => expect(useStockStore.getState().error)
+      .toContain("환율 출처의 응답이 유효하지 않습니다."));
+    expect(simulation).toHaveBeenCalledTimes(1);
+  });
+
+  it("진행을 못 봤고 새 작업도 없으면 예전처럼 다시 요청한다", async () => {
+    // 서버가 판정한다 — 아직 비어 있으면 다시 202를 준다. 실패를 지어내지 않는다.
+    const simulation = mockRoutes([FX_ONLY("queued"), RESULT], () => [job(4, "failed", "옛 실패")]);
+    await useStockStore.getState().run();
+    idle();
+    idle();
+    await vi.waitFor(() => expect(simulation).toHaveBeenCalledTimes(2));
+    expect(useStockStore.getState().error).toBeNull();
+  });
+
+  it("실패 뒤 사용자가 다시 실행하면 다시 요청한다", async () => {
+    let latest: JobRow[] = [];
+    const simulation = mockRoutes([FX_ONLY("queued"), FX_ONLY("queued")], () => latest);
+    await useStockStore.getState().run();
+    snapshot();
+    latest = [job(5, "failed", "환율 출처의 일일 호출 한도를 넘었습니다.")];
+    idle();
+    await vi.waitFor(() => expect(useStockStore.getState().error).not.toBeNull());
+    await useStockStore.getState().run();
+    expect(simulation).toHaveBeenCalledTimes(2);
+    expect(useStockStore.getState().error).toBeNull();
+  });
+
+  it("작업 조회가 실패하면 다시 요청한다 — 서버가 다시 판정한다", async () => {
+    // 확인 수단이 없다고 멈추면 성공한 수집도 결과를 못 본다.
+    const simulation = mockRoutes([FX_ONLY("queued"), RESULT], () => {
+      throw new ApiError(503, "unavailable", "잠시 뒤", {});
+    });
+    await useStockStore.getState().run();
+    snapshot();
+    idle();
+    await vi.waitFor(() => expect(simulation).toHaveBeenCalledTimes(2));
   });
 });
 

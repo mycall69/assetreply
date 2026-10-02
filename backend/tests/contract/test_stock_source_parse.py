@@ -77,6 +77,42 @@ class Test분할:
         assert [(s.numerator, s.denominator) for s in parsed.splits] == [(4, 1)]
 
 
+class Test실수로_온_분할_비율:
+    """006 T102 — T090에서 발견. **실제 응답은 분할 비율을 실수로 준다.**
+
+    픽스처 `chart_split_float.json`은 실제 응답이다(2026-10-03 받음, 토요타 `7203.T`,
+    2021-09~10 — 2021-09-29 5:1 분할). `numerator: 5.0`, `denominator: 1.0`이다.
+    005는 `int(str(…))`로 읽어 `'5.0'`에서 실패했고, 구간에 분할이 있는 종목의 시세
+    수집이 매번 실패했다. 005의 픽스처는 정수라 테스트가 통과했다.
+    """
+
+    def test_실제_응답의_분할을_정수로_읽는다(self) -> None:
+        parsed = parse_chart(load("chart_split_float.json"))
+        assert [(s.effective_date, s.numerator, s.denominator) for s in parsed.splits] == [
+            (dt.date(2021, 9, 29), 5, 1)]
+        assert all(isinstance(s.numerator, int) and isinstance(s.denominator, int)
+                   for s in parsed.splits)
+
+    def test_같은_응답의_일봉과_배당도_읽는다(self) -> None:
+        parsed = parse_chart(load("chart_split_float.json"))
+        assert len(parsed.prices) == 41
+        assert [(d.ex_date, d.amount_per_share) for d in parsed.dividends] == [
+            (dt.date(2021, 9, 29), Decimal("24.0"))]
+
+    @pytest.mark.parametrize(("numerator", "denominator"), [(2.5, 1.0), (3.0, 0.0), (-2.0, 1.0)])
+    def test_정수가_아닌_비율은_반올림하지_않고_거절한다(
+            self, numerator: float, denominator: float) -> None:
+        """2.5:1을 2:1이나 3:1로 바꾸면 보유 수량이 조용히 틀린다(헌법 원칙 V·VI)."""
+        from src.ingestion.yahoo.errors import StockSourceUnavailable
+
+        body = load("chart_split_float.json")
+        events = body["chart"]["result"][0]["events"]["splits"]  # type: ignore[index]
+        for item in events.values():
+            item["numerator"], item["denominator"] = numerator, denominator
+        with pytest.raises(StockSourceUnavailable):
+            parse_chart(body)
+
+
 class Test메타:
     def test_통화와_최초_거래일을_돌려준다(self, full) -> None:
         assert full.currency == "KRW"
