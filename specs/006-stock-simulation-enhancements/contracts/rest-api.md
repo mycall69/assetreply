@@ -11,6 +11,7 @@
 | `GET /api/stocks/search/external` | **신규** — 일본(TSE)만, 외부 출처 |
 | `POST /api/stocks/selection` | **신규** — 고른 종목을 등록 |
 | `GET /api/stocks/simulation`, `GET /api/stocks/simulation/series` | **바뀜** — 오류 2종, 202에 환율 상태 |
+| `GET /api/fx/series`·`/daily`·`/rates`·`/latest`의 202 (001) | **바뀜** — `jobId`가 `null`일 수 있음, `state`·`busyWith` 추가 (FR-046a) |
 
 ---
 
@@ -253,6 +254,24 @@ research R6-17).
 둘 다 수집을 시작하지 않는다. 시작하면 끝나도 여전히 비어 다시 수집하게 된다. **두 사유를 섞지 않는다** —
 `before_probe_start`를 `before_first_quote`로 말하면 설정으로 풀리는 제약이 영영 불가능한 것으로 읽힌다.
 판정 근거는 `currency.first_available_date`(001)와 `probe_start(통화)`다(research R6-10).
+**`before_probe_start`를 먼저 판정한다** — 기록된 최초 고시일은 수집한 범위 안의 첫 날이라, 탐색 시작일보다
+앞은 출처에 있는지 모른다(analyze N2).
+
+### 6a. 외환 화면의 202 — 바뀌는 점 (FR-046a)
+
+001이 정한 외환 화면의 수집 중 응답이다. 006이 `ensure_background_job`을 고치면서 바뀐다(research R6-10).
+
+```json
+{ "status": "collecting", "currency": "JPY",
+  "from": "2020-01-01", "to": "2026-10-01", "missingDays": 2465,
+  "state": "queued", "jobId": null, "busyWith": null,
+  "progressUrl": "/api/fx/collection/stream?currency=JPY" }
+```
+
+- `state`: `collecting`(실행 중 — `jobId`가 있다) \| `queued`(큐에 있다, 아직 작업 번호 없음) \| `waiting`
+  (다른 통화 처리 중 — `busyWith`에 그 통화).
+- `jobId`가 `null`이면 `progressUrl`은 003의 **통화별 스트림**이다. 작업이 시작되면 그 스트림이 진행을 보낸다.
+- 큐가 거절해도 작업을 만들지 않는다 — 실행되지 않는 작업이 다시 생기는 것을 막는다.
 
 ### 7. 엔화 환산 (FR-042)
 

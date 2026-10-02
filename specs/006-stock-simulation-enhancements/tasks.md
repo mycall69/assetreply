@@ -38,7 +38,7 @@ description: "Task list for 006-stock-simulation-enhancements"
   채워지지 않아 휴일 시작을 거절한다. **테스트 픽스처가 `stock` 행을 직접 넣으면 두 결함이 다시 가려진다** —
   US1·US3의 통합 테스트는 반드시 **검색 → 등록 → 실행** 경로를 탄다 (research R6-17)
 - **001의 `ensure_background_job`이 고아 점유를 남긴다**: 작업과 점유만 만들고 워커에 넘기지 않는다. 006은
-  환율 수집을 003의 `StartQueue`로 하고, 그 함수도 큐로 넘기도록 **함께 고친다**(T091·T092, FR-046a) —
+  환율 수집을 003의 `StartQueue`로 하고, 그 함수도 큐로 넘기도록 **함께 고친다**(T091·T092·T093, FR-046a) —
   외환 화면이 남긴 점유가 006의 수집을 막기 때문이다 (research R6-10, analyze H2)
 - **원본 응답은 지우지 않는다**: 보존 기간을 두면 헌법 원칙 V 위반이다. 같은 본문은 한 번만 저장한다
   (research R6-13, analyze C1)
@@ -135,8 +135,8 @@ description: "Task list for 006-stock-simulation-enhancements"
 
 - [ ] T045 [P] [US2] `backend/tests/unit/test_fx_per_unit.py` — `per_unit(900.000000, 100) = 9.000000`, `per_unit(x, 1) = x`, 원금 1,000,000원·100엔당 900원·스프레드 1.75%·우대 90%의 첫 환전이 **11만 엔대**인지(1,000엔대가 아님) (FR-042, SC-009, research R6-9)
 - [ ] T046 [P] [US2] `backend/tests/integration/test_simulation_fx_jpy.py` — 엔화 종목·원화 원금: `exchange.rate`와 행의 `fxRate`가 **1엔당** 값인지, 첫 환전이 **실제 첫 매수일**의 환율인지(시작일이 휴일이어도), 평가 환산이 매매기준율인지 (FR-040, FR-041, FR-042, SC-009)
-- [ ] T047 [P] [US2] `backend/tests/integration/test_fx_gate.py` — 외환 커버리지가 필요한 구간(시작일 ~ 어제)을 덮지 않으면 202에 `fx.state: queued`가 실리고 **003의 `StartQueue.request`가 불리는지**, **001의 `ensure_background_job`이 불리지 않는지**(spy). 같은 통화가 진행 중이면 새로 시작하지 않고 `collecting`인지. 다른 통화가 진행 중이면 `waiting`·`busyWith`인지. 커버리지가 중간에 멈춰 있으면(시작일은 덮고 끝은 못 덮음) 수집하는지. 주식·환율이 둘 다 비면 둘 다 실리고 결과가 없는지. **필요한 날짜가 `currency.first_available_date` 이전이면 `409 fx_not_available_before`·`reason: before_first_quote`, 탐색 시작일(`probe_start`) 이전이면 `reason: before_probe_start`인지, 두 경우 모두 수집을 요청하지 않고 다시 요청해도 반복되지 않는지, 메시지가 섞이지 않는지.** 수집이 실패해도 값을 메우지 않는지 (FR-043, FR-043a, FR-044, FR-045, FR-046, FR-047, SC-010)
-- [ ] T091 [P] [US2] `backend/tests/integration/test_fx_background_job.py` — **고치기 전에 결함을 재현한다**: 외환 차트의 202 뒤 워커가 그 작업을 실행하지 않고 점유만 남는지. 고친 뒤에는 `ensure_background_job`이 시작 큐에 요청을 넣고 점유는 워커가 잡는지, 같은 통화가 진행 중이면 그 작업 ID를 돌려주는지, 외환 차트의 202 뒤 워커가 실제로 수집하는지(스텁 출처), 고아 점유가 남지 않는지, **외환 화면이 먼저 띄운 수집을 시뮬레이션의 환율 판정이 따라가는지.** 기존 외환 테스트가 "함수가 점유를 잡는다"를 단정하면 함께 고친다 (FR-046, FR-046a, research R6-10)
+- [ ] T047 [P] [US2] `backend/tests/integration/test_fx_gate.py` — 외환 커버리지가 필요한 구간(시작일 ~ 어제)을 덮지 않으면 202에 `fx.state: queued`가 실리고 **003의 `StartQueue.request`가 불리는지**, **001의 `ensure_background_job`이 불리지 않는지**(spy). 같은 통화가 진행 중이면 새로 시작하지 않고 `collecting`인지. 다른 통화가 진행 중이면 `waiting`·`busyWith`인지. 커버리지가 중간에 멈춰 있으면(시작일은 덮고 끝은 못 덮음) 수집하는지. 주식·환율이 둘 다 비면 둘 다 실리고 결과가 없는지. **필요한 날짜가 `currency.first_available_date` 이전이면 `409 fx_not_available_before`·`reason: before_first_quote`, 탐색 시작일(`probe_start`) 이전이면 `reason: before_probe_start`인지, 두 경우 모두 수집을 요청하지 않고 다시 요청해도 반복되지 않는지, 메시지가 섞이지 않는지. **판정 순서 경계 사례**: 탐색 시작일 2000-01-01·기록된 최초일 2000-01-04·필요한 날 1980년이면 `before_probe_start`여야 하고 `before_first_quote`가 아니어야 한다 (analyze N2).** 수집이 실패해도 값을 메우지 않는지 (FR-043, FR-043a, FR-044, FR-045, FR-046, FR-047, SC-010)
+- [ ] T091 [P] [US2] `backend/tests/integration/test_fx_background_job.py` — **고치기 전에 결함을 재현한다**: 외환 차트의 202 뒤 워커가 그 작업을 실행하지 않고 점유만 남는지. 고친 뒤에는 research R6-10의 **수집 표**대로 돌려주는지 — 점유가 있으면 `collecting`·작업 번호, 큐가 받으면 `queued`·`jobId: null`·통화별 스트림 주소, 다른 통화 처리 중이면 `waiting`·`busyWith`. **함수가 작업 행과 점유를 만들지 않는지, 큐가 거절했을 때 아무것도 남지 않는지**(실행되지 않는 작업이 다시 생기면 안 된다). 외환 차트의 202 뒤 워커가 실제로 수집하는지(스텁 출처), 고아 점유가 남지 않는지, **외환 화면이 먼저 띄운 수집을 시뮬레이션의 환율 판정이 따라가는지.** 기존 외환 테스트가 "함수가 점유를 잡는다"나 "202에 항상 `jobId`가 있다"를 단정하면 함께 고친다 (FR-046, FR-046a, research R6-10, analyze N1)
 - [ ] T048 [P] [US2] `frontend/tests/CollectingNoticeFx.test.tsx` — 환율 줄이 `queued`·`collecting`·`waiting`에 맞는 문구를 보이는지, `waiting`이면 003 수집 스트림을 구독하고 그 수집이 끝나면 **화면이** 시뮬레이션을 다시 요청하는지, 둘 다 끝나기 전에는 결과를 그리지 않는지, `fx_not_available_before`이면 W4a와 "그 달로 옮기기"가 보이는지 (FR-043, FR-043a, FR-045, FR-046)
 
 ### Implementation for User Story 2
@@ -148,7 +148,8 @@ description: "Task list for 006-stock-simulation-enhancements"
 - [ ] T053 [US2] `frontend/src/lib/types.ts`에 202 `fx`와 `fx_not_available_before` 본문 타입을 더한다
 - [ ] T054 [US2] `frontend/src/stores/stockStore.ts` — `fx.state: waiting`이면 003 수집 스트림(`lib/collectionStream.ts`)을 구독하고 끝나면 다시 요청한다. 화면을 떠나면 구독을 끊는다 (FR-046, research R6-10)
 - [ ] T055 [US2] `frontend/src/components/stock/CollectingNotice.tsx`에 환율 줄(W4)과 W4a를 더한다. W4a는 `reason`에 따라 두 문구를 나눈다 (FR-043a, FR-045, FR-046, ui-wireframes W4, W4a)
-- [ ] T092 [US2] `backend/src/api/services/collection_gate.py`의 `ensure_background_job`이 점유를 직접 잡지 않고 003의 `StartQueue`로 요청을 넘기게 한다. 같은 통화가 진행 중이면 점유 테이블에서 작업 ID를 읽어 돌려준다. 외환 화면의 자동 수집 경로(`routes/series.py`·`daily.py`·`rates.py`·`latest.py`)의 응답 모양은 바꾸지 않는다 (FR-046a, research R6-10)
+- [ ] T092 [US2] `backend/src/api/services/collection_gate.py`의 `ensure_background_job`이 **작업도 점유도 만들지 않고** 003의 `StartQueue`로 요청만 넘기게 한다. 작업 번호 대신 **수집 표**(`state`: `collecting`·`queued`·`waiting`, `jobId`: 점유가 있을 때만, `busyWith`, `progressUrl`)를 돌려준다. 큐가 거절하면 아무것도 남기지 않는다 (FR-046a, research R6-10, analyze N1)
+- [ ] T093 [US2] 외환 화면의 202를 만드는 `backend/src/api/routes/series.py`·`daily.py`·`rates.py`·`latest.py`가 수집 표를 싣게 한다 — `jobId`가 `null`일 수 있고 `state`·`busyWith`가 더해지며, 시작 전이면 `progressUrl`이 `/api/fx/collection/stream?currency=`다. 006의 시뮬레이션 202 `fx`(T051·T052)도 같은 수집 표를 쓴다. 외환 화면의 프론트엔드는 이 필드를 읽지 않으므로 화면은 바꾸지 않는다 (FR-046a, contracts/rest-api 6a절)
 
 **Checkpoint**: 엔화 종목이 원화로 올바르게 계산되고, 환율이 없으면 받아 온다
 
@@ -285,6 +286,7 @@ Setup → Foundational ─┬→ US1 (MVP) ──→ US4 (미국)
 | `backend/src/api/services/listing_index.py` | T037, T074 |
 | `backend/src/api/services/stock_selection.py` | T039, T073 |
 | `backend/src/api/services/collection_gate.py` | T092 |
+| `backend/src/api/routes/series.py`·`daily.py`·`rates.py`·`latest.py` | T093 |
 | `backend/src/search/price_symbol.py` | T032, T071 |
 | `backend/src/ingestion/kiwoom/parse.py` | T033, T070 |
 | `backend/tests/unit/test_price_symbol.py` | T016, T066 |
@@ -339,6 +341,7 @@ backend/src/search/hangul.py → match.py → price_symbol.py   # T030~T032
 
 - **함께 고치는 001 결함**: `ensure_background_job`은 작업과 점유만 만들고 워커에 넘기지 않았다
   (research R6-10). 외환 화면의 자동 수집이 실제로 돌지 않았고, 남긴 점유가 006의 환율 수집을 막는다.
-  T091·T092가 고친다 — 외환 화면의 동작도 바뀐다(이제 실제로 수집한다)
+  T091·T092·T093이 고친다 — 외환 화면의 동작도 바뀐다(이제 실제로 수집한다). 외환 202 본문은 `jobId`가
+  `null`일 수 있고 `state`·`busyWith`가 더해진다(화면은 그 필드를 읽지 않는다)
 - 커밋은 페이즈마다 한다
 - 각 체크포인트에서 멈추고 그 스토리를 독립적으로 검증한다

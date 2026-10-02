@@ -116,14 +116,15 @@ backend/
 │   │   ├── listing_refresh.py       # 신규 — 갱신 판정(오늘·간격·상한·막힘), 교체 트랜잭션
 │   │   ├── stock_selection.py       # 신규 — 고른 종목 등록 (R6-17)
 │   │   ├── stock_collect.py         # 변경 — 환율 판정 추가 (R6-10)
-│   │   ├── collection_gate.py       # 변경 — ensure_background_job이 시작 큐로 넘긴다 (R6-10, FR-046a)
+│   │   ├── collection_gate.py       # 변경 — ensure_background_job이 시작 큐로 넘기고 수집 표를 돌려준다 (R6-10, FR-046a)
 │   │   ├── stock_fx.py              # 변경 — 고시 단위 반영 (R6-9)
 │   │   └── stock_simulation.py      # 변경 — 원금 통화 판정, 시작 가능 날짜 (R6-8, R6-11)
 │   ├── api/routes/
 │   │   ├── stock_search.py          # 변경 — 로컬 검색 + /external 분리 (R6-12)
 │   │   ├── stock_selection.py       # 신규
 │   │   ├── stock_simulation.py      # 변경 — 202 fx, 오류 본문
-│   │   └── stock_series.py          # 변경 — 202 fx
+│   │   ├── stock_series.py          # 변경 — 202 fx
+│   │   └── series.py·daily.py·rates.py·latest.py  # 변경 — 외환 202에 state·busyWith, jobId null 허용 (FR-046a)
 │   ├── simulation/fx_convert.py     # 변경 — per_unit
 │   ├── worker/listing_worker.py     # 신규 — 목록 갱신 워커 (R6-3)
 │   ├── db/models.py                 # 변경 — 신규 테이블 5개
@@ -211,7 +212,7 @@ frontend/
 | FR-044 (필요 구간 전체) | research R6-10 필요한 구간 |
 | FR-045 (둘 다 끝나야 결과) | contracts/rest-api 202 절, ui-wireframes W4, quickstart 17 |
 | FR-046 (다른 통화 수집 대기) | research R6-10 한 번에 한 통화, contracts/rest-api `fx.state: waiting`, quickstart 18 |
-| FR-046a (실제로 실행되는 수집 경로) | research R6-10 "발견한 결함", `api/services/collection_gate.py`, quickstart 18 |
+| FR-046a (실제로 실행되는 수집 경로) | research R6-10 "발견한 결함"·수집 표, `api/services/collection_gate.py`, contracts/rest-api 6a절(외환 202), quickstart 18 |
 | FR-047 (수집 실패 시 메우지 않음) | research R6-10, Constitution Check V |
 | FR-050, SC-011 (원금 통화 제한) | research R6-11, contracts/rest-api `currency_pair_not_allowed`, quickstart 20 |
 | FR-050a (모든 경로에서 거절) | research R6-11 서버 한 함수, quickstart 20 `curl` |
@@ -235,4 +236,4 @@ frontend/
 | **원칙 II — 키움 이용약관** | 국내·미국 한글·초성 검색에는 한글 종목명을 주는 목록이 필요하고, 사용자가 키움을 지정했다 | 약관 페이지가 로그인 뒤에 있어 설계 중에는 읽지 못했다. **사용자가 확인했다(2026-10-02).** 공식 고객용 API의 조회 기능을 개인 용도로 쓰며 목록을 재배포하지 않는다 — 저장소도 비공개다(사용자 확인 2026-10-02). 도구를 공개하거나 여럿에게 제공하면 다시 따진다(005의 Yahoo 판단과 같은 전제) |
 | **메모리 색인** — DB가 원본인데 사본을 프로세스에 둔다 | 초성·혼용 일치는 SQL `LIKE` 하나로 표현할 수 없고, DB 고유 문법은 이식성 규약에 걸린다(R6-5) | 매 검색마다 전 목록을 DB에서 읽는 방법은 SC-001(0.5초)을 위협한다. 색인은 단위별 기준 시각을 버전으로 들고 검색마다 확인하므로 **DB와 어긋난 채 머물지 않는다** |
 | **005 결함 수정이 이 기능에 섞인다** — 종목 등록(FR-030b), 시작 가능 날짜 판정(FR-005a) | 006의 검색이 고른 종목을 시뮬레이션까지 잇지 못하면 이 기능 전체가 무의미하다. 기본 시작일 2020-01-01이 휴일이라 005의 판정으로는 매번 거절된다 | 005로 돌아가 따로 고치면 006이 그 수정을 기다려야 하고, 같은 파일을 두 브랜치가 고친다. 결함과 근거는 research R6-17·R6-8에 따로 적어 추적할 수 있게 했다 |
-| **001의 `ensure_background_job`을 006에서 고친다** — 외환 화면의 동작이 바뀐다 | 외환 화면이 남긴 고아 점유가 006의 환율 수집을 막는다(FR-046a, analyze H2) | 006이 감지만 하고 안내하는 방법은 외환 화면의 결함을 남긴다 — 지금은 외환 화면의 자동 수집이 실제로 돌지 않는다. 고치면 그것도 함께 돈다. 바뀌는 동작은 "점유를 누가 잡는가"뿐이며, 기존 외환 테스트가 옛 동작을 단정하면 함께 고친다(tasks T091) |
+| **001의 `ensure_background_job`을 006에서 고친다** — 외환 화면의 동작이 바뀐다 | 외환 화면이 남긴 고아 점유가 006의 환율 수집을 막는다(FR-046a, analyze H2) | 006이 감지만 하고 안내하는 방법은 외환 화면의 결함을 남긴다 — 지금은 외환 화면의 자동 수집이 실제로 돌지 않는다. 고치면 그것도 함께 돈다. 바뀌는 것은 "작업과 점유를 누가 만드는가"와 외환 202 본문(`jobId`가 `null`일 수 있음, `state`·`busyWith` 추가)이다. 외환 화면의 프론트엔드는 두 필드를 읽지 않아 화면은 그대로다. 기존 외환 테스트가 옛 동작을 단정하면 함께 고친다(tasks T091, analyze N1) |
