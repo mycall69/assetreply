@@ -1,22 +1,28 @@
 /**
- * 종목 검색 (T031) — 005 FR-002a, FR-002b, SC-030, SC-031.
+ * 종목 검색 (T031) — 005 FR-002a, FR-002b, SC-030, SC-031. 006에서 두 영역으로 바뀌었다(T043).
  *
  * **코드를 직접 입력하게 하지 않는다.** 시장별 코드 체계(6자리 숫자·알파벳 티커·
  * 4자리 숫자)를 사용자가 알아야 하고, **오타와 "없는 종목"을 구별할 수 없다** —
  * 둘 다 "시세를 얻을 수 없음"으로 보이는데 사용자가 할 일은 정반대다.
+ *
+ * 006 — 고른 결과는 종목 식별이 아니라 **선택**(목록 행 또는 일본 외부 결과)으로 알린다. 식별은
+ * 등록 응답이 정한다(FR-030b) — 그 흐름은 `stockSelection.test.ts`가 본다.
  */
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { StockSearch } from "@/components/stock/StockSearch";
-import { apiClient } from "@/lib/apiClient";
 import type { StockSearchResult } from "@/lib/types";
+import {
+  SAMSUNG,
+  TOYOTA,
+  external,
+  local,
+  routeGet,
+} from "./support/stockSearchFixtures";
 
-const SAMSUNG: StockSearchResult = {
+const SELECTED: StockSearchResult = {
   market: "KRX", symbol: "005930.KS", name: "삼성전자", currency: "KRW",
-};
-const APPLE: StockSearchResult = {
-  market: "NASDAQ", symbol: "AAPL", name: "Apple Inc.", currency: "USD",
 };
 
 beforeEach(() => {
@@ -25,41 +31,43 @@ beforeEach(() => {
 
 describe("종목 검색", () => {
   it("검색어를 입력하면 후보를 보여준다", async () => {
-    vi.spyOn(apiClient, "get").mockResolvedValue({
-      query: "삼성", results: [SAMSUNG],
-    });
+    routeGet({ local: () => Promise.resolve(local([SAMSUNG])) });
     render(<StockSearch value={null} onSelect={vi.fn()} />);
     await userEvent.type(screen.getByRole("searchbox"), "삼성");
-    await waitFor(() => {
-      expect(screen.getByText("삼성전자")).toBeInTheDocument();
-    });
+    expect(await screen.findByRole("option", { name: /삼성전자/ })).toBeInTheDocument();
   });
 
   it("각 후보에 시장과 통화가 보인다", async () => {
     // FR-002b — 같은 이름이 여러 시장에 있고, 통화가 다르면 환전 여부가 달라진다.
-    vi.spyOn(apiClient, "get").mockResolvedValue({
-      query: "a", results: [SAMSUNG, APPLE],
+    routeGet({
+      local: () => Promise.resolve(local([SAMSUNG])),
+      external: () => Promise.resolve(external([TOYOTA])),
     });
     render(<StockSearch value={null} onSelect={vi.fn()} />);
     await userEvent.type(screen.getByRole("searchbox"), "a");
-    await waitFor(() => {
-      expect(screen.getByText(/KRX/)).toBeInTheDocument();
-    });
-    expect(screen.getByText(/KRW/)).toBeInTheDocument();
-    expect(screen.getByText(/NASDAQ/)).toBeInTheDocument();
-    expect(screen.getByText(/USD/)).toBeInTheDocument();
+    const samsung = await screen.findByRole("option", { name: /삼성전자/ });
+    const toyota = await screen.findByRole("option", { name: /Toyota/ });
+    expect(samsung.textContent).toMatch(/KRX.*KRW/);
+    expect(toyota.textContent).toMatch(/TSE.*JPY/);
   });
 
-  it("후보를 고르면 그 종목으로 알린다", async () => {
+  it("목록 후보를 고르면 그 선택으로 알린다", async () => {
     const onSelect = vi.fn();
-    vi.spyOn(apiClient, "get").mockResolvedValue({
-      query: "삼성", results: [SAMSUNG],
-    });
+    routeGet({ local: () => Promise.resolve(local([SAMSUNG])) });
     render(<StockSearch value={null} onSelect={onSelect} />);
     await userEvent.type(screen.getByRole("searchbox"), "삼성");
-    await waitFor(() => screen.getByRole("option", { name: /삼성전자/ }));
-    await userEvent.click(screen.getByRole("option", { name: /삼성전자/ }));
-    expect(onSelect).toHaveBeenCalledWith(SAMSUNG);
+    await userEvent.click(await screen.findByRole("option", { name: /삼성전자/ }));
+    expect(onSelect).toHaveBeenCalledWith({ source: "listing", listingId: 1021,
+      preview: SAMSUNG });
+  });
+
+  it("일본 후보를 고르면 외부 선택으로 알린다", async () => {
+    const onSelect = vi.fn();
+    routeGet({ external: () => Promise.resolve(external([TOYOTA])) });
+    render(<StockSearch value={null} onSelect={onSelect} />);
+    await userEvent.type(screen.getByRole("searchbox"), "toyota");
+    await userEvent.click(await screen.findByRole("option", { name: /Toyota/ }));
+    expect(onSelect).toHaveBeenCalledWith({ source: "external", result: TOYOTA });
   });
 
   it("코드를 직접 넣는 칸이 없다", () => {
@@ -72,38 +80,26 @@ describe("종목 검색", () => {
 
   it("키보드로 후보를 고를 수 있다", async () => {
     const onSelect = vi.fn();
-    vi.spyOn(apiClient, "get").mockResolvedValue({
-      query: "삼성", results: [SAMSUNG],
-    });
+    routeGet({ local: () => Promise.resolve(local([SAMSUNG])) });
     render(<StockSearch value={null} onSelect={onSelect} />);
     await userEvent.type(screen.getByRole("searchbox"), "삼성");
-    await waitFor(() => screen.getByRole("option", { name: /삼성전자/ }));
+    await screen.findByRole("option", { name: /삼성전자/ });
     await userEvent.keyboard("{ArrowDown}{Enter}");
-    expect(onSelect).toHaveBeenCalledWith(SAMSUNG);
+    expect(onSelect).toHaveBeenCalledWith({ source: "listing", listingId: 1021,
+      preview: SAMSUNG });
   });
 
-  it("결과가 없으면 그 사실을 알린다", async () => {
-    vi.spyOn(apiClient, "get").mockResolvedValue({ query: "zzz", results: [] });
-    render(<StockSearch value={null} onSelect={vi.fn()} />);
-    await userEvent.type(screen.getByRole("searchbox"), "zzz");
-    await waitFor(() => {
-      expect(screen.getByText(/찾지 못했습니다/)).toBeInTheDocument();
-    });
-  });
-
-  it("검색이 실패하면 결과 없음과 다르게 말한다", async () => {
-    // 출처가 죽었는데 "없습니다"라고 하면 사용자는 그 종목이 존재하지 않는다고 읽는다.
-    vi.spyOn(apiClient, "get").mockRejectedValue(new Error("출처 장애"));
+  it("고르면 검색어와 후보를 닫는다", async () => {
+    routeGet({ local: () => Promise.resolve(local([SAMSUNG])) });
     render(<StockSearch value={null} onSelect={vi.fn()} />);
     await userEvent.type(screen.getByRole("searchbox"), "삼성");
-    await waitFor(() => {
-      expect(screen.getByRole("alert")).toBeInTheDocument();
-    });
-    expect(screen.queryByText(/찾지 못했습니다/)).toBeNull();
+    await userEvent.click(await screen.findByRole("option", { name: /삼성전자/ }));
+    await waitFor(() => expect(screen.queryByRole("option")).toBeNull());
+    expect(screen.getByRole("searchbox")).toHaveValue("");
   });
 
   it("고른 종목이 있으면 그것을 보여준다", () => {
-    render(<StockSearch value={SAMSUNG} onSelect={vi.fn()} />);
+    render(<StockSearch value={SELECTED} onSelect={vi.fn()} />);
     expect(screen.getByText("삼성전자")).toBeInTheDocument();
   });
 });
