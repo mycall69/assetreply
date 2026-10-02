@@ -261,6 +261,23 @@ describe("환율 수집이 실패하면 (FR-047a)", () => {
     expect(useStockStore.getState().error).toBeNull();
   });
 
+  it("진행을 못 본 채 끝나 판정 없이 다시 요청하는 것은 한 번뿐이다", async () => {
+    // 출처가 곧바로 거절하면 작업이 구독보다 먼저 끝나 **기준 자체가 된다** — 새 작업이 없어 보인다.
+    // 그때마다 다시 요청하면 같은 실패가 끝없이 반복된다. 두 번째에는 마지막 작업을 이번 것으로 본다.
+    const LIMIT = "환율 출처의 일일 호출 한도를 넘었습니다.";
+    const simulation = mockRoutes([FX_ONLY("queued")], () => [
+      simulation.mock.calls.length < 2 ? job(7, "failed", LIMIT) : job(8, "failed", LIMIT)]);
+    await useStockStore.getState().run();
+    idle();
+    idle();
+    await vi.waitFor(() => expect(simulation).toHaveBeenCalledTimes(2));
+    expect(useStockStore.getState().error).toBeNull();
+    idle();
+    idle();
+    await vi.waitFor(() => expect(useStockStore.getState().error).toContain(LIMIT));
+    expect(simulation).toHaveBeenCalledTimes(2);
+  });
+
   it("실패 뒤 사용자가 다시 실행하면 다시 요청한다", async () => {
     let latest: JobRow[] = [];
     const simulation = mockRoutes([FX_ONLY("queued"), FX_ONLY("queued")], () => latest);
