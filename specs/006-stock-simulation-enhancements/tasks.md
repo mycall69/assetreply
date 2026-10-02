@@ -242,14 +242,14 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T082 [P] `backend/tests/unit/test_no_float.py`에 검사를 더한다 — `src/search/`, `ingestion/kiwoom/`, `api/services/listing_*.py`, `api/services/stock_collect.py`에 `float(` 사용이 없는지 (헌법 원칙 VI)
-- [ ] T083 [P] `backend/tests/unit/test_no_interpolation.py`에 검사를 더한다 — 목록 교체와 환율 판정 경로에 값을 채우는 코드가 없는지. 빠진 종목·환율이 없는 구간을 값으로 메우지 않는다. 또 **`repository/stock_listing.py`에 `delete(`가 없는지** — 종목과 원본을 지우는 경로가 생기면 헌법 원칙 V(원본 보존)와 FR-019가 함께 깨진다 (FR-019, FR-043a, FR-047, FR-061, 헌법 원칙 V)
-- [ ] T084 `README.md` — 현재 상태 표에 006을 더하고, 데이터 출처에 키움(검색용 목록, 공식 API)과 **이용 조건**(계좌·HTS ID·사용 등록, 약관 원문은 사용자 확인)을 적고, "가상자산은 006"을 "다음 자산군 기능(번호 미정)"으로 고친다 (FR-064, FR-070, research R6-15, R6-16)
-- [ ] T085 `CLAUDE.md` — 현재 상태 표에 006을 더하고, "가상자산은 006" 문구를 고치고, 키움 인증 정보 설정과 목록 갱신 워커(`lifespan`의 네 번째 태스크)를 운영 메모에 적는다. 005 `plan.md`는 고치지 않는다 (FR-070)
-- [ ] T086 `backend/`에서 mypy strict(`src`)와 ruff(`src`·`tests`)를 통과시킨다
-- [ ] T087 `frontend/`에서 `npx tsc --noEmit`과 `npx eslint .`를 통과시킨다. `any` 금지
-- [ ] T088 `backend/`에서 커버리지 80% 이상을 확인한다 — `cd backend && .venv/bin/python -m pytest -q --cov=src`
-- [ ] T089 `backend/tests/`와 `frontend/tests/` 전체가 **네트워크 차단 상태에서** 통과하는지 확인한다. 005가 더한 소켓 가드가 키움 호출도 막는지 본다 (헌법 원칙 III)
+- [X] T082 [P] `backend/tests/unit/test_no_float.py`에 검사를 더한다 — `src/search/`, `ingestion/kiwoom/`, `api/services/listing_*.py`, `api/services/stock_collect.py`에 `float(` 사용이 없는지 (헌법 원칙 VI)
+- [X] T083 [P] `backend/tests/unit/test_no_interpolation.py`에 검사를 더한다 — 목록 교체와 환율 판정 경로에 값을 채우는 코드가 없는지. 빠진 종목·환율이 없는 구간을 값으로 메우지 않는다. 또 **`repository/stock_listing.py`에 `delete(`가 없는지** — 종목과 원본을 지우는 경로가 생기면 헌법 원칙 V(원본 보존)와 FR-019가 함께 깨진다. 지워야 하는 점유는 `repository/stock_listing_lock.py`로 옮겼다(이 검사가 의미를 갖게 하려고) (FR-019, FR-043a, FR-047, FR-061, 헌법 원칙 V)
+- [X] T084 `README.md` — 현재 상태 표에 006을 더하고, 데이터 출처에 키움(검색용 목록, 공식 API)과 **이용 조건**(계좌·HTS ID·사용 등록, 약관 원문은 사용자 확인)을 적고, "가상자산은 006"을 "다음 자산군 기능(번호 미정)"으로 고친다 (FR-064, FR-070, research R6-15, R6-16)
+- [X] T085 `CLAUDE.md` — 현재 상태 표에 006을 더하고, "가상자산은 006" 문구를 고치고, 키움 인증 정보 설정과 목록 갱신 워커(`lifespan`의 네 번째 태스크)를 운영 메모에 적는다. 005 `plan.md`는 고치지 않는다 (FR-070)
+- [X] T086 `backend/`에서 mypy strict(`src`)와 ruff(`src`·`tests`)를 통과시킨다
+- [X] T087 `frontend/`에서 `npx tsc --noEmit`과 `npx eslint .`를 통과시킨다. `any` 금지
+- [X] T088 `backend/`에서 커버리지 80% 이상을 확인한다 — `cd backend && .venv/bin/python -m pytest -q --cov=src`
+- [X] T089 `backend/tests/`와 `frontend/tests/` 전체가 **네트워크 차단 상태에서** 통과하는지 확인한다. 005가 더한 소켓 가드가 키움 호출도 막는지 본다 — `backend/tests/unit/test_network_guard.py`가 키움 도메인 접속과 aiohttp 경로(해석된 주소)가 가드에 걸리는지 검증한다 (헌법 원칙 III)
 - [ ] T090 `quickstart.md`의 시나리오 22개를 순서대로 수동 실행하고 결과를 기록한다. 시나리오 1은 인증 정보를 넣기 전에 해야 한다. 시나리오 2의 측정값으로 research R6-2를 채운다. **실제 출처를 부르므로 미국 목록은 분당 제한을 지킨다.** 시나리오마다 검증하는 FR·SC는 quickstart에 적혀 있다 — 범위 표기로 묶지 않는다(004의 교훈: 범위 표기는 검색에 걸리지 않는다)
 
 ---

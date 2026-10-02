@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.api.services.listing_refresh import ListingSource, refresh_unit
 from src.config.settings import Settings
 from src.ingestion.kiwoom.client import US_UNITS
-from src.repository import stock_listing as repo
+from src.repository import stock_listing_lock as locks
 from src.worker.listing_queue import ListingQueue
 
 _log = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ _log = logging.getLogger(__name__)
 async def startup(session_factory: async_sessionmaker[AsyncSession]) -> None:
     """기동 시 남은 점유를 모두 푼다."""
     async with session_factory() as session:
-        await repo.release_all_locks(session)
+        await locks.release_all_locks(session)
         await session.commit()
 
 

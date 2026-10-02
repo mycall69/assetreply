@@ -34,6 +34,7 @@ from src.ingestion.kiwoom.parse import parse_listing, source_of
 from src.observability.events import mask_secrets
 from src.observability.logging_config import collection_logger
 from src.repository import stock_listing as repo
+from src.repository import stock_listing_lock as locks
 from src.worker.listing_queue import ListingQueue
 
 #: 검색이 다루는 목록 단위 (FR-015). 국내를 앞에 둔다 — 그날 첫 검색에서 먼저 요청된다.
@@ -199,11 +200,11 @@ async def request_refreshes(
     정체 점유를 여기서 회수한다 — 프로세스가 갱신 도중 죽으면 점유가 남고, 회수하지 않으면 그 단위는
     다시 갱신할 수 없으며 화면은 영원히 "갱신 중"이다.
     """
-    await repo.reclaim_stale_locks(
+    await locks.reclaim_stale_locks(
         session, now, stale_after=dt.timedelta(minutes=settings.listing_lock_stale_minutes))
     await session.commit()
     records = await repo.all_refresh(session)
-    locked = await repo.locked_units(session)
+    locked = await locks.locked_units(session)
     today = kst_date(now)
 
     states: list[ListState] = []
@@ -290,7 +291,7 @@ async def refresh_unit(
     blocker = blocker if blocker is not None else get_auth_blocker()
     started = now()
     async with session_factory() as session:
-        if not await repo.try_lock(session, unit, started):
+        if not await locks.try_lock(session, unit, started):
             return RefreshResult(unit, "busy", None, 0)
 
     try:
@@ -313,7 +314,7 @@ async def refresh_unit(
         fetched = now()
         # 원본은 검사 전에 남긴다 — 실패한 갱신의 원본이 무엇이 잘못 왔는지 되짚는 근거다.
         async with session_factory() as session:
-            await repo.heartbeat(session, unit, fetched)
+            await locks.heartbeat(session, unit, fetched)
             await repo.store_raw_pages(
                 session, unit,
                 [repo.RawPage(p.page_no, p.status, p.body) for p in pages],
@@ -349,5 +350,5 @@ async def refresh_unit(
         return RefreshResult(unit, "replaced", None, len(rows))
     finally:
         async with session_factory() as session:
-            await repo.release_lock(session, unit)
+            await locks.release_lock(session, unit)
             await session.commit()

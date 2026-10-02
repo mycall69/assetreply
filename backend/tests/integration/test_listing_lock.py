@@ -10,11 +10,11 @@ import datetime as dt
 
 import pytest
 from sqlalchemy import select
-from src.api.services.listing_refresh import AuthBlocker, refresh_unit
-from src.worker.listing_worker import startup
 
+from src.api.services.listing_refresh import AuthBlocker, refresh_unit
 from src.db.models import StockListingLock
-from src.repository import stock_listing as repo
+from src.repository import stock_listing_lock as lock_repo
+from src.worker.listing_worker import startup
 from tests.integration.listing_support import (
     KOSPI_ROWS,
     NOW,
@@ -41,22 +41,22 @@ async def locks(session_factory) -> list[str]:  # type: ignore[no-untyped-def]
 class Test기본_키_점유:
     async def test_같은_단위는_하나만_잡는다(self, session_factory) -> None:
         async with session_factory() as s:
-            assert await repo.try_lock(s, "KOSPI", NOW) is True
+            assert await lock_repo.try_lock(s, "KOSPI", NOW) is True
         async with session_factory() as s:
-            assert await repo.try_lock(s, "KOSPI", NOW) is False
+            assert await lock_repo.try_lock(s, "KOSPI", NOW) is False
         async with session_factory() as s:
             # 다른 단위는 막지 않는다 — 한 시장의 갱신이 다른 시장을 기다릴 이유가 없다.
-            assert await repo.try_lock(s, "KOSDAQ", NOW) is True
+            assert await lock_repo.try_lock(s, "KOSDAQ", NOW) is True
         assert sorted(await locks(session_factory)) == ["KOSDAQ", "KOSPI"]
 
     async def test_풀면_다시_잡을_수_있다(self, session_factory) -> None:
         async with session_factory() as s:
-            assert await repo.try_lock(s, "KOSPI", NOW)
+            assert await lock_repo.try_lock(s, "KOSPI", NOW)
         async with session_factory() as s:
-            await repo.release_lock(s, "KOSPI")
+            await lock_repo.release_lock(s, "KOSPI")
             await s.commit()
         async with session_factory() as s:
-            assert await repo.try_lock(s, "KOSPI", NOW)
+            assert await lock_repo.try_lock(s, "KOSPI", NOW)
 
 
 class Test동시_갱신:
@@ -99,17 +99,17 @@ class Test정체_회수:
     async def test_기동_시_남은_점유를_푼다(self, session_factory) -> None:
         """프로세스가 하나다. 기동 시점에 남은 점유는 죽은 프로세스의 것이다."""
         async with session_factory() as s:
-            await repo.try_lock(s, "KOSPI", NOW)
+            await lock_repo.try_lock(s, "KOSPI", NOW)
         await startup(session_factory)
         assert await locks(session_factory) == []
 
     async def test_심장박동이_10분_넘게_멈춘_점유를_회수한다(self, session_factory) -> None:
         async with session_factory() as s:
-            await repo.try_lock(s, "KOSPI", NOW - dt.timedelta(minutes=11))
+            await lock_repo.try_lock(s, "KOSPI", NOW - dt.timedelta(minutes=11))
         async with session_factory() as s:
-            await repo.try_lock(s, "KOSDAQ", NOW - dt.timedelta(minutes=9))
+            await lock_repo.try_lock(s, "KOSDAQ", NOW - dt.timedelta(minutes=9))
         async with session_factory() as s:
-            reclaimed = await repo.reclaim_stale_locks(
+            reclaimed = await lock_repo.reclaim_stale_locks(
                 s, NOW, stale_after=dt.timedelta(minutes=10))
             await s.commit()
         assert reclaimed == ["KOSPI"]
@@ -117,10 +117,10 @@ class Test정체_회수:
 
     async def test_심장박동을_갱신하면_회수되지_않는다(self, session_factory) -> None:
         async with session_factory() as s:
-            await repo.try_lock(s, "KOSPI", NOW - dt.timedelta(minutes=30))
+            await lock_repo.try_lock(s, "KOSPI", NOW - dt.timedelta(minutes=30))
         async with session_factory() as s:
-            await repo.heartbeat(s, "KOSPI", NOW - dt.timedelta(minutes=1))
+            await lock_repo.heartbeat(s, "KOSPI", NOW - dt.timedelta(minutes=1))
             await s.commit()
         async with session_factory() as s:
-            assert await repo.reclaim_stale_locks(
+            assert await lock_repo.reclaim_stale_locks(
                 s, NOW, stale_after=dt.timedelta(minutes=10)) == []

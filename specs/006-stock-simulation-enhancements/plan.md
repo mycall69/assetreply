@@ -110,7 +110,8 @@ backend/
 │   │   ├── match.py                 #   일치 판정, 순위, 결정적 정렬
 │   │   └── price_symbol.py          #   목록 종목 → 005 시세 식별자
 │   ├── repository/
-│   │   └── stock_listing.py         # 신규 — 목록·갱신 기록·점유·원본
+│   │   ├── stock_listing.py         # 신규 — 목록·갱신 기록·원본. 삭제 질의 없음 (T083)
+│   │   └── stock_listing_lock.py    # 신규 — 갱신 점유(지우는 것은 점유뿐)
 │   ├── api/services/
 │   │   ├── listing_index.py         # 신규 — 메모리 색인, 버전 확인
 │   │   ├── listing_refresh.py       # 신규 — 갱신 판정(오늘·간격·상한·막힘), 교체 트랜잭션

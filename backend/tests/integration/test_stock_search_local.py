@@ -15,7 +15,7 @@ from src.api.main import create_app
 from src.api.services.listing_refresh import AuthBlocker, refresh_unit
 from src.db.session import get_session
 from src.ingestion.kiwoom.errors import KiwoomUnavailable
-from src.repository import stock_listing as repo
+from src.repository import stock_listing_lock as locks
 from src.worker.listing_queue import ListingQueue
 from tests.integration.listing_support import (
     KOSDAQ_ROWS,
@@ -192,7 +192,7 @@ class Test목록_상태:
         """FR-017 — 기다리게 하면 그날 첫 검색이 수 분 걸린다."""
         await seed(session_factory, "KOSPI", KOSPI_ROWS, now=YESTERDAY_NOW)
         async with session_factory() as s:
-            assert await repo.try_lock(s, "KOSPI", NOW)
+            assert await locks.try_lock(s, "KOSPI", NOW)
         body = await search(make_client, "삼성")
         kospi = lists_by_unit(body)["KOSPI"]
         assert kospi["state"] == "refreshing"
