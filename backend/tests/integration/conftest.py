@@ -29,6 +29,21 @@ def _reset_stock_queue():
     reset_stock_queue()
 
 
+@pytest.fixture(autouse=True)
+def _reset_fx_queue():
+    """외환 시작 큐(003)를 테스트 사이에 비운다.
+
+    006부터 외환 화면의 202 경로와 시뮬레이션의 환율 판정이 **실제로 큐에 넣는다**
+    (FR-046a). 비우지 않으면 앞 테스트가 넣은 통화가 남아, 뒤 테스트가 다른 통화를
+    요청하면 "다른 통화 처리 중(waiting)"으로 거절된다.
+    """
+    from src.worker.queue import reset_queue
+
+    reset_queue()
+    yield
+    reset_queue()
+
+
 @pytest.fixture
 def settings() -> Settings:
     return load_settings()

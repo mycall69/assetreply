@@ -14,7 +14,14 @@ from sqlalchemy import select
 
 from src.api.main import create_app
 from src.db.dialect import upsert
-from src.db.models import FxRate, Stock, StockCoverage, StockDividend, StockPrice
+from src.db.models import (
+    FxCoverage,
+    FxRate,
+    Stock,
+    StockCoverage,
+    StockDividend,
+    StockPrice,
+)
 from src.db.session import get_session
 
 D = dt.date.fromisoformat
@@ -73,6 +80,10 @@ async def client(session_factory):
             "base_rate": Decimal(v), "quote_unit": 1,
             "source": "ECOS:731Y001", "is_provisional": False}
             for d, v in FX.items()])
+        # 006 FR-043 — 환율도 "수집을 마친 상태"여야 한다. 적지 않으면 환율 수집 중(202)이다.
+        await upsert(s, FxCoverage, [{
+            "currency_code": "USD", "covered_from": D("2021-07-01"),
+            "covered_through": D("2021-11-30")}], preserve=())
         await s.commit()
 
     app = create_app()

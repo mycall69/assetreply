@@ -98,8 +98,9 @@ async def test_수집_중_응답은_기간_단위와_무관하게_같다(
         body = res.json()
         assert body["status"] == "collecting"
         assert body["currency"] == "USD"
+        # 006 FR-046a — 수집 표(`state`·`busyWith`)가 더해지고 `jobId`는 `null`일 수 있다.
         assert set(body) == {
-            "status", "currency", "jobId", "missingDays", "progressUrl"}
+            "status", "currency", "jobId", "missingDays", "progressUrl", "state", "busyWith"}
 
 
 async def test_지원하지_않는_통화는_404다(client: AsyncClient) -> None:

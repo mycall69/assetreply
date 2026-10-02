@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from src.api.main import create_app
 from src.db.dialect import upsert
-from src.db.models import Stock, StockCoverage, StockPrice
+from src.db.models import FxCoverage, Stock, StockCoverage, StockPrice
 from src.db.session import get_session
 
 D = dt.date.fromisoformat
@@ -74,6 +74,17 @@ class Test같은_통화:
 
 
 class Test환율이_없을_때:
+    """006부터 **수집하지 않은 환율**은 수집 중(202)이다(FR-043, `test_fx_gate.py`). 여기서는 수집을
+    마쳤는데도 값이 없는 경우를 본다 — 그때는 여전히 409이고 값을 메우지 않는다."""
+
+    @pytest.fixture(autouse=True)
+    async def _collected_without_values(self, session_factory) -> None:  # type: ignore[no-untyped-def]
+        async with session_factory() as s:
+            await upsert(s, FxCoverage, [{
+                "currency_code": "USD", "covered_from": D("2021-07-01"),
+                "covered_through": D("2021-09-30")}], preserve=())
+            await s.commit()
+
     async def test_환산할_수_없으면_409다(self, client) -> None:
         """값을 만들어내지 않는다. 환산할 수 없다는 사실이 드러나야 한다 (원칙 V)."""
         res = await client.get("/api/stocks/simulation", params={
