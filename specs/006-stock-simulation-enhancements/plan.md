@@ -200,7 +200,7 @@ frontend/
 | FR-029a (늦은 결과 폐기) | research R6-12, `lib/searchSequence.ts`, quickstart 7 |
 | FR-030, SC-007 (005 식별자 재사용) | research R6-6, `search/price_symbol.py`, contracts/rest-api `/selection`, quickstart 10 |
 | FR-030a (미국은 티커로 같은 종목) | research R6-6, contracts/rest-api `/selection`, quickstart 12 |
-| FR-030b, SC-007a (고른 종목 등록) | research R6-17, `api/services/stock_selection.py`, contracts/rest-api `/selection`·종목 미등록 절, quickstart 10 |
+| FR-030b, SC-007a (고른 종목 등록) | research R6-17, research R6-6 역변환(이력 재실행 경로), `api/services/stock_selection.py`, `search/price_symbol.py` 왕복 검사, contracts/rest-api `/selection`·종목 미등록 절, quickstart 10 |
 | FR-031, SC-008 (시장·기호 정확히) | research R6-6, 계약 테스트(클래스 주식), quickstart 11·12 |
 | FR-032 (출처가 모름 ≠ 시세 없음) | research R6-6, contracts/rest-api `price_symbol_unknown`, quickstart 12 |
 | FR-033 (005 이력 유효) | data-model 8절, research R6-17 재실행 경로 |

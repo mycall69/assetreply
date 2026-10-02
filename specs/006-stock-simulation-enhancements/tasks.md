@@ -50,9 +50,9 @@ description: "Task list for 006-stock-simulation-enhancements"
 
 **Purpose**: 설정과 계약 테스트 픽스처를 갖춘다
 
-- [ ] T001 [P] `backend/tests/unit/test_settings_kiwoom.py` — data-model 7절의 키 11개가 기본값대로 읽히는지, `LISTING_SHRINK_THRESHOLD`가 `Decimal`인지, `KIWOOM_MODE`가 `real`·`mock` 밖이면 기동을 거절하는지, **앱 키·시크릿이 설정 객체의 `repr`·`str`에 드러나지 않는지** 검증한다 (FR-060, FR-063)
+- [ ] T001 [P] `backend/tests/unit/test_settings_kiwoom.py` — data-model 7절의 키 10개가 기본값대로 읽히는지, `LISTING_SHRINK_THRESHOLD`가 `Decimal`인지, `KIWOOM_MODE`가 `real`·`mock` 밖이면 기동을 거절하는지, **앱 키·시크릿이 설정 객체의 `repr`·`str`에 드러나지 않는지** 검증한다 (FR-060, FR-063)
 - [ ] T002 `backend/src/config/settings.py`에 키움·목록 설정을 더한다. 키·시크릿은 ECOS 키와 같은 비밀 감싸개(`reveal()`)로 둔다 (FR-060, FR-063, data-model 7절)
-- [ ] T003 [P] `.env.example`에 data-model 7절의 키 이름을 **값 없이** 더한다 (FR-060)
+- [X] T003 [P] `.env.example`에 data-model 7절의 키 이름을 **값 없이** 더한다 (FR-060)
 - [ ] T004 [P] `backend/scripts/capture_kiwoom_fixtures.py`를 만든다 — 실제 응답을 받아 `backend/tests/contract/fixtures/kiwoom/`에 쪽마다 저장한다. **토큰 발급 응답과 요청·응답 헤더를 저장하지 않는다.** 연속조회 여부만 파일 이름에 남긴다. 테스트 스위트에서 실행되지 않는다 (FR-061, research R6-2)
 - [ ] T005 T004를 **한 번 실행**해 픽스처를 만든다(키움 키 필요, 실제 출처 호출). 국내 4단위·미국 3단위의 첫 쪽과 다음 쪽, **클래스 주식이 들어 있는 미국 쪽**을 받는다. 쪽당 건수·쪽 수를 `research.md` R6-2 "확인하지 못한 것"에 기록하고, 클래스 주식 표기를 R6-6에 기록한다. 실패 응답 픽스처(인증 실패 `8001`, 한도 `1700`, HTTP 200 + `return_code≠0`, 중간 쪽 실패, **이전의 40% 길이 목록**과 경계 검증용 **정확히 50% 길이 목록**)는 실제 응답의 모양을 본떠 손으로 만든다. **저장소가 비공개라 응답 전체를 픽스처로 커밋한다** — 저장소를 공개로 바꾸기 전에 검증에 필요한 행으로 줄인다 (SC-008, research R6-2, R6-6, R6-15)
 
@@ -88,7 +88,7 @@ description: "Task list for 006-stock-simulation-enhancements"
 - [ ] T013 [P] [US1] `backend/tests/unit/test_search_hangul.py` — NFC 정규화, 공백 제거, 라틴 소문자화, 음절 → 초성 열, **쌍자음(ㅆ)과 홑자음(ㅅ)의 구별**, **받침 대기 판정**("서"는 마지막 글자일 때 "성"과 맞고, 마지막이 아니면 맞지 않음)을 표로 검증한다 (FR-022, research R6-5)
 - [ ] T014 [P] [US1] `backend/tests/unit/test_search_match.py` — quickstart 3의 표를 그대로 옮긴다(삼성전자, ㅅㅅㅈㅈ, 삼ㅅㅈ, 삼성ㅈ, 삼서, 삼성 전자, 005930, sk하이닉스, ㅎㅇㄴㅅ, kodex 200, ㅆ). 순위가 정확 → 앞부분 → 포함인지, 같은 순위 안에서 **일치한 이름이 짧은 순 → 코드 포인트 순 → 시장 → 코드**인지, **입력 순서를 섞어도 결과 순서가 같은지**, 상한을 넘으면 잘림을 알리는지 검증한다 (FR-020, FR-022, FR-023, FR-024, SC-002, SC-003)
 - [ ] T015 [P] [US1] `backend/tests/unit/test_search_performance.py` — 합성 종목 15,000건 색인에서 대표 검색어 100개의 처리 시간 95번째 백분위가 50ms 미만인지 검증한다. SC-001의 0.5초는 화면 입력 대기 150ms를 포함한다 (SC-001, research R6-5)
-- [ ] T016 [P] [US1] `backend/tests/unit/test_price_symbol.py` — 국내: `KOSPI`·`KR_ETF`·`KR_REIT` → `KRX`/`{code}.KS`/KRW, `KOSDAQ` → `KRX`/`{code}.KQ`/KRW. **ETF·리츠를 목록상 구분으로 시장을 정하지 않는지**(FR-010a) (FR-010a, FR-030, FR-031)
+- [ ] T016 [P] [US1] `backend/tests/unit/test_price_symbol.py` — 국내: `KOSPI`·`KR_ETF`·`KR_REIT` → `KRX`/`{code}.KS`/KRW, `KOSDAQ` → `KRX`/`{code}.KQ`/KRW. **ETF·리츠를 목록상 구분으로 시장을 정하지 않는지**(FR-010a). **역변환**: `KRX`/`{code}.KS`·`.KQ` → 국내 종목코드, 그리고 **목록 → 시세 식별자 → 목록이 같은 종목으로 돌아오는지**(왕복) (FR-010a, FR-030, FR-030b, FR-031, research R6-6 역변환)
 - [ ] T017 [P] [US1] `backend/tests/contract/test_kiwoom_domestic.py` — T005의 실제 응답 픽스처로 국내 목록을 파싱한다. 0으로 앞을 채운 문자열, `regDay` → 날짜, 단위로 `kind`(`stock`·`etf`·`reit`)를 정하는지. **`code`가 비었거나 6자리가 아닌 행이 하나라도 있으면 단위 전체를 `invalid`로 실패시키는지** — 한 행을 조용히 버리면 그 종목만 "빠짐"이 된다. 목록의 `lastPrice`·`listCount`를 결과 타입에 싣지 않는지 (FR-010, FR-012, data-model 1절 검증 규칙)
 - [ ] T018 [P] [US1] `backend/tests/unit/test_listing_refresh_decision.py` — 갱신 판정 순수 함수를 표로 검증한다: 오늘(KST) 이미 받음 → 안 함, 갱신 중 → 안 함, 인증 실패 막힘 → 안 함, 마지막 실패 후 30분 미만 → 안 함, 오늘 5회 도달 → 안 함, 그 밖 → 함. **자정(KST) 직후에 새 날로 넘어가는지**, UTC 날짜로 판정하지 않는지 (FR-013, FR-013a, FR-013b, SC-005a, research R6-3)
 - [ ] T019 [P] [US1] `backend/tests/integration/test_listing_replace.py` — 교체 트랜잭션: **중간 쪽 실패면 아무것도 바뀌지 않는지**(FR-018), **이전 건수의 50%보다 적으면 교체하지 않고 `invalid`로 남기는지, 정확히 50%면 교체하는지**(FR-018a), 빠진 종목을 지우지 않고 `missing`으로 표시하는지(FR-019, SC-016), 다시 보이면 `listed`로 돌아오는지, **코스닥 → 코스피로 단위를 옮긴 종목이 행 하나로 남고 어느 단위가 먼저 갱신돼도 결과가 같은지**(FR-019a), 단위마다 기준 시각이 따로인지(FR-015), 실패해도 이전 목록이 그대로인지(FR-016, SC-004), 원본이 **헤더 없이** 쪽마다 남고 **지워지지 않는지**, 같은 본문을 다시 받으면 본문은 한 번만 저장되고 쪽 기록은 남는지(FR-061, research R6-13)
@@ -114,7 +114,7 @@ description: "Task list for 006-stock-simulation-enhancements"
 - [ ] T036 [US1] `backend/src/worker/listing_worker.py`를 만들고 `backend/src/api/main.py`의 `lifespan`에 등록한다. 기동 시 점유를 풀고 정체 점유를 회수한다. **등록을 빠뜨리면 갱신 요청이 쌓이기만 하고 실행되지 않는다** — 003·005가 겪은 일이다 (FR-013, FR-014, data-model 3절)
 - [ ] T037 [US1] `backend/src/api/services/listing_index.py` — 메모리 색인. 검색마다 단위별 기준 시각의 최댓값을 읽어 바뀌었으면 다시 만든다 (SC-001, research R6-5)
 - [ ] T038 [US1] `backend/src/api/routes/stock_search.py`를 로컬 검색으로 바꾸고 `/external`(TSE만)을 분리한다. 로컬 검색은 갱신을 **요청만** 한다 (FR-017, FR-021, FR-026, FR-027, FR-028, FR-029, research R6-12)
-- [ ] T039 [US1] `backend/src/api/services/stock_selection.py`·`backend/src/api/routes/stock_selection.py`를 만들고 `main.py`에 등록한다. `stock_simulation.require_stock`은 국내·미국 미등록 종목을 목록으로 등록하고, 일본은 `404 unknown_stock` + `action: reselect`로 답한다 (FR-030, FR-030b, FR-033, research R6-17)
+- [ ] T039 [US1] `backend/src/api/services/stock_selection.py`·`backend/src/api/routes/stock_selection.py`를 만들고 `main.py`에 등록한다. `stock_simulation.require_stock`은 국내·미국 미등록 종목을 **research R6-6의 역변환**으로 목록에서 찾아 등록하고, 역변환으로 찾지 못하거나 일본이면 `404 unknown_stock` + `action: reselect`로 답한다 (FR-030, FR-030b, FR-033, research R6-6, R6-17)
 - [ ] T040 [US1] `backend/src/api/main.py`의 오류 처리기를 나눈다 — 시세 출처가 심볼을 모를 때 `price_symbol_unknown`, 우리 DB에 종목이 없을 때 `unknown_stock` (FR-032)
 - [ ] T041 [US1] `frontend/src/lib/types.ts`에 검색 응답(`results`·`truncated`·`lists`)·외부 검색·등록 응답 타입을 더한다 (contracts/rest-api)
 - [ ] T042 [US1] `frontend/src/lib/searchSequence.ts` (FR-029a)
@@ -197,7 +197,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 ### Tests for User Story 4 ⚠️
 
 - [ ] T065 [P] [US4] `backend/tests/contract/test_kiwoom_us.py` — T005의 실제 응답 픽스처로 미국 목록을 파싱한다. `stk_nm`이 한글 종목명, `stk_enm`이 영문 종목명, `isEtf` → `kind`, `stex_tp` → 단위인지. 여러 쪽이 이어지는지. **한도 초과(`1700`) 픽스처에서 `rate_limit` 실패로 끝나고 받은 쪽까지로 교체하지 않는지** (FR-011, FR-018, research R6-2)
-- [ ] T066 [P] [US4] `backend/tests/unit/test_price_symbol.py`에 미국을 더한다 — 거래소 → 005 시장, 통화 USD, **T005에서 확정한 클래스 주식 표기 변환**, 규칙으로 못 옮기는 기호는 그대로 보내는지 (FR-031, SC-008, research R6-6)
+- [ ] T066 [P] [US4] `backend/tests/unit/test_price_symbol.py`에 미국을 더한다 — 거래소 → 005 시장, 통화 USD, **T005에서 확정한 클래스 주식 표기 변환**, 규칙으로 못 옮기는 기호는 그대로 보내는지. **역변환**: 표기 변환의 역으로 찾고, 못 찾으면 심볼을 그대로 티커로 한 번 더 찾고, 그래도 없으면 `reselect`인지. **클래스 주식을 포함해 목록 → 시세 식별자 → 목록이 같은 종목으로 돌아오는지**(왕복) (FR-030b, FR-031, SC-007a, SC-008, research R6-6 역변환)
 - [ ] T067 [P] [US4] `backend/tests/unit/test_search_match.py`에 미국 표를 더한다 — 애플·ㅇㅍ·apple·AAPL, 테슬라·엔비디아, 한글명이 비어 있는 종목이 영문명·티커로만 찾히는지 (FR-021, SC-002)
 - [ ] T068 [P] [US4] `backend/tests/integration/test_listing_us_pacing.py` — 미국 단위의 쪽 사이 간격이 설정(기본 12초)을 지키는지(가짜 시계), 목록이 한 번도 없을 때 검색이 "결과 없음"이 아니라 `never`/`refreshing`으로 답하는지, 국내 단위가 미국 단위를 기다리지 않는지 (FR-015, FR-017, FR-028, FR-063)
 - [ ] T069 [P] [US4] `backend/tests/integration/test_stock_selection_us.py` — **같은 티커의 미국 종목이 거래소가 달라도 하나로 쓰이는지**(005가 `AMEX`로 저장한 ETF를 목록이 `NYSE`로 줄 때), 없으면 목록의 거래소로 만드는지 (FR-030, FR-030a, SC-007)
