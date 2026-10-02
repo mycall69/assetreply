@@ -191,12 +191,49 @@ JPY 환율이 없는 상태에서 원화 원금으로 토요타를 시뮬레이�
 
 ## 21. 비밀이 남지 않는다 (FR-060, FR-061, SC-014)
 
+**키를 셸 명령의 인자로 넘기지 않는다** — 셸 기록과 프로세스 목록에 남는다. 아래 스크립트는 `.env`를
+직접 읽고 **키를 출력하지 않은 채** 어디서 나왔는지만 말한다. 개발 DB(테스트 DB가 아님)를 본다.
+
 ```bash
-grep -rn "$KIWOOM_APP_KEY" logs/ || echo "로그 깨끗"
+cd backend && .venv/bin/python - <<'EOF'
+import asyncio, pathlib
+from dotenv import dotenv_values
+from sqlalchemy import select
+from src.config.settings import load_settings
+from src.db.engine import create_engine, dispose_engine
+from src.db.session import make_session_factory
+from src.db.models import StockListingRawBody, StockListingRefresh
+
+root = pathlib.Path("..")
+env = dotenv_values(root / ".env")
+secrets = [env[k] for k in ("KIWOOM_APP_KEY", "KIWOOM_APP_SECRET") if env.get(k)]
+if len(secrets) < 2:
+    # 비어 있는 값으로 찾으면 모든 줄에 걸려 검사가 무의미해진다.
+    raise SystemExit("검사 불가 — .env에 KIWOOM_APP_KEY·KIWOOM_APP_SECRET이 없다")
+
+def found(text: str) -> bool:
+    return any(s in text for s in secrets)
+
+logs = [p.name for p in (root / "logs").glob("*.log")
+        if found(p.read_text(encoding="utf-8", errors="ignore"))]
+
+async def scan_db():
+    engine = create_engine(load_settings())
+    async with make_session_factory(engine)() as s:
+        bodies = (await s.execute(select(StockListingRawBody.sha256, StockListingRawBody.body))).all()
+        errors = (await s.execute(select(StockListingRefresh.unit, StockListingRefresh.last_error))).all()
+    await dispose_engine(engine)
+    return [h for h, b in bodies if found(b)], [u for u, e in errors if e and found(e)]
+
+raw, err = asyncio.run(scan_db())
+print("로그:", logs or "깨끗")
+print("원본 본문(stock_listing_raw_body):", raw or "깨끗")
+print("갱신 기록 사유(stock_listing_refresh.last_error):", err or "깨끗")
+EOF
 ```
 
-테스트가 아닌 개발 DB에서 `stock_listing_raw.body`·`stock_listing_refresh.last_error`에 앱 키·시크릿·
-토큰이 없는지 확인한다. 저장소에 `.env`가 커밋되지 않았는지 `git status`로 본다.
+**기대**: 셋 다 "깨끗". **접근 토큰**은 메모리에만 있어 값을 알 수 없으므로 이 스크립트로는 찾지 못한다 —
+그것은 정적 검사(tasks T012)가 맡는다. 저장소에 `.env`가 커밋되지 않았는지 `git status`로 본다.
 
 ## 22. 기록 갱신 (FR-070)
 
