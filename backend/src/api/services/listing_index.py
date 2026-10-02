@@ -74,7 +74,9 @@ async def _build(session: AsyncSession, version: Version) -> ListingIndex:
             status=row.status, market=ps.market, symbol=ps.symbol, currency=ps.currency)
         views[view.listing_id] = view
         names = tuple(n for n in (row.name_ko, row.name_en) if n)
-        entries.append(SearchEntry(key=view.listing_id, names=names, codes=(row.code,),
+        # 미국은 목록 표기와 시세 출처 표기가 다를 수 있다(`BRKb`/`BRK-B`). 둘 다로 찾는다.
+        codes = tuple(dict.fromkeys((row.code, ps.symbol))) if row.country == "US" else (row.code,)
+        entries.append(SearchEntry(key=view.listing_id, names=names, codes=codes,
                                    market=ps.market, code=row.code))
     return ListingIndex(version, SearchIndex(entries), views)
 

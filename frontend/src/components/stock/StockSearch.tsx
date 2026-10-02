@@ -264,6 +264,14 @@ export function StockSearch({
                 {kind}
               </span>
             )}
+            {option.source === "listing" && option.item.country === "US"
+              && option.item.nameEn !== null && (
+              // FR-025 — 미국 종목은 영문명을 함께 보인다. 한글명이 비슷한 종목이 여럿이면
+              // 영문명이 구별의 근거다.
+              <span data-name-en className="ml-2 text-xs text-gray-500">
+                {option.item.nameEn}
+              </span>
+            )}
             {option.source === "listing" && option.item.listingStatus === "missing" && (
               // 색만으로 전달하지 않는다 — 글자로 쓴다 (ui-wireframes 접근성).
               <span className="ml-2 text-xs text-amber-700">목록에서 빠짐</span>

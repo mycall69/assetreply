@@ -28,9 +28,10 @@ from src.api.services.stock_fx import (
 from src.api.services.stock_selection import listing_for, register_from_price_symbol
 from src.db.models import Stock
 from src.repository import stock_price as price_repo
-from src.repository.stock import find_stock
+from src.repository.stock import find_stock, find_us_stock
 from src.repository.stock_setting import Settings as StockSettings
 from src.repository.stock_setting import get_settings
+from src.search.price_symbol import US_MARKETS
 from src.simulation.fx_convert import (  # noqa: E501
     RateLookup,
     resolve_rate,
@@ -301,6 +302,9 @@ async def require_stock(session: AsyncSession, market: str, symbol: str) -> Stoc
     고르세요"로 답한다 — 시세 출처가 모르는 것(`price_symbol_unknown`)과 다른 사유다(FR-032).
     """
     stock = await find_stock(session, market, symbol)
+    if stock is None and market in US_MARKETS:
+        # FR-030a — 다른 거래소로 등록된 같은 티커가 같은 종목이다(005 이력 ↔ 006 목록).
+        stock = await find_us_stock(session, symbol)
     if stock is None:
         stock = await register_from_price_symbol(session, market, symbol)
     if stock is None:

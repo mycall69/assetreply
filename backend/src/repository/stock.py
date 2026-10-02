@@ -31,6 +31,19 @@ async def find_stock(
     )).scalar_one_or_none()
 
 
+async def find_us_stock(session: AsyncSession, symbol: str) -> Stock | None:
+    """미국 종목을 **티커로** 찾는다. 거래소는 보지 않는다 (006 FR-030a).
+
+    005는 시세 출처의 거래소 코드로 시장을 정했고(`PCX` → `AMEX`), 목록 출처는 같은 ETF를
+    `NYSE`로 줄 수 있다. `(시장, 심볼)`로 찾으면 같은 종목이 둘이 된다. 시세 출처는 미국 종목을
+    티커만으로 조회하므로 거래소가 달라도 시세는 같다.
+    """
+    return (await session.execute(
+        select(Stock).where(Stock.symbol == symbol,
+                            Stock.market.in_(("NYSE", "NASDAQ", "AMEX")))
+        .order_by(Stock.id).limit(1))).scalar_one_or_none()
+
+
 async def ensure_stock(
     session: AsyncSession,
     *,

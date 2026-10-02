@@ -36,8 +36,8 @@ from src.observability.logging_config import collection_logger
 from src.repository import stock_listing as repo
 from src.worker.listing_queue import ListingQueue
 
-#: 검색이 다루는 목록 단위. 미국 3단위는 US4(Phase 6)에서 더한다.
-LISTING_UNITS: Final = ("KOSPI", "KOSDAQ")
+#: 검색이 다루는 목록 단위 (FR-015). 국내를 앞에 둔다 — 그날 첫 검색에서 먼저 요청된다.
+LISTING_UNITS: Final = ("KOSPI", "KOSDAQ", "NYSE", "NASDAQ", "AMEX")
 
 _KST_OFFSET: Final = dt.timedelta(hours=9)
 

@@ -91,6 +91,9 @@ class KiwoomClient:
         self._now = now
         self._token: str | None = None
         self._token_expires: dt.datetime | None = None
+        # 국내·미국 두 줄이 같은 클라이언트를 함께 쓴다(listing_worker). 잠그지 않으면 둘이 동시에
+        # 토큰을 받는다 — 새 토큰이 앞의 것을 무효로 만들면 한쪽이 인증 실패로 끝난다.
+        self._token_lock: asyncio.Lock | None = None
 
     def __repr__(self) -> str:
         # 키·시크릿·토큰을 싣지 않는다(FR-060).
@@ -166,6 +169,12 @@ class KiwoomClient:
         raise AssertionError("도달하지 않는다")  # pragma: no cover
 
     async def _ensure_token(self) -> str:
+        if self._token_lock is None:
+            self._token_lock = asyncio.Lock()
+        async with self._token_lock:
+            return await self._token_locked()
+
+    async def _token_locked(self) -> str:
         now = self._now()
         if (self._token is not None and self._token_expires is not None
                 and now < self._token_expires - _REFRESH_BUFFER):

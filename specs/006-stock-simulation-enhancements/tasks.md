@@ -197,20 +197,21 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T065 [P] [US4] `backend/tests/contract/test_kiwoom_us.py` — T005의 실제 응답 픽스처로 미국 목록을 파싱한다. `stk_nm`이 한글 종목명, `stk_enm`이 영문 종목명, `isEtf` → `kind`, `stex_tp` → 단위인지. 여러 쪽이 이어지는지. **한도 초과(`1700`) 픽스처에서 `rate_limit` 실패로 끝나고 받은 쪽까지로 교체하지 않는지** (FR-011, FR-018, research R6-2)
-- [ ] T066 [P] [US4] `backend/tests/unit/test_price_symbol.py`에 미국을 더한다 — 거래소 → 005 시장, 통화 USD, **T005에서 확정한 클래스 주식 표기 변환**, 규칙으로 못 옮기는 기호는 그대로 보내는지. **역변환**: 표기 변환의 역으로 찾고, 못 찾으면 심볼을 그대로 티커로 한 번 더 찾고, 그래도 없으면 `reselect`인지. **클래스 주식을 포함해 목록 → 시세 식별자 → 목록이 같은 종목으로 돌아오는지**(왕복) (FR-030b, FR-031, SC-007a, SC-008, research R6-6 역변환)
-- [ ] T067 [P] [US4] `backend/tests/unit/test_search_match.py`에 미국 표를 더한다 — 애플·ㅇㅍ·apple·AAPL, 테슬라·엔비디아, 한글명이 비어 있는 종목이 영문명·티커로만 찾히는지 (FR-021, SC-002)
-- [ ] T068 [P] [US4] `backend/tests/integration/test_listing_us_pacing.py` — 미국 단위의 쪽 사이 간격이 설정(기본 12초)을 지키는지(가짜 시계), 목록이 한 번도 없을 때 검색이 "결과 없음"이 아니라 `never`/`refreshing`으로 답하는지, 국내 단위가 미국 단위를 기다리지 않는지 (FR-015, FR-017, FR-028, FR-063)
-- [ ] T069 [P] [US4] `backend/tests/integration/test_stock_selection_us.py` — **같은 티커의 미국 종목이 거래소가 달라도 하나로 쓰이는지**(005가 `AMEX`로 저장한 ETF를 목록이 `NYSE`로 줄 때), 없으면 목록의 거래소로 만드는지 (FR-030, FR-030a, SC-007)
+- [X] T065 [P] [US4] `backend/tests/contract/test_kiwoom_us.py` — T005의 실제 응답 픽스처로 미국 목록을 파싱한다. `stk_nm`이 한글 종목명, `stk_enm`이 영문 종목명, `isEtf` → `kind`, `stex_tp` → 단위인지. 여러 쪽이 이어지는지. **한도 초과(`1700`) 픽스처에서 `rate_limit` 실패로 끝나고 받은 쪽까지로 교체하지 않는지** (FR-011, FR-018, research R6-2)
+- [X] T066 [P] [US4] `backend/tests/unit/test_price_symbol.py`에 미국을 더한다 — 거래소 → 005 시장, 통화 USD, **T005에서 확정한 클래스 주식 표기 변환**, 규칙으로 못 옮기는 기호는 그대로 보내는지. **역변환**: 표기 변환의 역으로 찾고, 못 찾으면 심볼을 그대로 티커로 한 번 더 찾고, 그래도 없으면 `reselect`인지. **클래스 주식을 포함해 목록 → 시세 식별자 → 목록이 같은 종목으로 돌아오는지**(왕복) (FR-030b, FR-031, SC-007a, SC-008, research R6-6 역변환)
+- [X] T067 [P] [US4] `backend/tests/unit/test_search_match.py`에 미국 표를 더한다 — 애플·ㅇㅍ·apple·AAPL, 테슬라·엔비디아, 한글명이 비어 있는 종목이 영문명·티커로만 찾히는지 (FR-021, SC-002)
+- [X] T068 [P] [US4] `backend/tests/integration/test_listing_us_pacing.py` — 미국 단위의 쪽 사이 간격이 설정(기본 12초)을 지키는지(가짜 시계), 목록이 한 번도 없을 때 검색이 "결과 없음"이 아니라 `never`/`refreshing`으로 답하는지, 국내 단위가 미국 단위를 기다리지 않는지 (FR-015, FR-017, FR-028, FR-063)
+- [X] T069 [P] [US4] `backend/tests/integration/test_stock_selection_us.py` — **같은 티커의 미국 종목이 거래소가 달라도 하나로 쓰이는지**(005가 `AMEX`로 저장한 ETF를 목록이 `NYSE`로 줄 때), 없으면 목록의 거래소로 만드는지 (FR-030, FR-030a, SC-007)
+- [X] T095 [P] [US4] `frontend/tests/StockSearchLocal.test.tsx`에 더한다 — 미국 결과에 영문 종목명이 함께 보이는지, 국내 결과에는 그 자리가 없는지. **T075의 테스트가 목록에 없어 더한 태스크다** (FR-025)
 
 ### Implementation for User Story 4
 
-- [ ] T070 [US4] `backend/src/ingestion/kiwoom/parse.py`에 미국 목록 파싱을 더한다 (FR-011)
-- [ ] T071 [US4] `backend/src/search/price_symbol.py`에 미국 규칙을 더한다 (FR-031)
-- [ ] T072 [US4] `backend/src/api/services/listing_refresh.py`에 `NYSE`·`NASDAQ`·`AMEX` 단위와 미국 쪽 사이 간격을 더한다 (FR-011, FR-015, FR-063)
-- [ ] T073 [US4] `backend/src/api/services/stock_selection.py` — 미국은 **티커로 기존 종목을 먼저 찾는다** (FR-030a)
-- [ ] T074 [US4] `backend/src/api/services/listing_index.py`에 미국 일치 필드(한글명·영문명·티커)를 더한다 (FR-021)
-- [ ] T075 [US4] `frontend/src/components/stock/StockSearch.tsx`가 미국 결과에 영문 종목명을 함께 보이게 한다 (FR-025)
+- [X] T070 [US4] `backend/src/ingestion/kiwoom/parse.py`에 미국 목록 파싱을 더한다 (FR-011)
+- [X] T071 [US4] `backend/src/search/price_symbol.py`에 미국 규칙을 더한다 (FR-031)
+- [X] T072 [US4] `backend/src/api/services/listing_refresh.py`에 `NYSE`·`NASDAQ`·`AMEX` 단위와 미국 쪽 사이 간격을 더한다. **`worker/listing_worker.py`를 국내·미국 두 줄로 나누고 `ingestion/kiwoom/client.py`의 토큰 발급을 잠근다**(T068의 "국내가 미국을 기다리지 않음"·"토큰 한 번"을 만족시키려면 필요했다, 구현 단계 결정) (FR-011, FR-015, FR-017, FR-063, research R6-3)
+- [X] T073 [US4] `backend/src/api/services/stock_selection.py` — 미국은 **티커로 기존 종목을 먼저 찾는다** (FR-030a)
+- [X] T074 [US4] `backend/src/api/services/listing_index.py`에 미국 일치 필드(한글명·영문명·티커)를 더한다 (FR-021)
+- [X] T075 [US4] `frontend/src/components/stock/StockSearch.tsx`가 미국 결과에 영문 종목명을 함께 보이게 한다 (FR-025)
 
 **Checkpoint**: 미국 종목을 한글·초성·영문·티커로 찾는다
 

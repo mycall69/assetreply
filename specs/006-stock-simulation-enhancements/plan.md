@@ -128,7 +128,7 @@ backend/
 │   │   └── collection.py            # 변경 — 스트림의 busyWith를 프레임마다 읽는다 (R6-10)
 │   ├── api/collection_stream.py     # 변경 — busy_with_fn (R6-10)
 │   ├── simulation/fx_convert.py     # 변경 — per_unit
-│   ├── worker/listing_worker.py     # 신규 — 목록 갱신 워커 (R6-3)
+│   ├── worker/listing_worker.py     # 신규 — 목록 갱신 워커, 국내·미국 두 줄 (R6-3)
 │   ├── worker/listing_queue.py      # 신규 — 갱신 요청 큐(단위로 중복 거르기). 주식 큐와 섞지 않는다
 │   ├── worker/stock_worker.py       # 변경 — 출처가 심볼을 모르면 작업 사유에 표지 (FR-032, R6-6)
 │   ├── db/models.py                 # 변경 — 신규 테이블 5개

@@ -24,8 +24,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.errors import InvalidQuery, UnknownListing
 from src.db.models import Stock, StockListing
 from src.repository import stock_listing as listing_repo
-from src.repository.stock import ensure_stock
-from src.search.price_symbol import listing_candidates, to_price_symbol
+from src.repository.stock import ensure_stock, find_us_stock
+from src.search.price_symbol import US_MARKETS, listing_candidates, to_price_symbol
 
 #: 외부 검색이 맡는 시장과 그 통화 (FR-026).
 _EXTERNAL_MARKET: Final = "TSE"
@@ -40,6 +40,11 @@ class Selected:
 
 async def _register_listing(session: AsyncSession, listing: StockListing) -> Stock:
     ps = to_price_symbol(listing.unit, listing.code)
+    if ps.market in US_MARKETS:
+        # FR-030a — 미국은 티커로 기존 행을 먼저 찾는다. 없을 때만 목록의 거래소로 만든다.
+        existing = await find_us_stock(session, ps.symbol)
+        if existing is not None:
+            return existing
     return await ensure_stock(
         session, market=ps.market, symbol=ps.symbol,
         name=listing.name_ko or listing.name_en or listing.code, currency=ps.currency)
@@ -77,7 +82,7 @@ async def listing_for(
     """시세 식별자에 해당하는 검색용 목록 종목 (research R6-6 역변환). 없으면 `None`.
 
     정방향으로 다시 옮긴 식별자가 요청과 같을 때만 그 종목이다 — 코스닥 종목을 `.KS`로
-    부르면 왕복이 깨지므로 다른 종목으로 보지 않는다.
+    부르면 왕복이 깨지므로 다른 종목으로 보지 않는다. 미국은 티커만 맞으면 된다(FR-030a).
     """
     key = listing_candidates(market, symbol)
     if key is None:
@@ -87,6 +92,8 @@ async def listing_for(
         if listing is None:
             continue
         ps = to_price_symbol(listing.unit, listing.code)
+        if market in US_MARKETS:
+            return listing if ps.symbol == symbol else None
         return listing if (ps.market, ps.symbol) == (market, symbol) else None
     return None
 

@@ -10,13 +10,13 @@ import datetime as dt
 
 import pytest
 from httpx2 import ASGITransport, AsyncClient
-from src.api.services.listing_refresh import AuthBlocker, refresh_unit
-from src.worker.listing_queue import ListingQueue
 
 from src.api.main import create_app
+from src.api.services.listing_refresh import AuthBlocker, refresh_unit
 from src.db.session import get_session
 from src.ingestion.kiwoom.errors import KiwoomUnavailable
 from src.repository import stock_listing as repo
+from src.worker.listing_queue import ListingQueue
 from tests.integration.listing_support import (
     KOSDAQ_ROWS,
     KOSPI_ROWS,
@@ -157,7 +157,8 @@ class Test목록_상태:
     async def test_받은_목록의_기준_시각(self, make_client, seeded) -> None:
         """FR-029."""
         lists = lists_by_unit(await search(make_client, "삼성"))
-        assert set(lists) == {"KOSPI", "KOSDAQ"}
+        # 단위마다 따로 싣는다 — 미국 3단위는 US4에서 더해졌다.
+        assert set(lists) == {"KOSPI", "KOSDAQ", "NYSE", "NASDAQ", "AMEX"}
         assert lists["KOSPI"]["state"] == "ready"
         assert lists["KOSPI"]["asOf"] == "2026-10-02T00:05:12Z"
 
@@ -214,9 +215,9 @@ class Test목록_상태:
 
 class Test갱신_요청:
     async def test_오늘_받았으면_요청하지_않는다(self, make_client, seeded, queue) -> None:
-        """FR-013, SC-005."""
+        """FR-013, SC-005 — 국내 두 단위는 오늘 받았다(미국은 받지 않아 요청된다)."""
         await search(make_client, "삼성")
-        assert queue.size == 0
+        assert not queue.is_active("KOSPI") and not queue.is_active("KOSDAQ")
 
     async def test_그날_첫_검색이면_단위마다_요청한다(self, make_client, queue) -> None:
         await search(make_client, "삼성")
@@ -226,7 +227,7 @@ class Test갱신_요청:
         """FR-014 — 큐의 중복 거르기는 비용 절약이고, 정합성은 DB 점유가 지킨다."""
         for _ in range(3):
             await search(make_client, "삼성")
-        assert queue.size == 2
+        assert queue.size == 5                    # 단위마다 한 번
 
     async def test_다음_날_자정이_지나면_다시_요청한다(
             self, make_client, session_factory, queue) -> None:

@@ -21,6 +21,10 @@ from typing import Final
 from src.ingestion.kiwoom.errors import KiwoomInvalidResponse
 
 SOURCE_DOMESTIC: Final = "kiwoom:ka10099"
+SOURCE_US: Final = "kiwoom:usa10099"
+
+#: 미국 단위 → 응답 행의 거래소 구분(`stex_tp`). 요청과 다른 거래소 행이 오면 단위가 뒤바뀐다.
+_US_STEX: Final = {"NYSE": "NY", "NASDAQ": "ND", "AMEX": "NA"}
 
 #: 국내 단위 → {marketName: 종류}. 실측(T005, 2026-10-02)에서 본 값만 둔다.
 _KEEP: Final[dict[str, dict[str, str]]] = {
@@ -103,10 +107,45 @@ def parse_domestic(unit: str, bodies: Sequence[str]) -> list[ListingRow]:
     return rows
 
 
+def parse_us(unit: str, bodies: Sequence[str]) -> list[ListingRow]:
+    """미국 목록(`usa10099`)의 모든 쪽을 한 단위의 종목으로 (006 FR-011).
+
+    티커는 **출처 표기 그대로** 둔다(`BRKb`·`ABR-D`). 시세 출처 표기로 옮기는 것은
+    `search/price_symbol.py`의 일이다 — 여기서 바꾸면 목록의 식별이 출처마다 달라진다.
+    `isEtf`가 `Y`면 ETF, 그 밖(빈 값 포함)은 주식이다. 상장일은 주지 않는다.
+    """
+    stex = _US_STEX.get(unit)
+    if stex is None:
+        raise ValueError(f"미국 목록 단위가 아닙니다: {unit}")
+
+    rows: list[ListingRow] = []
+    seen: set[str] = set()
+    for body in bodies:
+        for raw in _rows_of(body):
+            if not isinstance(raw, dict):
+                raise KiwoomInvalidResponse(f"{unit} 목록에 형식이 다른 행이 있습니다.")
+            if raw.get("stex_tp") != stex:
+                raise KiwoomInvalidResponse(
+                    f"{unit} 목록에 다른 거래소의 행이 있습니다: {raw.get('stex_tp')!r}")
+            code = _text(raw.get("stk_cd")) or ""
+            if not code:
+                raise KiwoomInvalidResponse(f"{unit} 목록에 티커가 빈 행이 있습니다.")
+            if code in seen:
+                raise KiwoomInvalidResponse(f"{unit} 목록에 같은 티커가 두 번 있습니다: {code}")
+            seen.add(code)
+            rows.append(ListingRow(
+                country="US", code=code, unit=unit, name_ko=_text(raw.get("stk_nm")),
+                name_en=_text(raw.get("stk_enm")),
+                kind="etf" if raw.get("isEtf") == "Y" else "stock", listed_on=None))
+    return rows
+
+
 def parse_listing(unit: str, bodies: Sequence[str]) -> list[ListingRow]:
     """단위에 맞는 파서를 고른다."""
     if unit in _KEEP:
         return parse_domestic(unit, bodies)
+    if unit in _US_STEX:
+        return parse_us(unit, bodies)
     raise ValueError(f"파서가 없는 목록 단위입니다: {unit}")
 
 
@@ -114,4 +153,6 @@ def source_of(unit: str) -> str:
     """`stock_listing.source`에 남길 출처 이름."""
     if unit in _KEEP:
         return SOURCE_DOMESTIC
+    if unit in _US_STEX:
+        return SOURCE_US
     raise ValueError(f"출처 이름이 없는 목록 단위입니다: {unit}")
