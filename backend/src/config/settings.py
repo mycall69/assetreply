@@ -170,7 +170,8 @@ class Settings:
     # 미국 목록은 계좌·토큰별 분당 5회로 제한된다 — 쪽 사이를 12초로 둔다 (R6-2).
     kiwoom_us_page_delay_seconds: int = 12
     kiwoom_kr_page_delay_seconds: int = 1
-    # 한 요청 안의 재시도. 네트워크·5xx만 다시 시도한다 — 인증 실패는 다시 시도하지 않는다.
+    # 한 요청의 최대 시도 횟수(첫 시도 포함). 네트워크·5xx만 다시 시도한다 —
+    # 인증 실패는 다시 시도하지 않는다.
     kiwoom_max_retries: int = 3
     # 갱신 실패 뒤 다음 시도까지와 목록 단위마다 하루 시도 상한 (FR-013a).
     listing_retry_interval_minutes: int = 30

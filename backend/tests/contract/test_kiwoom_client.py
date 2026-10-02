@@ -109,7 +109,8 @@ class Test토큰:
     async def test_만료_10분_전이면_다시_받는다(self, no_sleep: list[float]) -> None:
         soon = (NOW.astimezone(KST) + dt.timedelta(minutes=5)).strftime("%Y%m%d%H%M%S")
         expiring = json.dumps({"return_code": 0, "token": "FAKE-1", "expires_dt": soon})
-        s = Session({TOKEN: [Resp(expiring), Resp(TOKEN_OK)], KR: [Resp(fixture("KOSPI_p01.json"))]})
+        s = Session({TOKEN: [Resp(expiring), Resp(TOKEN_OK)],
+                     KR: [Resp(fixture("KOSPI_p01.json"))]})
         async with client(s) as c:
             await c.fetch_unit("KOSPI")
             await c.fetch_unit("KOSDAQ")
@@ -173,14 +174,18 @@ class Test연속조회:
 
 
 class Test실패_판정:
-    async def test_HTTP_200이어도_return_code가_0이_아니면_실패다(self, no_sleep: list[float]) -> None:
+    async def test_HTTP_200이어도_return_code가_0이_아니면_실패다(
+        self, no_sleep: list[float]
+    ) -> None:
         bad = json.dumps({"return_code": 2, "return_msg": "처리할 수 없습니다"})
         s = Session({TOKEN: [Resp(TOKEN_OK)], KR: [Resp(bad)]})
         async with client(s) as c:
             with pytest.raises(KiwoomInvalidResponse):
                 await c.fetch_unit("KOSPI")
 
-    async def test_토큰_발급_실패의_세부_코드를_메시지에서_뽑는다(self, no_sleep: list[float]) -> None:
+    async def test_토큰_발급_실패의_세부_코드를_메시지에서_뽑는다(
+        self, no_sleep: list[float]
+    ) -> None:
         """실제 응답: HTTP 200, return_code 3, 세부 코드 8001은 메시지 안에만 있다."""
         s = Session({TOKEN: [Resp(fixture("error_auth_token.json"))]})
         async with client(s) as c:
@@ -202,7 +207,10 @@ class Test실패_판정:
         assert s.count(KR) == 2
 
     async def test_한도_초과는_다시_시도하지_않는다(self, no_sleep: list[float]) -> None:
-        """research R6-3 — 한도 초과는 갱신 실패로 넘기고 간격 뒤에 다시 한다. 그 자리에서 두드리지 않는다."""
+        """research R6-3 — 한도 초과는 갱신 실패로 넘기고 간격 뒤에 다시 한다.
+
+        그 자리에서 다시 두드리지 않는다.
+        """
         s = Session({TOKEN: [Resp(TOKEN_OK)], US: [Resp(fixture("error_rate_limit.json"))]})
         async with client(s) as c:
             with pytest.raises(KiwoomRateLimited) as info:

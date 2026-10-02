@@ -165,7 +165,7 @@
 | `KIWOOM_APP_SECRET` | (없음) | **비밀** |
 | `KIWOOM_US_PAGE_DELAY_SECONDS` | `12` | 미국 목록 쪽 사이 간격. 분당 5회 제한(research R6-2) |
 | `KIWOOM_KR_PAGE_DELAY_SECONDS` | `1` | 국내 목록 쪽 사이 간격 |
-| `KIWOOM_MAX_RETRIES` | `3` | 한 요청 안의 재시도(네트워크·5xx만) |
+| `KIWOOM_MAX_RETRIES` | `3` | 한 요청의 최대 시도 횟수(첫 시도 포함). 네트워크·5xx만 다시 시도한다 |
 | `LISTING_RETRY_INTERVAL_MINUTES` | `30` | 갱신 실패 뒤 다음 시도까지(FR-013a) |
 | `LISTING_MAX_ATTEMPTS_PER_DAY` | `5` | 단위마다 하루 시도 상한(FR-013a) |
 | `LISTING_SHRINK_THRESHOLD` | `0.5` | **새 건수 < 이전 건수 × 이 값**이면 교체하지 않는다(FR-018a). `Decimal`로 읽는다 |

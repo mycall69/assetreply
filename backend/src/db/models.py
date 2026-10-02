@@ -428,3 +428,108 @@ class StockSetting(Base):
     dividend_tax_rate: Mapped[Decimal] = mapped_column(SPREAD)
     updated_at: Mapped[dt.datetime] = mapped_column(
         TS, server_default=func.now(), onupdate=func.now())
+
+
+# ─────────────────────────── 006: 검색용 종목 목록 ───────────────────────────
+#
+# 시세를 담지 않는다. 시세는 005의 `stock_price`가 담는다 (006 FR-012).
+# 시각은 UTC로 넣는다 — 기본값을 DB의 `now()`에 맡기면 DB 서버의 시간대가 끼어든다.
+
+
+class StockListing(Base):
+    """검색용 종목 (006 data-model 1절).
+
+    **국가와 코드로 식별한다.** 단위는 키가 아니다 — 이전상장으로 단위가 바뀌어도 같은
+    종목이다 (FR-019a). **지우지 않는다.** 최근 목록에 없으면 `missing`으로 표시한다 (FR-019).
+    """
+
+    __tablename__ = "stock_listing"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    country: Mapped[str] = mapped_column(String(2), nullable=False)
+    code: Mapped[str] = mapped_column(String(16), nullable=False)
+    unit: Mapped[str] = mapped_column(String(8), nullable=False)
+    name_ko: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    name_en: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    kind: Mapped[str] = mapped_column(String(8), nullable=False)
+    # 상장일. **시작 가능 날짜가 아니라 하한이다** (FR-005a, research R6-8).
+    listed_on: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="listed", server_default=text("'listed'"))
+    first_seen_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+    last_seen_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    ingested_at: Mapped[dt.datetime] = mapped_column(
+        TS, nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index("ux_stock_listing_country_code", "country", "code", unique=True),
+        Index("ix_stock_listing_unit_status", "unit", "status"),
+    )
+
+
+class StockListingRefresh(Base):
+    """목록 갱신 기록. 단위마다 한 행 (006 data-model 2절).
+
+    `as_of`는 **온전히 받은 마지막 시각**이다. 실패하거나 일부만 받으면 바뀌지 않는다.
+    `last_error`에는 키·토큰·인증 헤더를 담지 않는다 (FR-060).
+    """
+
+    __tablename__ = "stock_listing_refresh"
+
+    unit: Mapped[str] = mapped_column(String(8), primary_key=True)
+    as_of: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    as_of_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    attempt_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    # 하루 시도 횟수(FR-013a). 서버 기본값은 상수 리터럴이라 방언 차이가 없다 — ORM의
+    # `default`만으로는 마이그레이션 밖에서 넣은 행이 NULL이 된다.
+    attempts: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=0, server_default=text("0"))
+    last_attempt_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    last_failed_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    last_error_kind: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+
+class StockListingLock(Base):
+    """갱신 점유 (006 data-model 3절).
+
+    **기본 키 INSERT 충돌이 곧 "이미 갱신 중"이다** (헌법 DB 운영 규약). 005의 종목 점유와
+    같은 수단이다.
+    """
+
+    __tablename__ = "stock_listing_lock"
+
+    unit: Mapped[str] = mapped_column(String(8), primary_key=True)
+    started_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+    heartbeat_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+
+class StockListingRawBody(Base):
+    """원본 응답 본문. **같은 본문은 한 번만** 저장한다 (006 data-model 4a절, analyze C1).
+
+    **지우지 않는다** — 헌법 원칙 V "원본 응답을 보존한다". 요청·응답 헤더를 담지 않는다 —
+    인증 헤더가 섞인다 (FR-061).
+    """
+
+    __tablename__ = "stock_listing_raw_body"
+
+    sha256: Mapped[str] = mapped_column(String(64), primary_key=True)
+    body: Mapped[str] = mapped_column(Text(length=16_777_215), nullable=False)
+    first_stored_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+
+class StockListingRaw(Base):
+    """원본 응답의 쪽 기록 (006 data-model 4절). 본문은 해시로 가리킨다."""
+
+    __tablename__ = "stock_listing_raw"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    unit: Mapped[str] = mapped_column(String(8), nullable=False)
+    batch_started_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+    page_no: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    status_code: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    body_sha256: Mapped[str] = mapped_column(
+        String(64), ForeignKey("stock_listing_raw_body.sha256"), nullable=False)
+    fetched_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
