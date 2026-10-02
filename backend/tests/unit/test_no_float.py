@@ -140,3 +140,31 @@ def test_주식_금액_경로에_float_주석이_없다() -> None:
                     and node.annotation.id == "float"):
                 offenders.append(f"{rel}:{node.lineno}")
     assert offenders == [], f"주식 금액 경로에 float 주석: {offenders}"
+
+
+# ─────────────────────────── 006: 검색용 목록·환율 판정 ───────────────────────────
+
+#: 006이 더한 경로 (T082). 목록에는 가격을 담지 않지만, 축소 비율·환율 판정이 금액과 비율을 다룬다.
+PATHS_006 = [
+    *sorted((SRC / "search").rglob("*.py")),
+    *sorted((SRC / "ingestion" / "kiwoom").rglob("*.py")),
+    *sorted((SRC / "api" / "services").glob("listing_*.py")),
+    SRC / "api" / "services" / "stock_collect.py",
+]
+
+
+def test_006_경로에_float이_없다() -> None:
+    """T082 — 헌법 원칙 VI. 축소 검사의 비율(`LISTING_SHRINK_THRESHOLD`)은 `Decimal`이다."""
+    assert len(PATHS_006) >= 8, "검사 대상이 비었다 — 경로가 바뀌면 조용히 통과한다"
+    offenders: list[str] = []
+    for path in PATHS_006:
+        assert path.exists(), path
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) \
+                    and node.func.id == "float":
+                offenders.append(f"{path.relative_to(SRC)}:{node.lineno}")
+            if isinstance(node, ast.Name) and node.id == "float" \
+                    and isinstance(node.ctx, ast.Load):
+                offenders.append(f"{path.relative_to(SRC)}:{node.lineno} (타입)")
+    assert offenders == [], f"006 경로의 float: {offenders}"

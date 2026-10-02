@@ -79,3 +79,40 @@ def test_주식_경로에_값을_채우는_코드가_없다() -> None:
         body = path.read_text(encoding="utf-8")
         offenders += [f"{path.name}: {t}" for t in FILL_TOKENS if t in body]
     assert offenders == [], f"주식 경로에 보간 흔적 (헌법 원칙 V): {offenders}"
+
+
+# ─────────────────────────── 006: 검색용 목록·환율 판정 ───────────────────────────
+
+LISTING_PATHS = [
+    SRC / "repository" / "stock_listing.py",
+    SRC / "api" / "services" / "listing_refresh.py",
+    SRC / "api" / "services" / "listing_index.py",
+    SRC / "api" / "services" / "stock_collect.py",
+    SRC / "api" / "services" / "collection_gate.py",
+]
+
+
+def test_목록과_환율_판정에_값을_채우는_코드가_없다() -> None:
+    """T083 — 헌법 원칙 V, FR-043a, FR-047. 빠진 종목·환율이 없는 구간을 값으로 메우지 않는다."""
+    offenders: list[str] = []
+    for path in LISTING_PATHS:
+        assert path.exists(), f"{path.name}이 없다 — 검사가 조용히 비어 버린다"
+        body = path.read_text(encoding="utf-8")
+        offenders += [f"{path.name}: {t}" for t in FILL_TOKENS if t in body]
+    assert offenders == [], f"006 경로의 보간 흔적: {offenders}"
+
+
+def test_종목_목록과_원본을_지우는_질의가_없다() -> None:
+    """T083 — FR-019, FR-061, 헌법 원칙 V(원본 보존).
+
+    빠진 종목은 `missing`으로 표시하고 원본 응답은 지우지 않는다. 지우는 경로가 생기면 005가 받아 둔
+    시세와 이력이 가리키는 대상이 사라지고, 무엇이 잘못 왔는지 되짚을 근거도 사라진다. 점유는 지워야
+    하는 것이라 다른 모듈(`stock_listing_lock.py`)에 둔다 — 한 파일에 섞으면 이 검사를 할 수 없다.
+    """
+    import ast
+
+    body = (SRC / "repository" / "stock_listing.py").read_text(encoding="utf-8")
+    assert "delete(" not in body and ".delete(" not in body
+    tree = ast.parse(body)
+    names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
+    assert "delete" not in names
