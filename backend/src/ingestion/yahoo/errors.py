@@ -35,6 +35,27 @@ class StockSourceAuthError(StockSourceError):
     """인증이 거절됐다 (502)."""
 
 
+#: 시세가 시작되기 전 구간을 요청했을 때의 오류 표지 (006 T090 실측). `error.code`와 설명의 앞부분.
+_NO_DATA_CODE = "Bad Request"
+_NO_DATA_PREFIX = "Data doesn't exist for startDate"
+
+
+def _is_no_data_in_range(body: object) -> bool:
+    """**구간에 시세가 없다**는 응답인가 — 오류가 아니라 빈 구간이다.
+
+    실측(2026-10-02): 시세가 시작되기 전 구간을 요청하면 HTTP 400과 `chart.error`
+    `{"code": "Bad Request", "description": "Data doesn't exist for startDate = …"}`가 온다.
+    005는 빈 결과로 온다고 가정하고 출처 장애로 올렸다. 그러면 수집 작업이 실패하고 커버리지가
+    남지 않아 요청할 때마다 같은 실패를 되풀이한다.
+    """
+    chart = body.get("chart") if isinstance(body, dict) else None
+    error = chart.get("error") if isinstance(chart, dict) else None
+    if not isinstance(error, dict) or error.get("code") != _NO_DATA_CODE:
+        return False
+    description = error.get("description")
+    return isinstance(description, str) and description.startswith(_NO_DATA_PREFIX)
+
+
 def raise_for_response(status: int, body: object) -> None:
     """상태 코드와 본문을 함께 보고 오류를 구별한다.
 
@@ -44,6 +65,9 @@ def raise_for_response(status: int, body: object) -> None:
     출처 응답 본문을 메시지에 그대로 싣지 않는다 — 내부 사정이 사용자 화면에 새어
     나가면 안 되고, 출처가 문구를 바꾸면 우리 화면이 따라 바뀐다.
     """
+    if status in (200, 400) and _is_no_data_in_range(body):
+        # 빈 구간 — 받으러 갔고 값이 없었다. 커버리지에 남겨 다시 받으러 가지 않는다.
+        return
     if status == 429:
         raise StockSourceRateLimited("시세 출처의 호출 한도를 소진했습니다.")
     if status in (401, 403):
