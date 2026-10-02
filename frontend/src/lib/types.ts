@@ -510,6 +510,21 @@ export interface SimulationCollecting {
 }
 
 /**
+ * 시작일이 시작 가능 날짜보다 이르다 (006 contracts 2절, 400 `before_listing`).
+ *
+ * - `listing`: 목록의 상장일보다 이르다. 시세를 받기 전에 온다
+ * - `price_start`: 시세가 그보다 늦게 시작한다. 시세를 받은 뒤에 온다
+ *
+ * **시작일을 몰래 옮기지 않는다** — 화면이 그 날짜로 옮기는 수단을 그린다.
+ */
+export interface BeforeListingBody {
+  status: "before_listing";
+  message: string;
+  startableFrom: string;
+  basis: "listing" | "price_start";
+}
+
+/**
  * 수집으로 채울 수 없는 구간 (006 FR-043a, 409). **두 사유를 섞지 않는다** — 설정 밖은
  * 설정을 바꾸면 풀리는데 "출처에 없음"으로 말하면 영영 불가능한 것으로 읽힌다.
  */

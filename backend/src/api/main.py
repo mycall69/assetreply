@@ -163,8 +163,11 @@ def create_app() -> FastAPI:
     @app.exception_handler(BeforeListing)
     async def _before_listing(_: Request, exc: BeforeListing) -> JSONResponse:
         # **조용히 첫 거래일로 옮기지 않는다** — 옮기면 사용자는 자신이 고른 날짜부터
-        # 계산됐다고 믿는다 (FR-005).
-        return _json(400, "before_listing", str(exc))
+        # 계산됐다고 믿는다 (FR-005). 006 — 시작 가능 날짜와 근거를 싣는다. 화면이 그
+        # 날짜로 옮기는 수단을 그린다(contracts 2절).
+        return JSONResponse(status_code=400, content={
+            "status": "before_listing", "message": str(exc),
+            "startableFrom": exc.startable_from.isoformat(), "basis": exc.basis})
 
     @app.exception_handler(NoPriceData)
     async def _no_price_data(_: Request, exc: NoPriceData) -> JSONResponse:

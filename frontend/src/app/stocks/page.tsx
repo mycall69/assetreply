@@ -19,7 +19,8 @@ import { ComparisonChart } from "@/components/stock/ComparisonChart";
 import { SimulationHistory } from "@/components/stock/SimulationHistory";
 import { SimulationForm } from "@/components/stock/SimulationForm";
 import { StockSearch } from "@/components/stock/StockSearch";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { localYesterday } from "@/lib/startDate";
 import { useStockStore } from "@/stores/stockStore";
 
 export default function StocksPage() {
@@ -27,7 +28,7 @@ export default function StocksPage() {
     input, rows, summary, exchange, hasMore, collecting,
     series, seriesError, loading, loadingMore, error, loadMoreError,
     history, historySaveError, selectedHistory, comparison, comparing,
-    comparisonError, progress, selecting, selectionError, fxBlocked,
+    comparisonError, progress, selecting, selectionError, fxBlocked, listedOn, startable,
     setInput, selectStock, run, loadMore, refreshIfRan, dispose,
     restoreHistory, toggleHistory, removeHistoryEntry, compareSelected,
   } = useStockStore();
@@ -47,6 +48,8 @@ export default function StocksPage() {
   }, [restoreHistory]);
 
   const currency = input.stock?.currency ?? "KRW";
+  // 시작일의 마지막 날(FR-004). 화면을 연 날의 어제다 — 서버도 계산 끝을 어제로 잡는다.
+  const limit = useMemo(() => localYesterday(), []);
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
@@ -79,6 +82,9 @@ export default function StocksPage() {
             reinvest: input.reinvest,
           }}
           disabled={loading || selecting || input.stock === null}
+          limit={limit}
+          listedOn={listedOn}
+          startable={startable}
           onChange={(next) => setInput(next)}
           onSubmit={() => void run()}
         />

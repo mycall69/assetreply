@@ -160,7 +160,8 @@ async def collecting_body(
     currency = fx_currency_for(stock, principal_currency)
     if currency is not None:
         await require_fx_available(session, currency, start)
-    collecting = await plan_collection(session, stock, start, end)
+    # 시작 월의 1일부터 받는다 — 수집 후 판정이 시작일 앞부분의 일봉까지 본다(research R6-8).
+    collecting = await plan_collection(session, stock, start.replace(day=1), end)
     fx = await plan_fx(session, currency, start, end) if currency is not None else None
     if collecting is None and fx is None:
         return None

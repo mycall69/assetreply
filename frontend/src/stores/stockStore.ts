@@ -16,11 +16,13 @@ import {
 } from "@/lib/simulationHistory";
 import { subscribeCollection } from "@/lib/collectionStream";
 import { createSequence } from "@/lib/searchSequence";
+import { DEFAULT_START } from "@/lib/startDate";
 import {
   subscribeStockProgress,
   type StockProgressSnapshot,
 } from "@/lib/stockProgressStream";
 import type {
+  BeforeListingBody,
   ExchangeInfo,
   FxCollecting,
   FxNotAvailableBefore,
@@ -56,6 +58,11 @@ interface StockState {
   selectionError: string | null;
   /** 등록 응답의 상장일. 시작 가능 날짜가 아니라 하한이다 (006 FR-005a). */
   listedOn: string | null;
+  /**
+   * 실행 뒤 서버가 알려 준 시작 가능 날짜 (006 FR-005, W1a). 일반 오류와 따로 둔다 — 그 날짜로
+   * 옮기는 수단을 그려야 한다. **시작일은 바꾸지 않는다.**
+   */
+  startable: Pick<BeforeListingBody, "startableFrom" | "basis" | "message"> | null;
   rows: SimulationRow[];
   summary: SimulationSummary | null;
   condition: SimulationCondition | null;
@@ -240,7 +247,8 @@ export function toQuery(input: {
 export const useStockStore = create<StockState>((set, get) => ({
   input: {
     stock: null,
-    start: "",
+    // FR-001 — 처음 들어오면 2020-01-01. 종목을 바꿔도 덮지 않는다(FR-006).
+    start: DEFAULT_START,
     principal: "",
     principalCurrency: "KRW",
     reinvest: true,
@@ -248,6 +256,7 @@ export const useStockStore = create<StockState>((set, get) => ({
   selecting: false,
   selectionError: null,
   listedOn: null,
+  startable: null,
   rows: [],
   summary: null,
   condition: null,
@@ -274,11 +283,13 @@ export const useStockStore = create<StockState>((set, get) => ({
 
   selectStock: async (choice) => {
     const id = selectionSeq.next();
+    // 시작일은 건드리지 않는다(FR-006). 이전 종목의 시작 가능 날짜는 이 종목의 것이 아니다.
     set({
       input: { ...get().input, stock: null },
       selecting: true,
       selectionError: null,
       listedOn: null,
+      startable: null,
     });
     try {
       const body = await apiClient.post<SelectionResponse>(
@@ -323,8 +334,8 @@ export const useStockStore = create<StockState>((set, get) => ({
     set({
       rows: [], summary: null, condition: null, exchange: null,
       hasMore: false, oldestReturned: null, series: null, seriesError: null,
-      collecting: null, fxBlocked: null, progress: null, loading: true, error: null,
-      loadMoreError: null,
+      collecting: null, fxBlocked: null, startable: null, progress: null, loading: true,
+      error: null, loadMoreError: null,
     });
     try {
       const body = await apiClient.get<SimulationResponse | SimulationCollecting>(
@@ -378,6 +389,13 @@ export const useStockStore = create<StockState>((set, get) => ({
         });
       }
     } catch (err) {
+      if (err instanceof ApiError && err.code === "before_listing" && err.body) {
+        // W1a — 같은 모양으로 그 날짜와 옮기기를 보인다. 시작일을 몰래 옮기지 않는다.
+        const { startableFrom, basis, message: text } =
+          err.body as unknown as BeforeListingBody;
+        set({ startable: { startableFrom, basis, message: text }, loading: false });
+        return;
+      }
       if (err instanceof ApiError && err.code === "fx_not_available_before" && err.body) {
         // W4a — 같은 사유를 일반 오류로 한 번 더 말하지 않는다.
         set({ fxBlocked: err.body as unknown as FxNotAvailableBefore, loading: false });

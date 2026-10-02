@@ -71,12 +71,13 @@ async def select_external(
     return Selected(stock, None)
 
 
-async def register_from_price_symbol(
+async def listing_for(
     session: AsyncSession, market: str, symbol: str
-) -> Stock | None:
-    """시세 식별자에서 목록을 거꾸로 찾아 등록한다. 찾지 못하면 `None` (research R6-6 역변환).
+) -> StockListing | None:
+    """시세 식별자에 해당하는 검색용 목록 종목 (research R6-6 역변환). 없으면 `None`.
 
-    **커밋하지 않는다.** 시뮬레이션이 이어서 수집 작업을 만들며 함께 커밋한다.
+    정방향으로 다시 옮긴 식별자가 요청과 같을 때만 그 종목이다 — 코스닥 종목을 `.KS`로
+    부르면 왕복이 깨지므로 다른 종목으로 보지 않는다.
     """
     key = listing_candidates(market, symbol)
     if key is None:
@@ -86,8 +87,18 @@ async def register_from_price_symbol(
         if listing is None:
             continue
         ps = to_price_symbol(listing.unit, listing.code)
-        if (ps.market, ps.symbol) != (market, symbol):
-            # 왕복이 깨진다 — 코스닥 종목을 `.KS`로 부른 경우 등. 다른 종목으로 등록하지 않는다.
-            return None
-        return await _register_listing(session, listing)
+        return listing if (ps.market, ps.symbol) == (market, symbol) else None
     return None
+
+
+async def register_from_price_symbol(
+    session: AsyncSession, market: str, symbol: str
+) -> Stock | None:
+    """시세 식별자에서 목록을 거꾸로 찾아 등록한다. 찾지 못하면 `None`.
+
+    **커밋하지 않는다.** 시뮬레이션이 이어서 수집 작업을 만들며 함께 커밋한다.
+    """
+    listing = await listing_for(session, market, symbol)
+    if listing is None:
+        return None
+    return await _register_listing(session, listing)

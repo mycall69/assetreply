@@ -169,18 +169,18 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T056 [P] [US3] `frontend/tests/startDate.test.ts` — 한 달·1년 앞뒤 이동을 표로 검증한다: 2020-01-31 + 1개월 = 2020-02-29, 2020-02-29 + 1년 = 2021-02-28, 2020-03-31 − 1개월 = 2020-02-29, 맞춰진 날짜에서 다시 이동하면 맞춰진 날짜에서 출발하는지, 어제가 속한 달을 넘지 못하는지. **`startDate.ts`에 `setMonth`·`setFullYear`가 없는지**(정적 검사) (FR-002, FR-003, FR-004, SC-012, research R6-7)
-- [ ] T057 [P] [US3] `frontend/tests/StartDateInput.test.tsx` — 처음 값이 2020-01-01인지, 버튼이 "1년 전"·"한 달 전"으로 읽히는지, 경계에서 버튼이 비활성인지, 미래 날짜 입력에 사유가 보이고 실행이 막히는지, **시작일이 `listedOn`보다 이르면 W1a가 보이고 "그 달로 옮기기"를 눌러야만 바뀌는지** (FR-001, FR-002, FR-004, FR-005)
-- [ ] T058 [P] [US3] `frontend/tests/stockStoreStartDate.test.ts` — 종목을 바꿔도 시작일이 그대로인지, `before_listing`(`basis: price_start`)의 `startableFrom`이 W1a와 같은 모양으로 보이는지 (FR-005a, FR-006)
-- [ ] T059 [P] [US3] `backend/tests/integration/test_start_available.py` — **검색 → 등록 → 실행** 경로로 검증한다. 시작일이 목록의 상장일보다 이르면 **시세를 받지 않고**(수집 작업 미생성) `400 before_listing`·`basis: listing`인지. 수집 범위가 시작일을 덮는데 시작 월에 일봉이 없으면 `basis: price_start`·`startableFrom`인지. **시작일이 휴일(2020-01-01)이고 `first_available_date`가 비어 있어도 거절하지 않는지**(005 실제 경로 결함). 첫 매수가 시작 월 밖으로 **몰래 밀리지 않는지**. 목록의 상장일이 `stock.first_available_date`에 복사되지 않는지 (FR-005, FR-005a, SC-013, SC-013a, research R6-8, R6-17)
+- [X] T056 [P] [US3] `frontend/tests/startDate.test.ts` — 한 달·1년 앞뒤 이동을 표로 검증한다: 2020-01-31 + 1개월 = 2020-02-29, 2020-02-29 + 1년 = 2021-02-28, 2020-03-31 − 1개월 = 2020-02-29, 맞춰진 날짜에서 다시 이동하면 맞춰진 날짜에서 출발하는지, 어제가 속한 달을 넘지 못하는지. **`startDate.ts`에 `setMonth`·`setFullYear`가 없는지**(정적 검사) (FR-002, FR-003, FR-004, SC-012, research R6-7)
+- [X] T057 [P] [US3] `frontend/tests/StartDateInput.test.tsx` — 처음 값이 2020-01-01인지, 버튼이 "1년 전"·"한 달 전"으로 읽히는지, 경계에서 버튼이 비활성인지, 미래 날짜 입력에 사유가 보이고 실행이 막히는지, **시작일이 `listedOn`보다 이르면 W1a가 보이고 "그 달로 옮기기"를 눌러야만 바뀌는지** (FR-001, FR-002, FR-004, FR-005)
+- [X] T058 [P] [US3] `frontend/tests/stockStoreStartDate.test.ts` — 종목을 바꿔도 시작일이 그대로인지, `before_listing`(`basis: price_start`)의 `startableFrom`이 W1a와 같은 모양으로 보이는지 (FR-005a, FR-006)
+- [X] T059 [P] [US3] `backend/tests/integration/test_start_available.py` — **검색 → 등록 → 실행** 경로로 검증한다. 시작일이 목록의 상장일보다 이르면 **시세를 받지 않고**(수집 작업 미생성) `400 before_listing`·`basis: listing`인지. 수집 범위가 시작일을 덮는데 시작 월에 일봉이 없으면 `basis: price_start`·`startableFrom`인지. **시작일이 휴일(2020-01-01)이고 `first_available_date`가 비어 있어도 거절하지 않는지**(005 실제 경로 결함). 첫 매수가 시작 월 밖으로 **몰래 밀리지 않는지**. 목록의 상장일이 `stock.first_available_date`에 복사되지 않는지 (FR-005, FR-005a, SC-013, SC-013a, research R6-8, R6-17)
 
 ### Implementation for User Story 3
 
-- [ ] T060 [US3] `frontend/src/lib/startDate.ts` — 정수 날짜 산술, 그 달 말일로 맞춤, 어제 경계 (FR-002, FR-003, FR-004)
-- [ ] T061 [US3] `frontend/src/components/stock/StartDateInput.tsx` — W1·W1a (FR-001, FR-002, FR-004, FR-005, ui-wireframes W1, W1a)
-- [ ] T062 [US3] `frontend/src/components/stock/SimulationForm.tsx`가 `StartDateInput`을 쓰게 하고, `stockStore`의 시작일 초기값을 2020-01-01로, 종목 변경이 시작일을 건드리지 않게 한다 (FR-001, FR-006)
-- [ ] T063 [US3] `backend/src/api/services/stock_simulation.py` — 시작 가능 날짜를 두 단계로 판정한다: 수집 전에는 목록 상장일을 하한으로, 수집 후에는 시작 월의 실제 일봉으로. `run_simulation`이 메타데이터(`listed_on`)를 실제 일봉보다 먼저 믿지 않게 바꾼다 (FR-005, FR-005a, research R6-8)
-- [ ] T064 [US3] `backend/src/api/main.py`의 `before_listing` 처리기가 `startableFrom`·`basis`를 싣게 하고, `frontend/src/lib/types.ts`에 본문 타입을 더한다 (FR-005, FR-005a, contracts/rest-api 2절)
+- [X] T060 [US3] `frontend/src/lib/startDate.ts` — 정수 날짜 산술, 그 달 말일로 맞춤, 어제 경계 (FR-002, FR-003, FR-004)
+- [X] T061 [US3] `frontend/src/components/stock/StartDateInput.tsx` — W1·W1a (FR-001, FR-002, FR-004, FR-005, ui-wireframes W1, W1a)
+- [X] T062 [US3] `frontend/src/components/stock/SimulationForm.tsx`가 `StartDateInput`을 쓰게 하고, `stockStore`의 시작일 초기값을 2020-01-01로, 종목 변경이 시작일을 건드리지 않게 한다 (FR-001, FR-006)
+- [X] T063 [US3] `backend/src/api/services/stock_simulation.py` — 시작 가능 날짜를 두 단계로 판정한다: 수집 전에는 목록 상장일(과 출처가 준 시세 시작일)을 하한으로, 수집 후에는 시작 월의 실제 일봉으로. `run_simulation`이 메타데이터(`listed_on`)를 실제 일봉보다 먼저 믿지 않게 바꾼다. **받아 둔 첫 시세를 수집 전 근거로 쓰지 않고, 주식 수집을 시작 월 1일부터 한다**(`stock_collect.collecting_body`, 구현 단계 결정) (FR-005, FR-005a, research R6-8)
+- [X] T064 [US3] `backend/src/api/main.py`의 `before_listing` 처리기가 `startableFrom`·`basis`를 싣게 하고, `frontend/src/lib/types.ts`에 본문 타입을 더한다 (FR-005, FR-005a, contracts/rest-api 2절)
 
 **Checkpoint**: 시작일이 기본값에서 출발하고, 기본값 그대로 실행해도 거절되지 않는다
 

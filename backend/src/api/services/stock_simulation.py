@@ -25,7 +25,7 @@ from src.api.services.stock_fx import (
     cash_buy_spread,
     load_rates,
 )
-from src.api.services.stock_selection import register_from_price_symbol
+from src.api.services.stock_selection import listing_for, register_from_price_symbol
 from src.db.models import Stock
 from src.repository import stock_price as price_repo
 from src.repository.stock import find_stock
@@ -116,11 +116,20 @@ def check_principal_currency(code: str) -> None:
 
 
 class BeforeListing(Exception):
-    """투자 시작 날짜가 종목의 상장 이전이다 (FR-005).
+    """투자 시작 날짜가 종목의 시작 가능 날짜 이전이다 (FR-005, 006 FR-005a).
 
     **조용히 첫 거래일로 옮기지 않는다.** 옮기면 사용자는 자신이 고른 날짜부터
-    계산됐다고 믿는다.
+    계산됐다고 믿는다. 006 — 시작 가능 날짜와 그 근거를 함께 든다. 화면이 그 날짜로
+    옮기는 수단을 그린다.
+
+    - `listing`: 목록의 상장일보다 이르다. 시세를 받기 전에 낸다
+    - `price_start`: 시세 출처가 그보다 늦게 시작한다
     """
+
+    def __init__(self, startable_from: dt.date, basis: str) -> None:
+        super().__init__(_before_listing_message(startable_from))
+        self.startable_from = startable_from
+        self.basis = basis
 
 
 class NoPriceData(Exception):
@@ -141,7 +150,6 @@ async def run_simulation(
     reinvest: bool,
     fee_rate: Decimal,
     tax_rate: Decimal,
-    listed_on: dt.date | None = None,
     principal_currency: str | None = None,
     lookup: RateLookup | None = None,
     spread: Decimal | None = None,
@@ -152,18 +160,10 @@ async def run_simulation(
     시세를 오늘까지 이어 그리면 없는 값을 만들어내는 것이라 헌법 원칙 V 위반이다
     (FR-014a).
     """
-    # **상장일과 "우리가 받아 둔 첫 시세"는 다르다.** 전자를 알면 그것을 쓰고,
-    # 모르면 후자를 근거로 삼는다. 후자만 쓰면 월초가 휴일인 정상적인 시작일
-    # (예: 8월 1일 일요일, 첫 거래일 8월 2일)까지 거절한다.
-    earliest = listed_on or await price_repo.first_quote_date(session, stock_id)
-    if earliest is None:
-        raise NoPriceData("그 종목의 시세를 얻을 수 없습니다.")
-    if start < earliest:
-        raise BeforeListing(_before_listing_message(earliest))
-
     bars_rows = await price_repo.prices(session, stock_id, start, end)
     if not bars_rows:
         raise NoPriceData("요청한 구간에 시세가 없습니다.")
+    await _require_start_month_bar(session, stock_id, start, bars_rows[0].quote_date)
 
     dividend_rows = await price_repo.dividends(session, stock_id, start, end)
     split_rows = await price_repo.splits(session, stock_id, start, end)
@@ -313,29 +313,52 @@ def _before_listing_message(earliest: dt.date) -> str:
     return f"{earliest.isoformat()}부터 시세가 있습니다. 그 이전은 계산할 수 없습니다."
 
 
-async def earliest_available(session: AsyncSession, stock: Stock) -> dt.date | None:
-    """그 종목에서 계산을 시작할 수 있는 가장 이른 날짜.
+def start_month(start: dt.date) -> dt.date:
+    """시작 월의 1일. 수집 후 판정이 시작일 앞부분의 일봉까지 보려면 여기부터 받아야 한다."""
+    return start.replace(day=1)
 
-    **상장일과 "우리가 받아 둔 첫 시세"는 다르다.** 전자를 알면 그것을 쓰고, 모르면
-    후자를 근거로 삼는다. 둘 다 없으면 `None` — 아직 받아 본 적이 없다는 뜻이지
-    시세가 없다는 뜻이 아니다.
+
+def _month_end(day: dt.date) -> dt.date:
+    following = (day.replace(day=28) + dt.timedelta(days=4)).replace(day=1)
+    return following - dt.timedelta(days=1)
+
+
+async def _require_start_month_bar(
+    session: AsyncSession, stock_id: int, start: dt.date, first_bar: dt.date
+) -> None:
+    """**수집 후** 판정 — 시작 월에 일봉이 하나도 없으면 막는다 (006 FR-005, research R6-8).
+
+    "첫 일봉 > 시작일"로 판정하면 휴일 시작(2020-01-01 → 01-02)을 거절한다 — 005가 실제
+    경로에서 겪은 결함이다. 한 달 안에 일봉이 하나도 없는 경우는 휴장으로 설명되지 않는다.
+    시작일 **앞**의 일봉도 본다 — 월말 휴일 시작(12-31)의 첫 매수가 다음 달인 것은 휴장
+    때문이지 시세 시작 때문이 아니다.
     """
-    if stock.first_available_date is not None:
-        return stock.first_available_date
-    return await price_repo.first_quote_date(session, int(stock.id))
+    if (first_bar.year, first_bar.month) == (start.year, start.month):
+        return
+    month = await price_repo.prices(session, stock_id, start_month(start), _month_end(start))
+    if not month:
+        # 첫 매수가 시세 시작일로 **몰래 밀리지 않게** 막고 실제 시작일을 알린다 (SC-013a).
+        raise BeforeListing(first_bar, "price_start")
 
 
 async def require_start_available(
     session: AsyncSession, stock: Stock, start: dt.date
 ) -> None:
-    """시작 날짜가 시세 범위 안인지 본다 (FR-005).
+    """**수집 전** 판정 — 하한보다 이른 시작일을 막는다 (FR-005, 006 FR-005a).
 
     **수집을 시작하기 전에 판정한다.** 뒤로 미루면 상장 수십 년 전부터의 구간이
     미수집으로 보여 수집이 시작되고, 사용자는 받을 수 없는 데이터를 기다린다.
+
+    하한은 둘이다 — 검색용 목록의 상장일(`listing`)과 시세 출처가 준 시세 시작일
+    (`price_start`). 둘 다 "그보다 앞에는 일봉이 없다"는 확실한 근거다. **받아 둔 첫
+    시세는 근거가 아니다**(research R6-8): 늦은 시작일로 한 번 받으면 그 날짜가 첫 시세가
+    되어, 더 이른 시작일을 받으러 가지도 않고 거절한다. 휴일 시작도 거절한다.
     """
-    earliest = await earliest_available(session, stock)
-    if earliest is not None and start < earliest:
-        raise BeforeListing(_before_listing_message(earliest))
+    listing = await listing_for(session, stock.market, stock.symbol)
+    if listing is not None and listing.listed_on is not None and start < listing.listed_on:
+        raise BeforeListing(listing.listed_on, "listing")
+    if stock.first_available_date is not None and start < stock.first_available_date:
+        raise BeforeListing(stock.first_available_date, "price_start")
 
 
 async def prepare(
@@ -365,7 +388,6 @@ async def prepare(
         start=start, end=end, principal=principal,
         currency=stock.currency, reinvest=reinvest,
         fee_rate=settings.trade_fee_rate, tax_rate=settings.dividend_tax_rate,
-        listed_on=stock.first_available_date,
         principal_currency=principal_currency,
         lookup=lookup, spread=spread)
 
