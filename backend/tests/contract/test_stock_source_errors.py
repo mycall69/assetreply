@@ -62,6 +62,32 @@ class Test본문_오류:
         raise_for_response(200, load("chart_empty.json"))
 
 
+class Test구간에_시세가_없음:
+    """006 T090에서 발견 — **시세가 시작되기 전 구간을 요청하면 출처는 HTTP 400으로 답한다.**
+
+    실제 응답(2026-10-02, `005930.KS`, 1990~1991)은 픽스처 `chart_no_data_in_range.json` —
+    `error.code`가 `Bad Request`, 설명이 "Data doesn't exist for startDate = …"다. 005는 빈 결과로
+    온다고 가정하고 이것을 출처 장애로 올렸다. 그러면 수집 작업이 실패하고 커버리지가 남지 않아,
+    다시 요청할 때마다 같은 실패를 되풀이한다 — 시작 가능 날짜를 알릴 근거(시작 월의 일봉 검사)에
+    닿지 못한다.
+    """
+
+    def test_오류가_아니라_빈_구간이다(self) -> None:
+        raise_for_response(400, load("chart_no_data_in_range.json"))
+
+    def test_시세_없는_묶음으로_읽힌다(self) -> None:
+        from src.ingestion.yahoo.parse import parse_chart
+
+        data = parse_chart(load("chart_no_data_in_range.json"))
+        assert data.prices == [] and data.dividends == [] and data.splits == []
+
+    def test_다른_400은_여전히_오류다(self) -> None:
+        """요청이 잘못된 것을 "시세 없음"으로 삼키면 고칠 기회가 사라진다."""
+        with pytest.raises(StockSourceUnavailable):
+            raise_for_response(400, {"chart": {"result": None, "error": {
+                "code": "Bad Request", "description": "Invalid input - interval=1x"}}})
+
+
 class Test오류_메시지:
     def test_출처_응답_본문을_그대로_노출하지_않는다(self) -> None:
         """내부 사정이 사용자 화면에 새어 나가지 않는다."""
