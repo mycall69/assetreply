@@ -1,0 +1,238 @@
+# Implementation Plan: 주식 시뮬레이션 개선 — 시작일·종목 검색·환전
+
+**Branch**: `006-stock-simulation-enhancements` | **Date**: 2026-10-02 | **Spec**: [spec.md](./spec.md)
+
+**Input**: Feature specification from `specs/006-stock-simulation-enhancements/spec.md`
+
+## Summary
+
+005의 주식 투자 시뮬레이션을 세 방향으로 다듬는다.
+
+1. **시작일** — 기본 2020-01-01, 월·년 이동. 날짜 산술은 정수로 한다(research R6-7).
+2. **종목 검색** — 키움증권 REST API로 국내(KOSPI·KOSDAQ·ETF·리츠)·미국(NYSE·NASDAQ·AMEX) 목록을
+   받아 로컬 DB에 두고, 메모리 색인에서 한글·초성·영문·코드로 찾는다(R6-1~R6-5). 일본은 005의 외부
+   검색을 그 시장에만 남긴다(R6-12). 고른 종목은 그 자리에서 등록한다(R6-17).
+3. **환전** — 엔화 고시 단위를 반영하고(R6-9), 필요한 환율이 없으면 003의 시작 큐로 수집한다(R6-10).
+   원금 통화는 원화 또는 종목 통화만 허용한다(R6-11).
+
+**설계 중 005의 결함 셋을 확인했다.** 셋 다 오류 없이 그럴듯하게 보이거나, 테스트를 통과하면서 실제
+경로에서만 깨진다. 이 기능이 함께 닫는다.
+
+| 결함 | 근거 | 닫는 곳 |
+|------|------|---------|
+| 고른 종목을 저장하는 경로가 없다 — 실제 사용에서 모든 시뮬레이션이 "알 수 없는 종목" | `ensure_stock` 호출처 0 | FR-030b, R6-17 |
+| `first_available_date`가 채워지지 않아 휴일 시작을 거절한다 — 기본값 2020-01-01이 매번 거절됨 | `first_trade_date` 저장처 0 | FR-005a, R6-8, R6-17 |
+| 엔화 고시 단위를 버린다(100배), 교차 통화가 원화를 거치지 않는다 | `load_rates`, 직접 재현 | FR-042, FR-050 |
+
+외환 쪽에서도 하나를 찾았다. 001의 `ensure_background_job`은 작업과 점유만 만들고 워커에 넘기지
+않는다(R6-10). 006은 그 함수를 직접 쓰지 않지만 **영향을 받는다** — 외환 화면이 먼저 남긴 고아 점유가
+006의 수집 요청을 막는다. **006에서 함께 고친다**(FR-046a, analyze H2).
+
+## Technical Context
+
+| 항목 | 값 |
+|------|-----|
+| 언어 (백엔드) | Python 3.14.x |
+| 프레임워크 | FastAPI, SQLAlchemy 2.x async, aiohttp |
+| 언어 (프론트엔드) | TypeScript 5.x (`strict`), Next.js 16 App Router, React 19 |
+| 상태 관리 | Zustand (헌법 원칙 VII) |
+| DB | MySQL 8.0+ — **신규 테이블 5개**, Alembic 마이그레이션. 기존 테이블 구조 변경 없음 |
+| 테스트 | pytest·pytest-asyncio / Vitest·React Testing Library |
+| 타입·린트 | mypy strict, ruff / tsc, eslint |
+| 목록 출처 | **키움증권 REST API** — 공식, 인증 필요. 목록에만 쓴다 (R6-1, R6-2) |
+| 시세 출처 | 005 그대로 (Yahoo chart, 원칙 II 잠정 결정 유지) |
+| 검색 | 메모리 색인 + `src/search/`의 순수 함수 (R6-5) |
+| 갱신 실행 | 앱 수명과 함께 사는 목록 갱신 워커, DB 점유 (R6-3) |
+| 환율 수집 | 003의 `StartQueue` 경유 (R6-10) |
+| 성능 목표 | 검색 결과의 95%가 입력을 멈춘 뒤 0.5초 안 (SC-001). 입력 대기 150ms 포함 |
+| 규모 | 검색용 목록 국내 약 3,500건 + 미국 수천~1만 건(첫 실측으로 확정, quickstart 2) |
+| 제약 | 백엔드 단일 워커(CLAUDE.md), 테스트는 네트워크 없이(헌법 원칙 III) |
+
+## Constitution Check
+
+*GATE: Phase 0 전에 통과해야 한다. Phase 1 설계 뒤 다시 확인한다.*
+
+| 원칙 | 판정 | 근거 |
+|------|------|------|
+| I. 비동기 우선 | ✅ | 키움 호출은 aiohttp. 갱신은 워커 태스크라 검색 요청이 기다리지 않는다(FR-017). 검색 색인은 메모리라 I/O가 없다 |
+| II. 데이터 소스 격리 | ✅ | 어댑터를 `ingestion/kiwoom/`에 격리하고 한도·재시도·간격을 설정으로 둔다. 비밀은 `.env`. 이용약관은 **사용자가 확인했다(2026-10-02)** — 개인 이용 전제, Complexity Tracking 참조 |
+| III. TDD (NON-NEGOTIABLE) | ✅ | 테스트 선행. 키움 응답은 **실제 응답을 저장한 픽스처**로 계약 테스트한다(공식 예시는 자리 표시용이라 쓰지 않는다, R6-2). 신규 데이터 소스이므로 계약 테스트가 품질 게이트다 |
+| IV. 모듈화 | ✅ | 일치 판정·순위·시세 식별자 변환은 `src/search/`의 순수 함수(DB·HTTP 없음). 날짜 산술은 프론트엔드 순수 함수. 엔화 단위 환산은 `simulation/fx_convert.py` |
+| V. 데이터 정합성 | ✅ | 목록에서 빠진 종목을 지우지 않는다. 일부만 받은 목록·축소된 목록으로 교체하지 않는다(FR-015, FR-018, FR-018a). 수집으로 채울 수 없는 구간의 환율을 값으로 메우지 않는다(FR-043a) |
+| VI. 금융 계산 정확성 | ✅ | 엔화 단위 나눗셈은 `Decimal`. 목록의 가격(`lastPrice`)은 저장하지 않는다 — 시세가 두 출처에서 섞일 자리를 없앤다 |
+| VII. 반응형 UI | ✅ | 로컬 검색과 일본 검색을 따로 그린다(FR-027). 갱신·수집은 화면을 막지 않는다 |
+| VIII. 한국어 문서화 | ✅ | 모든 산출물·주석·커밋이 한국어 |
+| IX. MVP/YAGNI | ✅ | 새 자산군이 아니라 주식 자산군을 다듬는다. 범위를 명세의 Out of Scope로 좁혔다. "가상자산은 006" 기록을 갱신한다(FR-070) |
+| DB 운영 규약 | ✅ | ORM만. 갱신 중복 차단은 기본 키 INSERT 충돌(005의 점유와 같다). 검색에 DB 방언(정규식·콜레이션)을 쓰지 않는다(R6-5) |
+| 시계열 불변식 | ✅ | 목록 원본을 분리 보관하고 **지우지 않는다** — 같은 본문은 한 번만 저장한다(R6-13, analyze C1). `stock_listing`에 `source`·`ingested_at` 기록. 시각은 UTC, "오늘"만 한국 시간 날짜 |
+| 명세 작성 규약 | ✅ | 설계 중 드러난 요구사항 5건(FR-018a·FR-022 보강·FR-030a·FR-030b·FR-043a)과 analyze에서 드러난 1건(FR-046a)을 spec에 같은 작업 단위로 더했다. 아래 추적성 표가 모든 FR·SC를 잇는다 |
+
+### 설계 후 재평가
+
+| 원칙 | 판정 | 비고 |
+|------|------|------|
+| II. 데이터 소스 격리 | ⚠️→✅ | 이용약관을 사용자가 확인했다(2026-10-02). **토큰을 메모리에만** 두는 것으로 비밀 노출 경로를 줄였다(공식 클라이언트는 토큰을 파일에 저장한다, R6-1). 원본 보관에서 헤더를 빼 인증 헤더가 섞이지 않게 했다(data-model 4a절) |
+| III. TDD | ✅ | 축소 검사(FR-018a)·HTTP 200 + `return_code≠0` 판정(R6-1)은 **실패 응답 픽스처**로 검증한다. 성공 픽스처만 있으면 두 방어선이 테스트되지 않은 채 통과한다 |
+| V. 데이터 정합성 | ⚠️→✅ | 시작 가능 날짜를 메타데이터가 아니라 **실제 일봉**으로 판정하게 바꿨다(R6-8). 메타데이터를 믿으면 첫 매수가 몰래 밀린다 — 값을 만들지는 않지만 사용자가 고른 조건을 바꾸는 것이라 원칙 V의 취지(재현성)에 걸린다 |
+| V. 원본 보존 | ❌→✅ | 처음 설계는 원본을 최근 7회분만 남기고 지웠다 — 헌법 원칙 V "원본 응답을 보존"(MUST) 위반이었다(analyze C1). 지우지 않고 내용 주소로 중복을 없애는 것으로 바꿨다(R6-13) |
+| VI. 금융 계산 | ✅ | `LISTING_SHRINK_THRESHOLD`는 금융 값이 아니지만 `Decimal`로 읽는다 — 금융 계층의 `float` 정적 검사를 예외 없이 유지하기 위해서다 |
+
+## Project Structure
+
+### Documentation (this feature)
+
+```text
+specs/006-stock-simulation-enhancements/
+├── spec.md              # 명세 (FR 63, SC 20)
+├── plan.md              # 이 파일
+├── research.md          # R6-1 ~ R6-17
+├── data-model.md        # 신규 테이블 5개, 설정, 원금 통화
+├── quickstart.md        # 검증 시나리오 22개
+├── contracts/
+│   ├── rest-api.md      # 검색 2종, 종목 등록, 시뮬레이션 변경점
+│   └── ui-wireframes.md # W1 시작일 ~ W4 수집 중
+├── checklists/
+│   └── requirements.md
+└── tasks.md             # /speckit-tasks가 만든다
+```
+
+### Source Code (repository root)
+
+```text
+backend/
+├── src/
+│   ├── ingestion/kiwoom/            # 신규 — 목록 출처 어댑터 (R6-1)
+│   │   ├── client.py                #   토큰(메모리), 연속조회, 재시도
+│   │   ├── parse.py                 #   국내·미국 목록 → 도메인 타입. 출처 필드명은 여기서만
+│   │   └── errors.py                #   auth / rate_limit / network / invalid
+│   ├── search/                      # 신규 — 순수 함수 (R6-5, R6-6)
+│   │   ├── hangul.py                #   정규화, 초성 열, 받침 대기 판정
+│   │   ├── match.py                 #   일치 판정, 순위, 결정적 정렬
+│   │   └── price_symbol.py          #   목록 종목 → 005 시세 식별자
+│   ├── repository/
+│   │   └── stock_listing.py         # 신규 — 목록·갱신 기록·점유·원본
+│   ├── api/services/
+│   │   ├── listing_index.py         # 신규 — 메모리 색인, 버전 확인
+│   │   ├── listing_refresh.py       # 신규 — 갱신 판정(오늘·간격·상한·막힘), 교체 트랜잭션
+│   │   ├── stock_selection.py       # 신규 — 고른 종목 등록 (R6-17)
+│   │   ├── stock_collect.py         # 변경 — 환율 판정 추가 (R6-10)
+│   │   ├── collection_gate.py       # 변경 — ensure_background_job이 시작 큐로 넘긴다 (R6-10, FR-046a)
+│   │   ├── stock_fx.py              # 변경 — 고시 단위 반영 (R6-9)
+│   │   └── stock_simulation.py      # 변경 — 원금 통화 판정, 시작 가능 날짜 (R6-8, R6-11)
+│   ├── api/routes/
+│   │   ├── stock_search.py          # 변경 — 로컬 검색 + /external 분리 (R6-12)
+│   │   ├── stock_selection.py       # 신규
+│   │   ├── stock_simulation.py      # 변경 — 202 fx, 오류 본문
+│   │   └── stock_series.py          # 변경 — 202 fx
+│   ├── simulation/fx_convert.py     # 변경 — per_unit
+│   ├── worker/listing_worker.py     # 신규 — 목록 갱신 워커 (R6-3)
+│   ├── db/models.py                 # 변경 — 신규 테이블 5개
+│   ├── db/migrations/versions/      # 신규 마이그레이션 1개
+│   └── config/settings.py           # 변경 — 키움·목록 설정 (data-model 7절)
+├── scripts/capture_kiwoom_fixtures.py   # 신규 — 계약 테스트 픽스처 캡처(수동 실행)
+└── tests/
+    ├── contract/test_kiwoom_*.py    # 실제 응답 픽스처 + 실패 응답 픽스처
+    ├── unit/test_search_*.py        # 초성·순위·식별자 표 검증
+    ├── unit/test_layer_boundaries.py, test_no_secret_in_events.py   # 확장
+    └── integration/test_listing_*.py, test_selection_*.py, test_fx_gate_*.py
+
+frontend/
+├── src/
+│   ├── lib/startDate.ts             # 신규 — 정수 날짜 산술 (R6-7)
+│   ├── lib/searchSequence.ts        # 신규 — 응답 번호로 늦은 결과 폐기 (R6-12)
+│   ├── lib/collectionStream.ts      # 재사용 — 003 수집 스트림 구독(환율 대기)
+│   ├── components/stock/
+│   │   ├── StartDateInput.tsx       # 신규 — W1, W1a
+│   │   ├── StockSearch.tsx          # 변경 — 두 영역, 목록 상태, 잘림, W2a
+│   │   ├── SimulationForm.tsx       # 변경 — 원금 통화 제한 W3
+│   │   ├── SimulationHistory.tsx    # 변경 — 막힌 조합 항목 표시
+│   │   └── CollectingNotice.tsx     # 변경 — 환율 줄 W4, W4a
+│   ├── stores/stockStore.ts         # 변경 — 시작일 기본값, 종목 등록, 환율 대기 재요청
+│   └── lib/types.ts                 # 변경 — 검색 응답, 202 fx, 오류 본문
+└── tests/                           # 각 변경에 대응하는 테스트
+```
+
+**Structure Decision**: 001~005와 같은 웹 앱 구조(`backend/` + `frontend/`)를 잇는다. 새 최상위
+패키지는 `src/search/` 하나다 — 일치 판정은 금융 계산이 아니라 `simulation/`에 두지 않고, DB·HTTP를
+모르는 순수 함수라 `api/services/`에도 두지 않는다. `test_layer_boundaries`에 "`search`는
+`repository`·`api`·`db`·`ingestion`을 임포트하지 않는다"를 더한다.
+
+## 요구사항 추적성
+
+모든 FR·SC를 설계 근거와 잇는다. tasks.md는 이 표의 각 줄을 참조해야 한다(헌법 명세 작성 규약).
+
+| 요구사항 | 설계 근거 |
+|----------|-----------|
+| FR-001 (기본 시작일) | `stockStore` 초기값, ui-wireframes W1, quickstart 13 |
+| FR-002 (월·년 이동) | `lib/startDate.ts`, `StartDateInput.tsx`, ui-wireframes W1, quickstart 13 |
+| FR-003, SC-012 (없는 날짜는 말일로) | research R6-7, `lib/startDate.ts` 표 검증, quickstart 13 |
+| FR-004 (어제 이후 금지) | research R6-7, ui-wireframes W1, quickstart 13 |
+| FR-005, SC-013 (상장 이전 사전 안내) | research R6-8 1단계, contracts/rest-api `before_listing`(`basis: listing`), ui-wireframes W1a, quickstart 14·15 |
+| FR-005a, SC-013a (상장일은 하한, 실제 일봉 기준) | research R6-8 2단계, contracts/rest-api `basis: price_start`, quickstart 15 |
+| FR-006 (종목을 바꿔도 시작일 유지) | `stockStore`, ui-wireframes W1, quickstart 13 |
+| FR-010 (국내 목록 범위) | research R6-2 단위 표, data-model `stock_listing`, quickstart 3 |
+| FR-010a (ETF·리츠의 거래 시장) | research R6-6, `search/price_symbol.py`, quickstart 11 |
+| FR-011 (미국 목록) | research R6-2, data-model `stock_listing`, quickstart 5 |
+| FR-012 (키움은 목록에만) | research R6-1, data-model 1절 "`lastPrice` 저장하지 않음", Constitution Check VI |
+| FR-013, SC-005 (하루 한 번) | research R6-3 판정 1, data-model `stock_listing_refresh.as_of_date`, quickstart 8 |
+| FR-013a, SC-005a (간격·상한 재시도) | research R6-3 판정 4·실패 종류 표, data-model 7절, quickstart 9 |
+| FR-013b (인증 실패는 재시작까지) | research R6-3 "인증 실패 막힘", data-model 5절, quickstart 9 |
+| FR-014 (다운로드 한 번) | research R6-3 DB 점유, data-model `stock_listing_lock`, quickstart 2 |
+| FR-015 (단위별 교체) | research R6-2·R6-4, data-model `stock_listing_refresh`, quickstart 2 |
+| FR-016, SC-004 (실패해도 지우지 않음) | research R6-4, quickstart 9 |
+| FR-017 (다운로드 중엔 이전 목록) | research R6-3, contracts/rest-api `lists[].state: refreshing`, quickstart 2 |
+| FR-018 (중단되면 교체하지 않음) | research R6-4 단계 1, 계약 테스트(중간 쪽 실패 픽스처) |
+| FR-018a (축소 검사) | research R6-4 단계 2, data-model 7절 `LISTING_SHRINK_THRESHOLD`, 계약 테스트(짧은 목록 픽스처) |
+| FR-019, SC-016 (빠진 종목 유지) | research R6-4 단계 3, data-model `stock_listing` 상태 전이, contracts/rest-api `listingStatus` |
+| FR-019a (코드로 식별) | data-model `UNIQUE (country, code)`, research R6-4 이전상장 |
+| FR-020 (국내 검색 필드) | research R6-5 색인, `search/match.py`, quickstart 3 |
+| FR-021 (미국 검색 필드) | research R6-5 색인, quickstart 5 |
+| FR-022, SC-002 (초성 규칙·받침 대기) | research R6-5 일치 규칙 표, `search/hangul.py`, quickstart 3 |
+| FR-023, SC-003 (결정적 순서) | research R6-5 순위, contracts/rest-api 순서 절, quickstart 4 |
+| FR-024 (잘림 표시) | contracts/rest-api `truncated`, ui-wireframes W2, quickstart 4 |
+| FR-025 (결과 표시 항목) | contracts/rest-api 결과 필드, ui-wireframes W2 |
+| FR-026 (일본은 외부 검색, 국내·미국 제외) | research R6-12, contracts/rest-api `/search/external`, quickstart 6 |
+| FR-027, SC-015 (로컬이 외부를 기다리지 않음) | research R6-12 엔드포인트 분리, ui-wireframes W2, quickstart 6 |
+| FR-028, SC-006 (목록 없음 ≠ 결과 없음) | contracts/rest-api `lists`, data-model 2절 상태 표, ui-wireframes W2a, quickstart 1 |
+| FR-028a (대체 없음, 할 일 안내) | contracts/rest-api `lists[].action`, ui-wireframes W2a, quickstart 1 |
+| FR-029 (기준 시각 표시) | contracts/rest-api `lists[].asOf`, ui-wireframes W2 |
+| FR-029a (늦은 결과 폐기) | research R6-12, `lib/searchSequence.ts`, quickstart 7 |
+| FR-030, SC-007 (005 식별자 재사용) | research R6-6, `search/price_symbol.py`, contracts/rest-api `/selection`, quickstart 10 |
+| FR-030a (미국은 티커로 같은 종목) | research R6-6, contracts/rest-api `/selection`, quickstart 12 |
+| FR-030b, SC-007a (고른 종목 등록) | research R6-17, `api/services/stock_selection.py`, contracts/rest-api `/selection`·종목 미등록 절, quickstart 10 |
+| FR-031, SC-008 (시장·기호 정확히) | research R6-6, 계약 테스트(클래스 주식), quickstart 11·12 |
+| FR-032 (출처가 모름 ≠ 시세 없음) | research R6-6, contracts/rest-api `price_symbol_unknown`, quickstart 12 |
+| FR-033 (005 이력 유효) | data-model 8절, research R6-17 재실행 경로 |
+| FR-040 (원화 원금 환전 규칙 유지) | 005 `stock_fx.py`, research R6-9 |
+| FR-041 (첫 매수일 환율) | 005 `build_exchange` 유지, quickstart 16 |
+| FR-042, SC-009 (고시 단위) | research R6-9, `simulation/fx_convert.py` `per_unit`, contracts/rest-api 7절, quickstart 16 |
+| FR-043, SC-010 (환율 수집) | research R6-10, contracts/rest-api 202 `fx`, ui-wireframes W4, quickstart 17 |
+| FR-043a (수집으로 채울 수 없는 구간 — 출처에 없음·설정 밖) | research R6-10 판정 표, data-model 6절 `currency.first_available_date`·탐색 시작일, contracts/rest-api `fx_not_available_before`(`reason`), ui-wireframes W4a, quickstart 19 |
+| FR-044 (필요 구간 전체) | research R6-10 필요한 구간 |
+| FR-045 (둘 다 끝나야 결과) | contracts/rest-api 202 절, ui-wireframes W4, quickstart 17 |
+| FR-046 (다른 통화 수집 대기) | research R6-10 한 번에 한 통화, contracts/rest-api `fx.state: waiting`, quickstart 18 |
+| FR-046a (실제로 실행되는 수집 경로) | research R6-10 "발견한 결함", `api/services/collection_gate.py`, quickstart 18 |
+| FR-047 (수집 실패 시 메우지 않음) | research R6-10, Constitution Check V |
+| FR-050, SC-011 (원금 통화 제한) | research R6-11, contracts/rest-api `currency_pair_not_allowed`, quickstart 20 |
+| FR-050a (모든 경로에서 거절) | research R6-11 서버 한 함수, quickstart 20 `curl` |
+| FR-050b, SC-011a (통화를 몰래 바꾸지 않음) | research R6-11 화면, ui-wireframes W3, quickstart 20 |
+| FR-050c (이력의 막힌 항목 보존) | research R6-11 이력, data-model 8절 |
+| FR-050d (EUR 제외) | data-model 8절, ui-wireframes W3 |
+| FR-051 (막힌 조합은 계산되지 않음) | research R6-11 |
+| FR-052 (같은 통화는 환전 없음) | 005 FR-023 유지, quickstart 20 |
+| FR-060, SC-014 (비밀은 설정) | data-model 7절, research R6-1 토큰 메모리, R6-14 정적 검사, quickstart 21 |
+| FR-061 (인증 응답 보관 안 함, 원본 보존) | research R6-1·R6-13, data-model 4·4a절 "헤더를 담지 않는다"·"지우지 않는다", quickstart 21 |
+| FR-062 (인증 실패는 갱신만 실패) | research R6-3, data-model 2절 `auth_blocked`, quickstart 9 |
+| FR-063 (한도·재시도 설정) | data-model 7절 |
+| FR-064 (이용 조건 확인) | research R6-15, Complexity Tracking |
+| FR-070 (기록 갱신) | research R6-16, quickstart 22 |
+| SC-001 (0.5초) | research R6-5 성능·입력 대기 150ms, quickstart 3 |
+
+## Complexity Tracking
+
+| 위반·위험 | 왜 필요한가 | 더 단순한 대안을 기각한 이유 |
+|-----------|-------------|------------------------------|
+| **원칙 II — 키움 이용약관** | 국내·미국 한글·초성 검색에는 한글 종목명을 주는 목록이 필요하고, 사용자가 키움을 지정했다 | 약관 페이지가 로그인 뒤에 있어 설계 중에는 읽지 못했다. **사용자가 확인했다(2026-10-02).** 공식 고객용 API의 조회 기능을 개인 용도로 쓰며 목록을 재배포하지 않는다 — 저장소도 비공개다(사용자 확인 2026-10-02). 도구를 공개하거나 여럿에게 제공하면 다시 따진다(005의 Yahoo 판단과 같은 전제) |
+| **메모리 색인** — DB가 원본인데 사본을 프로세스에 둔다 | 초성·혼용 일치는 SQL `LIKE` 하나로 표현할 수 없고, DB 고유 문법은 이식성 규약에 걸린다(R6-5) | 매 검색마다 전 목록을 DB에서 읽는 방법은 SC-001(0.5초)을 위협한다. 색인은 단위별 기준 시각을 버전으로 들고 검색마다 확인하므로 **DB와 어긋난 채 머물지 않는다** |
+| **005 결함 수정이 이 기능에 섞인다** — 종목 등록(FR-030b), 시작 가능 날짜 판정(FR-005a) | 006의 검색이 고른 종목을 시뮬레이션까지 잇지 못하면 이 기능 전체가 무의미하다. 기본 시작일 2020-01-01이 휴일이라 005의 판정으로는 매번 거절된다 | 005로 돌아가 따로 고치면 006이 그 수정을 기다려야 하고, 같은 파일을 두 브랜치가 고친다. 결함과 근거는 research R6-17·R6-8에 따로 적어 추적할 수 있게 했다 |
+| **001의 `ensure_background_job`을 006에서 고친다** — 외환 화면의 동작이 바뀐다 | 외환 화면이 남긴 고아 점유가 006의 환율 수집을 막는다(FR-046a, analyze H2) | 006이 감지만 하고 안내하는 방법은 외환 화면의 결함을 남긴다 — 지금은 외환 화면의 자동 수집이 실제로 돌지 않는다. 고치면 그것도 함께 돈다. 바뀌는 동작은 "점유를 누가 잡는가"뿐이며, 기존 외환 테스트가 옛 동작을 단정하면 함께 고친다(tasks T091) |
