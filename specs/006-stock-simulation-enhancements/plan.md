@@ -83,7 +83,7 @@
 
 ```text
 specs/006-stock-simulation-enhancements/
-├── spec.md              # 명세 (FR 63, SC 20)
+├── spec.md              # 명세 (FR 65, SC 20 — 구현 단계 반영으로 FR-047a·FR-065 추가)
 ├── plan.md              # 이 파일
 ├── research.md          # R6-1 ~ R6-17
 ├── data-model.md        # 신규 테이블 5개, 설정, 원금 통화
@@ -174,8 +174,8 @@ frontend/
 | FR-002 (월·년 이동) | `lib/startDate.ts`, `StartDateInput.tsx`, ui-wireframes W1, quickstart 13 |
 | FR-003, SC-012 (없는 날짜는 말일로) | research R6-7, `lib/startDate.ts` 표 검증, quickstart 13 |
 | FR-004 (어제 이후 금지) | research R6-7, ui-wireframes W1, quickstart 13 |
-| FR-005, SC-013 (상장 이전 사전 안내) | research R6-8 1단계, contracts/rest-api `before_listing`(`basis: listing`), ui-wireframes W1a, quickstart 14·15 |
-| FR-005a, SC-013a (상장일은 하한, 실제 일봉 기준) | research R6-8 2단계, contracts/rest-api `basis: price_start`, quickstart 15 |
+| FR-005, SC-013 (상장 이전 사전 안내, 하한 이전이면 실행 막음) | research R6-8 1단계, contracts/rest-api `before_listing`(`basis: listing`), ui-wireframes W1a(실행 막음), quickstart 14·15 |
+| FR-005a, SC-013a (상장일·출처 시세 시작일은 하한, 시작 월 전체의 실제 일봉 기준, 빈 구간 응답) | research R6-8 2단계·"구현 단계에서 정한 것", contracts/rest-api `basis: price_start`, `ingestion/yahoo/errors.py`(빈 구간 400, tasks T097), quickstart 14·15·실행 기록 |
 | FR-006 (종목을 바꿔도 시작일 유지) | `stockStore`, ui-wireframes W1, quickstart 13 |
 | FR-010 (국내 목록 범위) | research R6-2 단위 표, data-model `stock_listing`, quickstart 3 |
 | FR-010a (ETF·리츠의 거래 시장) | research R6-6, `search/price_symbol.py`, quickstart 11 |
@@ -184,16 +184,16 @@ frontend/
 | FR-013, SC-005 (하루 한 번) | research R6-3 판정 1, data-model `stock_listing_refresh.as_of_date`, quickstart 8 |
 | FR-013a, SC-005a (간격·상한 재시도) | research R6-3 판정 4·실패 종류 표, data-model 7절, quickstart 9 |
 | FR-013b (인증 실패는 재시작까지) | research R6-3 "인증 실패 막힘", data-model 5절, quickstart 9 |
-| FR-014 (다운로드 한 번) | research R6-3 DB 점유, data-model `stock_listing_lock`, quickstart 2 |
-| FR-015 (단위별 교체) | research R6-2·R6-4, data-model `stock_listing_refresh`, quickstart 2 |
+| FR-014 (다운로드 한 번, 남은 점유 회수) | research R6-3 DB 점유, data-model 3절 `stock_listing_lock`·정체 회수, quickstart 2 |
+| FR-015 (단위별 교체, 국내가 미국을 기다리지 않음) | research R6-2·R6-4, research R6-3 "워커는 국내·미국 두 줄", data-model `stock_listing_refresh`, quickstart 2 |
 | FR-016, SC-004 (실패해도 지우지 않음) | research R6-4, quickstart 9 |
 | FR-017 (다운로드 중엔 이전 목록) | research R6-3, contracts/rest-api `lists[].state: refreshing`, quickstart 2 |
 | FR-018 (중단되면 교체하지 않음) | research R6-4 단계 1, 계약 테스트(중간 쪽 실패 픽스처) |
 | FR-018a (축소 검사) | research R6-4 단계 2, data-model 7절 `LISTING_SHRINK_THRESHOLD`, 계약 테스트(짧은 목록 픽스처) |
 | FR-019, SC-016 (빠진 종목 유지) | research R6-4 단계 3, data-model `stock_listing` 상태 전이, contracts/rest-api `listingStatus` |
-| FR-019a (코드로 식별) | data-model `UNIQUE (country, code)`, research R6-4 이전상장 |
+| FR-019a (코드로 식별, 이전상장 한계) | data-model `UNIQUE (country, code)`, research R6-4 이전상장, research R6-6 알려진 한계 |
 | FR-020 (국내 검색 필드) | research R6-5 색인, `search/match.py`, quickstart 3 |
-| FR-021 (미국 검색 필드) | research R6-5 색인, quickstart 5 |
+| FR-021 (미국 검색 필드, 티커 두 표기) | research R6-5 색인, `api/services/listing_index.py`(목록·시세 출처 티커), quickstart 5 |
 | FR-022, SC-002 (초성 규칙·받침 대기) | research R6-5 일치 규칙 표, `search/hangul.py`, quickstart 3 |
 | FR-023, SC-003 (결정적 순서) | research R6-5 순위, contracts/rest-api 순서 절, quickstart 4 |
 | FR-024 (잘림 표시) | contracts/rest-api `truncated`, ui-wireframes W2, quickstart 4 |
@@ -201,13 +201,13 @@ frontend/
 | FR-026 (일본은 외부 검색, 국내·미국 제외) | research R6-12, contracts/rest-api `/search/external`, quickstart 6 |
 | FR-027, SC-015 (로컬이 외부를 기다리지 않음) | research R6-12 엔드포인트 분리, ui-wireframes W2, quickstart 6 |
 | FR-028, SC-006 (목록 없음 ≠ 결과 없음) | contracts/rest-api `lists`, data-model 2절 상태 표, ui-wireframes W2a, quickstart 1 |
-| FR-028a (대체 없음, 할 일 안내) | contracts/rest-api `lists[].action`, ui-wireframes W2a, quickstart 1 |
-| FR-029 (기준 시각 표시) | contracts/rest-api `lists[].asOf`, ui-wireframes W2 |
+| FR-028a (대체 없음, 사유별 할 일) | contracts/rest-api `lists[].action`, ui-wireframes W2a, quickstart 1 |
+| FR-029 (기준 시각 표시, 한국 시간) | contracts/rest-api `lists[].asOf`, ui-wireframes W2, `frontend/src/lib/format.ts` `formatKst` |
 | FR-029a (늦은 결과 폐기) | research R6-12, `lib/searchSequence.ts`, quickstart 7 |
 | FR-030, SC-007 (005 식별자 재사용) | research R6-6, `search/price_symbol.py`, contracts/rest-api `/selection`, quickstart 10 |
 | FR-030a (미국은 티커로 같은 종목) | research R6-6, contracts/rest-api `/selection`, quickstart 12 |
-| FR-030b, SC-007a (고른 종목 등록) | research R6-17, research R6-6 역변환(이력 재실행 경로), `api/services/stock_selection.py`, `search/price_symbol.py` 왕복 검사, contracts/rest-api `/selection`·종목 미등록 절, quickstart 10 |
-| FR-031, SC-008 (시장·기호 정확히) | research R6-6, 계약 테스트(클래스 주식), quickstart 11·12 |
+| FR-030b, SC-007a (고른 종목 등록, 실제 출처로 결과까지) | research R6-17, research R6-6 역변환(이력 재실행 경로), `api/services/stock_selection.py`, `search/price_symbol.py` 왕복 검사, contracts/rest-api `/selection`·종목 미등록 절, `worker/stock_worker.py`(출처를 연다, tasks T096), quickstart 10·실행 기록 |
+| FR-031, SC-008 (시장·기호 정확히, 검증 표본) | research R6-6 티커 표기 다섯 갈래, 계약 테스트(클래스 주식), quickstart 11·12·실행 기록 |
 | FR-032 (출처가 모름 ≠ 시세 없음) | research R6-6(수집 작업의 표지), contracts/rest-api `price_symbol_unknown`·진행 스트림 `status`, quickstart 12 |
 | FR-033 (005 이력 유효) | data-model 8절, research R6-17 재실행 경로 |
 | FR-040 (원화 원금 환전 규칙 유지) | 005 `stock_fx.py`, research R6-9 |
@@ -215,15 +215,16 @@ frontend/
 | FR-042, SC-009 (고시 단위) | research R6-9, `simulation/fx_convert.py` `per_unit`, contracts/rest-api 7절, quickstart 16 |
 | FR-043, SC-010 (환율 수집) | research R6-10, contracts/rest-api 202 `fx`, ui-wireframes W4, quickstart 17 |
 | FR-043a (수집으로 채울 수 없는 구간 — 출처에 없음·설정 밖) | research R6-10 판정 표, data-model 6절 `currency.first_available_date`·탐색 시작일, contracts/rest-api `fx_not_available_before`(`reason`), ui-wireframes W4a, quickstart 19 |
-| FR-044 (필요 구간 전체) | research R6-10 필요한 구간 |
+| FR-044 (시작일부터 필요 구간 전체) | research R6-10 필요한 구간 |
 | FR-045 (둘 다 끝나야 결과) | contracts/rest-api 202 절, ui-wireframes W4, quickstart 17 |
-| FR-046 (다른 통화 수집 대기) | research R6-10 한 번에 한 통화, contracts/rest-api `fx.state: waiting`, quickstart 18 |
+| FR-046 (다른 통화 수집 대기, 화면이 다시 요청) | research R6-10 한 번에 한 통화·"화면이 다시 요청하는 시점"·스트림 `busyWith`, contracts/rest-api `fx.state: waiting`·6a절, quickstart 18 |
 | FR-046a (실제로 실행되는 수집 경로) | research R6-10 "발견한 결함"·수집 표, `api/services/collection_gate.py`, contracts/rest-api 6a절(외환 202), quickstart 18 |
 | FR-047 (수집 실패 시 메우지 않음) | research R6-10, Constitution Check V |
+| FR-047a (수집 실패 뒤 자동으로 다시 요청하지 않음) | `frontend/src/stores/stockStore.ts`(실패 사유 표시), research R6-6(심볼 미확인은 다시 수집하지 않음), quickstart 실행 기록 |
 | FR-050, SC-011 (원금 통화 제한) | research R6-11, contracts/rest-api `currency_pair_not_allowed`, quickstart 20 |
 | FR-050a (모든 경로에서 거절) | research R6-11 서버 한 함수, quickstart 20 `curl` |
 | FR-050b, SC-011a (통화를 몰래 바꾸지 않음) | research R6-11 화면, ui-wireframes W3, quickstart 20 |
-| FR-050c (이력의 막힌 항목 보존) | research R6-11 이력, data-model 8절 |
+| FR-050c (이력의 막힌 항목 보존·사유 표시) | research R6-11 이력, data-model 8절, `SimulationHistory.tsx` |
 | FR-050d (EUR 제외) | data-model 8절, ui-wireframes W3 |
 | FR-051 (막힌 조합은 계산되지 않음) | research R6-11 |
 | FR-052 (같은 통화는 환전 없음) | 005 FR-023 유지, quickstart 20 |
@@ -232,6 +233,7 @@ frontend/
 | FR-062 (인증 실패는 갱신만 실패) | research R6-3, data-model 2절 `auth_blocked`, quickstart 9 |
 | FR-063 (한도·재시도 설정) | data-model 7절 |
 | FR-064 (이용 조건 확인) | research R6-15, Complexity Tracking |
+| FR-065 (목록 갱신 사건 기록) | research R6-14, `api/services/listing_refresh.py` `_event`, `test_no_secret_in_events` |
 | FR-070 (기록 갱신) | research R6-16, quickstart 22 |
 | SC-001 (0.5초) | research R6-5 성능·입력 대기 150ms, quickstart 3 |
 
