@@ -1,8 +1,9 @@
 """검색 일치·순위 (T031) — 006 FR-020, FR-021, FR-023, FR-024, research R6-5.
 
-**순서가 결정적이어야 한다**(SC-003). 정확 일치 → 앞부분 일치 → 포함. 같은 순위 안에서는 일치한
-이름이 짧은 순 → 정규화한 이름의 코드 포인트 순(가나다·알파벳) → 시장 → 코드. 색인을 만든 순서가
-결과에 새어 나오면 같은 검색어가 매번 다른 종목을 맨 위에 둔다.
+**순서가 결정적이어야 한다**(SC-003). 정확 일치 → 앞부분 일치 → 포함. 같은 순위 안에서는 항목의
+우선순위(007 — 코인의 시가총액 순위, 주식은 모두 0) → 일치한 이름이 짧은 순 → 정규화한 이름의 코드
+포인트 순(가나다·알파벳) → 시장 → 코드. 색인을 만든 순서가 결과에 새어 나오면 같은 검색어가 매번
+다른 종목을 맨 위에 둔다.
 
 **빠르게 후보를 거른다.** 이름마다 초성 열을 미리 만들어 두고, 검색어의 초성 열이 들어 있는
 위치만 글자 규칙으로 확인한다. 초성 열이 맞지 않는 위치는 어떤 규칙으로도 맞지 않는다 —
@@ -31,6 +32,10 @@ class SearchEntry:
     codes: tuple[str, ...]
     market: str
     code: str
+    #: 같은 일치 종류 안에서 먼저 볼 순서. 작을수록 먼저다 — 코인은 시가총액 순위(007 FR-004,
+    #: research R7-6). 심볼이 겹치는 코인(MAX 5개)을 이름 길이로 정렬하면 작은 코인이 위에 온다.
+    #: 주식은 주지 않는다(0) — 006의 순서다.
+    priority: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,7 +115,7 @@ class SearchIndex:
             return SearchOutcome((), False)
         q_cho = choseong_string(q)
 
-        ranked: list[tuple[int, int, str, str, str, int, Hit]] = []
+        ranked: list[tuple[int, int, int, str, str, str, int, Hit]] = []
         for item in self._items:
             best: tuple[int, int, str] | None = None
             best_kind: MatchKind | None = None
@@ -129,9 +134,10 @@ class SearchIndex:
                         best, best_kind = candidate, kind
             if best is not None and best_kind is not None:
                 entry = item.entry
-                ranked.append((*best, entry.market, entry.code, entry.key,
-                               Hit(entry, best_kind, best[2])))
+                kind_rank, length, matched = best
+                ranked.append((kind_rank, entry.priority, length, matched, entry.market,
+                               entry.code, entry.key, Hit(entry, best_kind, matched)))
 
-        ranked.sort(key=lambda r: r[:6])
-        hits = tuple(r[6] for r in ranked[:limit])
+        ranked.sort(key=lambda r: r[:7])
+        hits = tuple(r[7] for r in ranked[:limit])
         return SearchOutcome(hits, len(ranked) > limit)

@@ -36,11 +36,11 @@ from src.repository.stock_setting import get_settings
 from src.search.price_symbol import US_MARKETS
 from src.simulation.fx_convert import (  # noqa: E501
     RateLookup,
+    evaluate_krw,
     resolve_rate,
     to_foreign,
     to_principal,
 )
-from src.simulation.money import quantize_rate
 from src.simulation.reinvest import (
     Condition,
     DayBar,
@@ -291,15 +291,10 @@ def _evaluate(
         # 않는다.
         raise FxUnavailable(f"{row.date.isoformat()} 이전의 환율이 없어 KRW로 평가할 수 없습니다.")
     rate, used = resolved
-    profit = to_principal(row.balance + row.cash, rate, "KRW") - basis
+    krw = evaluate_krw(row.balance, row.cash, rate, basis)
     evaluated = replace(
-        row,
-        principal=principal,
-        profit=profit,
-        return_rate=quantize_rate(profit / basis) if basis > 0 else Decimal("0"),
-    )
-    return ConvertedRow(evaluated, fx_rate=rate, fx_rate_date=used,
-                        balance_krw=to_principal(row.balance, rate, "KRW"))
+        row, principal=principal, profit=krw.profit, return_rate=krw.return_rate)
+    return ConvertedRow(evaluated, fx_rate=rate, fx_rate_date=used, balance_krw=krw.balance_krw)
 
 
 def page(
@@ -429,7 +424,7 @@ async def prepare(
     # 살 때 환율과 우대)은 원화 원금에만 있다(FR-052). 국내 종목은 모두 KRW다 (FR-023).
     lookup = None
     spread = None
-    currency = fx_currency_for(stock)
+    currency = fx_currency_for(stock.currency)
     if currency is not None:
         lookup = await load_rates(session, currency, start, end)
         if principal_currency == "KRW":

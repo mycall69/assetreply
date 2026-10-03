@@ -50,7 +50,7 @@ description: "Task list for 007-crypto-investment-simulation"
 
 **Purpose**: 실제 응답 픽스처와 설정 자리
 
-- [ ] T001 출처의 **실제 응답**을 받아 `backend/tests/contract/fixtures/crypto/`에 저장한다 — aiohttp, 브라우저형 사용자 에이전트, 요청 사이
+- [X] T001 출처의 **실제 응답**을 받아 `backend/tests/contract/fixtures/crypto/`에 저장한다 — aiohttp, 브라우저형 사용자 에이전트, 요청 사이
   1.5초(research R7-1). 받는 것: 목록 영문 첫 쪽(`coins_en_p1.json`)·마지막 쪽(`coins_en_last.json`, `next_page_cursor: null`), 목록 한국어
   첫 쪽(`coins_ko_p1.json`), BTC 2020-01-01~2021-12-31 청크(`btc_2020_2021.json`), BTC 최근 청크(오늘 일봉 포함, `btc_recent.json`), BTC
   2011-06-01~2011-07-31(빈 거래량, `btc_2011_06.json`), ETH 2015-06-01~2017-05-31(첫 일봉 2016-03-10을 걸침, `eth_first.json`), SHIB 최근
@@ -58,7 +58,7 @@ description: "Task list for 007-crypto-investment-simulation"
   목록에서 필요한 필드만 뽑은 `coins_all_compact.json`**(영문·한국어 각 37쪽에서 식별자·영문 이름·한글 이름·심볼·순위·slug, 약 300KB —
   실데이터에서 뽑은 파생 픽스처, analyze M1). 받은 날짜와 요청을 `fixtures/crypto/README.md`에 적는다. 스크립트는 저장소에 넣지 않는다
   (일회성) (FR-012, FR-018, SC-002, research R7-3·R7-4)
-- [ ] T002 [P] `.env.example`에 출처 설정 자리를 더한다 — `INVESTING_USER_AGENT`, `INVESTING_DOMAIN_ID`(`www`), `INVESTING_MIN_INTERVAL_SECONDS`
+- [X] T002 [P] `.env.example`에 출처 설정 자리를 더한다 — `INVESTING_USER_AGENT`, `INVESTING_DOMAIN_ID`(`www`), `INVESTING_MIN_INTERVAL_SECONDS`
   (1.5), `INVESTING_MAX_RETRIES`, `INVESTING_BACKOFF_BASE_SECONDS`, `INVESTING_CHUNK_DAYS`(730), `CRYPTO_LIST_REFRESH_DAYS`(7),
   `CRYPTO_LIST_SHRINK_THRESHOLD`(0.5). 값의 의미를 주석으로. 비밀은 없다 (FR-016, FR-017)
 
@@ -72,40 +72,40 @@ description: "Task list for 007-crypto-investment-simulation"
 
 ### Tests for Phase 2 ⚠️
 
-- [ ] T003 [P] `backend/tests/contract/test_investing_parse.py` — T001 픽스처로: 목록 → 코인 행(`instrument_id`를 문자열 식별자로, 심볼·영문
+- [X] T003 [P] `backend/tests/contract/test_investing_parse.py` — T001 픽스처로: 목록 → 코인 행(`instrument_id`를 문자열 식별자로, 심볼·영문
   이름·순위·slug, `url` 빈 값 허용), 한국어 판의 이름이 **영문과 다르고 한글을 포함할 때만** 한글 이름(비트코인 ○, BNB ×), 마지막 쪽 커서 없음.
   일봉 → 날짜는 `rowDateTimestamp`의 UTC 날짜, 가격은 원값 문자열 그대로 `Decimal`(2010 BTC 시가 `0.04950999841094`, SHIB `0.00000579000016`),
   `volume`이 빈 값이면 거래량 `None`(0 아님), 계산 끝(주입한 UTC 오늘 − 1)보다 뒤의 행은 버림, **가격이 빠지거나 숫자가 아닌 행이 하나라도
   있으면 청크 전체가 형식 오류**(오류에 날짜·필드를 담고 일부 행만 돌려주지 않음, analyze M2), 4,900행 이상이면 형식 오류, 0행(Doge Killer)은
   빈 결과 (FR-006, FR-012, FR-012a, FR-021, FR-022, research R7-3·R7-4)
-- [ ] T004 [P] `backend/tests/contract/test_investing_client.py` — 가짜 세션으로: 목록 요청이 `limit=100`·`domain_id`·커서를 싣고 끝까지 넘기는지,
+- [X] T004 [P] `backend/tests/contract/test_investing_client.py` — 가짜 세션으로: 목록 요청이 `limit=100`·`domain_id`·커서를 싣고 끝까지 넘기는지,
   일봉 요청이 `domain-id` 헤더와 날짜 매개변수를 싣는지, 모든 요청에 설정의 사용자 에이전트, 요청 사이 최소 간격(주입한 시계), **403은 재시도 없이
   차단 오류**, 429·5xx·연결 오류는 백오프+지터로 설정 횟수만큼 재시도, 받은 원본 본문을 함께 돌려주는지, 넘겨받은 세션을 닫지 않는지
   (FR-016, FR-018, FR-020, research R7-1)
-- [ ] T005 [P] `backend/tests/unit/test_evaluate_krw.py` — `evaluate_krw(잔고, 예수금, 매매기준율, KRW 원금)` → 잔고 KRW·투자 수익·수익율
+- [X] T005 [P] `backend/tests/unit/test_evaluate_krw.py` — `evaluate_krw(잔고, 예수금, 매매기준율, KRW 원금)` → 잔고 KRW·투자 수익·수익율
   (006 FR-068 식, 통화 자릿수 KRW 0). `backend/tests/unit/test_stock_fx_currency.py` — `fx_currency_for("KRW")` → `None`, `"USD"` → `"USD"`,
   모르는 통화 → `None`. `backend/tests/integration/test_load_rates_confirmed.py` — `load_rates`가 **잠정 행을 빼고** 읽어, 잠정 환율만 있는 날은
   `resolve_rate`가 앞 확정일의 값과 그 날짜를 돌려주는지(analyze C1). **006의 시뮬레이션·환율 테스트는 그대로 통과해야 한다** (FR-035,
   research R7-8)
-- [ ] T006 [P] `backend/tests/unit/test_compute_gaps_reason.py` — 커버리지 안 빈 날의 사유를 `source_missing`으로 줄 수 있고, 기본은 `no_quote`
+- [X] T006 [P] `backend/tests/unit/test_compute_gaps_reason.py` — 커버리지 안 빈 날의 사유를 `source_missing`으로 줄 수 있고, 기본은 `no_quote`
   그대로(외환·주식 불변). `backend/tests/unit/test_search_priority.py` — 같은 일치 종류 안에서 `priority`가 작은 항목이 먼저, `priority`가 같으면
   006의 순서(이름 길이 → 가나다·알파벳 → 시장 → 코드), 주식 항목(기본 0)의 순서 불변 (FR-023, FR-004, research R7-6·R7-9)
-- [ ] T007 [P] `backend/tests/integration/test_crypto_schema.py` — 마이그레이션 뒤 테이블 11개와 열(data-model): 가격 `DECIMAL(36,14)`, 거래량
+- [X] T007 [P] `backend/tests/integration/test_crypto_schema.py` — 마이그레이션 뒤 테이블 11개와 열(data-model): 가격 `DECIMAL(36,14)`, 거래량
   `DECIMAL(38,8)` NULL 허용, `crypto_coin`의 `(source, source_id)` 유일, `crypto_daily`의 `(coin_id, day)` 기본 키, `crypto_setting` 기본값 없음(행 없음
   = 기본), 마이그레이션 하향·재상향 (FR-010, FR-031, data-model)
 
 ### Implementation for Phase 2
 
-- [ ] T008 `backend/src/config/settings.py` — `InvestingSettings`(T002의 값, 사용자 에이전트가 비면 기본 `aiohttp` 값 — 그러면 403으로 막힌다는 것을
+- [X] T008 `backend/src/config/settings.py` — `InvestingSettings`(T002의 값, 사용자 에이전트가 비면 기본 `aiohttp` 값 — 그러면 403으로 막힌다는 것을
   quickstart 17이 보인다), `load_settings`에 연결 (FR-016, FR-017)
-- [ ] T009 `backend/src/db/models.py`·`backend/src/db/migrations/versions/…_가상자산_스키마.py` — Crypto* 11개(data-model 1~9절). 형식 이름
+- [X] T009 `backend/src/db/models.py`·`backend/src/db/migrations/versions/…_가상자산_스키마.py` — Crypto* 11개(data-model 1~9절). 형식 이름
   `CPRICE`·`CVOLUME` (FR-010, FR-012, FR-031, FR-032)
-- [ ] T010 `backend/src/ingestion/investing/parse.py`·`errors.py`·`__init__.py` — `CoinRow`, `DailyBar`, `parse_coins`, `merge_korean_names`,
+- [X] T010 `backend/src/ingestion/investing/parse.py`·`errors.py`·`__init__.py` — `CoinRow`, `DailyBar`, `parse_coin_page`, `korean_names`,
   `parse_daily(body, last_day)`, 오류 `InvestingBlocked`·`InvestingFormatError`·`InvestingNetworkError` (FR-006, FR-012a, FR-020~FR-022)
-- [ ] T011 `backend/src/ingestion/investing/client.py` — `InvestingClient(settings, *, session=None, clock=…)`: `fetch_coin_pages(edition)`,
-  `fetch_daily(source_id, start, end)` → (행, 원본). 세마포어 1 + 최소 간격 제한기(인스턴스 하나를 두 줄이 공유), 백오프+지터, 403 분류
+- [X] T011 `backend/src/ingestion/investing/client.py` — `InvestingClient(settings, *, session=None, monotonic=…, sleep=…)`: `fetch_coin_pages(edition)`,
+  `fetch_daily(source_id, start, end, *, last_day)` → (행, 원본). 세마포어 1 + 최소 간격 제한기(인스턴스 하나를 두 줄이 공유), 백오프+지터, 403 분류
   (FR-016, FR-018, FR-020, research R7-1·R7-11)
-- [ ] T012 주식과 공유하는 규칙 — `backend/src/simulation/fx_convert.py`(`evaluate_krw`), `backend/src/api/services/stock_simulation.py`(`_evaluate`가
+- [X] T012 주식과 공유하는 규칙 — `backend/src/simulation/fx_convert.py`(`evaluate_krw`), `backend/src/api/services/stock_simulation.py`(`_evaluate`가
   `evaluate_krw`를 부른다), `backend/src/api/services/stock_fx.py`(`fx_currency_for(currency)`와 호출처 `stock_collect.py`·`stock_simulation.py`,
   **`load_rates`는 `series(…, confirmed_only=True)`** — analyze C1), `backend/src/api/services/series_query.py`(`compute_gaps(…,
   inside_reason="no_quote")`), `backend/src/search/match.py`(`SearchEntry.priority` 기본 0). **주식의 출력은 날짜가 지난 잠정 환율이 있는 날 말고는

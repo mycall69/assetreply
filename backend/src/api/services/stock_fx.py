@@ -15,7 +15,6 @@ from decimal import Decimal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config.settings import SUPPORTED_CURRENCIES
-from src.db.models import Stock
 from src.repository.fx_rate import series
 from src.repository.spread import spread_set
 from src.simulation.fx_convert import (
@@ -34,17 +33,19 @@ class FxUnavailable(Exception):
     """
 
 
-def fx_currency_for(stock: Stock) -> str | None:
-    """KRW 평가에 외환 DB의 환율이 필요한 통화. 국내 종목이면 `None`이다 (006 FR-068).
+def fx_currency_for(currency: str) -> str | None:
+    """KRW 평가에 외환 DB의 환율이 필요한 시세 통화. KRW면 `None`이다 (006 FR-068).
+
+    **시세 통화를 받는다** — 주식과 가상자산(007 FR-036)이 함께 쓴다.
 
     **원금 통화를 보지 않는다.** 투자 수익·수익율은 원금 통화와 관계없이 KRW라, 달러 원금으로 미국
     종목을 돌려도 환율이 필요하다. 반복 2026-10-03 #3까지는 "원금과 종목 통화가 같으면 필요
     없다"였다. 표·차트의 계산(`prepare`)과 수집 판정(`collecting_body`)이 이 함수 하나를 쓴다 —
     한쪽만 바꾸면 환율을 받지 않은 채 계산하러 가서 409가 나거나, 받아 놓고 쓰지 않는다.
     """
-    if stock.currency == "KRW" or stock.currency not in SUPPORTED_CURRENCIES:
+    if currency == "KRW" or currency not in SUPPORTED_CURRENCIES:
         return None
-    return stock.currency
+    return currency
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,9 +70,13 @@ async def load_rates(
 
     **1단위당 값으로 바꿔 둔다**(006 FR-042). 행의 고시 단위로 나눈다 — 엔화는 100엔당
     값이라 그대로 쓰면 환전이 100배 틀린다. 환전과 평가가 모두 이 값을 쓴다.
+
+    **확정 환율만 읽는다**(헌법 원칙 V, 007 analyze C1). 잠정 환율을 계산에 넣으면 결과에도 잠정임이
+    드러나야 하는데, 결과에 그 표시가 없다. 잠정만 있는 날은 `resolve_rate`가 가장 가까운 이전
+    확정일과 그 날짜를 돌려주고, 화면은 이미 그 날짜를 보인다.
     """
     margin = start - dt.timedelta(days=30)
-    rows = await series(session, currency, margin, end)
+    rows = await series(session, currency, margin, end, confirmed_only=True)
     return RateLookup({r.quote_date: per_unit(r.base_rate, r.quote_unit) for r in rows})
 
 

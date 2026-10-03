@@ -147,7 +147,7 @@ async def collecting_body(
     **환율로 막힐 요청이면 주식 수집도 시작하지 않는다** — 받아도 결과를 낼 수 없다. 원금 통화는
     보지 않는다(006 FR-068 — 해외 종목이면 늘 환율이 필요하다). 막힌 조합은 호출부가 먼저 거른다.
     """
-    currency = fx_currency_for(stock)
+    currency = fx_currency_for(stock.currency)
     if currency is not None:
         await require_fx_available(session, currency, start)
     # 시작 월의 1일부터 받는다 — 수집 후 판정이 시작일 앞부분의 일봉까지 본다(research R6-8).

@@ -542,3 +542,212 @@ class StockListingRaw(Base):
     body_sha256: Mapped[str] = mapped_column(
         String(64), ForeignKey("stock_listing_raw_body.sha256"), nullable=False)
     fetched_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+
+# ─────────────────────────── 007: 가상자산 ───────────────────────────
+#
+# 주식 테이블과 합치지 않는다 — 출처·식별·정밀도가 다르고 점유를 자산군끼리 공유하지 않는다
+# (007 data-model). 시각은 UTC로 넣는다(006과 같다).
+
+#: 가상자산 가격. 출처 원값이 소수 14자리로 온다 — 주식의 `PRICE`(소수 6자리)는 2e-12달러를 0으로
+#: 만든다 (007 research R7-3·R7-13).
+CPRICE = Numeric(36, 14, asdecimal=True)
+#: 가상자산 거래량. SHIB 하루 2.6조 개.
+CVOLUME = Numeric(38, 8, asdecimal=True)
+
+
+class CryptoCoin(Base):
+    """코인 (007 data-model 1절). 목록 한 줄이자 시뮬레이션의 대상이다.
+
+    **(출처, 출처 식별자)로 식별한다.** 심볼은 유일하지 않다(169개 겹침, research R7-4) — 어떤
+    조회도 심볼을 키로 쓰지 않는다(FR-004). **지우지 않는다** — 최근 목록에 없으면
+    `missing`이다(FR-005a).
+    """
+
+    __tablename__ = "crypto_coin"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    slug: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    symbol: Mapped[str] = mapped_column(String(32), nullable=False)
+    name_en: Mapped[str] = mapped_column(String(256), nullable=False)
+    name_ko: Mapped[str | None] = mapped_column(String(256), nullable=True)
+    quote_currency: Mapped[str] = mapped_column(String(3), nullable=False)
+    market_rank: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # `listed` / `missing`. 서버 기본값은 상수 리터럴뿐이다(006 `Stock`과 같다).
+    status: Mapped[str] = mapped_column(
+        String(8), nullable=False, default="listed", server_default=text("'listed'"))
+    # 출처의 첫 일봉. **수집 중 발견한다**(research R7-10) — 상수가 아니다.
+    first_available_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    first_seen_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+    last_seen_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+    ingested_at: Mapped[dt.datetime] = mapped_column(
+        TS, nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        Index("ux_crypto_coin_source_id", "source", "source_id", unique=True),
+        Index("ix_crypto_coin_status", "status"),
+    )
+
+
+class CryptoCoinRefresh(Base):
+    """목록 갱신 기록. 판(`en`·`ko`)마다 한 행 (007 data-model 2절). `as_of`는 온전히 받아 교체한
+    마지막 시각이다."""
+
+    __tablename__ = "crypto_coin_refresh"
+
+    edition: Mapped[str] = mapped_column(String(4), primary_key=True)
+    as_of: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    as_of_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    attempt_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    # 그날 시도 수. 서버 기본값은 상수 리터럴뿐이다.
+    attempts: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=0, server_default=text("0"))
+    last_attempt_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    last_failed_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    last_error_kind: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+
+class CryptoListLock(Base):
+    """목록 갱신 점유와 진행 (007 data-model 3절, FR-005b).
+
+    기본 키 INSERT 충돌이 곧 "이미 갱신 중"이다. 갱신 줄이 쪽마다 진행 열을 고치고, 진행 스트림이
+    프레임마다 읽는다. 갱신이 끝나면 행을 지운다 — 행이 없으면 갱신 중이 아니다.
+    """
+
+    __tablename__ = "crypto_list_lock"
+
+    scope: Mapped[str] = mapped_column(String(16), primary_key=True)
+    started_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+    heartbeat_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+    edition: Mapped[str | None] = mapped_column(String(4), nullable=True)
+    # 진행 열. 서버 기본값은 상수 리터럴뿐이다.
+    pages_done: Mapped[int] = mapped_column(
+        SmallInteger, nullable=False, default=0, server_default=text("0"))
+    coins_seen: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0"))
+
+
+class CryptoListRawBody(Base):
+    """목록 원본 본문. **같은 본문은 한 번만**, 지우지 않는다(헌법 원칙 V). 헤더는 담지 않는다."""
+
+    __tablename__ = "crypto_list_raw_body"
+
+    sha256: Mapped[str] = mapped_column(String(64), primary_key=True)
+    body: Mapped[str] = mapped_column(Text(length=16_777_215), nullable=False)
+    first_stored_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+
+class CryptoListRaw(Base):
+    """목록 원본의 쪽 기록. 본문은 해시로 가리킨다."""
+
+    __tablename__ = "crypto_list_raw"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    edition: Mapped[str] = mapped_column(String(4), nullable=False)
+    batch_started_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+    page_no: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    status_code: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    body_sha256: Mapped[str] = mapped_column(
+        String(64), ForeignKey("crypto_list_raw_body.sha256"), nullable=False)
+    fetched_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+
+class CryptoDaily(Base):
+    """일봉 (007 data-model 5절). **UTC 하루**다(research R7-3).
+
+    마감된 UTC 하루만 들어온다 — 계산 끝(UTC 어제)보다 뒤의 행은 정규화에서 버린다(FR-022). 그래서
+    잠정 열이 없다. 결측은 행이 없는 것으로 표현한다(헌법 원칙 V).
+    """
+
+    __tablename__ = "crypto_daily"
+
+    coin_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("crypto_coin.id"), primary_key=True)
+    day: Mapped[dt.date] = mapped_column(Date, primary_key=True)
+    open: Mapped[Decimal] = mapped_column(CPRICE, nullable=False)
+    high: Mapped[Decimal] = mapped_column(CPRICE, nullable=False)
+    low: Mapped[Decimal] = mapped_column(CPRICE, nullable=False)
+    close: Mapped[Decimal] = mapped_column(CPRICE, nullable=False)
+    # 출처가 빈 값으로 준 날은 NULL이다 — 0이 아니다(FR-012a).
+    volume: Mapped[Decimal | None] = mapped_column(CVOLUME, nullable=True)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    ingested_at: Mapped[dt.datetime] = mapped_column(
+        TS, nullable=False, server_default=func.now())
+
+
+class CryptoRawResponse(Base):
+    """일봉 원본. 응답 본문 그대로(오늘 일봉 포함) — 잠정에서 확정으로 바뀐 값을 사후에 되짚는
+    근거다."""
+
+    __tablename__ = "crypto_raw_response"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    coin_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("crypto_coin.id"), nullable=False)
+    requested_from: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    requested_to: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    status_code: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    body: Mapped[str] = mapped_column(Text(length=16_777_215), nullable=False)
+    received_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+    __table_args__ = (Index("ix_crypto_raw_received", "received_at"),)
+
+
+class CryptoCoverage(Base):
+    """수집 구간. **요청한 구간**을 기록한다 — 일봉이 없던 구간도 다시 받으러 가지 않는다(005와
+    같다)."""
+
+    __tablename__ = "crypto_coverage"
+
+    coin_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("crypto_coin.id"), primary_key=True)
+    covered_from: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    covered_through: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())
+
+
+class CryptoCollectionJob(Base):
+    """수집 작업. 열은 `StockCollectionJob`과 같고 종목 자리에 코인이 들어간다."""
+
+    __tablename__ = "crypto_collection_job"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    coin_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("crypto_coin.id"), nullable=False)
+    range_start: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    range_end: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    status: Mapped[JobStatus] = mapped_column(
+        Enum(JobStatus, native_enum=False, length=16), nullable=False)
+    chunks_total: Mapped[int] = mapped_column(Integer, nullable=False)
+    chunks_done: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    started_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
+    finished_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    # 사유 종류(`blocked`·`format`·`network`·`empty`)를 앞에 둔다(FR-020).
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (Index("ix_crypto_job_status", "coin_id", "status"),)
+
+
+class CryptoCollectionLock(Base):
+    """코인별 단일 수집 작업 잠금. 기본 키 INSERT 충돌이 곧 "이미 진행 중"이다."""
+
+    __tablename__ = "crypto_collection_lock"
+
+    coin_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("crypto_coin.id"), primary_key=True)
+    job_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("crypto_collection_job.id"), nullable=False)
+    acquired_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
+    heartbeat_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())
+
+
+class CryptoSetting(Base):
+    """가상자산 설정. **전역 단일 행**, 주식 설정과 따로다(FR-032). 행이 없으면 기본값(0.1%)."""
+
+    __tablename__ = "crypto_setting"
+
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, default=1)
+    trade_fee_rate: Mapped[Decimal] = mapped_column(SPREAD, nullable=False)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())

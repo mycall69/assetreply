@@ -14,7 +14,7 @@ import datetime as dt
 from dataclasses import dataclass
 from decimal import Decimal
 
-from src.simulation.money import quantize_money
+from src.simulation.money import quantize_money, quantize_rate
 
 #: 외환 수수료 우대율. **스프레드의 90%를 깎는다** — 결과적으로 스프레드의 10%만
 #: 적용된다 (FR-020). 방향을 반대로 잡으면 환전 금액이 조용히 달라지는데, 오류도
@@ -100,3 +100,30 @@ def resolve_rate(
         return None
     used = max(earlier)
     return lookup.by_date[used], used
+
+
+@dataclass(frozen=True, slots=True)
+class KrwEvaluation:
+    """한 행의 KRW 평가 (006 FR-068, 007 FR-035)."""
+
+    profit: Decimal
+    return_rate: Decimal
+    balance_krw: Decimal
+
+
+def evaluate_krw(
+    balance: Decimal, cash: Decimal, base_rate: Decimal, basis: Decimal
+) -> KrwEvaluation:
+    """행을 **그 행의 매매기준율로** KRW 평가한다. 주식과 가상자산이 함께 쓴다 (007 research R7-8).
+
+    투자 수익 = (잔고 + 예수금) × 매매기준율 − KRW 원금(`basis`), 수익율 = 투자 수익 ÷ KRW 원금. 두
+    벌 두면 한쪽만 고쳐질 때 이력 비교의 기준이 갈라진다 — 두 자산군의 수익률이 한 차트에 나란히
+    놓인다.
+
+    원금이 0이면 수익율은 0이다 — 0으로 나누는 경로를 만들지 않는다.
+    """
+    profit = to_principal(balance + cash, base_rate, "KRW") - basis
+    return KrwEvaluation(
+        profit=profit,
+        return_rate=quantize_rate(profit / basis) if basis > 0 else Decimal("0"),
+        balance_krw=to_principal(balance, base_rate, "KRW"))

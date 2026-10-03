@@ -100,6 +100,29 @@ def _env_ratio(key: str, default: str) -> Decimal:
     return value
 
 
+def _env_seconds_ms(key: str, default: str) -> int:
+    """초 단위 설정(소수 허용)을 밀리초 정수로 읽는다. `.env`는 사람이 읽는 초로 두고 코드는 정수로
+    다룬다."""
+    raw = os.getenv(key) or default
+    try:
+        seconds = Decimal(raw)
+    except InvalidOperation as exc:
+        raise ValueError(f"{key}는 0 이상의 초여야 합니다: {raw!r}") from exc
+    if not seconds.is_finite() or seconds < 0:
+        raise ValueError(f"{key}는 0 이상의 초여야 합니다: {raw!r}")
+    return int(seconds * 1000)
+
+
+def _env_user_agent(key: str, default: str) -> str:
+    """사용자 에이전트. **설정하지 않았으면** 기본값, **비워 두었으면** 빈 문자열이다.
+
+    `_env_str`과 달리 빈 값을 기본값으로 바꾸지 않는다 — 비우면 `aiohttp` 기본값이 나가 출처가
+    403으로 막는다. 차단 경로를 일부러 재현하는 수단이다(007 quickstart 17).
+    """
+    raw = os.environ.get(key)
+    return default if raw is None else raw.strip()
+
+
 def _env_date(key: str) -> dt.date | None:
     raw = os.getenv(key)
     if not raw:
@@ -131,6 +154,11 @@ def _probe_starts() -> tuple[tuple[str, dt.date], ...]:
         resolved.append((code, start))
     return tuple(resolved)
 
+
+#: 출처가 받아 주는 브라우저형 사용자 에이전트. `.env`에 줄이 없을 때만 쓴다(007 research R7-1).
+INVESTING_DEFAULT_USER_AGENT = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36")
 
 @dataclass(frozen=True, slots=True)
 class Settings:
@@ -180,6 +208,29 @@ class Settings:
     listing_shrink_threshold: Decimal = Decimal("0.5")
     # 갱신 점유의 심장박동이 이 시간 넘게 멈추면 회수한다 (data-model 3절).
     listing_lock_stale_minutes: int = 10
+
+    # ── 가상자산 시세·코인 목록 — investing.com (007 research R7-1) ──
+    #
+    # **공개되지 않은 내부 API다.** 약관이 허가 없는 저장·사용을 금지하므로 개인 이용 전제의
+    # 잠정 결정이다(헌법 원칙 II 이탈, 007 plan Complexity Tracking). 로그인·키는 필요 없다.
+    # 기본 사용자 에이전트는 403으로 막힌다.
+    investing_coins_base_url: str = "https://endpoints.investing.com/pd-instruments"
+    investing_history_base_url: str = "https://api.investing.com/api/financialdata"
+    investing_user_agent: str = INVESTING_DEFAULT_USER_AGENT
+    # 일봉 API가 요구하는 `domain-id` 헤더 값(없으면 400).
+    investing_domain_id: str = "www"
+    # 요청 사이 최소 간격. 목록 갱신과 시세 수집이 **한 클라이언트에서** 함께 지킨다(R7-11).
+    investing_min_interval_ms: int = 1500
+    # 한 요청의 최대 시도 횟수(첫 시도 포함). 429·5xx·연결 오류만 다시 시도한다 — 403은 차단이다.
+    investing_max_retries: int = 3
+    investing_backoff_base_ms: int = 2000
+    investing_request_timeout_seconds: int = 30
+    # 한 요청의 일봉 구간. 출처는 약 5,000행에서 표시 없이 자른다(R7-3).
+    investing_chunk_days: int = 730
+    # 코인 목록을 다시 받는 주기(일)와 축소 한도(007 FR-005, R7-4).
+    crypto_list_refresh_days: int = 7
+    crypto_list_shrink_threshold: Decimal = Decimal("0.5")
+    crypto_list_lock_stale_minutes: int = 10
 
     # ── 수집 동작 ──
     collection_sync_threshold_days: int = 30
@@ -297,6 +348,21 @@ def load_settings(env_file: Path | None = None) -> Settings:
         listing_max_attempts_per_day=_env_int("LISTING_MAX_ATTEMPTS_PER_DAY", 5, minimum=1),
         listing_shrink_threshold=_env_ratio("LISTING_SHRINK_THRESHOLD", "0.5"),
         listing_lock_stale_minutes=_env_int("LISTING_LOCK_STALE_MINUTES", 10, minimum=1),
+        investing_coins_base_url=_env_str(
+            "INVESTING_COINS_BASE_URL", "https://endpoints.investing.com/pd-instruments"),
+        investing_history_base_url=_env_str(
+            "INVESTING_HISTORY_BASE_URL", "https://api.investing.com/api/financialdata"),
+        investing_user_agent=_env_user_agent("INVESTING_USER_AGENT", INVESTING_DEFAULT_USER_AGENT),
+        investing_domain_id=_env_str("INVESTING_DOMAIN_ID", "www"),
+        investing_min_interval_ms=_env_seconds_ms("INVESTING_MIN_INTERVAL_SECONDS", "1.5"),
+        investing_max_retries=_env_int("INVESTING_MAX_RETRIES", 3, minimum=1),
+        investing_backoff_base_ms=_env_seconds_ms("INVESTING_BACKOFF_BASE_SECONDS", "2"),
+        investing_request_timeout_seconds=_env_int(
+            "INVESTING_REQUEST_TIMEOUT_SECONDS", 30, minimum=1),
+        investing_chunk_days=_env_int("INVESTING_CHUNK_DAYS", 730, minimum=1),
+        crypto_list_refresh_days=_env_int("CRYPTO_LIST_REFRESH_DAYS", 7, minimum=1),
+        crypto_list_shrink_threshold=_env_ratio("CRYPTO_LIST_SHRINK_THRESHOLD", "0.5"),
+        crypto_list_lock_stale_minutes=_env_int("CRYPTO_LIST_LOCK_STALE_MINUTES", 10, minimum=1),
         collection_sync_threshold_days=_env_int("COLLECTION_SYNC_THRESHOLD_DAYS", 30),
         job_history_success_retention_days=_env_int("JOB_HISTORY_SUCCESS_RETENTION_DAYS", 90),
         daily_page_size=_env_int("DAILY_PAGE_SIZE", 30, minimum=1),

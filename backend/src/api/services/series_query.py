@@ -24,7 +24,7 @@ class Gap:
 
     start: dt.date
     end: dt.date
-    reason: str  # "no_quote" | "not_collected"
+    reason: str  # "no_quote" | "not_collected" | "source_missing"(007)
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,11 +64,16 @@ def compute_gaps(
     present: set[dt.date],
     covered_from: dt.date | None,
     covered_through: dt.date | None,
+    *,
+    inside_reason: str = "no_quote",
 ) -> list[Gap]:
     """값이 없는 날을 미수집과 고시 없음으로 나눈다.
 
     커버리지 안인데 값이 없으면 "고시 없음"(휴장), 커버리지 밖이면 "미수집"이다.
     별도의 휴장일 캘린더를 두지 않는 근거다 (research R8).
+
+    가상자산은 휴장이 없어 커버리지 안의 빈 날이 **출처 결측**(`source_missing`)이다 — 이어 그리지
+    않고 끊는다(007 FR-023, research R7-9). 계산은 같고 사유만 받는다.
     """
     not_collected: list[dt.date] = []
     no_quote: list[dt.date] = []
@@ -81,7 +86,7 @@ def compute_gaps(
             (no_quote if inside else not_collected).append(day)
         day += dt.timedelta(days=1)
 
-    return _merge_runs(not_collected, "not_collected") + _merge_runs(no_quote, "no_quote")
+    return _merge_runs(not_collected, "not_collected") + _merge_runs(no_quote, inside_reason)
 
 
 async def query_series(
