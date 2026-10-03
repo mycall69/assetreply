@@ -3,6 +3,9 @@
 국내 종목(KRX)에는 국내 세율(기본 15.4%), 그 밖(미국·일본)에는 해외 세율(기본 15%)을 쓴다. 해외
 종목에 국내 세율을 쓰면 세후 배당이 조금씩 적게 잡혀 수십 년 복리로 벌어지는데 오류가 없다. 응답
 조건의 `dividendTaxRate`는 **적용한 세율**이다.
+
+006 FR-068(반복 2026-10-03 #4, T137) — 달러 원금으로 미국 종목을 돌려도 투자 수익을 KRW로
+평가하므로, 픽스처가 USD 환율을 받아 둔 상태를 함께 만든다. 없으면 202(환율 수집)다.
 """
 from __future__ import annotations
 
@@ -15,7 +18,7 @@ from sqlalchemy import select
 
 from src.api.main import create_app
 from src.db.dialect import upsert
-from src.db.models import Stock, StockCoverage, StockDividend, StockPrice
+from src.db.models import FxCoverage, FxRate, Stock, StockCoverage, StockDividend, StockPrice
 from src.db.session import get_session
 
 D = dt.date.fromisoformat
@@ -44,6 +47,12 @@ async def client(session_factory):
             await upsert(s, StockCoverage, [{
                 "stock_id": stock_id, "covered_from": D("2021-08-01"),
                 "covered_through": D("2021-10-31")}], preserve=())
+        await upsert(s, FxRate, [{
+            "currency_code": "USD", "quote_date": D(d), "base_rate": Decimal("1150"),
+            "quote_unit": 1, "source": "ECOS:731Y001", "is_provisional": False} for d in DAYS])
+        await upsert(s, FxCoverage, [{
+            "currency_code": "USD", "covered_from": D("2021-07-01"),
+            "covered_through": D("2021-10-31")}], preserve=())
         await s.commit()
 
     app = create_app()

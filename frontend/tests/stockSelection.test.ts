@@ -120,7 +120,8 @@ describe("등록 뒤", () => {
 
     const get = vi.spyOn(apiClient, "get").mockImplementation(((path: string) =>
       Promise.resolve(path.includes("/series") ? {
-        from: "2021-08-02", to: "2021-08-31", principalCurrency: "USD", downsampled: false,
+        from: "2021-08-02", to: "2021-08-31", principalCurrency: "USD", basisCurrency: "KRW",
+        downsampled: false,
         algorithm: "none", sourcePointCount: 0, points: [], gaps: [],
       } : RESULT)) as typeof apiClient.get);
     await useStockStore.getState().run();

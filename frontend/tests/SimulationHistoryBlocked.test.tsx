@@ -30,7 +30,8 @@ const APPLE_EUR: SimulationHistoryEntry = {
 };
 
 const SERIES = {
-  from: "2021-08-01", to: "2021-08-31", principalCurrency: "KRW", downsampled: false,
+  from: "2021-08-01", to: "2021-08-31", principalCurrency: "KRW", basisCurrency: "KRW",
+  downsampled: false,
   algorithm: "none", sourcePointCount: 0, points: [], gaps: [],
 };
 

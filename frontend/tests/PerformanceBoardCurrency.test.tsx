@@ -61,18 +61,20 @@ describe("성과 보드", () => {
     expect(screen.getByText(/KRW 기준/)).toBeInTheDocument();
   });
 
-  it("달러 원금이면 $다", () => {
+  // 006 FR-068(반복 2026-10-03 #4, T140) — 투자 수익은 원금 통화와 관계없이 KRW다. 반복 #2에서는 수익에도 원금
+  // 통화의 기호(`120.50$`)를 붙였고 아래 두 테스트가 그것을 고정했다. 원금 괄호의 KRW는 `PerformanceBoardKrw`가 본다.
+  it("달러 원금이면 원금은 $, 수익은 ₩다", () => {
     render(<PerformanceBoard currency="USD"
-      summary={{ ...summary, principal: "1000", profit: "120.50" }} />);
+      summary={{ ...summary, principal: "1000", profit: "162900" }} />);
     expect(valueOf("투자 원금")).toBe("1,000$");
-    expect(valueOf("투자 수익")).toBe("120.50$");
+    expect(valueOf("투자 수익")).toBe("162,900₩");
   });
 
-  it("엔 원금이면 ¥다", () => {
+  it("엔 원금이면 원금은 ¥, 수익은 ₩다", () => {
     render(<PerformanceBoard currency="JPY"
       summary={{ ...summary, principal: "100000", profit: "12345" }} />);
     expect(valueOf("투자 원금")).toBe("100,000¥");
-    expect(valueOf("투자 수익")).toBe("12,345¥");
+    expect(valueOf("투자 수익")).toBe("12,345₩");
   });
 
   it("손실이면 부호가 앞에 온다", () => {

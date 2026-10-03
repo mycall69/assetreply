@@ -4,8 +4,10 @@ contracts/rest-api. 반복 2026-10-03 #3.
 - `dividendTax`는 배당락 행에, `tradeFee`는 매수가 있는 행(초기 매수 월 행, 재투자 행)에만 있다 —
   해당 없으면 **키가 없다**
 - 재투자 매수는 배당락 뒤 2번째 거래일의 `kind: "reinvest"` 행이다
-- 금액은 **원금 통화**다 — 원화 원금·달러 종목이면 그 행의 환율로 원화로 바꾼다. 따로 환산하면 같은
-  행의 예수금과 어긋난다
+- 금액은 **종목 통화**다(006 FR-066, 반복 2026-10-03 #4, T137) — 원화 원금·달러 종목이어도 달러로
+  남는다.
+  예수금에서 빠지는 돈이라 예수금과 같은 통화여야 예수금 변화를 설명할 수 있다. 반복 #3까지는 그
+  행의 환율로 원화로 바꿨고, 이 파일의 그 기대를 바꿨다
 """
 from __future__ import annotations
 
@@ -116,18 +118,16 @@ class Test키가_있는_행:
         assert "tradeFee" not in one(all_rows, "month_first", "2021-10-01")
 
 
-class Test원금_통화로_환산:
-    async def test_배당_소득세는_그_행의_환율로_원화다(self, client) -> None:
+class Test종목_통화로_남는다:
+    async def test_배당_소득세는_달러다(self, client) -> None:
         row = one(await rows(client), "dividend")
         # 배당락 행은 사지 않으므로 보유 수 = 배당이 붙은 수다.
         usd = Decimal(row["heldShares"]) * Decimal(row["dividendPerShare"]) * TAX_FOREIGN
-        expected = usd * Decimal(row["fxRate"])
-        assert abs(Decimal(row["dividendTax"]) - expected) < Decimal("1")
+        assert Decimal(row["dividendTax"]) == usd
         assert Decimal(row["fxRate"]) == Decimal("1160")
 
-    async def test_매매_수수료는_그_행의_환율로_원화다(self, client) -> None:
+    async def test_매매_수수료는_달러다(self, client) -> None:
         row = one(await rows(client), "reinvest")
         usd = Decimal(row["boughtShares"]) * Decimal(row["openPrice"]) * FEE
-        expected = usd * Decimal(row["fxRate"])
-        assert abs(Decimal(row["tradeFee"]) - expected) < Decimal("1")
+        assert Decimal(row["tradeFee"]) == usd
         assert Decimal(row["fxRate"]) == Decimal("1170")

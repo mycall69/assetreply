@@ -44,7 +44,7 @@ const item = (
   label: name,
   start,
   series: {
-    from: start, to: "2024-01-01", principalCurrency,
+    from: start, to: "2024-01-01", principalCurrency, basisCurrency: "KRW",
     downsampled: false, algorithm: "lttb", sourcePointCount: points.length,
     points, gaps: [],
   },
@@ -88,10 +88,20 @@ describe("비교 차트", () => {
     expect(screen.getByTestId("comparison-basis").textContent).toContain("KRW");
   });
 
-  it("원금 통화가 다르면 그 사실을 드러낸다", () => {
-    // FR-039, SC-015 — 수익률은 원금 통화 기준이라, 통화가 다르면 환율 변동이
-    // 서로 다르게 섞여 있다. 같은 잣대로 읽으면 안 된다는 사실이 드러나야 한다.
+  it("원금 통화가 달라도 기준이 KRW로 같으면 한 기준으로 말한다", () => {
+    // 006 FR-068(반복 2026-10-03 #4, T140) — 수익률은 원금 통화와 관계없이 KRW다. 반복 #3까지는 원금 통화 기준이라
+    // "원금 통화가 다릅니다"라고 경고했고 이 테스트가 그것을 고정했다. 지금 그 경고는 거짓이다.
     render(<ComparisonChart {...base} items={[SAMSUNG, APPLE_USD]} />);
+    const basis = screen.getByTestId("comparison-basis").textContent ?? "";
+    expect(basis).toContain("KRW");
+    expect(basis).not.toContain("USD");
+    expect(basis).not.toMatch(/다릅니다|다른/);
+  });
+
+  it("기준 통화가 다르면 그 사실을 드러낸다", () => {
+    // FR-039, SC-015 — 기준이 다르면 같은 잣대로 읽으면 안 된다는 사실이 드러나야 한다.
+    const other = { ...APPLE, series: { ...APPLE.series, basisCurrency: "USD" as const } };
+    render(<ComparisonChart {...base} items={[SAMSUNG, other]} />);
     const basis = screen.getByTestId("comparison-basis").textContent ?? "";
     expect(basis).toContain("KRW");
     expect(basis).toContain("USD");

@@ -78,3 +78,18 @@ def test_같은_날짜의_행이_하나로_합쳐진다() -> None:
         covered=(D("2021-09-01"), D("2021-09-01")))
     assert len(series.points) == 1
     assert series.points[0].balance == Decimal("200")
+
+
+def test_KRW_평가가_있으면_그_값을_그린다() -> None:
+    """006 FR-068(반복 2026-10-03 #4, T139) — 해외 종목의 표 잔고는 종목 통화로 남는다. 차트가
+    그것을 그리면 원화 원금 실행의 선이 달러 규모로 떨어진다. KRW 평가(`balance_krw`)가 있으면 그
+    값이다."""
+    krw = ConvertedRow(
+        row("2021-09-01", "100", "0.1").row, fx_rate=Decimal("1150"),
+        fx_rate_date=D("2021-09-01"), balance_krw=Decimal("115000"))
+    series = build_series(
+        SimulationResult(rows=[krw], latest=krw, as_of=D("2021-09-01"), is_final=True,
+                         quote_dates=frozenset({D("2021-09-01")})),
+        start=D("2021-09-01"), end=D("2021-09-01"),
+        covered=(D("2021-09-01"), D("2021-09-01")))
+    assert series.points[0].balance == Decimal("115000")

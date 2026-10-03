@@ -186,10 +186,35 @@ class Test필요한_구간:
         assert body["fx"]["state"] == "queued"
         assert "rows" not in body
 
-    async def test_원금과_종목_통화가_같으면_환율을_보지_않는다(self, client) -> None:
+    async def test_달러_원금도_환율이_비면_수집을_요청한다(self, client) -> None:
+        """006 FR-068(반복 2026-10-03 #4, T138) — 원금과 종목 통화가 같아도 투자 수익을 KRW로
+        평가한다.
+
+        반복 #3까지는 "같은 통화면 환율을 보지 않는다"였고 이 테스트가 그것을 고정했다. 지금 보지
+        않으면 환율 없는 구간의 수익이 조용히 달러 기준으로 남는다.
+        """
+        res = await simulate(client, principalCurrency="USD", principal="1000")
+        assert res.status_code == 202, res.text
+        body = res.json()
+        assert body["fx"] == {"currency": "USD", "state": "queued", "busyWith": None,
+                              "missingFrom": "2021-08-01", "missingThrough": "2021-10-31"}
+        assert "jobId" not in body and "rows" not in body
+        assert get_queue().in_progress == "USD"
+
+    async def test_달러_원금은_환율이_있어도_환전하지_않는다(self, client, session_factory) -> None:
+        """FR-052 — 평가만 한다. 환전 정보가 실리면 달러를 달러로 바꾼 것처럼 읽힌다."""
+        await fx_rows(session_factory)
         res = await simulate(client, principalCurrency="USD", principal="1000")
         assert res.status_code == 200, res.text
-        assert get_queue().size == 0
+        assert "exchange" not in res.json()
+        assert "principalKrw" in res.json()["summary"]
+
+    async def test_달러_원금도_수집으로_채울_수_없는_구간이면_409다(self, client) -> None:
+        """FR-043a — 판정이 원금 통화와 관계없이 같다."""
+        res = await simulate(client, principalCurrency="USD", principal="1000",
+                             start="1995-03-02")
+        assert res.status_code == 409
+        assert res.json()["reason"] == "before_probe_start"
 
     async def test_수집이_끝났는데_값이_없으면_메우지_않는다(self, client, session_factory) -> None:
         """FR-047, 헌법 원칙 V — 다른 통화나 고정 환율로 메우지 않는다."""

@@ -91,3 +91,44 @@ def test_마지막_거래일_상태에는_없다() -> None:
     latest = simulate_detailed(BARS, DIVIDEND, [], condition()).latest
     assert latest is not None
     assert (latest.trade_fee, latest.dividend_tax) == (None, None)
+
+
+class Test배당금_총액:
+    """006 FR-067, SC-027 (T136, 반복 2026-10-03 #4) — 배당락 행에 세전·세후 총액이 있다.
+
+    주당 배당금과 세금만 있으면 실제로 받은 돈을 사용자가 곱셈으로 다시 구해야 한다. 세후는 예수금에
+    실제로 들어온 금액이다 — 세전 − 세후가 그 행의 세금과 다르면 표의 세 숫자가 서로를 설명하지
+    못한다.
+    """
+
+    def test_세전은_보유_수와_주당_배당금의_곱이다(self) -> None:
+        row = one(rows_of(), "dividend")
+        # 배당락일 시작 시점의 보유 9주 × 1,000 = 9,000
+        assert row.dividend_total == Decimal("9000")
+
+    def test_세후는_세전에서_세금을_뺀_값이다(self) -> None:
+        row = one(rows_of(), "dividend")
+        assert row.dividend_tax is not None and row.dividend_total is not None
+        assert row.dividend_total_net == row.dividend_total - row.dividend_tax
+        assert row.dividend_total_net == Decimal("7614.000")
+
+    def test_세후가_예수금에_들어온_금액이다(self) -> None:
+        rows = rows_of()
+        before = one(rows, "month_first", "2021-08-02").cash
+        assert one(rows, "dividend").cash - before == one(rows, "dividend").dividend_total_net
+
+    def test_배당락_행이_아니면_비어_있다(self) -> None:
+        rows = rows_of()
+        for row in (one(rows, "reinvest"), one(rows, "month_first", "2021-08-02"),
+                    one(rows, "month_first", "2021-10-01")):
+            assert (row.dividend_total, row.dividend_total_net) == (None, None)
+
+    def test_세율이_0이면_세전과_세후가_같다(self) -> None:
+        """"세금 없음"과 "총액 없음"을 구별한다 — 배당은 있었다."""
+        row = one(rows_of(tax_rate=Decimal("0")), "dividend")
+        assert row.dividend_total == row.dividend_total_net == Decimal("9000")
+
+    def test_마지막_거래일_상태에는_없다(self) -> None:
+        latest = simulate_detailed(BARS, DIVIDEND, [], condition()).latest
+        assert latest is not None
+        assert (latest.dividend_total, latest.dividend_total_net) == (None, None)

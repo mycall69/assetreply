@@ -49,7 +49,7 @@ const POINTS = [
 ];
 
 const withGaps = (gaps: SeriesGap[]): SimulationSeriesResponse => ({
-  from: "2021-08-01", to: "2022-07-31", principalCurrency: "KRW",
+  from: "2021-08-01", to: "2022-07-31", principalCurrency: "KRW", basisCurrency: "KRW",
   downsampled: false, algorithm: "lttb", sourcePointCount: POINTS.length,
   points: POINTS, gaps,
 });

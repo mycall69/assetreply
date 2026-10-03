@@ -17,15 +17,15 @@ const base = {
 
 const initial: SimulationRow = {
   ...base, date: "2026-08-03", kind: "month_first", openPrice: "590.000000",
-  boughtShares: 12, tradeFee: "1062",
+  boughtShares: 12, tradeFee: "1.062000",
 };
 const dividend: SimulationRow = {
   ...base, date: "2026-09-28", kind: "dividend", openPrice: "590.000000",
-  dividendPerShare: "1.823000", dividendYield: "0.003100", dividendTax: "4590",
+  dividendPerShare: "1.823000", dividendYield: "0.003100", dividendTax: "3.281400",
 };
 const reinvest: SimulationRow = {
   ...base, date: "2026-09-30", kind: "reinvest", openPrice: "595.000000",
-  boughtShares: 1, heldShares: 13, tradeFee: "89",
+  boughtShares: 1, heldShares: 13, tradeFee: "0.089250",
 };
 const month: SimulationRow = {
   ...base, date: "2026-10-01", kind: "month_first", openPrice: "600.000000", heldShares: 13,
@@ -63,16 +63,18 @@ describe("배당 자릿수 (FR-057)", () => {
 });
 
 describe("배당 소득세·매매 수수료 열 (FR-059)", () => {
-  it("배당락 행에 배당 소득세가 원금 통화로 있다", () => {
+  // 006 FR-066(반복 2026-10-03 #4, T140) — 세금·수수료는 종목 통화다. 반복 #3에서는 원금 통화(원화)였고 아래
+  // 값(`4,590`·`1,062`·`89`)이 그것을 고정했다. 열별 통화 전체는 `PerformanceTableCurrency`가 본다.
+  it("배당락 행에 배당 소득세가 종목 통화로 있다", () => {
     setup([initial, dividend, reinvest, month]);
-    expect(cell("2026-09-28", "배당 소득세")).toBe("4,590");
+    expect(cell("2026-09-28", "배당 소득세")).toBe("3.28");
     expect(cell("2026-09-28", "매매 수수료")).toBe("");
   });
 
   it("매수가 있는 행에 매매 수수료가 있다", () => {
     setup([initial, dividend, reinvest, month]);
-    expect(cell("2026-08-03", "매매 수수료")).toBe("1,062");
-    expect(cell("2026-09-30", "매매 수수료")).toBe("89");
+    expect(cell("2026-08-03", "매매 수수료")).toBe("1.06");
+    expect(cell("2026-09-30", "매매 수수료")).toBe("0.08");
     expect(cell("2026-10-01", "매매 수수료")).toBe("");
     expect(cell("2026-10-01", "배당 소득세")).toBe("");
   });

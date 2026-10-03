@@ -204,6 +204,44 @@ class Test원금_통화:
         assert len(balances) > 1, "환율이 움직였는데 잔고가 한 값뿐이다"
 
 
+USD_PRINCIPAL = {**USD_PARAMS, "principal": "1000", "principalCurrency": "USD"}
+
+
+class TestKRW_기준:
+    """006 FR-068(반복 2026-10-03 #4, T139) — 차트의 잔고·수익률은 원금 통화와 관계없이 KRW다.
+
+    표의 잔고는 해외 종목이면 종목 통화로 남고 KRW 평가는 `balanceKrw`에 있다. 차트가 표의
+    `balance`를 그리면 원화 원금 실행의 선이 달러 규모로 떨어진다. 보드·표 마지막 행·차트 끝점은
+    같은 기준이다(005 SC-032).
+    """
+
+    @pytest.mark.parametrize("params", [PARAMS, USD_PARAMS, USD_PRINCIPAL],
+                             ids=["국내", "원화원금", "달러원금"])
+    async def test_기준_통화가_KRW다(self, client, params) -> None:
+        assert (await series(client, **params))["basisCurrency"] == "KRW"
+
+    @pytest.mark.parametrize("params", [USD_PARAMS, USD_PRINCIPAL], ids=["원화원금", "달러원금"])
+    async def test_모든_점이_표의_KRW_잔고와_수익률과_같다(self, client, params) -> None:
+        body = await series(client, **params)
+        rows = (await table(client, **params))["rows"]
+        by_date: dict[str, list[dict]] = {}
+        for row in rows:
+            by_date.setdefault(row["date"], []).append(row)
+        for point in body["points"]:
+            assert any(
+                r["balanceKrw"] == point["balance"] and r["returnRate"] == point["returnRate"]
+                for r in by_date[point["date"]]), f"{point['date']}의 수치가 표의 KRW 값과 다르다"
+
+    async def test_달러_원금의_끝점이_보드와_같은_KRW_기준이다(self, client) -> None:
+        body = await series(client, **USD_PRINCIPAL)
+        result = await table(client, **USD_PRINCIPAL)
+        last = body["points"][-1]
+        assert last["date"] == result["rows"][0]["date"]
+        assert last["returnRate"] == result["rows"][0]["returnRate"]
+        # 달러 규모(1천 단위)가 아니라 KRW 규모다.
+        assert Decimal(last["balance"]) > Decimal("100000")
+
+
 class Test다운샘플링:
     async def test_한계를_넘으면_줄이고_그_사실을_밝힌다(self, client) -> None:
         body = await series(client, maxPoints=2)

@@ -98,3 +98,14 @@ class Test환율이_없을_때:
             **BASE, "market": "NASDAQ", "symbol": "AAPL",
             "principalCurrency": "KRW"})
         assert "rows" not in res.json()
+
+    async def test_달러_원금도_환산할_수_없으면_409다(self, client) -> None:
+        """006 FR-068(반복 2026-10-03 #4, T137) — 환전은 없어도 투자 수익을 KRW로 평가한다. 환율이
+        없으면 달러 기준 수익으로 조용히 떨어지지 않는다 — 원화 원금 실행과 다른 기준의 수익률이
+        이력에 나란히 놓인다."""
+        res = await client.get("/api/stocks/simulation", params={
+            **BASE, "market": "NASDAQ", "symbol": "AAPL",
+            "principal": "1000", "principalCurrency": "USD"})
+        assert res.status_code == 409
+        assert res.json()["status"] == "fx_unavailable"
+        assert "rows" not in res.json()

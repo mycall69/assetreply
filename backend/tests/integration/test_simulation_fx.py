@@ -2,6 +2,11 @@
 
 **초기 환율 하나로 전 구간을 환산하지 않는다.** 그러면 그 뒤의 환율 변동이 통째로
 사라져, 주가는 올랐는데 환율이 내려 실제로는 손실인 구간이 이익으로 보인다.
+
+006 FR-066, FR-068(반복 2026-10-03 #4, T137) — 행의 잔고·예수금은 **종목 통화로 남고**, 환율로
+평가한 값은 `balanceKrw`와 투자 수익·수익율(KRW)에 싣는다. 이 파일의 원화 환산
+기대(`balance`·`profit`)를 그 규칙으로 바꿨다. 열별 통화 전체는 `test_simulation_currency.py`가
+본다.
 """
 from __future__ import annotations
 
@@ -113,25 +118,34 @@ class Test기준일별_환산:
         row = next(r for r in body["rows"] if r["date"] == "2021-10-01")
         assert Decimal(row["fxRate"]) == Decimal("1190.000000")
 
-    async def test_주가가_그대로여도_환율이_오르면_잔고가_는다(self, client) -> None:
-        """환율 변동이 수익에 반영되지 않으면 이 테스트가 깨진다."""
+    async def test_주가가_그대로여도_환율이_오르면_KRW_잔고가_는다(self, client) -> None:
+        """환율 변동이 수익에 반영되지 않으면 이 테스트가 깨진다.
+
+        006 FR-066 — 종목 통화 잔고(`balance`)는 주가가 그대로면 그대로다. 환율은 KRW
+        평가(`balanceKrw`)에 들어간다.
+        """
         body = await fetch(client)
         august = next(r for r in body["rows"] if r["date"] == "2021-08-02")
         october = next(r for r in body["rows"] if r["date"] == "2021-10-01")
-        assert Decimal(october["balance"]) > Decimal(august["balance"])
+        assert october["balance"] == august["balance"]
+        assert Decimal(october["balanceKrw"]) > Decimal(august["balanceKrw"])
 
 
-class Test원금_통화_기준:
+class TestKRW_기준:
     async def test_투자금이_원금_통화_그대로다(self, client) -> None:
         """환전된 달러 금액이 아니라 사용자가 낸 원화다."""
         body = await fetch(client)
         assert all(r["principal"] == "1000000" for r in body["rows"])
         assert body["summary"]["principal"] == "1000000"
 
-    async def test_수익률이_원금_통화_기준이다(self, client) -> None:
-        """FR-041 — 사용자가 답을 원하는 질문은 "내가 낸 돈이 얼마가 됐나"다."""
+    async def test_수익이_KRW_기준이다(self, client) -> None:
+        """FR-041 — 사용자가 답을 원하는 질문은 "내가 낸 돈이 얼마가 됐나"다.
+
+        006 FR-068 — 투자 수익은 (잔고 + 예수금)을 그 행의 매매기준율로 평가한 KRW에서 원금을 뺀
+        값이다.
+        """
         body = await fetch(client)
         row = body["rows"][0]
-        expected = (Decimal(row["balance"]) + Decimal(row["cash"])
+        expected = ((Decimal(row["balance"]) + Decimal(row["cash"])) * Decimal(row["fxRate"])
                     - Decimal(row["principal"]))
-        assert Decimal(row["profit"]) == expected
+        assert abs(Decimal(row["profit"]) - expected) <= Decimal("1")

@@ -18,6 +18,8 @@ from src.api.main import create_app
 from src.db.dialect import upsert
 from src.db.models import (
     FxCollectionJob,
+    FxCoverage,
+    FxRate,
     Stock,
     StockCollectionJob,
     StockCoverage,
@@ -114,8 +116,21 @@ class Test막힌_조합:
 
 
 class Test허용된_조합:
-    async def test_종목_통화와_같으면_환전_없이_계산한다(self, client) -> None:
-        """FR-052."""
+    async def test_종목_통화와_같으면_환전_없이_계산한다(self, client, session_factory) -> None:
+        """FR-052.
+
+        006 FR-068(반복 2026-10-03 #4, T137) — 환전은 없어도 투자 수익을 KRW로 평가하므로 USD 환율을
+        받아 둔 상태여야 한다. 받아 두지 않으면 202(환율 수집)다(`test_fx_gate.py`).
+        """
+        async with session_factory() as s:
+            await upsert(s, FxRate, [{
+                "currency_code": "USD", "quote_date": D("2021-08-02"),
+                "base_rate": Decimal("1150"), "quote_unit": 1, "source": "ECOS:731Y001",
+                "is_provisional": False}])
+            await upsert(s, FxCoverage, [{
+                "currency_code": "USD", "covered_from": D("2021-07-01"),
+                "covered_through": D("2021-08-31")}], preserve=())
+            await s.commit()
         res = await client.get("/api/stocks/simulation", params={
             **BASE, "market": "NASDAQ", "symbol": "AAPL", "principalCurrency": "USD"})
         assert res.status_code == 200, res.text

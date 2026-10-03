@@ -40,6 +40,7 @@ const SERIES: SimulationSeriesResponse = {
   from: "2021-08-01",
   to: "2021-11-30",
   principalCurrency: "KRW",
+  basisCurrency: "KRW",
   downsampled: false,
   algorithm: "lttb",
   sourcePointCount: 4,
@@ -94,6 +95,16 @@ describe("성과 차트", () => {
     // FR-041 — 밝히지 않으면 사용자가 어느 통화를 보고 있는지 모른다.
     render(<PerformanceChart {...base} series={SERIES} />);
     expect(screen.getByTestId("chart-legend").textContent).toContain("KRW");
+  });
+
+  it("달러 원금이어도 기준은 KRW다", () => {
+    // 006 FR-068(반복 2026-10-03 #4, T140) — 잔고·수익률은 원금 통화와 관계없이 KRW다. 원금 통화를 범례에 쓰면
+    // KRW 값을 달러로 읽는다.
+    render(<PerformanceChart {...base}
+      series={{ ...SERIES, principalCurrency: "USD", basisCurrency: "KRW" }} />);
+    const legend = screen.getByTestId("chart-legend").textContent ?? "";
+    expect(legend).toContain("잔고 (KRW)");
+    expect(legend).not.toContain("USD");
   });
 
   it("수집 중이면 차트 대신 그 사실을 알린다", () => {
