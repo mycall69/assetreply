@@ -99,10 +99,19 @@ class Test실수로_온_분할_비율:
         assert [(d.ex_date, d.amount_per_share) for d in parsed.dividends] == [
             (dt.date(2021, 9, 29), Decimal("24.0"))]
 
-    @pytest.mark.parametrize(("numerator", "denominator"), [(2.5, 1.0), (3.0, 0.0), (-2.0, 1.0)])
-    def test_정수가_아닌_비율은_반올림하지_않고_거절한다(
-            self, numerator: float, denominator: float) -> None:
-        """2.5:1을 2:1이나 3:1로 바꾸면 보유 수량이 조용히 틀린다(헌법 원칙 V·VI)."""
+    @pytest.mark.parametrize(("numerator", "denominator"), [
+        (3.0, 0.0), (-2.0, 1.0), (0.0, 1.0), ("NaN", 1.0), ("abc", 1.0),
+        # 기약 분수가 저장 열(`INT`)을 넘는다 — 줄이거나 반올림하지 않고 거절한다.
+        (1.0526315789, 1.0),
+    ])
+    def test_쓸_수_없는_비율은_거절한다(
+            self, numerator: object, denominator: object) -> None:
+        """비율을 반올림해 받으면 보유 수량이 조용히 틀린다(헌법 원칙 V·VI).
+
+        버그 `fractional-split-ratio`(2026-10-03) 전에는 `2.5:1`도 여기서 거절했다. 정수가 아닌
+        비율도 정확한 분수로 다루면 반올림 없이 받을 수 있어, 거절은 쓸 수 없는 값으로 좁혔다
+        (아래 `Test분수_비율`).
+        """
         from src.ingestion.yahoo.errors import StockSourceUnavailable
 
         body = load("chart_split_float.json")
@@ -111,6 +120,48 @@ class Test실수로_온_분할_비율:
             item["numerator"], item["denominator"] = numerator, denominator
         with pytest.raises(StockSourceUnavailable):
             parse_chart(body)
+
+
+class Test분수_비율:
+    """버그 `fractional-split-ratio` — 006 FR-034, 005 FR-010a. 2026-10-03.
+
+    출처는 정수가 아닌 비율도 준다 — 삼성물산(`028260.KS`) 2020-05-13 `0.985:1`. T103의 "양의
+    정수만" 규칙에 걸려 그 날짜를 포함한 수집이 매번 실패했다. 비율을 **정확한 기약 정수 쌍**으로
+    받는다(`0.985:1` → `197:200`). 픽스처는 실제 응답이다(2026-10-03 받음, 2020-01-01~2021-12-30).
+    """
+
+    def test_실제_응답의_분수_비율을_기약_정수_쌍으로_읽는다(self) -> None:
+        parsed = parse_chart(load("chart_split_fractional.json"))
+        assert [(s.effective_date, s.numerator, s.denominator) for s in parsed.splits] == [
+            (dt.date(2020, 5, 13), 197, 200)]
+
+    def test_되살린_원주가가_정확히_호가_단위다(self) -> None:
+        """출처는 이벤트 이전 시세를 0.985로 나눠 두었다. 정확한 분수로 곱하면 실제 호가가 된다."""
+        from src.ingestion.yahoo.parse import restore_unadjusted
+
+        chart = parse_chart(load("chart_split_fractional.json"))
+        restored = {p.quote_date: p.open_raw for p in restore_unadjusted(chart, []).prices}
+        assert restored[dt.date(2020, 5, 8)] == Decimal("104500.000000")
+        assert restored[dt.date(2020, 5, 12)] == Decimal("102000.000000")
+        # 이벤트 날부터는 출처 값 그대로다.
+        assert restored[dt.date(2020, 5, 13)] == Decimal("98000.0")
+
+    @pytest.mark.parametrize(("numerator", "denominator", "expected"), [
+        (5.0, 1.0, (5, 1)),
+        (2.5, 1.0, (5, 2)),
+        (1.5, 1.0, (3, 2)),
+        (1.0, 10.0, (1, 10)),
+        (0.985, 1.0, (197, 200)),
+        (4.0, 2.0, (2, 1)),
+    ])
+    def test_비율을_반올림하지_않고_기약_정수_쌍으로(
+            self, numerator: float, denominator: float, expected: tuple[int, int]) -> None:
+        body = load("chart_split_float.json")
+        events = body["chart"]["result"][0]["events"]["splits"]  # type: ignore[index]
+        for item in events.values():
+            item["numerator"], item["denominator"] = numerator, denominator
+        [split] = parse_chart(body).splits
+        assert (split.numerator, split.denominator) == expected
 
 
 class Test메타:

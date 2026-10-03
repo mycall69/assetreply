@@ -102,6 +102,15 @@ class Test분할_반영:
 
         assert apply_split(15, 1, 10) == 1
 
+    def test_분수_비율도_정수로_떨어지지_않는_몫은_버린다(self) -> None:
+        """버그 `fractional-split-ratio` — 출처가 준 0.985:1(→197:200)을 그대로 적용한다(FR-010a).
+
+        100주 × 197/200 = 98.5주 → 98주. 반올림하면 없던 주식이 생긴다.
+        """
+        from src.simulation.money import apply_split
+
+        assert apply_split(100, 197, 200) == 98
+
     def test_역분할이_딱_떨어지면_그대로다(self) -> None:
         from src.simulation.money import apply_split
 
