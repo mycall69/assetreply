@@ -105,7 +105,9 @@ export function PerformanceTable({
   const cutOff = summary !== undefined && !summary.isFinal;
 
   return (
-    <div className="rounded-lg border border-gray-200">
+    // 테두리 상자는 표에 맞춘다 — 칸 폭이면 넓은 화면에서 표 오른쪽에 빈 테두리가 남는다. 칸보다 넓어지지는 않고, 넘치는
+    // 표는 안쪽에서 스크롤된다(FR-069, 버그 table-column-width).
+    <div className="w-fit max-w-full rounded-lg border border-gray-200">
       {cutOff && (
         // FR-014b, SC-027 — 보드에만 두면 표를 보던 사용자는 마지막 행을 오늘까지의
         // 결과로 읽는다. 상장폐지는 대개 큰 손실이라 그 오독의 대가가 크다.
@@ -119,7 +121,11 @@ export function PerformanceTable({
       )}
 
       <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+        {/*
+          표는 **내용 폭**이다 — 열 폭 = 값·열 이름 중 넓은 쪽 + 여백. 칸 폭(`w-full`)이면 남는 폭이 열마다 나뉘어 1920px에서
+          값이 `0`인 열이 108px로 벌어졌다(버그 table-column-width).
+        */}
+        <table className="w-max text-xs">
           <thead>
             <tr className="border-b border-gray-200 text-xs text-gray-500">
               {[...COLUMNS, ...(showFx ? [FX_COLUMN] : [])].map((c, i) => {

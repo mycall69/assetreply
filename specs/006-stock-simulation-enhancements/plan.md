@@ -263,7 +263,7 @@ frontend/
 | FR-066, SC-026 (열별 통화 — 005 FR-041 대체, 반복 2026-10-03 #4) | research R6-25, `api/services/stock_simulation.py`·`api/routes/stock_simulation.py`, `PerformanceTable.tsx`, contracts/rest-api 행, ui-wireframes W8, tasks T137·T140·T142·T144, quickstart 32 |
 | FR-067, SC-027 (배당금 총액 열 — 세전·세후) | research R6-25, `simulation/reinvest.py`, `api/routes/stock_simulation.py`, `PerformanceTable.tsx`, contracts/rest-api 행, ui-wireframes W8, tasks T136·T140·T141·T144, quickstart 33 |
 | FR-068, SC-028 (외화 원금도 KRW 평가, 해외 종목은 환율 필요) | research R6-25, `api/services/stock_simulation.py`·`stock_collect.py`·`stock_series.py`, `PerformanceBoard.tsx`·`PerformanceChart.tsx`·`ComparisonChart.tsx`, contracts/rest-api 요약·202·시계열(`basisCurrency`), ui-wireframes W8(보드), tasks T137·T138·T139·T140·T142·T143·T144, quickstart 34 |
-| FR-069, SC-029 (화면 폭 — 반복 2026-10-03 #4) | research R6-26, `frontend/src/app/stocks/page.tsx`, `PerformanceTable.tsx`(촘촘한 칸), tasks T140·T144·T145, quickstart 35 |
+| FR-069, SC-029 (화면 폭 — 반복 2026-10-03 #4, 열 폭은 내용) | research R6-26, `frontend/src/app/stocks/page.tsx`, `PerformanceTable.tsx`(촘촘한 칸, 내용 폭), tasks T140·T144·T145·T148·T149, quickstart 35 |
 | FR-060, SC-014 (비밀은 설정) | data-model 7절, research R6-1 토큰 메모리, R6-14 정적 검사, quickstart 21 |
 | FR-061 (인증 응답 보관 안 함, 원본 보존) | research R6-1·R6-13, data-model 4·4a절 "헤더를 담지 않는다"·"지우지 않는다", quickstart 21 |
 | FR-062 (인증 실패는 갱신만 실패) | research R6-3, data-model 2절 `auth_blocked`, quickstart 9 |
