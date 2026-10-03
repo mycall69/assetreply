@@ -56,9 +56,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from src.config.settings import load_settings
     from src.db.session import get_session_factory
     from src.ingestion.ecos.client import EcosClient
+    from src.ingestion.investing.client import InvestingClient
     from src.ingestion.kiwoom.client import KiwoomClient
     from src.ingestion.yahoo.client import YahooStockClient
     from src.observability.logging_config import configure_logging
+    from src.worker.crypto_list_queue import get_crypto_list_queue
+    from src.worker.crypto_list_worker import crypto_list_worker_loop
+    from src.worker.crypto_list_worker import startup as crypto_list_startup
     from src.worker.listing_queue import get_listing_queue
     from src.worker.listing_worker import listing_worker_loop
     from src.worker.listing_worker import startup as listing_startup
@@ -79,6 +83,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await reconcile_on_startup(factory)
     # 006 — 목록 갱신 점유도 같다. 프로세스가 하나라 남은 점유는 죽은 프로세스의 것이다.
     await listing_startup(factory)
+    # 007 — 코인 목록 갱신 점유도 같다.
+    await crypto_list_startup(factory)
 
     # 005 — 주식 수집 워커. **FX와 분리한다**: 출처가 달라 호출 한도도 따로이고,
     # 한 루프에 섞으면 환율 수집이 주식 수집을 막으면서 그 이유가 화면에 드러나지
@@ -90,6 +96,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 두고 만료 10분 전에 갱신한다.
     listing_client = KiwoomClient(settings)
     await listing_client.__aenter__()
+    # 007 — 가상자산 출처 클라이언트. **목록 갱신 줄과 시세 수집 줄이 이 하나를 함께 쓴다** — 출처
+    # 입장에서는 한 클라이언트이고, 요청 사이 최소 간격을 두 줄이 함께 지킨다(research R7-11).
+    crypto_client = InvestingClient(settings)
+    await crypto_client.__aenter__()
 
     tasks = [
         asyncio.create_task(worker_loop(
@@ -100,6 +110,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             factory, stock_client, get_stock_queue())),
         asyncio.create_task(listing_worker_loop(
             factory, listing_client, get_listing_queue(), settings=settings)),
+        # 007 — 코인 목록 갱신 줄. 시세 수집과 다른 줄이다 — 목록(약 2분)이 시세 수집을 막지 않는다.
+        asyncio.create_task(crypto_list_worker_loop(
+            factory, crypto_client, get_crypto_list_queue(), settings=settings)),
     ]
     try:
         yield
@@ -110,6 +123,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
         await listing_client.__aexit__(None, None, None)
+        await crypto_client.__aexit__(None, None, None)
         await shutdown_engine()
 
 
@@ -238,6 +252,8 @@ def create_app() -> FastAPI:
     from src.api.routes import collect as collect_routes
     from src.api.routes import collection as collection_routes
     from src.api.routes import coverage as coverage_routes
+    from src.api.routes import crypto_list_progress as crypto_list_progress_routes
+    from src.api.routes import crypto_search as crypto_search_routes
     from src.api.routes import daily as daily_routes
     from src.api.routes import jobs as job_routes
     from src.api.routes import latest as latest_routes
@@ -270,6 +286,9 @@ def create_app() -> FastAPI:
     app.include_router(stock_simulation_routes.router)
     app.include_router(stock_series_routes.router)
     app.include_router(stock_settings_routes.router)
+    # 007 — 가상자산 투자 시뮬레이션
+    app.include_router(crypto_search_routes.router)
+    app.include_router(crypto_list_progress_routes.router)
 
     return app
 

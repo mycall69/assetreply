@@ -597,3 +597,59 @@ export interface SimulationHistoryEntry {
   reinvest: boolean;
   savedAt: string;
 }
+
+// ─────────────────────────── 007: 가상자산 ───────────────────────────
+
+/** 코인 목록의 판 상태 (007 contracts/rest-api `list.state`). */
+export type CoinListState = "ready" | "refreshing" | "never" | "failed";
+/** 목록 갱신 실패 사유. 진행 스트림의 `failed.reason`과 같다. */
+export type CoinListReason = "blocked" | "format" | "network" | "shrunk";
+
+export interface CoinEditionStatus {
+  state: CoinListState;
+  /** 그 판을 온전히 받아 교체한 마지막 시각(UTC). 없으면 받은 적이 없다. */
+  asOf: string | null;
+  reason?: CoinListReason;
+}
+
+/** 영문 판(목록)의 상태와 한국어 판(한글 이름)의 상태. 한국어 판이 실패해도 영문으로 찾는다(FR-006). */
+export interface CoinListStatus extends CoinEditionStatus {
+  koreanNames: CoinEditionStatus;
+}
+
+/**
+ * 코인 검색 결과 한 줄 (007 FR-003, FR-004). **식별자는 `coinId`다** — 심볼은 유일하지 않다(MAX 5개).
+ */
+export interface CoinSearchResult {
+  coinId: number;
+  symbol: string;
+  name: string;
+  /** 한국어 판이 준 한글 이름. 없으면 `null`(FR-006). */
+  nameKo: string | null;
+  slug: string | null;
+  /** 시세 통화. 출처의 목록은 모두 USD다. */
+  currency: string;
+  /** 시가총액 순위. 없으면 `null`. */
+  rank: number | null;
+  listStatus: "listed" | "missing";
+  /** 수집으로 발견한 첫 일봉. 없으면 아직 모른다(research R7-10). */
+  firstAvailableDate: string | null;
+  match: "exact" | "prefix" | "contains";
+}
+
+export interface CoinSearchResponse {
+  query: string;
+  results: CoinSearchResult[];
+  truncated: boolean;
+  list: CoinListStatus;
+}
+
+/** 목록 갱신 진행 (FR-005b). 판이 바뀌면 `pagesDone`이 0부터 다시 센다. */
+export interface CoinListProgress {
+  /** 지금 받는 판. 요청이 들어가고 아직 시작하지 않았으면 `null`. */
+  edition: "en" | "ko" | null;
+  pagesDone: number;
+  /** 이전 갱신의 코인 수로 어림한 전체 쪽 수. 처음이면 `null`. */
+  pagesExpected: number | null;
+  coinsSeen: number;
+}

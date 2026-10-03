@@ -125,14 +125,14 @@ description: "Task list for 007-crypto-investment-simulation"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T013 [P] [US2] `backend/tests/unit/test_crypto_list_due.py` — 갱신 판정 순수 함수: 받은 적 없음 → 갱신, 마지막 성공 뒤 7일 미만 → 안 함,
+- [X] T013 [P] [US2] `backend/tests/unit/test_crypto_list_due.py` — 갱신 판정 순수 함수: 받은 적 없음 → 갱신, 마지막 성공 뒤 7일 미만 → 안 함,
   7일 이상(한국 시간 날짜) → 갱신, 오늘 이미 시도했으면(실패 포함) → 안 함 — 다음 날 다시, 한국 시간 자정 경계 (FR-005)
-- [ ] T014 [P] [US2] `backend/tests/integration/test_crypto_list_refresh.py` — 가짜 출처(T001 픽스처)로 `refresh_coins`: 영문·한국어 판을 다 받은 뒤
+- [X] T014 [P] [US2] `backend/tests/integration/test_crypto_list_refresh.py` — 가짜 출처(T001 픽스처)로 `refresh_coins`: 영문·한국어 판을 다 받은 뒤
   한 트랜잭션 교체, 한글 이름은 **식별자로만** 짝지음, 이번 목록에 없는 코인은 `missing`(지우지 않음)·다시 보이면 `listed`, 이전보다 50% 넘게
   줄면 거절(`shrunk`)하고 아무것도 바꾸지 않음, 영문 판 실패 → 아무것도 안 바뀜, **한국어 판만 실패 → 영문으로 교체하고 한글 이름은 이전 값**,
   같은 본문은 원본 한 번만, 갱신 기록(`as_of`·`row_count`·`attempts`·`last_error_kind`), 점유 중이면 두 번째 갱신은 시작하지 않음, 수집 전용
   로그에 시작·완료·실패 사건 — 사용자 에이전트·헤더 값 없음 (FR-004, FR-005, FR-005a, FR-006, FR-019, SC-011)
-- [ ] T015 [P] [US2] `backend/tests/integration/test_crypto_search_api.py` — `GET /api/crypto/search`: "btc"·"Bitcoin"·"비트코인"·"ㅂㅌㅋㅇ" → 맨 위
+- [X] T015 [P] [US2] `backend/tests/integration/test_crypto_search_api.py` — `GET /api/crypto/search`: "btc"·"Bitcoin"·"비트코인"·"ㅂㅌㅋㅇ" → 맨 위
   비트코인, "max" → MAX 5개가 순위순으로 구별(`coinId`가 다름), `nameKo`는 한글 이름이 있을 때만, `listStatus: missing` 표시, `list.state`
   (`never`·`refreshing`·`failed`+`reason`·`ready`)와 `list.koreanNames`, `q` 없음 → 400. **실행 주체**: 갱신 주기가 된 첫 검색이 **기다리지 않고**
   응답하며, `lifespan`이 띄운 목록 갱신 줄이 그 요청을 받아 갱신을 끝낸다(앱 수명을 거치는 테스트, 가짜 출처). **진행 스트림**
@@ -140,21 +140,21 @@ description: "Task list for 007-crypto-investment-simulation"
   0부터, `completed`·`failed`(사유), 갱신 중이 아니면 마지막 상태 한 번, 머리글 `no-transform`(FR-005b, analyze C2). **상위 50개 측정**:
   `coins_all_compact.json`으로 만든 색인에서 상위 50개 각각을 영문 이름과 심볼로 검색해 맨 위 비율 ≥ 95%, 한글 이름이 있는 코인은 한글·초성으로도
   ≥ 95% — 비율을 실패 메시지에 싣는다(analyze M1) (FR-003~FR-006, FR-005b, SC-002, SC-002a)
-- [ ] T016 [P] [US2] `frontend/tests/CoinSearch.test.tsx` — 결과 한 줄(한글 이름·영문 이름·심볼·`USD`·`#순위`, 한글이 없으면 영문이 맨 앞, "목록에서
+- [X] T016 [P] [US2] `frontend/tests/CoinSearch.test.tsx` — 결과 한 줄(한글 이름·영문 이름·심볼·`USD`·`#순위`, 한글이 없으면 영문이 맨 앞, "목록에서
   빠짐" 글자), 엔터 = 맨 위, 방향키 선택, **한글 조합 중 엔터·방향키 무시**(006 버그 `search-enter-ime`과 같은 테스트), 목록 상태 줄(처음 받는 중,
   갱신 실패 사유와 이전 기준 시각), 결과 없음과 목록 없음 구별, **목록 상태가 `never`·`refreshing`이면 진행 스트림을 구독해 "영문 12쪽 받음"·
   "한국어 8/37쪽"처럼 보이고 `completed`에 검색을 다시 보냄, 화면을 떠나면 구독을 끊음**(analyze C2) (FR-003, FR-005, FR-005b, FR-006)
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] `backend/src/repository/crypto_coin.py` — 코인 upsert·`missing` 표시, 갱신 기록 읽기·쓰기, 점유(기본 키 충돌), 원본 쪽·본문(해시),
+- [X] T017 [US2] `backend/src/repository/crypto_coin.py`·`crypto_list_lock.py` — 코인 upsert·`missing` 표시, 갱신 기록 읽기·쓰기, 점유(기본 키 충돌 — 지울 수 있는 것이 점유뿐이라 따로 둔다, 006과 같다), 원본 쪽·본문(해시),
   검색 색인용 전 코인 읽기 (FR-005, FR-005a, data-model 1~4절)
-- [ ] T018 [US2] `backend/src/api/services/crypto_list_refresh.py`·`backend/src/worker/crypto_list_queue.py`·`backend/src/worker/crypto_list_worker.py`·
+- [X] T018 [US2] `backend/src/api/services/crypto_list_refresh.py`·`backend/src/worker/crypto_list_queue.py`·`backend/src/worker/crypto_list_worker.py`·
   `backend/src/api/routes/crypto_list_progress.py`·`backend/src/api/main.py`(`lifespan` 등록·라우터) — 주기 판정, 요청(기다리지 않음), 두 판
   받기·축소 검사·교체, 쪽마다 점유 행에 진행 기록, 진행 스트림, 사건 기록 (FR-005, FR-005b, FR-006, FR-019)
-- [ ] T019 [US2] `backend/src/api/services/crypto_index.py`·`backend/src/api/routes/crypto_search.py`·`backend/src/api/main.py`(라우터) — 메모리 색인(갱신
+- [X] T019 [US2] `backend/src/api/services/crypto_index.py`·`backend/src/api/routes/crypto_search.py`·`backend/src/api/main.py`(라우터) — 메모리 색인(갱신
   기록 버전), `SearchEntry(names=(한글, 영문), codes=(심볼,), priority=순위)`, 응답(rest-api 검색) (FR-003, FR-004, FR-006)
-- [ ] T020 [US2] `frontend/src/lib/types.ts`(검색 응답·목록 진행 사건)·`frontend/src/lib/cryptoListProgressStream.ts`·
+- [X] T020 [US2] `frontend/src/lib/types.ts`(검색 응답·목록 진행 사건)·`frontend/src/lib/cryptoListProgressStream.ts`·
   `frontend/src/components/crypto/CoinSearch.tsx` — C2, 목록 갱신 진행 구독 (FR-003~FR-006, FR-005b)
 
 **Checkpoint**: 검색으로 코인을 고를 수 있다(목록 갱신 포함)
@@ -202,7 +202,8 @@ description: "Task list for 007-crypto-investment-simulation"
   진행 구독 → 완료 뒤 다시 요청, 실패 사유 종류별 문구), `CryptoSettingsForm.test.tsx`(0.1 % 표시·저장·범위 밖 거절·기본값으로),
   `Sidebar` 순서·경로(`/crypto`) — **기존 `frontend/tests/Sidebar.test.tsx`의 기대를 바꾼다**: 메뉴 순서(외환 → 가상자산 → 주식, 18행), 준비중
   목록에서 가상자산 제거(34행), 가상자산 항목이 링크(48행). 테스트 커밋에서 바꾸고 사유를 적는다(analyze M3). `noUnbuiltAssetRoutes.test.ts`에서
-  `crypto`를 뺀다(사이드바 경로 목록에 `/crypto`) (FR-001, FR-009, FR-013, FR-020~FR-022, FR-032, FR-033, FR-037~FR-042, SC-009)
+  `crypto`를 뺀다(사이드바 경로 목록에 `/crypto`, 라우트 디렉토리 — API 호출 검사 부분은 T020이 `/api/crypto`를 불러 Phase 3에서
+  앞당겼다) (FR-001, FR-009, FR-013, FR-020~FR-022, FR-032, FR-033, FR-037~FR-042, SC-009)
 
 ### Implementation for User Story 1
 
