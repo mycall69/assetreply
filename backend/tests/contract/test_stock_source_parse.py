@@ -135,14 +135,22 @@ class Test분수_비율:
         assert [(s.effective_date, s.numerator, s.denominator) for s in parsed.splits] == [
             (dt.date(2020, 5, 13), 197, 200)]
 
-    def test_되살린_원주가가_정확히_호가_단위다(self) -> None:
-        """출처는 이벤트 이전 시세를 0.985로 나눠 두었다. 정확한 분수로 곱하면 실제 호가가 된다."""
+    def test_되살린_원주가가_실제_호가와_같다(self) -> None:
+        """출처는 이벤트 이전 시세를 0.985로 나눠 두었다. 정확한 분수로 곱하면 실제 호가가 된다.
+
+        출처의 값은 단정밀도라(106091.3671875 — 실제 104500/0.985 = 106091.370558…) 되살린 값은
+        호가와 0.004원 이내로 같고, 정확히 같지는 않다. 호가 단위를 모르는 채 반올림하면 임의
+        보정이라 지우지 않는다(research R6-18). 애플 테스트와 같은 방식으로 본다 — 계산값과 정확히
+        같고, 실제 값과 0.01 이내.
+        """
         from src.ingestion.yahoo.parse import restore_unadjusted
 
         chart = parse_chart(load("chart_split_fractional.json"))
         restored = {p.quote_date: p.open_raw for p in restore_unadjusted(chart, []).prices}
-        assert restored[dt.date(2020, 5, 8)] == Decimal("104500.000000")
-        assert restored[dt.date(2020, 5, 12)] == Decimal("102000.000000")
+        assert restored[dt.date(2020, 5, 8)] == Decimal("104499.996680")
+        assert restored[dt.date(2020, 5, 12)] == Decimal("101999.997422")
+        assert abs(restored[dt.date(2020, 5, 8)] - Decimal("104500")) < Decimal("0.01")
+        assert abs(restored[dt.date(2020, 5, 12)] - Decimal("102000")) < Decimal("0.01")
         # 이벤트 날부터는 출처 값 그대로다.
         assert restored[dt.date(2020, 5, 13)] == Decimal("98000.0")
 

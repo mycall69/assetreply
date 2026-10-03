@@ -15,6 +15,7 @@ import datetime as dt
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from fractions import Fraction
 
 from src.ingestion.yahoo.errors import StockSourceUnavailable
 
@@ -142,21 +143,37 @@ def _decimal(value: object) -> Decimal | None:
     return Decimal(str(value))
 
 
-def _split_ratio_part(value: object) -> int:
-    """분할 비율의 한쪽을 정수로 읽는다.
+#: 분할 비율을 담는 열(`stock_split.numerator`·`denominator`, `INT`)의 최댓값.
+_RATIO_MAX = 2_147_483_647
 
-    **실제 응답은 실수로 준다**(`5.0`, 006 T090에서 발견). 005는 `int(str(…))`로 읽어
-    `'5.0'`에서 실패했고, 구간에 분할이 있는 종목의 시세 수집이 매번 실패했다.
-    양의 정수가 아니면 거절한다 — `2.5`를 2나 3으로 바꾸면 보유 수량이 조용히
-    틀린다(헌법 원칙 V·VI).
+
+def _ratio_part(value: object) -> Fraction:
+    """분할 비율의 한쪽을 정확한 유리수로 읽는다. 양의 유한한 수가 아니면 거절한다.
+
+    **실제 응답은 실수로 준다**(`5.0`, 006 T090에서 발견). `str()`을 거쳐 `Decimal`로 읽으므로
+    JSON이 준 자릿수 그대로다 — 이진 부동소수의 오차가 들어오지 않는다.
     """
     try:
         number = Decimal(str(value))
     except InvalidOperation:
         number = Decimal("NaN")
-    if not number.is_finite() or number <= 0 or number != number.to_integral_value():
+    if not number.is_finite() or number <= 0:
         raise StockSourceUnavailable("시세 출처의 응답이 유효하지 않습니다.")
-    return int(number)
+    return Fraction(number)
+
+
+def _split_ratio(numerator: object, denominator: object) -> tuple[int, int]:
+    """분할 비율을 **기약 정수 쌍**으로 — `5.0:1.0` → `5:1`, `0.985:1` → `197:200`.
+
+    출처는 정수가 아닌 비율도 준다(삼성물산 2020-05-13 `0.985:1`, 버그 `fractional-split-ratio`).
+    006 T103은 정수만 받아 그 날짜를 포함한 수집이 매번 실패했다. **반올림하지 않는다** — `2.5`를
+    2나 3으로 바꾸면 보유 수량이 조용히 틀린다(헌법 원칙 V·VI). 정확한 분수로 다루면 반올림이
+    필요 없다. 저장 열을 넘는 분수는 줄이지 않고 거절한다.
+    """
+    ratio = _ratio_part(numerator) / _ratio_part(denominator)
+    if ratio.numerator > _RATIO_MAX or ratio.denominator > _RATIO_MAX:
+        raise StockSourceUnavailable("시세 출처의 응답이 유효하지 않습니다.")
+    return ratio.numerator, ratio.denominator
 
 
 def _local_date(epoch_seconds: int, gmt_offset: int) -> dt.date:
@@ -186,13 +203,15 @@ def _split_events(first: dict[str, object], offset: int) -> list[SplitEvent]:
     """결과의 분할 이벤트. 키는 봉의 시각이라(월봉이면 월 시작) **`date`를 읽는다**."""
     raw_events = first.get("events")
     events = raw_events if isinstance(raw_events, dict) else {}
-    return sorted(
-        (SplitEvent(
+    splits: list[SplitEvent] = []
+    for item in _event_items(events.get("splits")):
+        numerator, denominator = _split_ratio(item["numerator"], item["denominator"])
+        splits.append(SplitEvent(
             effective_date=_local_date(int(str(item["date"])), offset),
-            numerator=_split_ratio_part(item["numerator"]),
-            denominator=_split_ratio_part(item["denominator"]),
-        ) for item in _event_items(events.get("splits"))),
-        key=lambda s: s.effective_date)
+            numerator=numerator,
+            denominator=denominator,
+        ))
+    return sorted(splits, key=lambda s: s.effective_date)
 
 
 def parse_splits(body: object) -> list[SplitEvent]:

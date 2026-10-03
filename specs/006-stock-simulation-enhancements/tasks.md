@@ -258,7 +258,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T100 `frontend/src/stores/stockStore.ts`의 `watchFx` — 스트림의 `idle`은 끝났다는 것만 알리고 **성공인지 실패인지 알리지 않는다.** 구독할 때 그 통화의 마지막 작업 번호를 기준으로 받아 두고(`GET /api/fx/jobs?currency=&limit=`), 끝났다고 판단하면 작업을 조회한다 — `succeeded`면 다시 요청, `failed`·`partial`이면 구독을 끊고 `lastError`를 오류로 보이며 다시 요청하지 않는다. 진행을 본 작업(`snapshot`의 `activeJob.jobId`) 또는 기준보다 새 작업만 이번 수집으로 본다. 조회가 실패하거나 새 작업이 없으면 다시 요청한다 — 서버가 다시 판정한다. **판정 없는 다시 요청은 사용자 실행 한 번에 한 번이다** — 두 번째에는 마지막 작업을 이번 수집으로 본다 (FR-047a, research R6-10)
 - [X] T101 [P] `backend/tests/integration/test_listing_events.py` — **구현 뒤 보강한 테스트다**(analyze C1, T094와 같은 유형). 목록 갱신의 시작·완료(쪽 수·종목 수·새 종목·빠진 종목)·실패(실패 종류) 사건이 수집 전용 로그에 남는지, 출처 문구가 키·토큰을 되돌려 보내도 사건에 싣지 않는지. 구현(`listing_refresh._event`)이 먼저 있어 처음부터 통과한다 (FR-065, FR-060, SC-014)
 - [X] T102 [P] `backend/tests/contract/test_stock_source_parse.py`에 더한다 — **T090에서 발견**: 실제 응답은 분할 비율을 실수(`5.0`)로 준다. 실제 응답 픽스처(`chart_split_float.json`, 토요타 2021-09-29 5:1)의 분할을 정수로 읽는지, 같은 응답의 일봉·배당도 읽는지, 정수가 아니거나 0·음수인 비율은 반올림하지 않고 출처 오류로 거절하는지 (005 FR-012, 헌법 원칙 V·VI)
-- [X] T103 `backend/src/ingestion/yahoo/parse.py` — 분할 비율을 `Decimal(str(값))`로 읽고 **양의 정수일 때만** `int`로 바꾼다. 아니면 `StockSourceUnavailable`(응답이 유효하지 않음). 005의 `int(str(…))`는 `'5.0'`에서 실패해, 구간에 분할이 있는 모든 종목의 시세 수집이 매번 실패했다 — 005 결함, plan Complexity Tracking "005 결함 수정이 이 기능에 섞인다" (005 FR-012, 006 SC-007a). **결함 5와 함께 커밋한다**: 고친 파서로 실제 출처를 다시 돌리자 결함 5(출처의 시세가 이미 분할을 반영한 값이라 분할이 두 번 들어간다)가 드러났다 — 분할 비율만 고치면 수집 실패가 **조용히 틀린 수익률**로 바뀐다. 사용자가 A안(원주가로 되살리기)을 골랐다(2026-10-03). T107과 한 커밋에 넣는다
+- [X] T103 `backend/src/ingestion/yahoo/parse.py` — 분할 비율을 `Decimal(str(값))`로 읽고 **양의 정수일 때만** `int`로 바꾼다(**T121이 정확한 분수로 넓혔다** — 정수가 아닌 비율도 실제로 온다). 아니면 `StockSourceUnavailable`(응답이 유효하지 않음). 005의 `int(str(…))`는 `'5.0'`에서 실패해, 구간에 분할이 있는 모든 종목의 시세 수집이 매번 실패했다 — 005 결함, plan Complexity Tracking "005 결함 수정이 이 기능에 섞인다" (005 FR-012, 006 SC-007a). **결함 5와 함께 커밋한다**: 고친 파서로 실제 출처를 다시 돌리자 결함 5(출처의 시세가 이미 분할을 반영한 값이라 분할이 두 번 들어간다)가 드러났다 — 분할 비율만 고치면 수집 실패가 **조용히 틀린 수익률**로 바뀐다. 사용자가 A안(원주가로 되살리기)을 골랐다(2026-10-03). T107과 한 커밋에 넣는다
 - [X] T104 [P] `backend/tests/contract/test_stock_source_parse.py`에 더한다 — **T090 결함 5**: 실제 응답 픽스처(토요타 청크 + 2021-09 이후 분할 기록, 애플 2000-01·2012-08 청크 + 2000 이후 분할 기록)로 반영가를 원주가로 되살리는지. 토요타 2021-09-28 시가 10,420엔(×5), 분할 날부터는 그대로, 수정종가는 그대로, 애플 2000-01-03 시가 104.875010(실제 104.87, ×112), 2012-08-09 배당 2.650004(실제 2.65, ×28). 뒤의 분할이 없으면 값이 그대로인지, 병합(1:10·1:3)은 나누고 저장 자릿수로 맞추는지, 같은 날의 비율이 어긋나면 거절하는지, 월봉 분할 기록에서 실제 분할일을 읽는지 (FR-034, SC-007b)
 - [X] T105 [P] `backend/tests/contract/test_yahoo_client.py` — 청크마다 **청크 시작일부터 지금까지의 분할 기록**(월봉, `events=splits`)을 함께 요청하는지, 되살린 원주가와 **원본 둘**(`chart`·`splits`, 요청 구간 포함)을 돌려주는지, 분할 기록이 "구간에 시세 없음"(400)이면 뒤의 분할 없음으로 보는지, 분할 기록을 받지 못하면 청크도 돌려주지 않는지, 넘겨받은 세션을 닫지 않는지. 세션은 흉내 낸다 (FR-034, 헌법 원칙 II·III·V)
 - [X] T106 [P] `backend/tests/integration/test_stock_collection.py`에 더한다 — 수집이 한 번 받을 때 온 **원본을 모두** `stock_raw_response`에 남기는지(`kind`·요청 구간). 시세 출처 스텁 넷(`test_stock_collection.py`·`test_stock_worker.py`·`test_start_available.py`·`test_stock_selection.py`)을 새 반환 형태(`ChartFetch`)로 바꾼다. `backend/tests/integration/test_migrations.py`에 더한다 — 정정 마이그레이션이 **주식 커버리지만 비우고** 시세·원본·종목은 남기는지 (FR-034, 헌법 원칙 V)
@@ -267,7 +267,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T109 [P] `frontend/tests/nextConfigProxy.test.ts` — **버그 `stock-search-not-found`**(`.specify/bugs/stock-search-not-found/`): 브라우저에서 종목을 검색하면 "Not Found". `next.config.ts`의 rewrite가 `/api/fx`만 백엔드로 넘겨 **주식 화면의 모든 `/api/stocks/*` 요청이 Next.js의 404**가 되었다(005부터). `rewrites()`가 주식·외환 주요 경로를 같은 경로 그대로 백엔드로 넘기는지, **프론트엔드 소스가 부르는 모든 `/api/<접두사>`가 덮이는지** 검사한다 — 다른 프론트엔드 테스트는 `apiClient`를 흉내 내어 프록시를 거치지 않는다 (005 FR-001·FR-002a, 006 FR-020·SC-007a)
 - [X] T110 `frontend/next.config.ts` — rewrite를 `/api/:path*` → 백엔드 하나로 바꾼다. 프론트엔드에는 API 라우트 핸들러가 없고, 배열 rewrite는 화면·정적 파일 뒤에(afterFiles) 적용되어 화면 경로와 부딪히지 않는다. 자산군마다 규칙을 더하는 구조를 없앤다. 고친 뒤 3030 경유로 검색이 200인지 확인한다
 - [X] T120 [P] `backend/tests/contract/test_stock_source_parse.py`·`backend/tests/unit/test_money.py` — **버그 `fractional-split-ratio`**(`.specify/bugs/fractional-split-ratio/`): 삼성물산(`028260.KS`) 2020-05-13 `0.985:1`이 T103의 "양의 정수만" 규칙에 걸려 그 날짜를 포함한 수집이 매번 실패했다. 실제 응답 픽스처(`chart_split_fractional.json`)의 분할을 `(2020-05-13, 197, 200)`으로 읽는지, 되살린 2020-05-08 시가가 정확히 `104500`·2020-05-12가 `102000`(호가 단위)인지, `2.5:1`→`5:2`·`4:2`→`2:1`처럼 기약 정수 쌍인지, 0·음수·숫자 아닌 값·`INT`를 넘는 기약 분수는 여전히 거절하는지, 보유 100주에 197:200 → 98주(버림)인지. 기존 "정수가 아닌 비율은 거절" 테스트는 "쓸 수 없는 비율은 거절"로 좁혔다 (FR-034, 005 FR-010·FR-010a)
-- [ ] T121 `backend/src/ingestion/yahoo/parse.py` — 분할의 분자·분모를 `Decimal(str(값))`로 읽어 비율을 `Fraction`으로 **정확히** 나누고 기약 정수 쌍으로 담는다(반올림 없음). 0·음수·무한·숫자 아닌 값, `INT`(2,147,483,647)를 넘는 기약 분수는 `StockSourceUnavailable` (FR-034, 005 FR-010a, research R6-18)
+- [X] T121 `backend/src/ingestion/yahoo/parse.py` — 분할의 분자·분모를 `Decimal(str(값))`로 읽어 비율을 `Fraction`으로 **정확히** 나누고 기약 정수 쌍으로 담는다(반올림 없음). 0·음수·무한·숫자 아닌 값, `INT`(2,147,483,647)를 넘는 기약 분수는 `StockSourceUnavailable` (FR-034, 005 FR-010a, research R6-18)
 
 ---
 
@@ -354,10 +354,10 @@ Setup → Foundational ─┬→ US1 (MVP) ──→ US4 (미국)
 | `backend/src/api/routes/stock_progress.py`·`collection.py`·`collect.py` | T117 |
 | `frontend/tests/CollectingNotice.test.tsx` | T114 |
 | `frontend/tests/CollectingNoticeFx.test.tsx` | T048, T099 |
-| `backend/src/ingestion/yahoo/parse.py` | T103, T107 |
+| `backend/src/ingestion/yahoo/parse.py` | T103, T107, T121 |
 | `backend/src/ingestion/yahoo/client.py`·`backend/src/worker/stock_runner.py` | T108 |
 | `frontend/next.config.ts` | T110 |
-| `backend/tests/contract/test_stock_source_parse.py` | T102, T104 |
+| `backend/tests/contract/test_stock_source_parse.py` | T102, T104, T120 |
 | `backend/tests/integration/test_stock_collection.py`·`test_stock_worker.py`·`test_start_available.py`·`test_stock_selection.py` | T106 (스텁 반환 형태) |
 | `frontend/src/lib/types.ts` | T041, T053, T064 |
 
