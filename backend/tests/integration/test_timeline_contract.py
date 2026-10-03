@@ -99,6 +99,31 @@ class Test스트림:
             frames = [f async for f in stream_body(s, "USD", settings, max_frames=1)]
         assert frames[0].startswith("event: snapshot")
 
+    async def test_한_연결에서_수집이_끝나면_idle로_바뀐다(
+            self, session_factory, settings, monkeypatch) -> None:
+        """006 T113 보강 — FR-045a, FR-046, SC-017. 반복 2026-10-03.
+
+        스트림은 연결 하나(세션 하나)로 오래 산다. 그 세션이 처음 읽은 값에 머물면 워커가 수집을
+        끝내도 `snapshot`만 계속 보내, 환율을 기다리던 화면(006 `watchFx`)이 끝을 알지 못한다.
+        """
+        import src.api.collection_stream as stream_module
+        from src.repository.collection_lock import release_lock
+
+        monkeypatch.setattr(stream_module, "HEARTBEAT_SECONDS", 0)
+        async with session_factory() as s:
+            job = await create_job(s, "USD", *RANGE, chunks_total=3)
+            await acquire_lock(s, "USD", job.id)
+            await s.commit()
+        async with session_factory() as s:
+            stream = stream_body(s, "USD", settings, max_frames=4)
+            first = await anext(stream)
+            async with session_factory() as worker:
+                await release_lock(worker, "USD")
+                await worker.commit()
+            rest = [frame async for frame in stream]
+        assert first.startswith("event: snapshot")
+        assert any(frame.startswith("event: idle") for frame in rest), rest
+
     async def test_프레임에_개행이_섞이지_않는다(self, session_factory, settings) -> None:
         """data 줄이 쪼개지면 클라이언트가 이벤트를 받지 못한다."""
         async with session_factory() as s:
