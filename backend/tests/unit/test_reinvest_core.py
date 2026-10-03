@@ -41,6 +41,7 @@ def condition(**over: object) -> Condition:
         reinvest=True,
         fee_rate=ZERO,
         tax_rate=Decimal("0.154"),
+        reinvest_lag_days=0,  # 지연 0 = 005의 당일 재투자(006 FR-058 이전 동작)
     )
     base.update(over)
     return Condition(**base)  # type: ignore[arg-type]

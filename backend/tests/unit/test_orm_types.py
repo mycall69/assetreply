@@ -116,6 +116,8 @@ STOCK_MONETARY_COLUMNS = {
     ("stock_dividend", "amount_per_share"),
     ("stock_setting", "trade_fee_rate"),
     ("stock_setting", "dividend_tax_rate"),
+    # 006 FR-055(반복 2026-10-03 #3) — 해외 배당 소득세.
+    ("stock_setting", "dividend_tax_rate_foreign"),
 }
 
 

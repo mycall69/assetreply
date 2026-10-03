@@ -146,3 +146,33 @@ async def test_분할_기준_정정이_주식_커버리지만_비운다(engine: 
         assert (await count("stock_price")).scalar() == 1
         assert (await count("stock_raw_response")).scalar() == 1
         assert (await count("stock")).scalar() == 1
+
+
+async def test_배당_소득세_해외_열이_더해지고_국내_값은_그대로다(engine: AsyncEngine) -> None:
+    """006 T126 — FR-055, research R6-23. 반복 2026-10-03 #3.
+
+    기존 `dividend_tax_rate`는 **국내 세율**로 그대로 두고(값 보존),
+    `dividend_tax_rate_foreign`(기본 0.15)을 더한다. 열 이름을 바꾸지 않는다 — 마이그레이션 위험을
+    줄인다.
+    """
+    import asyncio
+
+    from alembic import command
+
+    from src.db.migrate import _run
+
+    await asyncio.to_thread(_run, command.downgrade, "83c4cc99bc40")
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            "INSERT INTO stock_setting (id, trade_fee_rate, dividend_tax_rate) "
+            "VALUES (1, 0.000300, 0.220000)"))
+
+    await upgrade_head()
+
+    async with engine.connect() as conn:
+        row = (await conn.execute(text(
+            "SELECT trade_fee_rate, dividend_tax_rate, dividend_tax_rate_foreign "
+            "FROM stock_setting WHERE id = 1"))).one()
+    assert (row[0], row[1], row[2]) == (
+        Decimal("0.000300"), Decimal("0.220000"), Decimal("0.150000"))
+

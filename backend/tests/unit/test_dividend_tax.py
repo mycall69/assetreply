@@ -19,7 +19,7 @@ DIVIDENDS = [DividendOn(D("2021-09-01"), Decimal("1000"))]
 def condition(tax: str) -> Condition:
     return Condition(start=D("2021-08-01"), principal=Decimal("100000"),
                      currency="KRW", reinvest=False, fee_rate=Decimal("0"),
-                     tax_rate=Decimal(tax))
+                     tax_rate=Decimal(tax), reinvest_lag_days=0)
 
 
 def cash_after_dividend(tax: str) -> Decimal:

@@ -325,12 +325,12 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 
 ### Tests for Phase 11 ⚠️
 
-- [ ] T124 [P] `backend/tests/unit/test_reinvest_lag.py` — 배당락일 D에 세후 배당이 예수금에 들어오고 매수는 D 뒤 2번째 거래일 시가로 일어나는지(휴장일을 건너뛴다), 그 사이 예수금, 그날이 기간 밖이면 예수금으로 남는지, 재투자가 꺼져 있으면 매수가 없는지, 지연 0이면 지금(당일 재투자)과 같은지. 기존 `test_reinvest_on.py`·`test_reinvest_core.py`의 당일 재투자 기대는 지연 0을 명시하게 바꾸고, `test_reference_parity.py`는 지연 0으로 대조를 유지한다 (FR-058, SC-024)
-- [ ] T125 [P] `backend/tests/unit/test_reinvest_amounts.py` — 배당락 행의 `dividend_tax = 세전 × 세율`, 매수 행(초기·재투자)의 `trade_fee = 수량 × 시가 × 수수료율`, 재투자 행의 종류·매수 수·보유 수, 해당 없는 행은 `None` (FR-059, SC-025)
-- [ ] T126 [P] `backend/tests/integration/test_stock_settings_tax.py`·`backend/tests/integration/test_migrations.py` — 설정 API가 국내·해외 세율을 주고받는지(기본 0.154·0.15), 마이그레이션이 기존 값을 국내 세율로 두고 해외 0.15를 채우는지, 시뮬레이션이 KRX 종목에 국내·미국/일본 종목에 해외 세율을 쓰고 `condition.dividendTaxRate`에 적용 세율을 싣는지 (FR-055, SC-021)
-- [ ] T127 [P] `backend/tests/integration/test_simulation_rows.py` — 응답 행에 `dividendTax`(배당락 행)·`tradeFee`(매수 행)가 문자열로 있고 `kind: "reinvest"` 행이 있는지, 원화 원금·외화 종목이면 두 금액이 그 행의 환율로 원화로 환산되는지, 해당 없는 행에는 키가 없는지 (FR-059, contracts/rest-api)
-- [ ] T128 [P] `frontend/tests/PerformanceTableDividend.test.tsx` — 원화 원금에서 VOO 주당 배당금 `1.823000` → `1.823`, 원화 종목 `361` → `361.000`, 배당율 `0.004300` → `0.43%`(2자리 고정), 새 열 "배당 소득세"·"매매 수수료"와 값, 재투자 행 표시 (FR-057, FR-059, SC-023)
-- [ ] T129 [P] `frontend/tests/StockSearchEnter.test.tsx`·`frontend/tests/StockSettingsTax.test.tsx` — 고른 항목 없이 엔터 → 국내·미국 첫 결과 선택, 국내·미국이 비면 일본 첫 결과, 결과가 없으면 아무 일 없음, 방향키로 고른 항목이 있으면 그 항목. 설정 화면이 국내·해외 세율 두 칸을 보이고 저장하는지 (FR-056, FR-055, SC-022)
+- [X] T124 [P] `backend/tests/unit/test_reinvest_lag.py` — 배당락일 D에 세후 배당이 예수금에 들어오고 매수는 D 뒤 2번째 거래일 시가로 일어나는지(휴장일을 건너뛴다), 그 사이 예수금, 그날이 기간 밖이면 예수금으로 남는지, 재투자가 꺼져 있으면 매수가 없는지, 지연 0이면 지금(당일 재투자)과 같은지. 기존 `test_reinvest_on.py`·`test_reinvest_core.py`의 당일 재투자 기대는 지연 0을 명시하게 바꾸고, `test_reference_parity.py`는 지연 0으로 대조를 유지한다 (FR-058, SC-024)
+- [X] T125 [P] `backend/tests/unit/test_reinvest_amounts.py` — 배당락 행의 `dividend_tax = 세전 × 세율`, 매수 행(초기·재투자)의 `trade_fee = 수량 × 시가 × 수수료율`, 재투자 행의 종류·매수 수·보유 수, 해당 없는 행은 `None` (FR-059, SC-025)
+- [X] T126 [P] `backend/tests/integration/test_stock_settings_tax.py`·`backend/tests/integration/test_migrations.py` — 설정 API가 국내·해외 세율을 주고받는지(기본 0.154·0.15), 마이그레이션이 기존 값을 국내 세율로 두고 해외 0.15를 채우는지, 시뮬레이션이 KRX 종목에 국내·미국/일본 종목에 해외 세율을 쓰고 `condition.dividendTaxRate`에 적용 세율을 싣는지 (FR-055, SC-021)
+- [X] T127 [P] `backend/tests/integration/test_simulation_rows.py` — 응답 행에 `dividendTax`(배당락 행)·`tradeFee`(매수 행)가 문자열로 있고 `kind: "reinvest"` 행이 있는지, 원화 원금·외화 종목이면 두 금액이 그 행의 환율로 원화로 환산되는지, 해당 없는 행에는 키가 없는지 (FR-059, contracts/rest-api)
+- [X] T128 [P] `frontend/tests/PerformanceTableDividend.test.tsx` — 원화 원금에서 VOO 주당 배당금 `1.823000` → `1.823`, 원화 종목 `361` → `361.000`, 배당율 `0.004300` → `0.43%`(2자리 고정), 새 열 "배당 소득세"·"매매 수수료"와 값, 재투자 행 표시 (FR-057, FR-059, SC-023)
+- [X] T129 [P] `frontend/tests/StockSearchEnter.test.tsx`·`frontend/tests/StockSettingsTax.test.tsx` — 고른 항목 없이 엔터 → 국내·미국 첫 결과 선택, 국내·미국이 비면 일본 첫 결과, 결과가 없으면 아무 일 없음, 방향키로 고른 항목이 있으면 그 항목. 설정 화면이 국내·해외 세율 두 칸을 보이고 저장하는지 (FR-056, FR-055, SC-022)
 
 ### Implementation for Phase 11
 

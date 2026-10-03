@@ -11,9 +11,11 @@ import { describe, expect, it, vi } from "vitest";
 import { StockSettingsForm } from "@/components/settings/StockSettingsForm";
 import type { StockSettings } from "@/lib/types";
 
+// 006 FR-055(반복 2026-10-03 #3, T129) — 배당 소득세가 국내·해외 두 칸이 되었다. 이 파일은 국내 칸을 본다.
 const DEFAULTS: StockSettings = {
   tradeFeeRate: "0.000150",
-  dividendTaxRate: "0.154000",
+  dividendTaxRateDomestic: "0.154000",
+  dividendTaxRateForeign: "0.150000",
   isDefault: true,
 };
 
@@ -21,7 +23,7 @@ describe("주식 설정", () => {
   it("두 항목을 백분율로 보여준다", () => {
     render(<StockSettingsForm value={DEFAULTS} onSave={vi.fn()} />);
     expect(screen.getByLabelText(/매매 수수료/)).toHaveValue("0.015");
-    expect(screen.getByLabelText(/배당 소득세/)).toHaveValue("15.4");
+    expect(screen.getByLabelText("배당 소득세 (국내)")).toHaveValue("15.4");
   });
 
   it("기본값이면 그 사실을 알린다", () => {
@@ -50,14 +52,15 @@ describe("주식 설정", () => {
     await userEvent.click(screen.getByRole("button", { name: "저장" }));
     expect(onSave).toHaveBeenCalledWith({
       tradeFeeRate: "0.0003",
-      dividendTaxRate: "0.154",
+      dividendTaxRateDomestic: "0.154",
+      dividendTaxRateForeign: "0.15",
     });
   });
 
   it("100% 이상은 저장을 막는다", async () => {
     const onSave = vi.fn();
     render(<StockSettingsForm value={DEFAULTS} onSave={onSave} />);
-    const tax = screen.getByLabelText(/배당 소득세/);
+    const tax = screen.getByLabelText("배당 소득세 (국내)");
     await userEvent.clear(tax);
     await userEvent.type(tax, "150");
     await userEvent.click(screen.getByRole("button", { name: "저장" }));

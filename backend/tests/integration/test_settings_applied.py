@@ -2,6 +2,10 @@
 
 갱신되지 않으면 화면은 정상으로 보이면서 낡은 값을 보여주고, 사용자는 새 설정이
 반영된 결과로 읽는다 (002 FR-034와 같은 계열).
+
+006 FR-055(반복 2026-10-03 #3, T126) — 설정 API의 세율이 국내·해외 두 값이 되었다. 이 파일의 종목은
+국내(KRX)라 국내 세율(`dividendTaxRateDomestic`)이 적용된다. 응답 조건의 `dividendTaxRate`는
+**적용한 세율**이다.
 """
 from __future__ import annotations
 
@@ -71,7 +75,8 @@ class Test설정_변경_반영:
         """FR-017, SC-007."""
         before = await dividend_cash(client)
         await client.put("/api/stocks/settings", json={
-            "tradeFeeRate": "0.000150", "dividendTaxRate": "0"})
+            "tradeFeeRate": "0.000150", "dividendTaxRateDomestic": "0",
+            "dividendTaxRateForeign": "0.150000"})
         after = await dividend_cash(client)
         assert after > before
 
@@ -80,17 +85,20 @@ class Test설정_변경_반영:
         before = body["rows"][0]["heldShares"]
 
         await client.put("/api/stocks/settings", json={
-            "tradeFeeRate": "0.5", "dividendTaxRate": "0.154000"})
+            "tradeFeeRate": "0.5", "dividendTaxRateDomestic": "0.154000",
+            "dividendTaxRateForeign": "0.150000"})
         body = (await client.get("/api/stocks/simulation", params=PARAMS)).json()
         assert body["rows"][0]["heldShares"] < before
 
     async def test_저장할_캐시가_없어_즉시_반영된다(self, client) -> None:
         """결과를 저장하지 않으므로(research R5-9) 무효화할 캐시도 없다."""
         await client.put("/api/stocks/settings", json={
-            "tradeFeeRate": "0", "dividendTaxRate": "0"})
+            "tradeFeeRate": "0", "dividendTaxRateDomestic": "0",
+            "dividendTaxRateForeign": "0.150000"})
         first = await dividend_cash(client)
         await client.put("/api/stocks/settings", json={
-            "tradeFeeRate": "0", "dividendTaxRate": "0.5"})
+            "tradeFeeRate": "0", "dividendTaxRateDomestic": "0.5",
+            "dividendTaxRateForeign": "0.150000"})
         assert await dividend_cash(client) < first
 
 
@@ -103,7 +111,8 @@ class Test적용_조건_표시:
 
     async def test_설정을_바꾸면_실린_값도_바뀐다(self, client) -> None:
         await client.put("/api/stocks/settings", json={
-            "tradeFeeRate": "0.000300", "dividendTaxRate": "0.220000"})
+            "tradeFeeRate": "0.000300", "dividendTaxRateDomestic": "0.220000",
+            "dividendTaxRateForeign": "0.150000"})
         body = (await client.get("/api/stocks/simulation", params=PARAMS)).json()
         assert body["condition"]["tradeFeeRate"] == "0.000300"
         assert body["condition"]["dividendTaxRate"] == "0.220000"

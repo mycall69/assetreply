@@ -17,7 +17,7 @@ DIVIDENDS = [DividendOn(D("2021-09-01"), Decimal("1000"))]
 def condition(reinvest: bool) -> Condition:
     return Condition(start=D("2021-08-01"), principal=Decimal("100000"),
                      currency="KRW", reinvest=reinvest, fee_rate=Decimal("0"),
-                     tax_rate=Decimal("0.154"))
+                     tax_rate=Decimal("0.154"), reinvest_lag_days=0)
 
 
 class Test쌓이기만_한다:

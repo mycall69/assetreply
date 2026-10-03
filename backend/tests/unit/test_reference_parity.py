@@ -41,7 +41,9 @@ def bars(*pairs: tuple[str, str]) -> list[DayBar]:
 def condition(start: str, principal: str, *, reinvest: bool = True) -> Condition:
     return Condition(
         start=D(start), principal=Decimal(principal), currency="USD",
-        reinvest=reinvest, fee_rate=NO_FEE, tax_rate=TAX)
+        reinvest=reinvest, fee_rate=NO_FEE, tax_rate=TAX,
+        # 참조 구현은 배당락일 당일에 재투자한다 — 006 FR-058의 지연을 0으로 두고 대조한다(R6-22).
+        reinvest_lag_days=0)
 
 
 def by_date(rows: list[Row], day: str, kind: str) -> Row:

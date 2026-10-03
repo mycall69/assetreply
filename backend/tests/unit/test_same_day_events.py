@@ -21,7 +21,8 @@ D = dt.date.fromisoformat
 
 def condition(**over: object) -> Condition:
     base = dict(start=D("2021-08-01"), principal=Decimal("100000"), currency="KRW",
-                reinvest=False, fee_rate=Decimal("0"), tax_rate=Decimal("0"))
+                reinvest=False, fee_rate=Decimal("0"), tax_rate=Decimal("0"),
+                reinvest_lag_days=0)  # 지연 0 = 005의 당일 재투자(006 FR-058 이전 동작)
     base.update(over)
     return Condition(**base)  # type: ignore[arg-type]
 
