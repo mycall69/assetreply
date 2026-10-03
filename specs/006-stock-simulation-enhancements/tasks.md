@@ -270,6 +270,8 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T121 `backend/src/ingestion/yahoo/parse.py` — 분할의 분자·분모를 `Decimal(str(값))`로 읽어 비율을 `Fraction`으로 **정확히** 나누고 기약 정수 쌍으로 담는다(반올림 없음). 0·음수·무한·숫자 아닌 값, `INT`(2,147,483,647)를 넘는 기약 분수는 `StockSourceUnavailable` (FR-034, 005 FR-010a, research R6-18)
 - [X] T146 [P] `frontend/tests/StockSearchEnter.test.tsx`에 더한다 — **버그 `search-enter-ime`**(`.specify/bugs/search-enter-ime/`): 한글로 "삼성전자"를 치고 엔터를 치면 칸이 `자`가 되고 `자` 검색 결과가 열렸다. 입력기가 마지막 글자를 조합 중인 채로 받은 엔터(조합 확정, keyCode 229)에서 처리기가 고르고 칸을 비워, 입력기가 조합 중이던 `자`를 빈 칸에 확정해 넣었다(Chrome 154 재현). 조합 중 엔터에서는 고르지 않고 칸이 그대로인지, 확정 뒤 엔터에서 맨 위 결과를 **한 번** 고르고 칸이 비는지, Safari 순서(조합 확정 뒤 keyCode 229 엔터)도 무시하는지, 조합 중 방향키가 항목을 옮기지 않는지. T129의 테스트는 `userEvent.type`으로 조합 없이 넣어 이 경로를 지나지 않았다 (FR-056)
 - [X] T147 `frontend/src/components/stock/StockSearch.tsx` — `onKeyDown` 맨 앞에서 조합 중 키 입력(`nativeEvent.isComposing` 또는 keyCode 229)을 무시한다. 조합이 확정된 뒤 오는 엔터에서 고른다. 고친 뒤 브라우저에서 조합을 거치는 입력(조합 중 엔터 → 확정 → 엔터)으로 칸이 비고 삼성전자가 골라지는지 확인한다 (FR-056)
+- [ ] T148 [P] `frontend/tests/PerformanceTableWidth.test.tsx` — **버그 `table-column-width`**(`.specify/bugs/table-column-width/`): 넓은 화면에서 성과 표의 열 사이가 벌어졌다. 표가 칸 폭 전체(`w-full`)라 남는 폭이 열마다 나뉘었다 — 1920px에서 칸 1,646px에 내용 1,024px, 값이 `0`인 `구매 주식수` 열이 108px. T144가 화면 폭 제한(1152px)을 풀면서 드러났다. 표가 내용 폭(`w-max`)인지, 좁은 화면에서 표만 스크롤되는지(`overflow-x-auto`), 테두리 상자가 표에 맞고 칸보다 넓어지지 않는지(`w-fit max-w-full`). jsdom은 배치를 재지 못해 폭 규칙만 본다 (FR-069)
+- [ ] T149 `frontend/src/components/stock/PerformanceTable.tsx` — 표 `w-max`, 테두리 상자 `w-fit max-w-full`. 열 이름은 한 줄 그대로다(열 폭 = 값·열 이름 중 넓은 쪽 + 여백, research R6-26). 고친 뒤 브라우저로 잰다 — 1920px에서 각 열 폭이 내용 + 여백인지, 1440px에서 열 15개가 가로 스크롤 없이 보이는지, 1200px에서 표만 스크롤되는지 (FR-069)
 
 ---
 
@@ -369,7 +371,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T141 `backend/src/simulation/reinvest.py` — `Row`에 `dividend_total`·`dividend_total_net` (FR-067)
 - [X] T142 `backend/src/api/services/stock_simulation.py`·`backend/src/api/routes/stock_simulation.py` — 해외 종목이면 원금 통화와 관계없이 KRW 평가: 행은 종목 통화 값을 유지하고 `balance_krw`·`profit`·`return_rate`(KRW)를 더한다. 달러·엔 원금의 KRW 원금은 첫 매수일 매매기준율. 요약 `principalKrw`·`profit`·`returnRate` KRW (FR-066, FR-068, research R6-25)
 - [X] T143 `backend/src/api/services/stock_collect.py`·`backend/src/api/routes/stock_series.py`(·`backend/src/api/services/stock_series.py`) — 해외 종목이면 환율 판정, 차트 시계열 KRW 기준 (FR-068)
-- [X] T144 `frontend/src/lib/types.ts`·`frontend/src/components/stock/PerformanceTable.tsx`·`frontend/src/components/stock/PerformanceBoard.tsx`·`frontend/src/components/stock/PerformanceChart.tsx`·`frontend/src/components/stock/ComparisonChart.tsx`·`frontend/src/app/stocks/page.tsx` — 열별 통화·괄호·배당금 총액 열, 보드 KRW, 차트·비교 차트의 기준 통화는 응답의 `basisCurrency`, 화면 폭 제한 해제와 촘촘한 칸, 머리글의 통화는 열 이름 아래 줄(T145 실측으로 보탬) (FR-066~069, research R6-26)
+- [X] T144 `frontend/src/lib/types.ts`·`frontend/src/components/stock/PerformanceTable.tsx`·`frontend/src/components/stock/PerformanceBoard.tsx`·`frontend/src/components/stock/PerformanceChart.tsx`·`frontend/src/components/stock/ComparisonChart.tsx`·`frontend/src/app/stocks/page.tsx` — 열별 통화·괄호·배당금 총액 열, 보드 KRW, 차트·비교 차트의 기준 통화는 응답의 `basisCurrency`, 화면 폭 제한 해제와 촘촘한 칸, 머리글의 통화는 열 이름 아래 줄(T145 실측으로 보탬). **표가 칸 폭(`w-full`) 그대로라 넓은 화면에서 열 사이가 벌어졌다 — T149가 내용 폭으로 고쳤다** (FR-066~069, research R6-26)
 - [X] T145 실제 브라우저(3030, 1440px)로 확인한다 — VOO 원화 원금, 애플 달러 원금(필요하면 USD 환율 수집), 삼성전자. 모든 열이 가로 스크롤 없이 보이는지 (SC-026, SC-027, SC-028, SC-029, quickstart 32~35)
 
 **Checkpoint**: 브라우저(1440px)에서 VOO 표의 예수금·세금·수수료 USD, 잔고 `USD (KRW)`, 투자 수익·수익율 KRW, 배당금 총액 `세전 (세후)`, 모든 열이 보인다.
@@ -442,7 +444,7 @@ Setup → Foundational ─┬→ US1 (MVP) ──→ US4 (미국)
 | `backend/src/simulation/reinvest.py`(Phase 12) | T130, T141 |
 | `backend/src/api/services/stock_simulation.py`·`backend/src/api/routes/stock_simulation.py`(Phase 12) | T132, T142 |
 | `backend/src/api/services/stock_collect.py`·`backend/src/api/routes/stock_series.py` | T040, T051, T143 |
-| `frontend/src/components/stock/PerformanceTable.tsx`·`PerformanceBoard.tsx`·`PerformanceChart.tsx`·`ComparisonChart.tsx`·`frontend/src/app/stocks/page.tsx` | T123, T133, T144 |
+| `frontend/src/components/stock/PerformanceTable.tsx`·`PerformanceBoard.tsx`·`PerformanceChart.tsx`·`ComparisonChart.tsx`·`frontend/src/app/stocks/page.tsx` | T123, T133, T144, T149 |
 | `backend/tests/unit/test_reinvest_amounts.py` | T125, T136 |
 | `backend/tests/integration/test_migrations.py` | T106, T126 |
 | `frontend/tests/CollectingNoticeFx.test.tsx` | T048, T099 |
