@@ -10,6 +10,11 @@
  * 감시 지점이 처음부터 보이면 스크롤 없이도 시작된다.
  *
  * 손익을 **색만으로 구별하지 않는다.** 부호를 함께 쓴다 (접근성).
+ *
+ * 006 FR-066~069 — 해외 종목은 **열마다 통화가 정해져 있다**(ui-wireframes W8). 예수금·세금·수수료·잔고·
+ * 배당금 총액은 종목 통화, 잔고 괄호는 KRW, 투자금은 입력한 원금 통화, 투자 수익·수익율은 KRW 기준이다.
+ * 1440px에서 열 15개가 가로 스크롤 없이 들어가도록 칸을 촘촘하게 두고, 머리글의 통화는 열 이름 아래 줄에 둔다
+ * (research R6-26 — 한 줄이면 표가 1,365px로 칸 1,166px를 넘었다).
  */
 
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
@@ -22,14 +27,20 @@ import {
 } from "@/lib/format";
 import type { SimulationRow, SimulationSummary } from "@/lib/types";
 
-// 006 FR-059 — 배당 소득세(배당락 행)와 매매 수수료(매수 행). 원금 통화 금액이다.
+// 006 FR-059 — 배당 소득세(배당락 행)와 매매 수수료(매수 행). FR-067 — 배당금 총액(배당락 행).
 const COLUMNS = [
-  "날짜", "시작가", "주당 배당금", "배당율", "배당 소득세", "구매 주식수", "매매 수수료",
-  "보유 주식", "예수금", "투자금", "잔고", "투자 수익", "수익율",
+  "날짜", "시작가", "주당 배당금", "배당율", "배당금 총액", "배당 소득세", "구매 주식수",
+  "매매 수수료", "보유 주식", "예수금", "투자금", "잔고", "투자 수익", "수익율",
 ] as const;
 
-/** 원금 통화 금액 열 — 외화 종목이면 머리글에 원금 통화를 붙인다(FR-041). */
-const PRINCIPAL_COLUMNS = ["배당 소득세", "매매 수수료", "예수금", "투자금", "잔고", "투자 수익"];
+/**
+ * 종목 통화 금액 열 — 해외 종목이면 머리글에 종목 통화를 붙인다(006 FR-066). 세금·수수료도 예수금에서
+ * 빠지는 돈이라 예수금과 같은 통화여야 예수금 변화를 설명할 수 있다.
+ */
+const STOCK_COLUMNS = ["시작가", "주당 배당금", "배당금 총액", "배당 소득세", "매매 수수료", "예수금"];
+
+/** 칸 여백 — 열 15개가 1440px에 들어가도록 좁힌다 (006 FR-069). */
+const CELL = "px-1.5 py-2 text-right tabular-nums";
 
 /** 외화 종목에만 붙는 열 (FR-041c). */
 const FX_COLUMN = "환율";
@@ -45,9 +56,9 @@ export function PerformanceTable({
   onLoadMore,
 }: {
   rows: SimulationRow[];
-  /** 표시 기준 통화 — 원금 통화다 (FR-041). */
+  /** 입력한 원금 통화 — 투자금 열의 통화다. */
   currency: string;
-  /** 종목의 거래 통화. 원금 통화와 다르면 환율 열이 붙는다. */
+  /** 종목의 거래 통화. KRW가 아니면 열마다 통화를 붙이고 잔고에 KRW 괄호가 붙는다 (006 FR-066). */
   stockCurrency?: string;
   /**
    * 요약. **기준일 안내를 여기서도 보이기 위해서다**(FR-014b, SC-027).
@@ -68,19 +79,19 @@ export function PerformanceTable({
   // 외화 종목일 때만 환율 열을 둔다. 늘 두면 국내 종목에서 빈 열이 남는다.
   const showFx = rows.some((r) => r.fxRate !== undefined);
 
-  // **한 행에 두 통화가 섞인다.** 시작가·주당 배당금은 종목 통화이고, 예수금·투자금·
-  // 잔고·투자 수익은 원금 통화다(FR-041). 표기하지 않으면 사용자가 같은 단위로 읽어
-  // 시작가와 잔고를 머릿속에서 곱해 보고 숫자가 안 맞는다고 여긴다.
-  const foreign = stockCurrency !== undefined && stockCurrency !== currency;
-  const heading = (column: string): string => {
-    if (!foreign) return column;
-    if (column === "시작가" || column === "주당 배당금") {
-      return `${column} (${stockCurrency})`;
-    }
-    if (PRINCIPAL_COLUMNS.includes(column)) {
-      return `${column} (${currency})`;
-    }
-    return column;
+  // **한 행에 통화가 섞인다**(006 FR-066). 표기하지 않으면 사용자가 같은 단위로 읽어 잔고와 예수금을
+  // 더해 본다. 국내 종목은 모두 KRW라 붙이지 않는다 — 원금 통화가 종목 통화와 같아도(달러 원금·미국
+  // 종목) 투자 수익은 KRW라 붙인다.
+  const stockCcy = stockCurrency ?? currency;
+  const foreign = stockCcy !== "KRW";
+  const unitOf = (column: string): string | null => {
+    if (!foreign) return null;
+    if (STOCK_COLUMNS.includes(column)) return stockCcy;
+    if (column === "투자금") return currency;
+    if (column === "잔고") return `${stockCcy} · KRW`;
+    if (column === "투자 수익") return "KRW";
+    if (column === "수익율") return "KRW 기준";
+    return null;
   };
 
   if (rows.length === 0) {
@@ -108,20 +119,30 @@ export function PerformanceTable({
       )}
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-gray-200 text-xs text-gray-500">
-              {[...COLUMNS, ...(showFx ? [FX_COLUMN] : [])].map((c, i) => (
-                <th
-                  key={c}
-                  scope="col"
-                  className={`whitespace-nowrap px-3 py-2.5 font-normal ${
-                    i === 0 ? "text-left" : "text-right"
-                  }`}
-                >
-                  {heading(c)}
-                </th>
-              ))}
+              {[...COLUMNS, ...(showFx ? [FX_COLUMN] : [])].map((c, i) => {
+                const unit = unitOf(c);
+                return (
+                  <th
+                    key={c}
+                    scope="col"
+                    className={`whitespace-nowrap px-1.5 py-2.5 align-top font-normal ${
+                      i === 0 ? "text-left" : "text-right"
+                    }`}
+                  >
+                    {c}
+                    {/* 통화는 열 이름 아래 줄 — 한 줄이면 1440px에서 오른쪽 열이 잘린다 (R6-26). */}
+                    {unit !== null && (
+                      <>
+                        {" "}
+                        <span className="block text-gray-400">({unit})</span>
+                      </>
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -135,7 +156,7 @@ export function PerformanceTable({
                     : row.kind === "reinvest" ? "bg-emerald-50/40" : ""
                 }`}
               >
-                <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                <td className="whitespace-nowrap px-1.5 py-2 tabular-nums">
                   {row.date}
                   {row.kind === "dividend" && (
                     <span title="배당락일" className="ml-1 text-amber-700">
@@ -149,50 +170,62 @@ export function PerformanceTable({
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {formatRate(row.openPrice)}
-                </td>
+                <td className={CELL}>{formatRate(row.openPrice)}</td>
                 {/* 월 행은 키 자체가 없다 — 빈 칸이 "배당 없음"을 뜻한다. */}
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {/* 006 FR-057 — 종목 통화 값이라 원금 통화 규칙을 쓰지 않는다. 소수 3자리. */}
+                <td className={CELL}>
+                  {/* 006 FR-057 — 종목 통화 값이다. 소수 3자리. */}
                   {row.dividendPerShare !== undefined
                     ? formatDividend(row.dividendPerShare)
                     : ""}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
+                <td className={CELL}>
                   {row.dividendYield !== undefined
                     ? formatYield(row.dividendYield)
                     : ""}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {row.dividendTax !== undefined ? formatMoney(row.dividendTax, currency) : ""}
+                <td className={`whitespace-nowrap ${CELL}`}>
+                  {/* 006 FR-067 — 세전과 괄호에 세후. 실제로 받은 돈을 곱셈으로 다시 구하지 않게 한다. */}
+                  {row.dividendTotal !== undefined && (
+                    <>
+                      {formatMoney(row.dividendTotal, stockCcy)}
+                      {row.dividendTotalNet !== undefined && (
+                        <>
+                          {" "}
+                          <span className="text-gray-500">
+                            ({formatMoney(row.dividendTotalNet, stockCcy)})
+                          </span>
+                        </>
+                      )}
+                    </>
+                  )}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {row.boughtShares}
+                <td className={CELL}>
+                  {row.dividendTax !== undefined ? formatMoney(row.dividendTax, stockCcy) : ""}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {row.tradeFee !== undefined ? formatMoney(row.tradeFee, currency) : ""}
+                <td className={CELL}>{row.boughtShares}</td>
+                <td className={CELL}>
+                  {row.tradeFee !== undefined ? formatMoney(row.tradeFee, stockCcy) : ""}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {row.heldShares}
+                <td className={CELL}>{row.heldShares}</td>
+                <td className={CELL}>{formatMoney(row.cash, stockCcy)}</td>
+                <td className={CELL}>{formatMoney(row.principal, currency)}</td>
+                <td className={`whitespace-nowrap font-medium ${CELL}`}>
+                  {formatMoney(row.balance, stockCcy)}
+                  {/* 006 FR-066 — 해외 종목이면 괄호에 KRW 평가. 국내 종목은 붙이지 않는다. */}
+                  {row.balanceKrw !== undefined && (
+                    <>
+                      {" "}
+                      <span className="font-normal text-gray-500">
+                        ({formatMoney(row.balanceKrw, "KRW")})
+                      </span>
+                    </>
+                  )}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {formatMoney(row.cash, currency)}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {formatMoney(row.principal, currency)}
-                </td>
-                <td className="px-3 py-2 text-right font-medium tabular-nums">
-                  {formatMoney(row.balance, currency)}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {formatMoney(row.profit, currency)}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {formatPercent(row.returnRate)}
-                </td>
+                {/* 006 FR-068 — 원금 통화와 관계없이 KRW 기준이다. */}
+                <td className={CELL}>{formatMoney(row.profit, "KRW")}</td>
+                <td className={CELL}>{formatPercent(row.returnRate)}</td>
                 {showFx && (
-                  <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
+                  <td className={`whitespace-nowrap ${CELL}`}>
                     {row.fxRate !== undefined ? formatRate(row.fxRate) : ""}
                     {/*
                       FR-041c — 쓴 환율의 날짜가 기준일과 다를 수 있다. 주식 거래일과

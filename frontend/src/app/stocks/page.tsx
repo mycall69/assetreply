@@ -52,7 +52,8 @@ export default function StocksPage() {
   const limit = useMemo(() => localYesterday(), []);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5">
+    // 006 FR-069 — 폭을 묶지 않는다. 1152px(max-w-6xl)로 묶으면 1440px 화면에서도 표의 오른쪽 열이 잘렸다.
+    <div className="space-y-5">
       <header>
         <h2 className="text-2xl font-bold tracking-tight">주식 투자 시뮬레이션</h2>
         <p className="mt-1 text-sm text-gray-500">

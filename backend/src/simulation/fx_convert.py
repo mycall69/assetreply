@@ -61,7 +61,7 @@ def to_foreign(amount: Decimal, rate: Decimal, currency: str) -> Decimal:
 
 
 def to_principal(amount: Decimal, base_rate: Decimal, currency: str) -> Decimal:
-    """**평가 환산** — 종목 통화 금액을 원금 통화로 (FR-041b).
+    """**평가 환산** — 종목 통화 금액을 `currency`로 (FR-041b). 006부터는 KRW 평가에 쓴다(FR-068).
 
     매매기준율을 쓴다. 환전이 아니라 값어치를 재는 것이므로 매수 스프레드를 얹으면
     잔고가 실제보다 크게 나온다 (SC-021).

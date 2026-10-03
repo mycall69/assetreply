@@ -423,10 +423,16 @@ export interface SimulationRow {
   returnRate: DecimalString;
   fxRate?: DecimalString;
   fxRateDate?: string;
-  /** 배당락 행의 배당 소득세(원금 통화). 해당 없으면 키가 없다 — 006 FR-059. */
+  /** 배당락 행의 배당 소득세(종목 통화). 해당 없으면 키가 없다 — 006 FR-059, FR-066. */
   dividendTax?: DecimalString;
-  /** 매수가 있는 행의 매매 수수료(원금 통화). 해당 없으면 키가 없다 — 006 FR-059. */
+  /** 매수가 있는 행의 매매 수수료(종목 통화). 해당 없으면 키가 없다 — 006 FR-059, FR-066. */
   tradeFee?: DecimalString;
+  /** 배당락 행의 배당금 총액 — 세전(보유 수 × 주당 배당금), 종목 통화. 006 FR-067. */
+  dividendTotal?: DecimalString;
+  /** 배당락 행의 세후 배당금 총액 — 예수금에 들어온 금액, 종목 통화. 006 FR-067. */
+  dividendTotalNet?: DecimalString;
+  /** 잔고의 KRW 평가(그 행의 매매기준율). 해외 종목에만 있다 — 006 FR-066. */
+  balanceKrw?: DecimalString;
 }
 
 /**
@@ -438,6 +444,11 @@ export interface SimulationRow {
  */
 export interface SimulationSummary {
   principal: DecimalString;
+  /**
+   * 원금의 KRW 값 — 원금 통화가 KRW가 아닐 때만 있다. 첫 매수일의 매매기준율로 평가한다(006 FR-068).
+   * `profit`·`returnRate`는 원금 통화와 관계없이 KRW 기준이다.
+   */
+  principalKrw?: DecimalString;
   profit: DecimalString;
   returnRate: DecimalString;
   asOf: string;
@@ -541,7 +552,7 @@ export interface FxNotAvailableBefore {
   availableFrom: string;
 }
 
-/** 차트용 시계열 한 점. 금액·비율은 **원금 통화 기준**이다 (FR-041). */
+/** 차트용 시계열 한 점. 금액·비율은 **KRW 기준**이다 (006 FR-068 — 005 FR-041을 대체). */
 export interface SimulationPoint {
   date: string;
   balance: DecimalString;
@@ -551,7 +562,10 @@ export interface SimulationPoint {
 export interface SimulationSeriesResponse {
   from: string;
   to: string;
+  /** 입력한 원금 통화. 기준 통화가 아니다. */
   principalCurrency: PrincipalCurrency;
+  /** 잔고·수익률의 기준 통화 — 항상 KRW다(006 FR-068). 범례와 비교는 이것으로 기준을 말한다. */
+  basisCurrency: PrincipalCurrency;
   downsampled: boolean;
   algorithm: string;
   sourcePointCount: number;

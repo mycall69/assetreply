@@ -14,6 +14,8 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config.settings import SUPPORTED_CURRENCIES
+from src.db.models import Stock
 from src.repository.fx_rate import series
 from src.repository.spread import spread_set
 from src.simulation.fx_convert import (
@@ -30,6 +32,19 @@ class FxUnavailable(Exception):
 
     **값을 만들어내지 않는다.** 환산할 수 없다는 사실이 드러나야 한다 (헌법 원칙 V).
     """
+
+
+def fx_currency_for(stock: Stock) -> str | None:
+    """KRW 평가에 외환 DB의 환율이 필요한 통화. 국내 종목이면 `None`이다 (006 FR-068).
+
+    **원금 통화를 보지 않는다.** 투자 수익·수익율은 원금 통화와 관계없이 KRW라, 달러 원금으로 미국
+    종목을 돌려도 환율이 필요하다. 반복 2026-10-03 #3까지는 "원금과 종목 통화가 같으면 필요
+    없다"였다. 표·차트의 계산(`prepare`)과 수집 판정(`collecting_body`)이 이 함수 하나를 쓴다 —
+    한쪽만 바꾸면 환율을 받지 않은 채 계산하러 가서 409가 나거나, 받아 놓고 쓰지 않는다.
+    """
+    if stock.currency == "KRW" or stock.currency not in SUPPORTED_CURRENCIES:
+        return None
+    return stock.currency
 
 
 @dataclass(frozen=True, slots=True)

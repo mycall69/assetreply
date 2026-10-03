@@ -75,6 +75,9 @@ class Row:
 
     006 FR-059 — `dividend_tax`(배당락 행: 세전 배당 × 세율)와 `trade_fee`(매수가 있는 행: 수량 ×
     시가 × 수수료율)도 같은 규약이다. 해당이 없으면 `None`이다.
+
+    006 FR-067 — `dividend_total`(세전 = 배당락일 보유 수 × 주당 배당금)과 `dividend_total_net`(세후
+    — 예수금에 실제로 들어온 금액)도 배당락 행에만 있다. 세전 − 세후가 그 행의 세금이다.
     """
 
     date: dt.date
@@ -91,6 +94,8 @@ class Row:
     dividend_yield: Decimal | None = None
     dividend_tax: Decimal | None = None
     trade_fee: Decimal | None = None
+    dividend_total: Decimal | None = None
+    dividend_total_net: Decimal | None = None
 
 
 def _fee(bought: int, price: Decimal, fee_rate: Decimal) -> Decimal | None:
@@ -211,9 +216,11 @@ def simulate_detailed(
         # 배당락일에 예수금에 들어온다(006 FR-058). 세금은 행에 남긴다(006 FR-059).
         per_share = by_dividend.get(bar.date)
         if per_share is not None and per_share > 0 and invested:
-            net = (Decimal(held_at_open) * per_share
-                   * (Decimal("1") - condition.tax_rate))
-            tax = Decimal(held_at_open) * per_share * condition.tax_rate
+            gross = Decimal(held_at_open) * per_share
+            tax = gross * condition.tax_rate
+            # 세후는 세전 − 세금이다. 따로 곱하면 세 숫자(세전·세금·세후)가 서로를 설명하지 못할 수
+            # 있다(FR-067).
+            net = gross - tax
             cash += net
 
             bought_reinvest = 0
@@ -231,7 +238,8 @@ def simulate_detailed(
             rows.append(_row(
                 bar, "dividend", bought_reinvest, held, cash, condition,
                 dividend_per_share=per_share, dividend_tax=tax,
-                trade_fee=_fee(bought_reinvest, bar.open_price, condition.fee_rate)))
+                trade_fee=_fee(bought_reinvest, bar.open_price, condition.fee_rate),
+                dividend_total=gross, dividend_total_net=net))
 
         # (3) 걸어 둔 재투자 — 배당락일 뒤 `lag`번째 거래일의 시가로 예수금 **전액**을 쓴다(006
         # FR-058). 월 스냅샷보다 먼저 한다 — 그날의 월 행이 재투자 뒤의 보유 수를 보이도록.
@@ -272,6 +280,8 @@ def _row(
     dividend_per_share: Decimal | None = None,
     dividend_tax: Decimal | None = None,
     trade_fee: Decimal | None = None,
+    dividend_total: Decimal | None = None,
+    dividend_total_net: Decimal | None = None,
 ) -> Row:
     """한 행을 만든다.
 
@@ -303,4 +313,6 @@ def _row(
         dividend_yield=yield_rate,
         dividend_tax=dividend_tax,
         trade_fee=trade_fee,
+        dividend_total=dividend_total,
+        dividend_total_net=dividend_total_net,
     )

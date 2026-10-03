@@ -11,6 +11,10 @@
  * **기준 통화를 밝힌다**(FR-041). 밝히지 않으면 사용자가 어느 쪽을 보고 있는지 모른다.
  *
  * 손익을 **색만으로 구별하지 않는다.** 부호를 함께 쓴다 (접근성).
+ *
+ * 006 FR-068 — 투자 수익·수익률은 **원금 통화와 관계없이 KRW**다. 달러 원금만 달러 기준이면 이력
+ * 비교에서 원화 원금 실행과 다른 기준의 수익률이 나란히 놓인다. 투자 원금은 입력한 통화로 보이고,
+ * 원화가 아니면 괄호에 KRW 값(첫 매수일 매매기준율로 평가 — 수익률의 분모)을 붙인다(W8).
  */
 
 import { formatMoneyWithSymbol, formatPercent, formatRate } from "@/lib/format";
@@ -22,6 +26,7 @@ export function PerformanceBoard({
   exchange,
 }: {
   summary: SimulationSummary;
+  /** 입력한 원금 통화 — 투자 원금 칸의 통화다. 수익의 기준은 KRW다. */
   currency: string;
   exchange?: ExchangeInfo;
 }) {
@@ -32,9 +37,17 @@ export function PerformanceBoard({
       <div className="grid gap-px bg-gray-200 sm:grid-cols-3">
         <Cell label="투자 원금">
           {formatMoneyWithSymbol(summary.principal, currency)}
+          {currency !== "KRW" && summary.principalKrw !== undefined && (
+            <>
+              {" "}
+              <span className="text-base font-normal text-gray-500">
+                ({formatMoneyWithSymbol(summary.principalKrw, "KRW")})
+              </span>
+            </>
+          )}
         </Cell>
         <Cell label="투자 수익" emphasis={negative ? "loss" : "gain"}>
-          {formatMoneyWithSymbol(summary.profit, currency)}
+          {formatMoneyWithSymbol(summary.profit, "KRW")}
         </Cell>
         <Cell label="수익률" emphasis={negative ? "loss" : "gain"}>
           {formatPercent(summary.returnRate)}
@@ -44,7 +57,8 @@ export function PerformanceBoard({
       <p className="border-t border-gray-100 px-4 py-2 text-xs text-gray-500">
         {/* FR-031 — 어느 날짜까지의 결과인지 알 수 없으면 오늘까지로 읽는다. */}
         <span className="tabular-nums">{summary.asOf}</span> 기준 ·{" "}
-        <span>{currency} 기준</span>
+        {/* 006 FR-068 — 원금 통화와 관계없이 KRW다. */}
+        <span>KRW 기준</span>
       </p>
 
       {!summary.isFinal && (

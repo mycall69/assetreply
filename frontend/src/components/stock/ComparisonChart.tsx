@@ -7,9 +7,9 @@
  * 달라 한쪽이 평평해지고, 사용자는 그 종목이 움직이지 않았다고 읽는다. 오류는 나지
  * 않는다 — 선이 그려지고 축도 정상이다.
  *
- * **비교 기준을 밝힌다**(FR-039, SC-015). 수익률은 원금 통화 기준이므로(FR-041),
- * 원금 통화가 같은 항목끼리는 그대로 겹칠 수 있다. 다르면 각자 다른 환율 변동이
- * 섞여 있으므로 그 사실이 드러나야 한다.
+ * **비교 기준을 밝힌다**(FR-039, SC-015). 기준은 응답의 `basisCurrency`다 — 006 FR-068부터 원금
+ * 통화와 관계없이 KRW라, 원금 통화가 다른 이력끼리도 그대로 겹칠 수 있다. 원금 통화로 판정하면
+ * 기준이 같은데 "다르다"는 틀린 경고가 나온다. 기준이 다르면 그 사실이 드러나야 한다.
  */
 
 import { useEffect, useRef } from "react";
@@ -29,15 +29,15 @@ export interface ComparisonItem {
 const COLORS = ["#1f2937", "#b45309", "#1d4ed8", "#be123c", "#047857"];
 
 function basisText(items: ComparisonItem[]): string {
-  const currencies = [...new Set(items.map((i) => i.series.principalCurrency))];
+  const currencies = [...new Set(items.map((i) => i.series.basisCurrency))];
   if (currencies.length <= 1) {
-    return `※ 모두 ${currencies[0] ?? ""} 원금 기준 수익률입니다`;
+    return `※ 모두 ${currencies[0] ?? ""} 기준 수익률입니다`;
   }
-  // 수익률이 원금 통화 기준이라(FR-041), 통화가 다르면 각자 다른 환율 변동이
-  // 섞여 있다. 같은 잣대로 읽으면 안 된다는 사실이 드러나야 한다 (SC-015).
+  // 기준 통화가 다르면 각자 다른 환율 변동이 섞여 있다. 같은 잣대로 읽으면 안 된다는
+  // 사실이 드러나야 한다 (SC-015).
   return (
-    `※ 원금 통화가 다릅니다 (${currencies.join(" · ")}). ` +
-    "각 수익률은 그 원금 통화 기준이라 환율 변동이 서로 다르게 섞여 있습니다."
+    `※ 기준 통화가 다릅니다 (${currencies.join(" · ")}). ` +
+    "각 수익률은 그 통화 기준이라 환율 변동이 서로 다르게 섞여 있습니다."
   );
 }
 

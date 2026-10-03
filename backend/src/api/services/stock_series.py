@@ -21,7 +21,10 @@ from src.simulation.downsample import Point, lttb
 
 @dataclass(frozen=True, slots=True)
 class SeriesPoint:
-    """시계열 한 점. 금액·비율은 **원금 통화 기준**이다 (FR-041)."""
+    """시계열 한 점. 금액·비율은 **KRW 기준**이다.
+
+    006 FR-068이 005 FR-041(원금 통화 기준)을 대체했다 — 원금 통화와 관계없이 KRW다.
+    """
 
     date: dt.date
     balance: Decimal
@@ -47,11 +50,16 @@ def _one_per_day(result: SimulationResult) -> list[SeriesPoint]:
 
     시뮬레이터는 배당을 먼저 덧붙이고 월 행을 뒤에 덧붙이므로, 같은 날짜 중 **나중
     것**이 그 날의 최종 상태다.
+
+    006 FR-068 — 해외 종목의 표 잔고는 종목 통화로 남는다. 차트는 KRW 평가(`balance_krw`)를 그린다 —
+    표의 `balance`를 그리면 원화 원금 실행의 선이 달러 규모로 떨어지는데, 수익률 선은 KRW라 두 선이
+    다른 기준을 말한다.
     """
     latest: dict[dt.date, SeriesPoint] = {}
     for converted in sorted(result.rows, key=lambda c: c.row.date):
         row = converted.row
-        latest[row.date] = SeriesPoint(row.date, row.balance, row.return_rate)
+        balance = converted.balance_krw if converted.balance_krw is not None else row.balance
+        latest[row.date] = SeriesPoint(row.date, balance, row.return_rate)
     return [latest[day] for day in sorted(latest)]
 
 

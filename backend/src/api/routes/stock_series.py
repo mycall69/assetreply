@@ -63,8 +63,7 @@ async def get_simulation_series(
     # 구간이 미수집으로 보여 수집이 시작되고, 받을 수 없는 데이터를 기다리게 된다.
     await require_start_available(session, stock, start)
     # 006 — 주식 시세와 환율을 **함께** 본다. 둘 중 하나라도 비면 202다 (FR-045).
-    collecting = await collecting_body(
-        session, stock, principal_currency=principal_currency, start=start, end=finish)
+    collecting = await collecting_body(session, stock, start=start, end=finish)
     if collecting is not None:
         return JSONResponse(status_code=202, content=collecting)
 
@@ -81,8 +80,11 @@ async def get_simulation_series(
     return {
         "from": series.start.isoformat(),
         "to": series.end.isoformat(),
-        # FR-041 — 기준 통화를 밝히지 않으면 사용자가 어느 쪽을 보는지 모른다.
+        # FR-041 — 기준 통화를 밝히지 않으면 사용자가 어느 쪽을 보는지 모른다. 006 FR-068 — 기준은
+        # 원금 통화와 관계없이 KRW다. 원금 통화는 입력 그대로 따로 싣는다 — 범례·비교가 원금 통화로
+        # 기준을 말하면 달러 원금 실행의 KRW 값을 달러로 읽는다.
         "principalCurrency": principal_currency,
+        "basisCurrency": "KRW",
         "downsampled": series.downsampled,
         "algorithm": "lttb",
         "sourcePointCount": series.source_point_count,

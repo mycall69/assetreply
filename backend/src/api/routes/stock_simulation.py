@@ -62,6 +62,14 @@ def row_json(converted: ConvertedRow) -> Json:
         body["dividendTax"] = str(row.dividend_tax)
     if row.trade_fee is not None:
         body["tradeFee"] = str(row.trade_fee)
+    # 006 FR-067 — 배당락 행의 배당금 총액(세전·세후, 종목 통화). 같은 규약이다.
+    if row.dividend_total is not None:
+        body["dividendTotal"] = str(row.dividend_total)
+    if row.dividend_total_net is not None:
+        body["dividendTotalNet"] = str(row.dividend_total_net)
+    # 006 FR-066 — 해외 종목이면 잔고의 KRW 평가. `balance`는 종목 통화로 남는다.
+    if converted.balance_krw is not None:
+        body["balanceKrw"] = str(converted.balance_krw)
     # FR-041c — 그 행의 평가 환산에 쓴 환율과 **실제로 쓴 날짜**. 기준일과 다를 수 있다.
     if converted.fx_rate is not None and converted.fx_rate_date is not None:
         body["fxRate"] = str(converted.fx_rate)
@@ -74,18 +82,24 @@ def summary_json(result: SimulationResult, principal: Decimal) -> Json:
 
     `asOf`는 계산이 어느 날짜까지인지다. `isFinal`은 **항상 명시한다** — "확인했고
     아니다"와 "확인하지 않았다"가 구별되어야 한다 (FR-014b).
+
+    006 FR-068 — `profit`·`returnRate`는 원금 통화와 관계없이 KRW다. 원금 통화가 KRW가 아니면
+    `principalKrw`(첫 매수일 매매기준율로 평가한 원금)를 함께 싣는다 — 수익률의 분모다.
     """
     # **표의 마지막 행이 아니라 마지막 거래일의 상태다.** 표에서 가져오면 "어제
     # 기준"이라 적어 두고 그 달 첫 거래일의 수치를 보여주게 된다 — 최대 한 달이
     # 어긋나는데 숫자는 그럴듯하다.
     latest = result.latest.row if result.latest is not None else None
-    return {
+    body: Json = {
         "principal": str(principal),
         "profit": str(latest.profit if latest else Decimal("0")),
         "returnRate": str(latest.return_rate if latest else Decimal("0")),
         "asOf": result.as_of.isoformat() if result.as_of else "",
         "isFinal": result.is_final,
     }
+    if result.principal_krw is not None:
+        body["principalKrw"] = str(result.principal_krw)
+    return body
 
 
 @router.get("/simulation", response_model=None)
@@ -117,8 +131,7 @@ async def get_simulation(
     # 구간이 미수집으로 보여 수집이 시작되고, 받을 수 없는 데이터를 기다리게 된다.
     await require_start_available(session, stock, start)
     # 006 — 주식 시세와 환율을 **함께** 본다. 둘 중 하나라도 비면 202다 (FR-045).
-    collecting = await collecting_body(
-        session, stock, principal_currency=principal_currency, start=start, end=finish)
+    collecting = await collecting_body(session, stock, start=start, end=finish)
     if collecting is not None:
         return JSONResponse(status_code=202, content=collecting)
 

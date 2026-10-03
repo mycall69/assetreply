@@ -7,8 +7,8 @@
 판정 근거는 커버리지다. 받으러 갔다가 아무 값도 없었던 구간도 커버리지에는
 기록되므로(상장폐지·거래정지), 한 번 시도한 구간을 영원히 다시 받으러 가지 않는다.
 
-006 — **환율도 함께 본다**(FR-043~046). 원금 통화와 종목 통화가 다르면 필요한 구간
-(시작일 ~ 계산 끝) 전체의 환율 커버리지를 보고, 비었으면 외환 수집을 요청한다. 시작일
+006 — **환율도 함께 본다**(FR-043~046). 해외 종목이면(FR-068 — 원금 통화와 관계없이) 필요한
+구간(시작일 ~ 계산 끝) 전체의 환율 커버리지를 보고, 비었으면 외환 수집을 요청한다. 시작일
 환율만 보면 외환 수집이 멈춘 뒤의 행들이 마지막으로 받은 환율로 평가된다(FR-044).
 요청은 `ensure_background_job`을 거친다 — 외환 화면과 같은 판정이다(analyze A1).
 """
@@ -21,7 +21,8 @@ from dataclasses import dataclass
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.services.collection_gate import CollectState, ensure_background_job
-from src.config.settings import SUPPORTED_CURRENCIES, Settings, load_settings
+from src.api.services.stock_fx import fx_currency_for
+from src.config.settings import Settings, load_settings
 from src.db.models import Currency, FxCoverage, Stock
 from src.ingestion.yahoo.errors import StockSymbolNotFound
 from src.repository.stock import get_coverage, missing_ranges
@@ -94,17 +95,6 @@ def collecting_json(
     return body
 
 
-def fx_currency_for(stock: Stock, principal_currency: str) -> str | None:
-    """환산에 외환 DB의 환율이 필요한 통화. 필요 없으면 `None`.
-
-    원금 통화와 종목 통화가 같으면 환전이 없다(005 FR-023). 외환 DB는 원화 대비 환율만
-    가지므로 수집할 수 있는 것은 외화 종목의 통화뿐이다.
-    """
-    if principal_currency == stock.currency or stock.currency not in SUPPORTED_CURRENCIES:
-        return None
-    return stock.currency
-
-
 async def require_fx_available(
     session: AsyncSession, currency: str, start: dt.date, *, settings: Settings | None = None
 ) -> None:
@@ -150,14 +140,14 @@ async def plan_fx(
 
 
 async def collecting_body(
-    session: AsyncSession, stock: Stock, *, principal_currency: str,
-    start: dt.date, end: dt.date,
+    session: AsyncSession, stock: Stock, *, start: dt.date, end: dt.date,
 ) -> Json | None:
     """표와 차트가 함께 쓰는 수집 판정. 받을 것이 없으면 `None`, 있으면 202 본문.
 
-    **환율로 막힐 요청이면 주식 수집도 시작하지 않는다** — 받아도 결과를 낼 수 없다.
+    **환율로 막힐 요청이면 주식 수집도 시작하지 않는다** — 받아도 결과를 낼 수 없다. 원금 통화는
+    보지 않는다(006 FR-068 — 해외 종목이면 늘 환율이 필요하다). 막힌 조합은 호출부가 먼저 거른다.
     """
-    currency = fx_currency_for(stock, principal_currency)
+    currency = fx_currency_for(stock)
     if currency is not None:
         await require_fx_available(session, currency, start)
     # 시작 월의 1일부터 받는다 — 수집 후 판정이 시작일 앞부분의 일봉까지 본다(research R6-8).

@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * 성과 차트 (T082) — 005 FR-033, FR-034, FR-041, ui-wireframes W3.
+ * 성과 차트 (T082) — 005 FR-033, FR-034, FR-041, ui-wireframes W3. 006 FR-068 — 기준은 응답의
+ * `basisCurrency`(KRW)다. 원금 통화로 쓰면 달러 원금 실행의 KRW 값을 달러로 읽는다.
  *
  * **잔고와 수익률을 다른 축에 둔다.** 8만과 0.2를 한 축에 놓으면 수익률 선이 바닥에
  * 붙어 평평해 보이고, 사용자는 그 종목이 움직이지 않았다고 읽는다. 오류는 나지 않는다.
@@ -131,8 +132,8 @@ export function PerformanceChart({
         >
           <span className="text-gray-500">{hover.date}</span>
           <span className="tabular-nums font-medium">
-            {formatMoney(hover.balance, series.principalCurrency)}{" "}
-            {series.principalCurrency}
+            {formatMoney(hover.balance, series.basisCurrency)}{" "}
+            {series.basisCurrency}
           </span>
           <span className="tabular-nums text-amber-700">
             {formatYield(hover.returnRate)}
@@ -145,7 +146,7 @@ export function PerformanceChart({
         className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500"
       >
         {/* FR-041 — 기준 통화를 밝히지 않으면 어느 통화를 보는지 알 수 없다. */}
-        <span>─ 잔고 ({series.principalCurrency})</span>
+        <span>─ 잔고 ({series.basisCurrency})</span>
         <span className="text-amber-700">╌ 수익률 (%)</span>
         {notCollected > 0 && <span>╌╌ 미수집 {notCollected}구간</span>}
         <span className="ml-auto">

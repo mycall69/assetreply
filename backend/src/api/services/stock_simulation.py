@@ -20,9 +20,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.errors import CurrencyPairNotAllowed, InvalidQuery, UnknownStock
 from src.api.services.stock_fx import (
+    FxUnavailable,
     InitialExchange,
     build_exchange,
     cash_buy_spread,
+    fx_currency_for,
     load_rates,
 )
 from src.api.services.stock_selection import listing_for, register_from_price_symbol
@@ -51,16 +53,21 @@ from src.simulation.reinvest import (
 
 @dataclass(frozen=True, slots=True)
 class ConvertedRow:
-    """원금 통화로 환산된 행 (FR-041a).
+    """KRW로 평가한 행 (005 FR-041a, 006 FR-066, FR-068).
 
-    `fx_rate`·`fx_rate_date`는 **그 행의 평가 환산에 쓴** 매매기준율과 날짜다.
-    기준일과 날짜가 다를 수 있다 — 주식 거래일과 환율 고시일은 일치하지 않는다
-    (FR-041c).
+    006 — 행의 금액(예수금·세금·수수료·잔고·배당금 총액)은 **종목 통화로 남는다.** 바뀌는 것은
+    `principal`(입력한 원금), `profit`·`return_rate`(KRW 기준)와 `balance_krw`다. 005처럼 행 전체를
+    원금 통화로 바꾸면 같은 행의 예수금과 세금·수수료가 사용자가 실제로 쓴 통화와 달라진다.
+
+    `fx_rate`·`fx_rate_date`는 **그 행의 평가에 쓴** 매매기준율과 날짜다. 기준일과 날짜가 다를 수
+    있다 — 주식 거래일과 환율 고시일은 일치하지 않는다 (FR-041c).
     """
 
     row: Row
     fx_rate: Decimal | None = None
     fx_rate_date: dt.date | None = None
+    #: 잔고의 KRW 평가 — 그 행의 매매기준율. 해외 종목에만 있다 (006 FR-066).
+    balance_krw: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +90,9 @@ class SimulationResult:
     #: 행 날짜(월 첫 거래일·배당락일)로는 판정할 수 없다 — 그 사이의 거래일이
     #: 전부 비어 보여 멀쩡한 구간이 미수집으로 끊긴다 (FR-034).
     quote_dates: frozenset[dt.date] = frozenset()
+    #: 원금의 KRW 값 — 원금 통화가 KRW가 아닐 때만 있다. **첫 매수일의 매매기준율**로 정한다(006
+    #: FR-068, research R6-25). 행마다 바꾸면 원금이 움직여 수익률이 환율만으로 움직인다.
+    principal_krw: Decimal | None = None
 
 
 #: 원금으로 고를 수 있는 통화 (005 FR-003). 006 FR-050d — **EUR을 뺀다.** 지원 시장(국내·미국·
@@ -175,7 +185,6 @@ async def run_simulation(
     reinvest: bool,
     fee_rate: Decimal,
     tax_rate: Decimal,
-    principal_currency: str | None = None,
     lookup: RateLookup | None = None,
     spread: Decimal | None = None,
 ) -> SimulationResult:
@@ -194,19 +203,21 @@ async def run_simulation(
     split_rows = await price_repo.splits(session, stock_id, start, end)
 
     # **환전은 실제로 매수가 일어나는 첫 거래일에 한다.** 투자 시작 날짜가 아니다 —
-    # 돈은 살 때 바꾸며, 시작 날짜가 휴일이면 그날의 환율도 없다.
+    # 돈은 살 때 바꾸며, 시작 날짜가 휴일이면 그날의 환율도 없다. 006 FR-068 — 외화 원금의 KRW
+    # 원금도 같은 날의 매매기준율로 정한다(평가이지 환전이 아니다).
+    first_day = bars_rows[0].quote_date
     exchange: InitialExchange | None = None
+    principal_krw: Decimal | None = None
     if lookup is not None and spread is not None:
-        exchange = build_exchange(
-            lookup, bars_rows[0].quote_date, spread, currency)
+        exchange = build_exchange(lookup, first_day, spread, currency)
+    elif lookup is not None:
+        principal_krw = _krw_principal(lookup, first_day, principal, currency)
 
-    # 원금 통화와 종목 통화가 다르면 **환전된 금액**으로 시뮬레이션한다. 시뮬레이터는
-    # 종목 통화 세계에서만 돌고, 환산은 그 결과를 원금 통화로 되돌리는 일이다.
+    # 원화 원금이면 **환전된 금액**으로 시뮬레이션한다. 시뮬레이터는 종목 통화 세계에서만 돈다.
     working_principal = (
         to_foreign(principal, exchange.rate, currency)
         if exchange is not None else principal
     )
-    principal_currency = principal_currency or currency
 
     outcome = simulate_detailed(
         [DayBar(r.quote_date, r.open_raw) for r in bars_rows],
@@ -225,73 +236,70 @@ async def run_simulation(
 
     quote_dates = frozenset(r.quote_date for r in bars_rows)
 
-    if lookup is None or exchange is None:
-        # 원금 통화와 종목 통화가 같다. 환전도 환산도 없다 (FR-023).
+    if lookup is None:
+        # 국내 종목이다. 모두 KRW라 평가할 것이 없다 (FR-023).
         return SimulationResult(
             rows=[ConvertedRow(r) for r in rows],
             latest=ConvertedRow(outcome.latest) if outcome.latest else None,
             as_of=as_of, is_final=is_final, quote_dates=quote_dates)
 
-    convert = partial(_convert, lookup=lookup,
-                      principal_currency=principal_currency,
-                      original_principal=principal)
+    evaluate = partial(_evaluate, lookup=lookup, principal=principal,
+                       basis=principal_krw if principal_krw is not None else principal)
     return SimulationResult(
-        rows=[convert(r) for r in rows],
-        latest=convert(outcome.latest) if outcome.latest else None,
-        as_of=as_of, is_final=is_final, exchange=exchange, quote_dates=quote_dates)
+        rows=[evaluate(r) for r in rows],
+        latest=evaluate(outcome.latest) if outcome.latest else None,
+        as_of=as_of, is_final=is_final, exchange=exchange, quote_dates=quote_dates,
+        principal_krw=principal_krw)
 
 
-def _convert(
+def _krw_principal(
+    lookup: RateLookup, first_day: dt.date, principal: Decimal, currency: str
+) -> Decimal:
+    """외화 원금의 KRW 값 — 첫 매수일의 매매기준율 (006 FR-068, research R6-25).
+
+    그 날 이전의 환율이 하나도 없으면 **원금 통화 기준으로 떨어지지 않는다** — 그러면 이 실행만
+    달러 기준 수익률이 되어, 이력 비교에서 원화 원금 실행과 다른 기준의 수익률이 나란히 놓인다.
+    """
+    resolved = resolve_rate(lookup, first_day)
+    if resolved is None:
+        raise FxUnavailable(
+            f"{first_day.isoformat()} 이전의 {currency} 환율이 없어 "
+            "원금을 KRW로 평가할 수 없습니다.")
+    return to_principal(principal, resolved[0], "KRW")
+
+
+def _evaluate(
     row: Row,
     *,
     lookup: RateLookup,
-    principal_currency: str,
-    original_principal: Decimal,
+    principal: Decimal,
+    basis: Decimal,
 ) -> ConvertedRow:
-    """행의 금액을 **그 기준일의 환율로** 원금 통화로 바꾼다 (FR-041a).
+    """행을 **그 기준일의 매매기준율로** KRW 평가한다 (005 FR-041a·041b, 006 FR-066, FR-068).
 
-    초기 환전 환율 하나로 전 구간을 환산하면 그 뒤의 환율 변동이 통째로 사라진다 —
-    주가는 올랐는데 환율이 내려 실제로는 손실인 구간이 이익으로 보인다.
+    초기 환전 환율 하나로 전 구간을 평가하면 그 뒤의 환율 변동이 통째로 사라진다 — 주가는
+    올랐는데 환율이 내려 실제로는 손실인 구간이 이익으로 보인다. 평가에는 **매매기준율**을 쓴다 —
+    현금 살 때 환율과 우대는 실제로 돈을 바꾸는 초기 환전에만 적용된다.
 
-    평가 환산에는 **매매기준율**을 쓴다. 현금 살 때 환율과 우대는 실제로 돈을 바꾸는
-    초기 환전에만 적용된다 (FR-041b).
+    006 — 행의 금액은 종목 통화로 둔다. 투자 수익 = (잔고 + 예수금) × 그 행의 매매기준율 − KRW
+    원금(`basis`), 수익율 = 투자 수익 ÷ KRW 원금. `principal`은 입력한 원금 그대로다 — 시뮬레이터
+    안의 원금은 환전된 종목 통화 금액이다.
     """
     resolved = resolve_rate(lookup, row.date)
     if resolved is None:
-        # 그 기준일 이전의 환율이 하나도 없다. 값을 만들어내지 않는다.
-        return ConvertedRow(row)
+        # 첫 매수일의 환율을 이미 확인했으므로 오지 않는다. 와도 종목 통화 수익을 KRW로 내보내지
+        # 않는다.
+        raise FxUnavailable(f"{row.date.isoformat()} 이전의 환율이 없어 KRW로 평가할 수 없습니다.")
     rate, used = resolved
-
-    converted = Row(
-        date=row.date,
-        kind=row.kind,
-        open_price=row.open_price,
-        bought_shares=row.bought_shares,
-        held_shares=row.held_shares,
-        cash=to_principal(row.cash, rate, principal_currency),
-        # **원금은 사용자가 낸 그 금액이다.** 시뮬레이터 안의 `principal`은 환전된
-        # 종목 통화 금액이라, 그것을 쓰면 원금 통화 잔고에서 종목 통화 원금을 빼게 된다.
-        principal=original_principal,
-        balance=to_principal(row.balance, rate, principal_currency),
-        profit=to_principal(row.balance + row.cash, rate, principal_currency)
-        - original_principal,
-        return_rate=row.return_rate,
-        dividend_per_share=row.dividend_per_share,
-        dividend_yield=row.dividend_yield,
-        # 006 FR-059 — 세금·수수료도 **같은 행의 같은 환율**로 바꾼다. 따로 환산하면 같은 행의
-        # 예수금과 어긋난다.
-        dividend_tax=(to_principal(row.dividend_tax, rate, principal_currency)
-                      if row.dividend_tax is not None else None),
-        trade_fee=(to_principal(row.trade_fee, rate, principal_currency)
-                   if row.trade_fee is not None else None),
+    profit = to_principal(row.balance + row.cash, rate, "KRW") - basis
+    evaluated = replace(
+        row,
+        principal=principal,
+        profit=profit,
+        return_rate=quantize_rate(profit / basis) if basis > 0 else Decimal("0"),
     )
-    # 수익률은 환산 후 금액으로 다시 낸다 — 환율 변동이 수익률에 들어가야 한다.
-    rate_value = (
-        quantize_rate(converted.profit / converted.principal)
-        if converted.principal > 0 else Decimal("0")
-    )
-    converted = replace(converted, return_rate=rate_value)
-    return ConvertedRow(converted, fx_rate=rate, fx_rate_date=used)
+    return ConvertedRow(evaluated, fx_rate=rate, fx_rate_date=used,
+                        balance_krw=to_principal(row.balance, rate, "KRW"))
 
 
 def page(
@@ -417,19 +425,21 @@ async def prepare(
     # 006 FR-055 — 종목의 시장으로 국내·해외 세율을 고른다.
     tax_rate = settings.dividend_tax_rate_for(stock.market)
 
-    # 원금 통화와 종목 통화가 같으면 환전이 없다 (FR-023).
+    # 006 FR-068 — 해외 종목이면 원금 통화와 관계없이 KRW로 평가하므로 환율을 읽는다. 환전(현금
+    # 살 때 환율과 우대)은 원화 원금에만 있다(FR-052). 국내 종목은 모두 KRW다 (FR-023).
     lookup = None
     spread = None
-    if principal_currency != stock.currency:
-        lookup = await load_rates(session, stock.currency, start, end)
-        spread = await cash_buy_spread(session, stock.currency)
+    currency = fx_currency_for(stock)
+    if currency is not None:
+        lookup = await load_rates(session, currency, start, end)
+        if principal_currency == "KRW":
+            spread = await cash_buy_spread(session, currency)
 
     result = await run_simulation(
         session, int(stock.id),
         start=start, end=end, principal=principal,
         currency=stock.currency, reinvest=reinvest,
         fee_rate=settings.trade_fee_rate, tax_rate=tax_rate,
-        principal_currency=principal_currency,
         lookup=lookup, spread=spread)
 
     return Prepared(stock=stock, settings=settings, result=result, dividend_tax_rate=tax_rate)
