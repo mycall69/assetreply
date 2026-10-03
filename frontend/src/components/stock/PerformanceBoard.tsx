@@ -2,7 +2,7 @@
 
 /**
  * 성과 보드 (T042, T078, T099) — 005 FR-031, FR-032, FR-014b, FR-041.
- * contracts/ui-wireframes.md W2.
+ * contracts/ui-wireframes.md W2. 006 FR-054 — 원금·수익에 원금 통화의 기호(`10,000,000₩`).
  *
  * **기준 구간을 함께 쓴다.** 계산의 마지막 날이 오늘이 아니면(상장폐지·거래정지)
  * 그 사실이 드러나야 한다 — 알리지 않으면 사용자는 보드를 **오늘까지의 결과**로
@@ -13,7 +13,7 @@
  * 손익을 **색만으로 구별하지 않는다.** 부호를 함께 쓴다 (접근성).
  */
 
-import { formatMoney, formatPercent, formatRate } from "@/lib/format";
+import { formatMoneyWithSymbol, formatPercent, formatRate } from "@/lib/format";
 import type { ExchangeInfo, SimulationSummary } from "@/lib/types";
 
 export function PerformanceBoard({
@@ -31,10 +31,10 @@ export function PerformanceBoard({
     <section className="rounded-lg border border-gray-200">
       <div className="grid gap-px bg-gray-200 sm:grid-cols-3">
         <Cell label="투자 원금">
-          {formatMoney(summary.principal, currency)}
+          {formatMoneyWithSymbol(summary.principal, currency)}
         </Cell>
         <Cell label="투자 수익" emphasis={negative ? "loss" : "gain"}>
-          {formatMoney(summary.profit, currency)}
+          {formatMoneyWithSymbol(summary.profit, currency)}
         </Cell>
         <Cell label="수익률" emphasis={negative ? "loss" : "gain"}>
           {formatPercent(summary.returnRate)}

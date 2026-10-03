@@ -308,7 +308,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 보고한다(헌법 원칙 III, plan Complexity Tracking D2).
 
 - [X] T122 [P] `frontend/tests/PerformanceBoardCurrency.test.tsx` — 순수 함수: `currencySymbol`(KRW `₩`, USD `$`, JPY `¥`, EUR `€`, 모르는 통화는 통화 코드 그대로), `formatMoneyWithSymbol("10000000", "KRW")` → `10,000,000₩`, USD 소수 `"1000.50"` → `1,000.50$`, 음수 `"-5446"` → `-5,446₩`. 화면: 보드의 투자 원금·투자 수익이 `10,000,000₩`·`188,131,842₩`(KRW), `1,000$`(USD), `¥`(JPY)이고 수익률에는 기호가 없으며 "KRW 기준" 줄이 그대로인지 (FR-054, SC-020)
-- [ ] T123 `frontend/src/lib/format.ts`에 `currencySymbol`·`formatMoneyWithSymbol`(기존 `formatMoney`에 기호를 뒤에 붙인다 — `formatMoney`는 바꾸지 않는다), `frontend/src/components/stock/PerformanceBoard.tsx`의 원금·수익 칸이 쓴다. 고친 뒤 브라우저(3030)로 원화·달러 원금 결과를 한 번씩 확인한다 (FR-054, SC-020, quickstart 27)
+- [X] T123 `frontend/src/lib/format.ts`에 `currencySymbol`·`formatMoneyWithSymbol`(기존 `formatMoney`에 기호를 뒤에 붙인다 — `formatMoney`는 바꾸지 않는다), `frontend/src/components/stock/PerformanceBoard.tsx`의 원금·수익 칸이 쓴다. 고친 뒤 브라우저(3030)로 원화·달러 원금 결과를 한 번씩 확인한다 (FR-054, SC-020, quickstart 27)
 
 **Checkpoint**: 브라우저의 성과 보드에 `투자 원금 10,000,000₩`, `투자 수익 …₩`(달러 원금이면 `$`).
 

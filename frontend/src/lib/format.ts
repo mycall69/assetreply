@@ -41,6 +41,23 @@ export function formatMoney(value: DecimalString, currency: string): string {
   return `${negative ? "-" : ""}${grouped}${tail}`;
 }
 
+const CURRENCY_SYMBOL: Record<string, string> = { KRW: "₩", USD: "$", JPY: "¥", EUR: "€" };
+
+/** 통화 기호 (006 FR-054). 모르는 통화는 통화 코드 그대로 — 기호를 지어내지 않는다. */
+export function currencySymbol(currency: string): string {
+  return CURRENCY_SYMBOL[currency] ?? currency;
+}
+
+/**
+ * 금액 뒤에 통화 기호를 붙인다 — `10,000,000₩`, `1,000$` (006 FR-054, research R6-21).
+ *
+ * 성과 보드만 쓴다. `formatMoney`는 표·차트·이력이 함께 쓰므로 바꾸지 않는다. 기호는 표시일 뿐
+ * 금액 문자열은 건드리지 않는다(헌법 원칙 VI). 손실은 부호가 앞에 온다(`-5,446₩`).
+ */
+export function formatMoneyWithSymbol(value: DecimalString, currency: string): string {
+  return `${formatMoney(value, currency)}${currencySymbol(currency)}`;
+}
+
 /**
  * 비율을 백분율로 표시한다. 부호를 항상 붙인다.
  *
