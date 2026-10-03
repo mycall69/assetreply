@@ -368,7 +368,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T142 `backend/src/api/services/stock_simulation.py`·`backend/src/api/routes/stock_simulation.py` — 해외 종목이면 원금 통화와 관계없이 KRW 평가: 행은 종목 통화 값을 유지하고 `balance_krw`·`profit`·`return_rate`(KRW)를 더한다. 달러·엔 원금의 KRW 원금은 첫 매수일 매매기준율. 요약 `principalKrw`·`profit`·`returnRate` KRW (FR-066, FR-068, research R6-25)
 - [X] T143 `backend/src/api/services/stock_collect.py`·`backend/src/api/routes/stock_series.py`(·`backend/src/api/services/stock_series.py`) — 해외 종목이면 환율 판정, 차트 시계열 KRW 기준 (FR-068)
 - [X] T144 `frontend/src/lib/types.ts`·`frontend/src/components/stock/PerformanceTable.tsx`·`frontend/src/components/stock/PerformanceBoard.tsx`·`frontend/src/components/stock/PerformanceChart.tsx`·`frontend/src/components/stock/ComparisonChart.tsx`·`frontend/src/app/stocks/page.tsx` — 열별 통화·괄호·배당금 총액 열, 보드 KRW, 차트·비교 차트의 기준 통화는 응답의 `basisCurrency`, 화면 폭 제한 해제와 촘촘한 칸, 머리글의 통화는 열 이름 아래 줄(T145 실측으로 보탬) (FR-066~069, research R6-26)
-- [ ] T145 실제 브라우저(3030, 1440px)로 확인한다 — VOO 원화 원금, 애플 달러 원금(필요하면 USD 환율 수집), 삼성전자. 모든 열이 가로 스크롤 없이 보이는지 (SC-026, SC-027, SC-028, SC-029, quickstart 32~35)
+- [X] T145 실제 브라우저(3030, 1440px)로 확인한다 — VOO 원화 원금, 애플 달러 원금(필요하면 USD 환율 수집), 삼성전자. 모든 열이 가로 스크롤 없이 보이는지 (SC-026, SC-027, SC-028, SC-029, quickstart 32~35)
 
 **Checkpoint**: 브라우저(1440px)에서 VOO 표의 예수금·세금·수수료 USD, 잔고 `USD (KRW)`, 투자 수익·수익율 KRW, 배당금 총액 `세전 (세후)`, 모든 열이 보인다.
 
