@@ -682,7 +682,9 @@ Next.js 개발 서버가 rewrite로 넘긴 응답을 **압축**하고, 압축기
 - **모든 SSE 응답에 `Cache-Control: no-cache, no-transform`.** 압축 미들웨어는 `no-transform`이 있으면 응답을 바꾸지
   않는다. 백엔드 세 곳(`routes/stock_progress.py`·`collection.py`·`collect.py`)이 같은 머리글을 쓴다
 - 그래도 압축되면 **`next.config.ts`의 `compress: false`**로 Next.js의 압축을 끈다. 이 도구는 로컬에서만 쓰여 압축의
-  이득이 작다. 어느 쪽으로 해결했는지는 T119가 실제 브라우저로 확인해 여기에 적는다
+  이득이 작다. **T119 결과(2026-10-03): `no-transform`으로 충분했다** — 3030 경유 스트림에 브라우저처럼 gzip을 허용해도
+  `content-encoding`이 붙지 않고 이벤트가 즉시 도착했다. 헤드리스 Chrome에서 진행 메시지 7건이 약 2초 간격으로 도착했다
+  (구현 전 0건). `compress: false`는 쓰지 않았다
 - **받은 날 / 받을 날**: 진행 스냅샷에 `daysTotal`(작업 구간 `range_start`~`range_end`의 달력 일수)과
   `daysDone`(그 구간과 `stock_coverage`가 겹치는 일수)을 싣는다. 커버리지는 청크마다 커밋되므로 따로 세지 않아도
   된다. 작업 구간 앞뒤로 이미 받아 둔 구간이 겹치면 처음부터 0보다 크다 — "그 구간 가운데 이미 확보한 날"이라는 뜻이라
