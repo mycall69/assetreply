@@ -152,6 +152,11 @@
 | `stock` (005) | `(market, symbol)`, 미국은 `symbol`로 먼저 찾기 | 없음(FR-030, FR-030a) |
 | `stock_price`·`stock_coverage` (005) | 시작 월 일봉 존재, 수집 범위 | 스키마 없음(FR-005a). **데이터 정정 하나** — 마이그레이션이 `stock_coverage`를 비워 모든 종목을 다시 받게 한다. 그전 시세는 반영가가 원주가 자리에 들어 있다. 다시 받으면 되살린 원주가로 덮인다. 시세·배당·분할은 지우지 않는다(FR-034, research R6-18) |
 | `stock_raw_response` (005) | 원본 보관 | 스키마 없음. `kind`에 `splits`(원주가를 되살리는 데 쓴 분할 기록)가 더해진다(FR-034) |
+| `stock_setting` (005) | 수수료·세율 | **변경 — `dividend_tax_rate_foreign`(DECIMAL, 기본 0.15) 열 추가**. 기존 `dividend_tax_rate`는 국내 세율이다(값은 그대로). 마이그레이션 하나(FR-055, research R6-23) |
+
+**시뮬레이션 행(저장하지 않음, 반복 2026-10-03 #3)**: 행에 `dividend_tax`(배당락 행 — 세전 배당 × 적용 세율)와
+`trade_fee`(매수 행 — 수량 × 시가 × 수수료율)가 더해지고, 행 종류에 `reinvest`(배당락 뒤 2번째 거래일의 재투자 매수)가 더해진다.
+해당이 없으면 `None`이다(FR-058, FR-059).
 
 ---
 

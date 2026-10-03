@@ -57,9 +57,9 @@
 | I. 비동기 우선 | ✅ | 키움 호출은 aiohttp. 갱신은 워커 태스크라 검색 요청이 기다리지 않는다(FR-017). 검색 색인은 메모리라 I/O가 없다 |
 | II. 데이터 소스 격리 | ✅ | 어댑터를 `ingestion/kiwoom/`에 격리하고 한도·재시도·간격을 설정으로 둔다. 비밀은 `.env`. 이용약관은 **사용자가 확인했다(2026-10-02)** — 개인 이용 전제, Complexity Tracking 참조 |
 | III. TDD (NON-NEGOTIABLE) | ✅ | 테스트 선행. **테스트를 구현보다 먼저 커밋한다** — 페이즈마다 테스트 커밋(최초 실패 요약 포함)과 구현 커밋을 나눈다(tasks Notes, analyze C2). 키움 응답은 **실제 응답을 저장한 픽스처**로 계약 테스트한다(공식 예시는 자리 표시용이라 쓰지 않는다, R6-2). 신규 데이터 소스이므로 계약 테스트가 품질 게이트다 |
-| IV. 모듈화 | ✅ | 일치 판정·순위·시세 식별자 변환은 `src/search/`의 순수 함수(DB·HTTP 없음). 날짜 산술은 프론트엔드 순수 함수. 엔화 단위 환산은 `simulation/fx_convert.py` |
-| V. 데이터 정합성 | ✅ | 목록에서 빠진 종목을 지우지 않는다. 일부만 받은 목록·축소된 목록으로 교체하지 않는다(FR-015, FR-018, FR-018a). 수집으로 채울 수 없는 구간의 환율을 값으로 메우지 않는다(FR-043a) |
-| VI. 금융 계산 정확성 | ✅ | 엔화 단위 나눗셈은 `Decimal`. 목록의 가격(`lastPrice`)은 저장하지 않는다 — 시세가 두 출처에서 섞일 자리를 없앤다. 원금 칸의 쉼표(FR-053)는 **표시 계층에만** 있고 요청·이력·계산에는 쉼표 없는 문자열이 간다(서버가 `Decimal`로 읽는다) |
+| IV. 모듈화 | ✅ | 일치 판정·순위·시세 식별자 변환은 `src/search/`의 순수 함수(DB·HTTP 없음). 날짜 산술은 프론트엔드 순수 함수. 엔화 단위 환산은 `simulation/fx_convert.py`. 재투자 지연은 순수 함수의 매개변수(`Condition.reinvest_lag_days`)라 DB·HTTP 없이 단위 테스트한다 — 참조 구현 대조는 지연 0으로 유지한다(FR-058) |
+| V. 데이터 정합성 | ✅ | 목록에서 빠진 종목을 지우지 않는다. 일부만 받은 목록·축소된 목록으로 교체하지 않는다(FR-015, FR-018, FR-018a). 수집으로 채울 수 없는 구간의 환율을 값으로 메우지 않는다(FR-043a). 재투자 지연은 거래일로 세어 휴장일에 매수를 지어내지 않는다(FR-058) |
+| VI. 금융 계산 정확성 | ✅ | 엔화 단위 나눗셈은 `Decimal`. 목록의 가격(`lastPrice`)은 저장하지 않는다 — 시세가 두 출처에서 섞일 자리를 없앤다. 원금 칸의 쉼표(FR-053)는 **표시 계층에만** 있고 요청·이력·계산에는 쉼표 없는 문자열이 간다(서버가 `Decimal`로 읽는다) 세금·수수료 열은 시뮬레이터가 `Decimal`로 남긴 값이다(FR-059) |
 | VII. 반응형 UI | ✅ | 로컬 검색과 일본 검색을 따로 그린다(FR-027). 갱신·수집은 화면을 막지 않는다 |
 | VIII. 한국어 문서화 | ✅ | 모든 산출물·주석·커밋이 한국어 |
 | IX. MVP/YAGNI | ✅ | 새 자산군이 아니라 주식 자산군을 다듬는다. 범위를 명세의 Out of Scope로 좁혔다. "가상자산은 006" 기록을 갱신한다(FR-070) |
@@ -83,11 +83,11 @@
 
 ```text
 specs/006-stock-simulation-enhancements/
-├── spec.md              # 명세 (FR 69, SC 25 — 구현 단계 반영으로 FR-047a·FR-065·FR-034·SC-007b, 반복 2026-10-03으로 FR-045a·FR-053·SC-017~019, 반복 2026-10-03 #2로 FR-054·SC-020 추가)
+├── spec.md              # 명세 (FR 74, SC 30 — 구현 단계 반영으로 FR-047a·FR-065·FR-034·SC-007b, 반복 2026-10-03으로 FR-045a·FR-053·SC-017~019, 반복 2026-10-03 #2로 FR-054·SC-020, #3으로 FR-055~059·SC-021~025 추가)
 ├── plan.md              # 이 파일
 ├── research.md          # R6-1 ~ R6-17
 ├── data-model.md        # 신규 테이블 5개, 설정, 원금 통화
-├── quickstart.md        # 검증 시나리오 27개(24~26은 반복 2026-10-03, 27은 반복 2026-10-03 #2)
+├── quickstart.md        # 검증 시나리오 31개(24~26은 반복 2026-10-03, 27은 #2, 28~31은 #3)
 ├── contracts/
 │   ├── rest-api.md      # 검색 2종, 종목 등록, 시뮬레이션 변경점
 │   └── ui-wireframes.md # W1 시작일 ~ W4 수집 중
@@ -136,6 +136,10 @@ backend/
 │   ├── worker/stock_worker.py       # 변경 — 출처가 심볼을 모르면 작업 사유에 표지 (FR-032, R6-6), 출처를 연다 (T096)
 │   ├── ingestion/yahoo/errors.py    # 변경 — "구간에 시세 없음"(HTTP 400)은 빈 구간 (T097)
 │   ├── ingestion/yahoo/parse.py     # 변경 — 분할 비율이 실수(5.0)·분수(0.985)로 온다. 정확한 기약 정수 쌍으로 받는다 (T103, T121). 반영가 → 원주가 (`restore_unadjusted`, R6-18)
+│   ├── simulation/reinvest.py       # 변경 — 재투자 지연(거래일)·세금·수수료·재투자 행 (T130, FR-058·059)
+│   ├── repository/stock_setting.py·api/routes/stock_settings.py  # 변경 — 배당 소득세 국내·해외 (T131, FR-055)
+│   ├── api/services/stock_simulation.py  # 변경 — 시장으로 세율 고르기, 지연 2 거래일, 세금·수수료 환산 (T132)
+│   ├── db/migrations/versions/      # 신규 마이그레이션 — `stock_setting.dividend_tax_rate_foreign` (T131)
 │   ├── ingestion/yahoo/client.py    # 변경 — 청크마다 분할 기록(월봉)을 함께 받아 되살린다. 원본 둘을 돌려준다 (T108, R6-18)
 │   ├── worker/stock_runner.py       # 변경 — 받은 원본을 모두 저장한다 (T108)
 │   ├── db/models.py                 # 변경 — 신규 테이블 5개
@@ -164,7 +168,9 @@ frontend/
 │   │   ├── SimulationForm.tsx       # 변경 — 원금 통화 제한 W3. 원금 쉼표 (T115)
 │   │   ├── SimulationHistory.tsx    # 변경 — 막힌 조합 항목 표시
 │   │   ├── CollectingNotice.tsx     # 변경 — 환율 줄 W4, W4a. 받은 날 / 받을 날 (T118)
-│   │   └── PerformanceBoard.tsx     # 변경 — 투자 원금·투자 수익에 통화 기호 W5 (T123, FR-054)
+│   │   ├── PerformanceBoard.tsx     # 변경 — 투자 원금·투자 수익에 통화 기호 W5 (T123, FR-054)
+│   │   └── PerformanceTable.tsx     # 변경 — 배당 자릿수, 배당 소득세·매매 수수료 열, 재투자 행 W6 (T133, FR-057·059)
+│   ├── components/settings/StockSettingsForm.tsx  # 변경 — 배당 소득세 국내·해외 두 칸 W7 (T134, FR-055)
 │   ├── stores/stockStore.ts         # 변경 — 시작일 기본값, 종목 등록, 환율 대기 재요청
 │   └── lib/types.ts                 # 변경 — 검색 응답, 202 fx, 오류 본문
 └── tests/                           # 각 변경에 대응하는 테스트
@@ -244,6 +250,11 @@ frontend/
 | FR-052 (같은 통화는 환전 없음) | 005 FR-023 유지, quickstart 20 |
 | FR-053, SC-018 (원금 쉼표 — 표시에만, 반복 2026-10-03) | research R6-20, `frontend/src/lib/principalFormat.ts`, `SimulationForm.tsx`, ui-wireframes W3, tasks T111·T115, quickstart 24 |
 | FR-054, SC-020 (성과 보드 통화 기호 — 반복 2026-10-03 #2) | research R6-21, `frontend/src/lib/format.ts` `currencySymbol`·`formatMoneyWithSymbol`, `PerformanceBoard.tsx`, ui-wireframes W5, tasks T122·T123, quickstart 27 |
+| FR-055, SC-021 (배당 소득세 국내·해외 — 반복 2026-10-03 #3) | research R6-23, data-model 6절 `stock_setting`, `repository/stock_setting.py`·`api/routes/stock_settings.py`·`api/services/stock_simulation.py`, `StockSettingsForm.tsx`, contracts/rest-api 설정, ui-wireframes W7, tasks T126·T129·T131·T132·T134, quickstart 28 |
+| FR-056, SC-022 (엔터로 맨 위 결과) | `StockSearch.tsx`, ui-wireframes W2, tasks T129·T134, quickstart 29 |
+| FR-057, SC-023 (주당 배당금 3자리·배당율 2자리) | research R6-24, `lib/format.ts`, `PerformanceTable.tsx`, ui-wireframes W6, tasks T128·T133, quickstart 30 |
+| FR-058, SC-024 (재투자는 배당락 뒤 2번째 거래일 — 005 FR-008 대체) | research R6-22, `simulation/reinvest.py` `reinvest_lag_days`, `api/services/stock_simulation.py`, tasks T124·T130·T132, quickstart 31 |
+| FR-059, SC-025 (배당 소득세·매매 수수료 열, 재투자 행) | research R6-24, data-model 시뮬레이션 행, `simulation/reinvest.py`·`api/services/stock_simulation.py`(환산)·`api/routes/stock_simulation.py`, `PerformanceTable.tsx`, contracts/rest-api 행 필드, ui-wireframes W6, tasks T125·T127·T128·T130·T132·T133, quickstart 31 |
 | FR-060, SC-014 (비밀은 설정) | data-model 7절, research R6-1 토큰 메모리, R6-14 정적 검사, quickstart 21 |
 | FR-061 (인증 응답 보관 안 함, 원본 보존) | research R6-1·R6-13, data-model 4·4a절 "헤더를 담지 않는다"·"지우지 않는다", quickstart 21 |
 | FR-062 (인증 실패는 갱신만 실패) | research R6-3, data-model 2절 `auth_blocked`, quickstart 9 |

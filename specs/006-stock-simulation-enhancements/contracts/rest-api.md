@@ -322,3 +322,29 @@ X-Accel-Buffering: no
 대상: `/api/stocks/progress`, `/api/fx/collection/stream`(003), 001의 진행 스트림. **`no-transform`이 없으면 중간
 프록시가 압축하면서 이벤트를 모아 둔다** — 2026-10-03 실측으로 Next.js 개발 서버(3030)가 브라우저 요청에 gzip을 걸어
 스트림이 끝날 때까지 이벤트가 도착하지 않았다(research R6-19).
+
+---
+
+## `GET`·`PUT /api/stocks/settings` — 배당 소득세 국내·해외 (FR-055) — 반복 2026-10-03 #3
+
+```json
+{ "tradeFeeRate": "0.000150", "dividendTaxRateDomestic": "0.154000", "dividendTaxRateForeign": "0.150000" }
+```
+
+- `dividendTaxRate`(하나)를 대체한다. `PUT`은 세 값을 모두 받는다 — 비율 문자열, 0 이상 1 미만
+- 국내는 시장이 KRX인 종목, 해외는 그 밖(NYSE·NASDAQ·AMEX·TSE)
+
+## `GET /api/stocks/simulation` — 세금·수수료·재투자 행 (FR-055, FR-058, FR-059) — 반복 2026-10-03 #3
+
+- `condition.dividendTaxRate`는 **그 종목에 적용한 세율**(국내 또는 해외)이다
+- 행 필드(모두 원금 통화 금액 문자열, 해당 없으면 **키가 없다**):
+  - `dividendTax` — 배당락 행: 세전 배당 × 적용 세율
+  - `tradeFee` — 매수가 있는 행(초기 매수 월 행, 재투자 행): 수량 × 시가 × 수수료율
+- `kind`에 `"reinvest"`가 더해진다 — 배당락 뒤 2번째 거래일의 재투자 매수 행. 배당락 행(`"dividend"`)의 `boughtShares`는 0이다
+
+```json
+{ "date": "2026-09-28", "kind": "dividend", "dividendPerShare": "1.823000", "dividendYield": "0.003100",
+  "dividendTax": "…", "boughtShares": 0, … }
+{ "date": "2026-09-30", "kind": "reinvest", "boughtShares": 1, "tradeFee": "…", … }
+```
+

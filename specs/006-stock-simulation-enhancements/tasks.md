@@ -119,7 +119,7 @@ description: "Task list for 006-stock-simulation-enhancements"
 - [X] T040 [US1] `backend/src/api/main.py`의 오류 처리기를 나눈다 — 시세 출처가 심볼을 모를 때 `price_symbol_unknown`, 우리 DB에 종목이 없을 때 `unknown_stock`. 출처가 모른다는 사실은 수집 워커 안에서 드러나므로, `worker/stock_worker.py`가 작업 사유에 표지를 붙이고 `stock_collect.plan_collection`이 그 표지로 끝난 종목의 수집을 되풀이하지 않는다. 진행 스트림의 `failed`에 `status`를 싣는다 (FR-032, research R6-6, contracts/rest-api 4절)
 - [X] T041 [US1] `frontend/src/lib/types.ts`에 검색 응답(`results`·`truncated`·`lists`)·외부 검색·등록 응답 타입을 더한다 (contracts/rest-api)
 - [X] T042 [US1] `frontend/src/lib/searchSequence.ts` (FR-029a)
-- [X] T043 [US1] `frontend/src/components/stock/StockSearch.tsx`를 두 영역(국내·미국 / 일본)으로 바꾼다. 로컬 입력 대기 150ms·외부 300ms, 목록 상태 줄, 잘림 안내, W2a (FR-024, FR-025, FR-027, FR-028, FR-028a, FR-029, ui-wireframes W2, W2a) **Phase 9에서 결과 줄과 고른 종목 표시가 `종목명(코드)`로 바뀐다(T116).**
+- [X] T043 [US1] `frontend/src/components/stock/StockSearch.tsx`를 두 영역(국내·미국 / 일본)으로 바꾼다. 로컬 입력 대기 150ms·외부 300ms, 목록 상태 줄, 잘림 안내, W2a (FR-024, FR-025, FR-027, FR-028, FR-028a, FR-029, ui-wireframes W2, W2a) **Phase 9에서 결과 줄과 고른 종목 표시가 `종목명(코드)`로 바뀐다(T116).** **Phase 11에서 고른 항목 없이 엔터를 치면 맨 위 결과를 고른다(T134, FR-056).**
 - [X] T044 [US1] `frontend/src/stores/stockStore.ts` — 결과를 고르면 등록하고, 등록 응답의 식별을 입력·이력에 쓴다 (FR-030, FR-030b)
 
 **Checkpoint**: 국내 종목을 한글·초성으로 찾아 시뮬레이션까지 간다
@@ -250,7 +250,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T087 `frontend/`에서 `npx tsc --noEmit`과 `npx eslint .`를 통과시킨다. `any` 금지
 - [X] T088 `backend/`에서 커버리지 80% 이상을 확인한다 — `cd backend && .venv/bin/python -m pytest -q --cov=src`
 - [X] T089 `backend/tests/`와 `frontend/tests/` 전체가 **네트워크 차단 상태에서** 통과하는지 확인한다. 005가 더한 소켓 가드가 키움 호출도 막는지 본다 — `backend/tests/unit/test_network_guard.py`가 키움 도메인 접속과 aiohttp 경로(해석된 주소)가 가드에 걸리는지 검증한다 (헌법 원칙 III)
-- [ ] T090 **부분 완료 — 엔화 시나리오는 2026-10-03에 실행했다(16·19-1 통과, 17·18-1 부분 통과). Yahoo 분할 비율 결함(quickstart 실행 기록 결함 4)과 고친 파서로 다시 돌리자 드러난 결함 5(분할이 두 번 들어감)는 T102~T108이 고쳤고 시나리오 23(토요타·애플)으로 확인했다(사용자 결정 A안). 남은 것: 시나리오 9(다음 날), 화면 조작 시나리오 — **브라우저로 실제 실행해야 한다.** "프론트엔드 테스트가 대신한다"는 가정은 틀렸다: 그 테스트는 `apiClient`를 흉내 내어 프록시를 거치지 않았고, 주식 화면 전체가 브라우저에서 404였다(T109·T110, 버그 `stock-search-not-found`)**. `quickstart.md`의 시나리오 23개(24~26은 T119, 27은 T123이 맡는다)를 순서대로 수동 실행하고 결과를 기록한다. 시나리오 1은 인증 정보를 넣기 전에 해야 한다. 시나리오 2의 측정값으로 research R6-2를 채운다. **실제 출처를 부르므로 미국 목록은 분당 제한을 지킨다.** 시나리오마다 검증하는 FR·SC는 quickstart에 적혀 있다 — 범위 표기로 묶지 않는다(004의 교훈: 범위 표기는 검색에 걸리지 않는다)
+- [ ] T090 **부분 완료 — 엔화 시나리오는 2026-10-03에 실행했다(16·19-1 통과, 17·18-1 부분 통과). Yahoo 분할 비율 결함(quickstart 실행 기록 결함 4)과 고친 파서로 다시 돌리자 드러난 결함 5(분할이 두 번 들어감)는 T102~T108이 고쳤고 시나리오 23(토요타·애플)으로 확인했다(사용자 결정 A안). 남은 것: 시나리오 9(다음 날), 화면 조작 시나리오 — **브라우저로 실제 실행해야 한다.** "프론트엔드 테스트가 대신한다"는 가정은 틀렸다: 그 테스트는 `apiClient`를 흉내 내어 프록시를 거치지 않았고, 주식 화면 전체가 브라우저에서 404였다(T109·T110, 버그 `stock-search-not-found`)**. `quickstart.md`의 시나리오 23개(24~26은 T119, 27은 T123, 28~31은 T135가 맡는다)를 순서대로 수동 실행하고 결과를 기록한다. 시나리오 1은 인증 정보를 넣기 전에 해야 한다. 시나리오 2의 측정값으로 research R6-2를 채운다. **실제 출처를 부르므로 미국 목록은 분당 제한을 지킨다.** 시나리오마다 검증하는 FR·SC는 quickstart에 적혀 있다 — 범위 표기로 묶지 않는다(004의 교훈: 범위 표기는 검색에 걸리지 않는다)
 - [X] T096 `backend/src/worker/stock_worker.py` — **T090에서 발견**: 주식 수집 워커가 출처를 열지 않아 실제 경로의 모든 시세 수집이 실패했다(005 결함). 003의 `worker_loop`처럼 출처를 열고 닫는다. 재현 테스트 `test_stock_worker.py::Test출처_열기`(열어야만 동작하는 스텁) (005 FR-043, 006 SC-007a, FR-047a)
 - [X] T097 `backend/src/ingestion/yahoo/errors.py` — **T090에서 발견**: 시세가 시작되기 전 구간에 대한 HTTP 400 + `chart.error`("Data doesn't exist for startDate …")를 빈 구간으로 받는다. 실제 응답을 픽스처(`chart_no_data_in_range.json`)로 계약 테스트한다. 다른 400은 그대로 오류 (006 FR-005, FR-005a)
 - [X] T098 `backend/tests/conftest.py` — **T090에서 발견**: 테스트 세션의 수집 로그를 임시 경로로 옮긴다(`TestClient`가 `lifespan`을 돌려 운영 로그에 썼다). `.env`의 값을 존중하지 않는다. 재현 테스트 `test_logging_config.py::test_테스트는_운영_수집_로그에_쓰지_않는다` (헌법 원칙 III, CLAUDE.md "로그는 두 곳")
@@ -314,6 +314,37 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 
 ---
 
+## Phase 11: 세율 국내·해외, 엔터 선택, 배당 자릿수, 재투자 시점, 세금·수수료 열 (반복 2026-10-03 #3)
+
+**Purpose**: 배당 소득세를 국내·해외로 나누고(FR-055), 엔터로 맨 위 종목을 고르며(FR-056), 주당 배당금 소수 3자리·배당율
+2자리(FR-057), 재투자를 배당락 뒤 2번째 거래일로(FR-058, 005 FR-008 대체), 표에 배당 소득세·매매 수수료 열과 재투자 행(FR-059).
+
+**순서**: 테스트(T124~T129)를 먼저 커밋하고 최초 실패를 확인한 뒤 구현(T130~T134), 마지막에 브라우저 확인(T135). **당일 재투자를
+전제한 기존 테스트의 기대 변경은 테스트 커밋에서 하고 그 사실을 기록한다.** 구현 뒤 테스트가 실패하면 멈추고 먼저 보고한다(헌법
+원칙 III, plan Complexity Tracking D2). **모든 결과의 숫자가 바뀐다**(재투자 시점).
+
+### Tests for Phase 11 ⚠️
+
+- [ ] T124 [P] `backend/tests/unit/test_reinvest_lag.py` — 배당락일 D에 세후 배당이 예수금에 들어오고 매수는 D 뒤 2번째 거래일 시가로 일어나는지(휴장일을 건너뛴다), 그 사이 예수금, 그날이 기간 밖이면 예수금으로 남는지, 재투자가 꺼져 있으면 매수가 없는지, 지연 0이면 지금(당일 재투자)과 같은지. 기존 `test_reinvest_on.py`·`test_reinvest_core.py`의 당일 재투자 기대는 지연 0을 명시하게 바꾸고, `test_reference_parity.py`는 지연 0으로 대조를 유지한다 (FR-058, SC-024)
+- [ ] T125 [P] `backend/tests/unit/test_reinvest_amounts.py` — 배당락 행의 `dividend_tax = 세전 × 세율`, 매수 행(초기·재투자)의 `trade_fee = 수량 × 시가 × 수수료율`, 재투자 행의 종류·매수 수·보유 수, 해당 없는 행은 `None` (FR-059, SC-025)
+- [ ] T126 [P] `backend/tests/integration/test_stock_settings_tax.py`·`backend/tests/integration/test_migrations.py` — 설정 API가 국내·해외 세율을 주고받는지(기본 0.154·0.15), 마이그레이션이 기존 값을 국내 세율로 두고 해외 0.15를 채우는지, 시뮬레이션이 KRX 종목에 국내·미국/일본 종목에 해외 세율을 쓰고 `condition.dividendTaxRate`에 적용 세율을 싣는지 (FR-055, SC-021)
+- [ ] T127 [P] `backend/tests/integration/test_simulation_rows.py` — 응답 행에 `dividendTax`(배당락 행)·`tradeFee`(매수 행)가 문자열로 있고 `kind: "reinvest"` 행이 있는지, 원화 원금·외화 종목이면 두 금액이 그 행의 환율로 원화로 환산되는지, 해당 없는 행에는 키가 없는지 (FR-059, contracts/rest-api)
+- [ ] T128 [P] `frontend/tests/PerformanceTableDividend.test.tsx` — 원화 원금에서 VOO 주당 배당금 `1.823000` → `1.823`, 원화 종목 `361` → `361.000`, 배당율 `0.004300` → `0.43%`(2자리 고정), 새 열 "배당 소득세"·"매매 수수료"와 값, 재투자 행 표시 (FR-057, FR-059, SC-023)
+- [ ] T129 [P] `frontend/tests/StockSearchEnter.test.tsx`·`frontend/tests/StockSettingsTax.test.tsx` — 고른 항목 없이 엔터 → 국내·미국 첫 결과 선택, 국내·미국이 비면 일본 첫 결과, 결과가 없으면 아무 일 없음, 방향키로 고른 항목이 있으면 그 항목. 설정 화면이 국내·해외 세율 두 칸을 보이고 저장하는지 (FR-056, FR-055, SC-022)
+
+### Implementation for Phase 11
+
+- [ ] T130 `backend/src/simulation/reinvest.py` — `Condition.reinvest_lag_days`(거래일 수), 배당락일 입금·지연 매수, `Row`에 `dividend_tax`·`trade_fee`, 행 종류 `reinvest`. 지연 0이면 지금과 같다 (FR-058, FR-059, research R6-22)
+- [ ] T131 `backend/src/db/models.py`·마이그레이션·`backend/src/repository/stock_setting.py`·`backend/src/api/routes/stock_settings.py` — 해외 세율 열, 설정 API의 국내·해외 세율(`dividendTaxRateDomestic`·`dividendTaxRateForeign`) (FR-055, research R6-23)
+- [ ] T132 `backend/src/api/services/stock_simulation.py`·`backend/src/api/routes/stock_simulation.py` — 시장으로 세율 고르기, 재투자 지연 2 거래일, `convert_row`가 세금·수수료를 원금 통화로 환산, 행 JSON에 `dividendTax`·`tradeFee` (FR-055, FR-058, FR-059)
+- [ ] T133 `frontend/src/lib/format.ts`·`frontend/src/lib/types.ts`·`frontend/src/components/stock/PerformanceTable.tsx` — 주당 배당금 소수 3자리 서식, 배당율 2자리 고정, 새 열·재투자 행 (FR-057, FR-059, research R6-24)
+- [ ] T134 `frontend/src/components/stock/StockSearch.tsx`·`frontend/src/components/settings/StockSettingsForm.tsx`(·설정 페이지 연결) — 엔터로 맨 위 결과, 세율 두 칸 (FR-056, FR-055)
+- [ ] T135 실제 브라우저(3030)로 확인한다 — 설정의 세율 두 칸, 엔터 선택, VOO 원화 원금 실행에서 2026-09-28 배당 `1.823`과 배당 소득세·재투자 행(배당락 뒤 2번째 거래일)·매매 수수료 (SC-021~025, quickstart 28~31)
+
+**Checkpoint**: 브라우저에서 설정 세율 두 칸, 엔터로 `현대차(005380)`, VOO 표의 `1.823`·배당 소득세·재투자 행·매매 수수료.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -326,6 +357,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - **US4 (Phase 6)**: **US1 완료 후**. 검색 핵심을 재사용한다
 - **US5 (Phase 7)**: Foundational 완료 후. 다른 스토리와 독립
 - **Polish (Phase 8)**: 원하는 스토리가 모두 끝난 뒤
+- **Phase 11 (반복 2026-10-03 #3)**: Phase 10 뒤. 005의 시뮬레이터·표·설정과 006의 검색 키보드를 고친다. 테스트(T124~T129)가 구현보다 먼저다
 - **Phase 10 (반복 2026-10-03 #2)**: Phase 9 뒤. 성과 보드(005의 결과물)만 고친다
 - **Phase 9 (반복 2026-10-03)**: Phase 8 뒤. US1(검색)·US2(수집 안내)·US5(원금 칸)의 화면을 고친다. T110(프록시)이 먼저 있어야 T119를 브라우저로 확인할 수 있다
 
@@ -365,11 +397,17 @@ Setup → Foundational ─┬→ US1 (MVP) ──→ US4 (미국)
 | `backend/tests/unit/test_search_match.py` | T014, T067 |
 | `frontend/src/stores/stockStore.ts` | T044, T054, T062, T080, T081, T100 |
 | `frontend/src/components/stock/SimulationForm.tsx` | T062, T080, T115 |
-| `frontend/src/components/stock/StockSearch.tsx` | T043, T075, T116 |
+| `frontend/src/components/stock/StockSearch.tsx` | T043, T075, T116, T134 |
 | `frontend/src/components/stock/CollectingNotice.tsx` | T055, T118 |
 | `backend/src/api/routes/stock_progress.py`·`collection.py`·`collect.py` | T117 |
 | `frontend/tests/CollectingNotice.test.tsx` | T114 |
 | `frontend/src/lib/format.ts`·`frontend/src/components/stock/PerformanceBoard.tsx` | T123 |
+| `frontend/src/lib/format.ts`·`frontend/src/lib/types.ts`·`frontend/src/components/stock/PerformanceTable.tsx` | T133 |
+| `backend/src/simulation/reinvest.py` | T130 |
+| `backend/src/db/models.py`·`backend/src/repository/stock_setting.py`·`backend/src/api/routes/stock_settings.py` | T131 |
+| `backend/src/api/services/stock_simulation.py`·`backend/src/api/routes/stock_simulation.py` | T132 |
+| `frontend/src/components/settings/StockSettingsForm.tsx` | T134 |
+| `backend/tests/integration/test_migrations.py` | T106, T126 |
 | `frontend/tests/CollectingNoticeFx.test.tsx` | T048, T099 |
 | `backend/src/ingestion/yahoo/parse.py` | T103, T107, T121 |
 | `backend/src/ingestion/yahoo/client.py`·`backend/src/worker/stock_runner.py` | T108 |
@@ -418,6 +456,7 @@ backend/src/search/hangul.py → match.py → price_symbol.py   # T030~T032
 5. US5 — 원금 통화 제한
 6. Phase 9 — 원금 쉼표, 종목명(코드), 수집 진행 표시(반복 2026-10-03)
 7. Phase 10 — 성과 보드 통화 기호(반복 2026-10-03 #2)
+8. Phase 11 — 세율 국내·해외, 엔터 선택, 배당 자릿수, 재투자 시점, 세금·수수료 열(반복 2026-10-03 #3)
 
 각 스토리는 앞 스토리를 깨지 않고 더해진다.
 
