@@ -13,7 +13,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.collection_stream import event_payload, stream_body
+from src.api.collection_stream import SSE_HEADERS, event_payload, stream_body
 from src.api.errors import InvalidQuery, UnknownCurrency
 from src.api.services.timeline import build_timeline
 from src.config.settings import SUPPORTED_CURRENCIES as SUPPORTED
@@ -64,7 +64,7 @@ async def get_stream(
         stream_body(session, code, load_settings(),
                     busy_with_fn=lambda: get_queue().in_progress),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers=SSE_HEADERS,
     )
 
 

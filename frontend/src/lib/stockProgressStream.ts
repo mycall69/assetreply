@@ -18,6 +18,10 @@ export interface StockProgressSnapshot {
   chunksTotal: number;
   rangeStart: string;
   rangeEnd: string;
+  /** 작업 구간 가운데 이미 받은 날(달력 일수) — 006 FR-045a. */
+  daysDone: number;
+  /** 작업 구간(`rangeStart`~`rangeEnd`)의 달력 일수 — 006 FR-045a. */
+  daysTotal: number;
 }
 
 export interface StockProgressHandlers {

@@ -107,7 +107,9 @@ class Test스트림:
         끝내도 `snapshot`만 계속 보내, 환율을 기다리던 화면(006 `watchFx`)이 끝을 알지 못한다.
         """
         import src.api.collection_stream as stream_module
+        from src.db.models import FxCollectionJob
         from src.repository.collection_lock import release_lock
+        from src.repository.job import finish_job
 
         monkeypatch.setattr(stream_module, "HEARTBEAT_SECONDS", 0)
         async with session_factory() as s:
@@ -117,7 +119,12 @@ class Test스트림:
         async with session_factory() as s:
             stream = stream_body(s, "USD", settings, max_frames=4)
             first = await anext(stream)
+            # 워커가 수집을 끝낸다 — `worker/runner.py`처럼 작업을 마감하고 점유를 푼다. 점유만
+            # 풀면 작업이 진행 중으로 남아 시간축은 "회수 대기"로 본다(첫 작성 때의 전제 오류).
             async with session_factory() as worker:
+                finished = await worker.get(FxCollectionJob, job.id)
+                assert finished is not None
+                await finish_job(worker, finished, chunks_done=3)
                 await release_lock(worker, "USD")
                 await worker.commit()
             rest = [frame async for frame in stream]

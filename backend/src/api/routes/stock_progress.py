@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime as dt
 from collections.abc import AsyncIterator
 from typing import Annotated
 
@@ -21,9 +22,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # 003이 만든 직렬화를 그대로 쓴다. **값의 개행을 지우는 가드가 거기 있다** —
 # `last_error`에 예외 메시지가 그대로 들어가므로 개행이 섞일 수 있고, 섞이면 SSE
 # 프레임이 쪼개져 클라이언트가 이벤트를 받지 못한다.
-from src.api.collection_stream import format_sse
+from src.api.collection_stream import SSE_HEADERS, format_sse
 from src.db.models import JobStatus
 from src.db.session import get_session
+from src.repository.stock import Range, get_coverage
 from src.repository.stock_job import get_job, split_error
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
@@ -32,6 +34,18 @@ router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 POLL_SECONDS = 2.0
 
 Json = dict[str, object]
+
+
+def covered_days(coverage: Range | None, start: dt.date, end: dt.date) -> int:
+    """`start`~`end`(양끝 포함) 가운데 커버리지가 덮는 달력 일수 (006 FR-045a).
+
+    커버리지는 청크마다 커밋되므로 따로 세지 않아도 받은 날을 안다. 작업 구간 앞뒤로 이미 받아
+    둔 구간이 겹치면 처음부터 0보다 크다 — "그 구간 가운데 이미 확보한 날"이라는 뜻이라 맞다.
+    """
+    if coverage is None:
+        return 0
+    first, last = max(start, coverage[0]), min(end, coverage[1])
+    return max(0, (last - first).days + 1)
 
 
 async def stream_body(
@@ -43,6 +57,10 @@ async def stream_body(
     """
     frames = 0
     while True:
+        # 앞 프레임의 읽기 트랜잭션을 끝낸다(006 T113 보강). 끝내지 않으면 MySQL(REPEATABLE READ)이
+        # 첫 조회의 스냅샷을 계속 보여, 워커가 작업을 끝내도 진행이 0에 머물고 `completed`가 오지
+        # 않는다 — 화면은 결과를 다시 요청하지 못한다. 쓰는 것이 없으므로 되돌려도 잃는 것이 없다.
+        await session.rollback()
         job = await get_job(session, job_id)
         if job is None:
             yield format_sse("failed", {"jobId": job_id, "reason": "알 수 없는 작업"})
@@ -54,6 +72,10 @@ async def stream_body(
             "chunksTotal": job.chunks_total,
             "rangeStart": job.range_start.isoformat(),
             "rangeEnd": job.range_end.isoformat(),
+            # 006 FR-045a — 받은 날 / 받을 날(달력 일수). 구간 수는 호환을 위해 남긴다.
+            "daysDone": covered_days(
+                await get_coverage(session, job.stock_id), job.range_start, job.range_end),
+            "daysTotal": (job.range_end - job.range_start).days + 1,
         }
         yield format_sse("snapshot", payload)
 
@@ -84,5 +106,5 @@ async def get_progress(
     return StreamingResponse(
         stream_body(session, job_id),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers=SSE_HEADERS,
     )

@@ -20,6 +20,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, apiClient } from "@/lib/apiClient";
+import { nameWithCode } from "@/lib/displayCode";
 import { formatKst } from "@/lib/format";
 import { createSequence } from "@/lib/searchSequence";
 import type {
@@ -258,7 +259,8 @@ export function StockSearch({
           }`}
         >
           <span>
-            {item.name}
+            {/* 006 FR-025 — 종목명(코드). 이름이 비슷한 종목을 코드로 구별한다. */}
+            {nameWithCode(item)}
             {kind !== undefined && (
               <span className="ml-2 rounded border border-gray-300 px-1 text-xs text-gray-600">
                 {kind}
@@ -280,7 +282,6 @@ export function StockSearch({
           {/* 005 FR-002b — 시장과 통화를 함께 보인다. */}
           <span className="shrink-0 text-xs text-gray-500">
             {item.market} · {item.currency}
-            {option.source === "listing" && <span className="ml-2">{option.item.code}</span>}
           </span>
         </button>
       </li>
@@ -306,7 +307,7 @@ export function StockSearch({
 
       {value !== null && term === "" && (
         <p className="mt-1 pl-14 text-sm">
-          <span className="font-semibold">{value.name}</span>{" "}
+          <span className="font-semibold">{nameWithCode(value)}</span>{" "}
           <span className="text-xs text-gray-500">
             {value.market} · {value.currency}
           </span>

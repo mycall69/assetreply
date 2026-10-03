@@ -287,10 +287,10 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 
 ### Implementation for Phase 9
 
-- [ ] T115 `frontend/src/lib/principalFormat.ts`(신규)와 `frontend/src/components/stock/SimulationForm.tsx` — 칸은 쉼표 형식으로 보이고 상태에는 쉼표 없는 문자열을 둔다. 입력 중 커서는 **커서 앞의 숫자 개수**를 기준으로 되돌린다 (FR-053, research R6-20)
-- [ ] T116 `frontend/src/lib/displayCode.ts`(신규)와 `frontend/src/components/stock/StockSearch.tsx` — 결과 줄과 고른 종목 표시를 `종목명(코드)`로, 오른쪽 칸의 코드를 뺀다 (FR-025, research R6-20)
-- [ ] T117 `backend/src/api/routes/stock_progress.py` — 스냅샷에 `daysDone`·`daysTotal`. `routes/stock_progress.py`·`collection.py`·`collect.py`의 SSE 머리글을 `Cache-Control: no-cache, no-transform`으로 (FR-045a, research R6-19)
-- [ ] T118 `frontend/src/lib/stockProgressStream.ts`·`frontend/src/components/stock/CollectingNotice.tsx` — 스냅샷 타입에 `daysDone`·`daysTotal`, 진행 줄을 `받은 날 / 받을 날`로 (FR-045a)
+- [X] T115 `frontend/src/lib/principalFormat.ts`(신규)와 `frontend/src/components/stock/SimulationForm.tsx` — 칸은 쉼표 형식으로 보이고 상태에는 쉼표 없는 문자열을 둔다. 입력 중 커서는 **커서 앞의 숫자 개수**를 기준으로 되돌린다 (FR-053, research R6-20)
+- [X] T116 `frontend/src/lib/displayCode.ts`(신규)와 `frontend/src/components/stock/StockSearch.tsx` — 결과 줄과 고른 종목 표시를 `종목명(코드)`로, 오른쪽 칸의 코드를 뺀다 (FR-025, research R6-20)
+- [X] T117 `backend/src/api/routes/stock_progress.py` — 스냅샷에 `daysDone`·`daysTotal`. `routes/stock_progress.py`·`collection.py`·`collect.py`의 SSE 머리글을 `Cache-Control: no-cache, no-transform`으로(공용 `SSE_HEADERS`). **주식 진행 스트림과 외환 수집 스트림이 프레임마다 `session.rollback()`으로 앞 읽기 트랜잭션을 끝낸다** — 한 연결이 처음 읽은 스냅샷에 머물렀다(research R6-19 발견 2) (FR-045a, research R6-19)
+- [X] T118 `frontend/src/lib/stockProgressStream.ts`·`frontend/src/components/stock/CollectingNotice.tsx` — 스냅샷 타입에 `daysDone`·`daysTotal`, 진행 줄을 `받은 날 / 받을 날`로 (FR-045a)
 - [ ] T119 실제 브라우저(3030 경유)로 확인한다 — 아직 받지 않은 종목을 실행해 진행 메시지가 **실시간으로 도착**하고 숫자가 늘어나는지, 원금 칸의 쉼표, 결과의 코드 표기. **`no-transform`으로도 Next.js가 압축하면** `frontend/next.config.ts`의 `compress: false`로 바꾸고 그 사실을 research R6-19에 적는다 (SC-017, SC-018, SC-019, quickstart 24~26)
 
 **Checkpoint**: 브라우저에서 원금 `10,000,000`, 결과 `삼성전자(005930)`, 수집 중 `N / M일`이 늘어나다 결과가 나온다.

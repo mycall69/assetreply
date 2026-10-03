@@ -12,6 +12,7 @@ from fastapi import APIRouter, Body, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.collection_stream import SSE_HEADERS
 from src.api.errors import CollectionInProgress, UnknownCurrency
 from src.api.progress import sse_body
 from src.config.settings import SUPPORTED_CURRENCIES as SUPPORTED
@@ -65,5 +66,5 @@ async def progress_endpoint(
     return StreamingResponse(
         sse_body(session, job_id=job_id),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers=SSE_HEADERS,
     )

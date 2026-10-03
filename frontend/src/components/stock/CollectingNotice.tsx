@@ -34,8 +34,10 @@ export function CollectingNotice({
   stockName: string;
   progress: StockProgressSnapshot | null;
 }) {
-  const total = progress?.chunksTotal ?? 0;
-  const done = progress?.chunksDone ?? 0;
+  // 006 FR-045a — 받은 날 / 받을 날(달력 일수). "3 / 4 구간"은 숫자가 작아 얼마나 남았는지
+  // 가늠하기 어렵다. 출처에 2년치씩 요청하므로 숫자는 구간마다 늘어난다.
+  const total = progress?.daysTotal ?? 0;
+  const done = progress?.daysDone ?? 0;
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
   const stockCollecting = collecting.jobId !== undefined;
   const fx = collecting.fx;
@@ -62,7 +64,7 @@ export function CollectingNotice({
                 <div className="h-full bg-gray-700" style={{ width: `${percent}%` }} />
               </div>
               <p className="text-xs tabular-nums text-gray-500">
-                {done} / {total} 구간
+                {done.toLocaleString("ko-KR")} / {total.toLocaleString("ko-KR")}일
               </p>
             </div>
           ) : (

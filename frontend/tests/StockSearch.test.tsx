@@ -100,6 +100,7 @@ describe("종목 검색", () => {
 
   it("고른 종목이 있으면 그것을 보여준다", () => {
     render(<StockSearch value={SELECTED} onSelect={vi.fn()} />);
-    expect(screen.getByText("삼성전자")).toBeInTheDocument();
+    // 006 FR-025(반복 2026-10-03) — 종목명(코드)로 보인다.
+    expect(screen.getByText("삼성전자(005930)")).toBeInTheDocument();
   });
 });

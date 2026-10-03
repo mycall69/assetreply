@@ -5,8 +5,11 @@
  *
  * 원금을 **문자열로 들고 있다가 문자열로 보낸다.** 숫자로 바꾸면 그 순간 IEEE 754를
  * 거쳐 헌법 원칙 VI가 입력 단계에서 무너진다.
+ *
+ * 006 FR-053 — 칸에는 3자리 쉼표로 보이고, 들고 있는 값과 바깥으로 주는 값은 쉼표가 없다.
  */
 
+import { useLayoutEffect, useRef } from "react";
 import {
   StartDateInput,
   isStartBlocked,
@@ -17,6 +20,7 @@ import {
   isAllowedPrincipal,
   principalRule,
 } from "@/lib/principalCurrency";
+import { caretAfter, formatPrincipal, normalizePrincipal } from "@/lib/principalFormat";
 import type { PrincipalCurrency } from "@/lib/types";
 
 export interface FormValues {
@@ -58,6 +62,22 @@ export function SimulationForm({
   const currencies = allowedPrincipals(stockCurrency);
   const currencyAllowed = isAllowedPrincipal(values.principalCurrency, stockCurrency);
 
+  // 쉼표가 끼어들면 다시 그린 뒤 커서가 끝으로 튄다. 고친 자리를 기억해 두었다가 되돌린다.
+  const principalBox = useRef<HTMLInputElement>(null);
+  const pendingCaret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (pendingCaret.current !== null && principalBox.current !== null) {
+      principalBox.current.setSelectionRange(pendingCaret.current, pendingCaret.current);
+      pendingCaret.current = null;
+    }
+  });
+  const changePrincipal = (typed: string, caret: number | null) => {
+    const raw = normalizePrincipal(typed);
+    const digitsBefore = normalizePrincipal(typed.slice(0, caret ?? typed.length)).length;
+    pendingCaret.current = caretAfter(formatPrincipal(raw), digitsBefore);
+    set("principal", raw);
+  };
+
   return (
     <form
       className="flex flex-wrap items-end gap-4"
@@ -79,8 +99,9 @@ export function SimulationForm({
         <input
           type="text"
           inputMode="numeric"
-          value={values.principal}
-          onChange={(e) => set("principal", e.target.value)}
+          ref={principalBox}
+          value={formatPrincipal(values.principal)}
+          onChange={(e) => changePrincipal(e.target.value, e.target.selectionStart)}
           className="w-36 rounded border border-gray-300 px-2 py-1.5 text-right tabular-nums"
         />
       </label>

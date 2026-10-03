@@ -28,6 +28,14 @@ from src.repository.collection_event import list_by_currency
 #: 상태 변화가 없어도 이 간격으로 `snapshot`을 보낸다. SC-004(10초 이내 갱신)의 근거다.
 HEARTBEAT_SECONDS = 5
 
+#: 모든 SSE 응답의 머리글 (006 FR-045a, research R6-19). **`no-transform`이 없으면 중간 프록시가
+#: 압축하면서 이벤트를 모아 둔다** — 2026-10-03 실측으로 Next.js 개발 서버가 브라우저 요청에 gzip을
+#: 걸어, 스트림이 끝날 때까지 `EventSource`에 이벤트가 하나도 도착하지 않았다.
+SSE_HEADERS: dict[str, str] = {
+    "Cache-Control": "no-cache, no-transform",
+    "X-Accel-Buffering": "no",
+}
+
 Json = dict[str, object]
 
 
@@ -82,6 +90,10 @@ async def stream_body(
     frames = 0
 
     while True:
+        # 앞 프레임의 읽기 트랜잭션을 끝낸다(006 T113 보강). 끝내지 않으면 MySQL(REPEATABLE
+        # READ)이 첫 조회의 스냅샷을 계속 보여, 워커가 수집을 끝내도 `snapshot`만 보내고 `idle`이
+        # 오지 않는다. 쓰는 것이 없으므로 되돌려도 잃는 것이 없다.
+        await session.rollback()
         current = busy_with_fn() if busy_with_fn is not None else busy_with
         snapshot = await build_timeline(session, currency_code, settings,
                                         busy_with=current)
