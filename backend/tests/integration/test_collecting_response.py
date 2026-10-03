@@ -182,3 +182,50 @@ class Test받은_날:
             data = snapshot_data(await anext(stream_body(s, body["jobId"], max_frames=1)))
         assert (data["daysDone"], data["daysTotal"]) == (31, 61)
 
+    async def test_한_연결에서_진행이_갱신된다(self, session_and_client, monkeypatch) -> None:
+        """SC-017 — 실제 스트림은 연결 하나(세션 하나)로 끝까지 간다.
+
+        그 세션이 처음 읽은 값에 머물면, 압축을 고쳐도 화면은 `0 / 61일`에서 멈추고 완료 신호도
+        오지 않는다. 워커는 다른 세션에서 커버리지와 작업을 커밋한다.
+        """
+        import src.api.routes.stock_progress as progress
+
+        monkeypatch.setattr(progress, "POLL_SECONDS", 0)
+        factory, client = session_and_client
+        job_id = (await client.get("/api/stocks/simulation", params=PARAMS)).json()["jobId"]
+        async with factory() as s:
+            stream = stream_body(s, job_id, max_frames=5)
+            first = snapshot_data(await anext(stream))
+            async with factory() as worker:
+                stock_id = int((await worker.execute(select(Stock))).scalar_one().id)
+                await upsert(worker, StockCoverage, [{
+                    "stock_id": stock_id, "covered_from": D("2021-08-01"),
+                    "covered_through": D("2021-10-31")}], preserve=())
+                job = await worker.get(StockCollectionJob, job_id)
+                assert job is not None
+                job.chunks_done = 1
+                await worker.commit()
+            second = snapshot_data(await anext(stream))
+        assert (first["daysDone"], second["daysDone"]) == (0, 31)
+        assert second["chunksDone"] == 1
+
+    async def test_한_연결에서_완료를_알린다(self, session_and_client, monkeypatch) -> None:
+        """완료 신호가 오지 않으면 화면은 결과를 다시 요청하지 않는다(005 FR-049)."""
+        import src.api.routes.stock_progress as progress
+        from src.db.models import JobStatus
+
+        monkeypatch.setattr(progress, "POLL_SECONDS", 0)
+        factory, client = session_and_client
+        job_id = (await client.get("/api/stocks/simulation", params=PARAMS)).json()["jobId"]
+        async with factory() as s:
+            stream = stream_body(s, job_id, max_frames=5)
+            await anext(stream)
+            async with factory() as worker:
+                job = await worker.get(StockCollectionJob, job_id)
+                assert job is not None
+                job.status = JobStatus.SUCCEEDED
+                job.chunks_done = job.chunks_total
+                await worker.commit()
+            frames = [frame async for frame in stream]
+        assert any(frame.startswith("event: completed") for frame in frames), frames
+
