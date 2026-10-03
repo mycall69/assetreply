@@ -250,7 +250,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T087 `frontend/`에서 `npx tsc --noEmit`과 `npx eslint .`를 통과시킨다. `any` 금지
 - [X] T088 `backend/`에서 커버리지 80% 이상을 확인한다 — `cd backend && .venv/bin/python -m pytest -q --cov=src`
 - [X] T089 `backend/tests/`와 `frontend/tests/` 전체가 **네트워크 차단 상태에서** 통과하는지 확인한다. 005가 더한 소켓 가드가 키움 호출도 막는지 본다 — `backend/tests/unit/test_network_guard.py`가 키움 도메인 접속과 aiohttp 경로(해석된 주소)가 가드에 걸리는지 검증한다 (헌법 원칙 III)
-- [ ] T090 **부분 완료 — 엔화 시나리오는 2026-10-03에 실행했다(16·19-1 통과, 17·18-1 부분 통과). Yahoo 분할 비율 결함(quickstart 실행 기록 결함 4)과 고친 파서로 다시 돌리자 드러난 결함 5(분할이 두 번 들어감)는 T102~T108이 고쳤고 시나리오 23(토요타·애플)으로 확인했다(사용자 결정 A안). 남은 것: 시나리오 9(다음 날), 화면 조작 시나리오 — **브라우저로 실제 실행해야 한다.** "프론트엔드 테스트가 대신한다"는 가정은 틀렸다: 그 테스트는 `apiClient`를 흉내 내어 프록시를 거치지 않았고, 주식 화면 전체가 브라우저에서 404였다(T109·T110, 버그 `stock-search-not-found`)**. `quickstart.md`의 시나리오 23개(24~26은 T119, 27은 T123, 28~31은 T135가 맡는다)를 순서대로 수동 실행하고 결과를 기록한다. 시나리오 1은 인증 정보를 넣기 전에 해야 한다. 시나리오 2의 측정값으로 research R6-2를 채운다. **실제 출처를 부르므로 미국 목록은 분당 제한을 지킨다.** 시나리오마다 검증하는 FR·SC는 quickstart에 적혀 있다 — 범위 표기로 묶지 않는다(004의 교훈: 범위 표기는 검색에 걸리지 않는다)
+- [ ] T090 **부분 완료 — 엔화 시나리오는 2026-10-03에 실행했다(16·19-1 통과, 17·18-1 부분 통과). Yahoo 분할 비율 결함(quickstart 실행 기록 결함 4)과 고친 파서로 다시 돌리자 드러난 결함 5(분할이 두 번 들어감)는 T102~T108이 고쳤고 시나리오 23(토요타·애플)으로 확인했다(사용자 결정 A안). 남은 것: 시나리오 9(다음 날), 화면 조작 시나리오 — **브라우저로 실제 실행해야 한다.** "프론트엔드 테스트가 대신한다"는 가정은 틀렸다: 그 테스트는 `apiClient`를 흉내 내어 프록시를 거치지 않았고, 주식 화면 전체가 브라우저에서 404였다(T109·T110, 버그 `stock-search-not-found`)**. `quickstart.md`의 시나리오 23개(24~26은 T119, 27은 T123, 28~31은 T135, 32~35는 T145가 맡는다)를 순서대로 수동 실행하고 결과를 기록한다. 시나리오 1은 인증 정보를 넣기 전에 해야 한다. 시나리오 2의 측정값으로 research R6-2를 채운다. **실제 출처를 부르므로 미국 목록은 분당 제한을 지킨다.** 시나리오마다 검증하는 FR·SC는 quickstart에 적혀 있다 — 범위 표기로 묶지 않는다(004의 교훈: 범위 표기는 검색에 걸리지 않는다)
 - [X] T096 `backend/src/worker/stock_worker.py` — **T090에서 발견**: 주식 수집 워커가 출처를 열지 않아 실제 경로의 모든 시세 수집이 실패했다(005 결함). 003의 `worker_loop`처럼 출처를 열고 닫는다. 재현 테스트 `test_stock_worker.py::Test출처_열기`(열어야만 동작하는 스텁) (005 FR-043, 006 SC-007a, FR-047a)
 - [X] T097 `backend/src/ingestion/yahoo/errors.py` — **T090에서 발견**: 시세가 시작되기 전 구간에 대한 HTTP 400 + `chart.error`("Data doesn't exist for startDate …")를 빈 구간으로 받는다. 실제 응답을 픽스처(`chart_no_data_in_range.json`)로 계약 테스트한다. 다른 400은 그대로 오류 (006 FR-005, FR-005a)
 - [X] T098 `backend/tests/conftest.py` — **T090에서 발견**: 테스트 세션의 수집 로그를 임시 경로로 옮긴다(`TestClient`가 `lifespan`을 돌려 운영 로그에 썼다). `.env`의 값을 존중하지 않는다. 재현 테스트 `test_logging_config.py::test_테스트는_운영_수집_로그에_쓰지_않는다` (헌법 원칙 III, CLAUDE.md "로그는 두 곳")
@@ -345,6 +345,35 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 
 ---
 
+## Phase 12: 표의 통화와 화면 폭 (반복 2026-10-03 #4)
+
+**Purpose**: 해외 종목의 예수금·배당 소득세·매매 수수료·잔고·배당금 총액은 종목 통화로, 잔고 괄호에 KRW, 투자 수익·수익율은 항상 KRW
+기준(FR-066, FR-068 — 달러·엔 원금도, 원금의 KRW 값은 첫 매수일 매매기준율), 배당금 총액(괄호 세후) 열(FR-067), 화면 폭(FR-069).
+
+**순서**: 테스트(T136~T140)를 먼저 커밋하고 최초 실패를 확인한 뒤 구현(T141~T144), 마지막에 브라우저 확인(T145). **기존 테스트의 기대
+변경(원화 환산 예수금, 같은 통화면 환율 불필요, 보드 기준 줄 등)은 테스트 커밋에서 하고 기록한다.** 구현 뒤 테스트가 실패하면 멈추고
+먼저 보고한다(헌법 원칙 III, plan Complexity Tracking D2). **달러·엔 원금 실행에 환율이 필요해진다.**
+
+### Tests for Phase 12 ⚠️
+
+- [ ] T136 [P] `backend/tests/unit/test_reinvest_amounts.py`에 더한다 — 배당락 행의 `dividend_total`(세전 = 보유 수 × 주당 배당금)·`dividend_total_net`(세후 = 세전 − 세금), 해당 없는 행은 `None` (FR-067, SC-027)
+- [ ] T137 [P] `backend/tests/integration/test_simulation_currency.py` — 원화 원금·미국 종목: 행의 `cash`·`dividendTax`·`tradeFee`·`balance`·`dividendTotal`·`dividendTotalNet`이 **달러**(환산하지 않은 값), `balanceKrw = balance × 그 행의 매매기준율`, `profit`·`returnRate`가 KRW 기준, `principal`은 입력한 원화. 달러 원금·미국 종목: 같은 열이 달러이고 `profit`·`returnRate`·`balanceKrw`가 KRW(원금 KRW = 원금 × 첫 매수일 매매기준율), 요약 `principalKrw`. 국내 종목: 모두 KRW, `balanceKrw` 없음. 기존 `test_simulation_fx.py`·`test_simulation_rows.py`·`test_simulation_no_fx.py`의 원화 환산 기대를 새 규칙으로 바꾼다 (FR-066, FR-068, SC-026, SC-028)
+- [ ] T138 [P] `backend/tests/integration/test_fx_gate.py`에 더한다 — 달러 원금·미국 종목도 USD 환율 커버리지가 비어 있으면 202 `fx.state`(환율 수집 안내)이고 환전 정보(`exchange`)는 없는지(평가만) (FR-068)
+- [ ] T139 [P] `backend/tests/integration/test_stock_series_api.py`에 더한다 — 차트의 잔고·수익률 시계열이 KRW 기준이고 표 마지막 행과 같은지(달러 원금 포함), 응답의 `basisCurrency`가 `KRW`인지. `backend/tests/unit/test_stock_series_build.py` — KRW 평가가 있으면 그 값을 그린다 (FR-068, 005 SC-032)
+- [ ] T140 [P] `frontend/tests/PerformanceTableCurrency.test.tsx`·`frontend/tests/PerformanceBoardKrw.test.tsx` — 해외 종목 표의 머리글(`예수금 (USD)`·`잔고 (USD · KRW)`·`투자 수익 (KRW)` 등), 잔고 `21,895.00 (29,602,026)`, 배당금 총액 `48.07 (40.86)`, 국내 종목은 괄호 없음. 보드: 투자 수익·수익률 KRW, 달러 원금이면 투자 원금 `10,000$ (13,520,000₩)`, 기준 줄 "KRW 기준". 주식 화면 컨테이너가 1152px로 묶이지 않는지. 차트 범례와 비교 차트의 기준이 원금 통화가 아니라 응답의 `basisCurrency`(KRW)인지 — 원금 통화가 다른 이력을 비교해도 "원금 통화가 다릅니다"라고 하지 않는다(`PerformanceChart.test.tsx`·`ComparisonChart.test.tsx`). 세금·수수료가 종목 통화인 것에 맞춰 `PerformanceTableDividend.test.tsx`·`PerformanceBoardCurrency.test.tsx`의 기대를 바꾼다 (FR-066, FR-067, FR-068, FR-069, SC-029)
+
+### Implementation for Phase 12
+
+- [ ] T141 `backend/src/simulation/reinvest.py` — `Row`에 `dividend_total`·`dividend_total_net` (FR-067)
+- [ ] T142 `backend/src/api/services/stock_simulation.py`·`backend/src/api/routes/stock_simulation.py` — 해외 종목이면 원금 통화와 관계없이 KRW 평가: 행은 종목 통화 값을 유지하고 `balance_krw`·`profit`·`return_rate`(KRW)를 더한다. 달러·엔 원금의 KRW 원금은 첫 매수일 매매기준율. 요약 `principalKrw`·`profit`·`returnRate` KRW (FR-066, FR-068, research R6-25)
+- [ ] T143 `backend/src/api/services/stock_collect.py`·`backend/src/api/routes/stock_series.py`(·`backend/src/api/services/stock_series.py`) — 해외 종목이면 환율 판정, 차트 시계열 KRW 기준 (FR-068)
+- [ ] T144 `frontend/src/lib/types.ts`·`frontend/src/components/stock/PerformanceTable.tsx`·`frontend/src/components/stock/PerformanceBoard.tsx`·`frontend/src/components/stock/PerformanceChart.tsx`·`frontend/src/components/stock/ComparisonChart.tsx`·`frontend/src/app/stocks/page.tsx` — 열별 통화·괄호·배당금 총액 열, 보드 KRW, 차트·비교 차트의 기준 통화는 응답의 `basisCurrency`, 화면 폭 제한 해제와 촘촘한 칸 (FR-066~069, research R6-26)
+- [ ] T145 실제 브라우저(3030, 1440px)로 확인한다 — VOO 원화 원금, 애플 달러 원금(필요하면 USD 환율 수집), 삼성전자. 모든 열이 가로 스크롤 없이 보이는지 (SC-026, SC-027, SC-028, SC-029, quickstart 32~35)
+
+**Checkpoint**: 브라우저(1440px)에서 VOO 표의 예수금·세금·수수료 USD, 잔고 `USD (KRW)`, 투자 수익·수익율 KRW, 배당금 총액 `세전 (세후)`, 모든 열이 보인다.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -357,6 +386,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - **US4 (Phase 6)**: **US1 완료 후**. 검색 핵심을 재사용한다
 - **US5 (Phase 7)**: Foundational 완료 후. 다른 스토리와 독립
 - **Polish (Phase 8)**: 원하는 스토리가 모두 끝난 뒤
+- **Phase 12 (반복 2026-10-03 #4)**: Phase 11 뒤. 005의 표·보드·차트·환산과 006의 환율 판정(T051)을 고친다. 테스트(T136~T140)가 구현보다 먼저다
 - **Phase 11 (반복 2026-10-03 #3)**: Phase 10 뒤. 005의 시뮬레이터·표·설정과 006의 검색 키보드를 고친다. 테스트(T124~T129)가 구현보다 먼저다
 - **Phase 10 (반복 2026-10-03 #2)**: Phase 9 뒤. 성과 보드(005의 결과물)만 고친다
 - **Phase 9 (반복 2026-10-03)**: Phase 8 뒤. US1(검색)·US2(수집 안내)·US5(원금 칸)의 화면을 고친다. T110(프록시)이 먼저 있어야 T119를 브라우저로 확인할 수 있다
@@ -407,6 +437,11 @@ Setup → Foundational ─┬→ US1 (MVP) ──→ US4 (미국)
 | `backend/src/db/models.py`·`backend/src/repository/stock_setting.py`·`backend/src/api/routes/stock_settings.py` | T131 |
 | `backend/src/api/services/stock_simulation.py`·`backend/src/api/routes/stock_simulation.py` | T132 |
 | `frontend/src/components/settings/StockSettingsForm.tsx` | T134 |
+| `backend/src/simulation/reinvest.py`(Phase 12) | T130, T141 |
+| `backend/src/api/services/stock_simulation.py`·`backend/src/api/routes/stock_simulation.py`(Phase 12) | T132, T142 |
+| `backend/src/api/services/stock_collect.py`·`backend/src/api/routes/stock_series.py` | T040, T051, T143 |
+| `frontend/src/components/stock/PerformanceTable.tsx`·`PerformanceBoard.tsx`·`PerformanceChart.tsx`·`ComparisonChart.tsx`·`frontend/src/app/stocks/page.tsx` | T123, T133, T144 |
+| `backend/tests/unit/test_reinvest_amounts.py` | T125, T136 |
 | `backend/tests/integration/test_migrations.py` | T106, T126 |
 | `frontend/tests/CollectingNoticeFx.test.tsx` | T048, T099 |
 | `backend/src/ingestion/yahoo/parse.py` | T103, T107, T121 |
@@ -457,6 +492,7 @@ backend/src/search/hangul.py → match.py → price_symbol.py   # T030~T032
 6. Phase 9 — 원금 쉼표, 종목명(코드), 수집 진행 표시(반복 2026-10-03)
 7. Phase 10 — 성과 보드 통화 기호(반복 2026-10-03 #2)
 8. Phase 11 — 세율 국내·해외, 엔터 선택, 배당 자릿수, 재투자 시점, 세금·수수료 열(반복 2026-10-03 #3)
+9. Phase 12 — 표의 통화와 화면 폭(반복 2026-10-03 #4)
 
 각 스토리는 앞 스토리를 깨지 않고 더해진다.
 

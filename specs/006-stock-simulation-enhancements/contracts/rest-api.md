@@ -348,3 +348,34 @@ X-Accel-Buffering: no
 { "date": "2026-09-30", "kind": "reinvest", "boughtShares": 1, "tradeFee": "…", … }
 ```
 
+---
+
+## `GET /api/stocks/simulation` — 열별 통화와 KRW 평가 (FR-066, FR-067, FR-068) — 반복 2026-10-03 #4
+
+**행(해외 종목)** — 원금 통화와 관계없이:
+
+| 필드 | 통화 |
+|------|------|
+| `openPrice`·`dividendPerShare` | 종목 통화(지금과 같다) |
+| `dividendTotal`(신설, 세전)·`dividendTotalNet`(신설, 세후) | 종목 통화 — 배당락 행에만 |
+| `dividendTax`·`tradeFee`·`cash`·`balance` | **종목 통화**(반복 #3까지는 원금 통화로 환산했다) |
+| `balanceKrw`(신설) | KRW — 그 행의 매매기준율 |
+| `principal` | 입력한 원금 통화 |
+| `profit`·`returnRate` | **KRW 기준** |
+| `fxRate`·`fxRateDate` | 해외 종목이면 원금 통화와 관계없이 있다 |
+
+국내 종목은 모두 KRW이고 `balanceKrw`가 없다.
+
+**요약**: `principal`(입력 통화), `principalKrw`(신설 — 원금 통화가 KRW가 아니면, 첫 매수일 매매기준율로 평가), `profit`·`returnRate`
+(KRW 기준). 화면의 "… 기준"은 KRW다.
+
+**202 환율 판정**: 원금 통화 ≠ 종목 통화가 아니라 **종목 통화 ≠ KRW**이면 환율 커버리지를 본다 — 달러 원금·미국 종목도 USD 환율이
+필요하다. 환전 정보(`exchange`)는 원화 원금일 때만 있다.
+
+## `GET /api/stocks/simulation/series` — KRW 기준 (FR-068) — 반복 2026-10-03 #4
+
+- 잔고·수익률 시계열은 KRW 기준이다 — 표 마지막 행·보드와 같은 계산(005 SC-032). 해외 종목의 잔고 점은 표의 `balanceKrw`다
+- `basisCurrency`(신설, 항상 `"KRW"`) — 시계열의 기준 통화. `principalCurrency`는 입력한 원금 통화 그대로다. 차트 범례와 이력 비교는
+  `basisCurrency`로 기준을 말한다 — 원금 통화로 말하면 달러 원금 실행의 KRW 값을 달러로 읽고, 원금 통화가 다른 이력끼리 "기준이
+  다르다"는 틀린 경고가 나온다
+
