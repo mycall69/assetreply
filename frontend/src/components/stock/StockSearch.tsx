@@ -234,9 +234,11 @@ export function StockSearch({
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActive((i) => Math.max(i - 1, 0));
-    } else if (e.key === "Enter" && active >= 0 && active < options.length) {
+    } else if (e.key === "Enter") {
+      // 006 FR-056 — 고른 항목이 없으면 **맨 위 결과**(국내·미국 첫 줄, 없으면 일본 첫 줄)다. 아무 반응이
+      // 없으면 사용자는 검색이 멈춘 것으로 읽는다.
       e.preventDefault();
-      choose(options[active]);
+      choose(options[active >= 0 && active < options.length ? active : 0]);
     }
   };
 

@@ -57,6 +57,11 @@ def row_json(converted: ConvertedRow) -> Json:
         body["dividendPerShare"] = str(row.dividend_per_share)
     if row.dividend_yield is not None:
         body["dividendYield"] = str(row.dividend_yield)
+    # 006 FR-059 — 같은 규약이다. 해당이 없으면 키를 두지 않는다(세금 0과 세금 없음을 구별한다).
+    if row.dividend_tax is not None:
+        body["dividendTax"] = str(row.dividend_tax)
+    if row.trade_fee is not None:
+        body["tradeFee"] = str(row.trade_fee)
     # FR-041c — 그 행의 평가 환산에 쓴 환율과 **실제로 쓴 날짜**. 기준일과 다를 수 있다.
     if converted.fx_rate is not None and converted.fx_rate_date is not None:
         body["fxRate"] = str(converted.fx_rate)
@@ -139,7 +144,8 @@ async def get_simulation(
             "principalCurrency": principal_currency,
             "reinvest": reinvest,
             "tradeFeeRate": str(settings.trade_fee_rate),
-            "dividendTaxRate": str(settings.dividend_tax_rate),
+            # 006 FR-055 — 그 종목에 **적용한** 세율(국내 또는 해외).
+            "dividendTaxRate": str(prepared.dividend_tax_rate),
         },
         "summary": summary_json(result, amount),
         **({"exchange": {

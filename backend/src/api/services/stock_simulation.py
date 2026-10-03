@@ -88,6 +88,10 @@ class SimulationResult:
 #: 원금으로 고를 수 있는 통화 (005 FR-003). 006 FR-050d — **EUR을 뺀다.** 지원 시장(국내·미국·
 #: 일본) 중 유로로 거래되는 곳이 없어 어느 종목과도 조합이 되지 않는다.
 PRINCIPAL_CURRENCIES = ("KRW", "USD", "JPY")
+
+# : 재투자 매수는 배당락일 뒤 이 번째 거래일의 시가로 한다 (006 FR-058, 사용자 결정 2026-10-03).
+# 시뮬레이터는 : 이 값을 매개변수로 받는다 — 참조 구현 대조는 0(당일)으로 돌린다(research R6-22).
+REINVEST_LAG_TRADING_DAYS = 2
 #: 형식으로 받아들이는 통화. EUR은 알지만 고를 수 없다 — 005 이력의 유로 원금 항목은 "모르는
 #: 통화"가 아니라 "막힌 조합"으로 답해야 사용자가 할 일을 안다(FR-050c).
 _KNOWN_CURRENCIES = ("KRW", "USD", "JPY", "EUR")
@@ -210,7 +214,8 @@ async def run_simulation(
         [SplitOn(s.effective_date, s.numerator, s.denominator) for s in split_rows],
         Condition(
             start=start, principal=working_principal, currency=currency,
-            reinvest=reinvest, fee_rate=fee_rate, tax_rate=tax_rate),
+            reinvest=reinvest, fee_rate=fee_rate, tax_rate=tax_rate,
+            reinvest_lag_days=REINVEST_LAG_TRADING_DAYS),
     )
     rows = outcome.rows
 
@@ -273,6 +278,12 @@ def _convert(
         return_rate=row.return_rate,
         dividend_per_share=row.dividend_per_share,
         dividend_yield=row.dividend_yield,
+        # 006 FR-059 — 세금·수수료도 **같은 행의 같은 환율**로 바꾼다. 따로 환산하면 같은 행의
+        # 예수금과 어긋난다.
+        dividend_tax=(to_principal(row.dividend_tax, rate, principal_currency)
+                      if row.dividend_tax is not None else None),
+        trade_fee=(to_principal(row.trade_fee, rate, principal_currency)
+                   if row.trade_fee is not None else None),
     )
     # 수익률은 환산 후 금액으로 다시 낸다 — 환율 변동이 수익률에 들어가야 한다.
     rate_value = (
@@ -310,6 +321,8 @@ class Prepared:
     stock: Stock
     settings: StockSettings
     result: SimulationResult
+    #: 그 종목에 적용한 배당 소득세 — 국내 또는 해외 (006 FR-055). 응답의 조건에 싣는다.
+    dividend_tax_rate: Decimal
 
 
 async def require_stock(session: AsyncSession, market: str, symbol: str) -> Stock:
@@ -401,6 +414,8 @@ async def prepare(
     # 계산하는 곳에서도 한 번 더 본다 — 라우트가 빠뜨려도 막힌 조합이 계산되지 않는다(FR-051).
     check_principal_currency(principal_currency, stock.currency)
     settings = await get_settings(session)
+    # 006 FR-055 — 종목의 시장으로 국내·해외 세율을 고른다.
+    tax_rate = settings.dividend_tax_rate_for(stock.market)
 
     # 원금 통화와 종목 통화가 같으면 환전이 없다 (FR-023).
     lookup = None
@@ -413,8 +428,8 @@ async def prepare(
         session, int(stock.id),
         start=start, end=end, principal=principal,
         currency=stock.currency, reinvest=reinvest,
-        fee_rate=settings.trade_fee_rate, tax_rate=settings.dividend_tax_rate,
+        fee_rate=settings.trade_fee_rate, tax_rate=tax_rate,
         principal_currency=principal_currency,
         lookup=lookup, spread=spread)
 
-    return Prepared(stock=stock, settings=settings, result=result)
+    return Prepared(stock=stock, settings=settings, result=result, dividend_tax_rate=tax_rate)

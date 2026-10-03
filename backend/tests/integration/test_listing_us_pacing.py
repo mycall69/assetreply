@@ -26,6 +26,7 @@ from src.ingestion.kiwoom.client import KiwoomClient
 from src.worker.listing_queue import ListingQueue
 from src.worker.listing_worker import listing_worker_loop
 from tests.contract.test_kiwoom_client import KR, TOKEN, TOKEN_OK, US, Resp, Session
+from tests.contract.test_kiwoom_client import NOW as KIWOOM_NOW
 from tests.integration.listing_support import (
     APPLE,
     KOSPI_ROWS,
@@ -69,7 +70,11 @@ def sleeps(monkeypatch: pytest.MonkeyPatch) -> list[float]:
 
 
 def kiwoom(session: Session) -> KiwoomClient:
-    return KiwoomClient(listing_settings(), session=session)  # type: ignore[arg-type]
+    # 시계를 고정한다 — `TOKEN_OK`의 만료가 2026-10-03 12:00 KST로 박혀 있어, 실제 시계를 쓰면 그
+    # 10분 전부터 토큰을 매번 새로 받아 "토큰은 한 번" 검사가 날짜에 따라 깨졌다(2026-10-03 11:50
+    # KST 이후, 사용자 승인으로 고침).
+    return KiwoomClient(listing_settings(), session=session,  # type: ignore[arg-type]
+                        now=lambda: KIWOOM_NOW)
 
 
 class Test쪽_사이_간격:

@@ -69,6 +69,17 @@ export function formatPercent(value: DecimalString, digits = 2): string {
   return `${sign}${trimTo(scaled, digits)}%`;
 }
 
+/**
+ * 주당 배당금 — **소수 3자리**(006 FR-057, research R6-24). 종목 통화 값이라 원금 통화 규칙(`formatMoney`)을
+ * 쓰지 않는다 — 원화 원금에서 달러 배당 `1.823`이 `1`로 보였다. 반올림하지 않고 3자리에서 자른다(서버는 6자리).
+ */
+export function formatDividend(value: DecimalString): string {
+  const negative = value.trimStart().startsWith("-");
+  const [whole = "0", fraction = ""] = value.replace("-", "").split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${negative ? "-" : ""}${grouped}.${(fraction + "000").slice(0, 3)}`;
+}
+
 /** 배당율처럼 부호가 의미 없는 비율. 부호를 붙이지 않는다. */
 export function formatYield(value: DecimalString, digits = 2): string {
   return `${trimTo(shiftDecimal(value, 2), digits)}%`;

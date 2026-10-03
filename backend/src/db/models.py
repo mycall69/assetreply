@@ -429,7 +429,12 @@ class StockSetting(Base):
 
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, default=1)
     trade_fee_rate: Mapped[Decimal] = mapped_column(SPREAD)
+    # : **국내** 배당 소득세(시장 KRX). 006 FR-055 이전에는 유일한 세율이었다 — 값과 이름을 그대로
+    # 둔다.
     dividend_tax_rate: Mapped[Decimal] = mapped_column(SPREAD)
+    #: 해외 배당 소득세(KRX 밖, 006 FR-055). 기본 15%.
+    dividend_tax_rate_foreign: Mapped[Decimal] = mapped_column(
+        SPREAD, server_default=text("0.150000"))
     updated_at: Mapped[dt.datetime] = mapped_column(
         TS, server_default=func.now(), onupdate=func.now())
 

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 주식 수수료·세율 설정 (T065) — 005 FR-015, FR-016.
+ * 주식 수수료·세율 설정 (T065) — 005 FR-015, FR-016, 006 FR-055(배당 소득세 국내·해외).
  *
  * 화면은 **백분율**로 받고 계약은 **비율**로 받는다. 변환을 이 파일 한 곳에 둔다 —
  * 흩뿌리면 한 군데만 틀려도 값이 100배 어긋나는데, 숫자가 그럴듯해 보인다.
@@ -15,7 +15,8 @@ import type { DecimalString, StockSettings } from "@/lib/types";
 
 export interface StockSettingsChange {
   tradeFeeRate: DecimalString;
-  dividendTaxRate: DecimalString;
+  dividendTaxRateDomestic: DecimalString;
+  dividendTaxRateForeign: DecimalString;
 }
 
 /** 비율(0.000150) → 백분율 표시(0.015). 문자열 조작이라 정밀도를 잃지 않는다. */
@@ -41,18 +42,22 @@ export function StockSettingsForm({
   onSave: (change: StockSettingsChange) => void;
 }) {
   const [fee, setFee] = useState(toPercent(value.tradeFeeRate));
-  const [tax, setTax] = useState(toPercent(value.dividendTaxRate));
+  // 006 FR-055 — 국내(KRX)와 해외(그 밖)를 따로 받는다. 해외 종목에 국내 세율을 쓰면 세후 배당이 조용히 줄어든다.
+  const [domesticTax, setDomesticTax] = useState(toPercent(value.dividendTaxRateDomestic));
+  const [foreignTax, setForeignTax] = useState(toPercent(value.dividendTaxRateForeign));
   const [error, setError] = useState<string | null>(null);
 
   const submit = () => {
     const tradeFeeRate = toRate(fee);
-    const dividendTaxRate = toRate(tax);
-    if (tradeFeeRate === null || dividendTaxRate === null) {
+    const dividendTaxRateDomestic = toRate(domesticTax);
+    const dividendTaxRateForeign = toRate(foreignTax);
+    if (tradeFeeRate === null || dividendTaxRateDomestic === null
+      || dividendTaxRateForeign === null) {
       setError("0 이상 100 미만의 숫자를 입력하세요.");
       return;
     }
     setError(null);
-    onSave({ tradeFeeRate, dividendTaxRate });
+    onSave({ tradeFeeRate, dividendTaxRateDomestic, dividendTaxRateForeign });
   };
 
   return (
@@ -77,13 +82,24 @@ export function StockSettingsForm({
           />
         </label>
         <label className="text-sm">
-          <span className="mb-1 block text-gray-500">배당 소득세 (%)</span>
+          <span className="mb-1 block text-gray-500">배당 소득세 · 국내 (%)</span>
           <input
             type="text"
             inputMode="decimal"
-            aria-label="배당 소득세"
-            value={tax}
-            onChange={(e) => setTax(e.target.value)}
+            aria-label="배당 소득세 (국내)"
+            value={domesticTax}
+            onChange={(e) => setDomesticTax(e.target.value)}
+            className="w-28 rounded border border-gray-300 px-2 py-1.5 text-right tabular-nums"
+          />
+        </label>
+        <label className="text-sm">
+          <span className="mb-1 block text-gray-500">배당 소득세 · 해외 (%)</span>
+          <input
+            type="text"
+            inputMode="decimal"
+            aria-label="배당 소득세 (해외)"
+            value={foreignTax}
+            onChange={(e) => setForeignTax(e.target.value)}
             className="w-28 rounded border border-gray-300 px-2 py-1.5 text-right tabular-nums"
           />
         </label>

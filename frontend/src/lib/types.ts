@@ -396,7 +396,8 @@ export interface SelectionResponse {
 }
 
 /** 표 행의 종류 (FR-025). 월 첫 거래일 스냅샷과 배당락일 둘뿐이다. */
-export type SimulationRowKind = "month_first" | "dividend";
+/** 006 FR-058 — `reinvest`는 배당락 뒤 2번째 거래일의 재투자 매수 행이다. */
+export type SimulationRowKind = "month_first" | "dividend" | "reinvest";
 
 /**
  * 성과 표 한 행.
@@ -422,6 +423,10 @@ export interface SimulationRow {
   returnRate: DecimalString;
   fxRate?: DecimalString;
   fxRateDate?: string;
+  /** 배당락 행의 배당 소득세(원금 통화). 해당 없으면 키가 없다 — 006 FR-059. */
+  dividendTax?: DecimalString;
+  /** 매수가 있는 행의 매매 수수료(원금 통화). 해당 없으면 키가 없다 — 006 FR-059. */
+  tradeFee?: DecimalString;
 }
 
 /**
@@ -554,10 +559,11 @@ export interface SimulationSeriesResponse {
   gaps: SeriesGap[];
 }
 
-/** 수수료·세율 (FR-015, FR-016). 통화별이 아니라 전역 하나다. */
+/** 수수료·세율 (FR-015, FR-016). 배당 소득세는 국내·해외 두 값이다(006 FR-055). */
 export interface StockSettings {
   tradeFeeRate: DecimalString;
-  dividendTaxRate: DecimalString;
+  dividendTaxRateDomestic: DecimalString;
+  dividendTaxRateForeign: DecimalString;
   isDefault: boolean;
 }
 

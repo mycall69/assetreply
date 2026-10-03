@@ -60,6 +60,10 @@ class Condition:
     reinvest: bool
     fee_rate: Decimal
     tax_rate: Decimal
+    # : 재투자 매수를 배당락일 뒤 몇 번째 거래일에 하는가 (006 FR-058). 0이면 배당락일 당일이다(005
+    # FR-008) — : 참조 구현 대조가 그것을 쓴다. 화면은 2다. **기본값을 두지 않는다** — 빠뜨리면
+    # 조용히 당일 재투자가 된다.
+    reinvest_lag_days: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,10 +72,13 @@ class Row:
 
     `dividend_per_share`·`dividend_yield`는 **배당락 행에만 있다**(FR-026). 월 행에
     0을 넣으면 "배당이 0원"과 "배당이 없음"을 구별할 수 없다.
+
+    006 FR-059 — `dividend_tax`(배당락 행: 세전 배당 × 세율)와 `trade_fee`(매수가 있는 행: 수량 ×
+    시가 × 수수료율)도 같은 규약이다. 해당이 없으면 `None`이다.
     """
 
     date: dt.date
-    kind: str  # "month_first" | "dividend"
+    kind: str  # "month_first" | "dividend" | "reinvest"(006 FR-058)
     open_price: Decimal
     bought_shares: int
     held_shares: int
@@ -82,6 +89,13 @@ class Row:
     return_rate: Decimal
     dividend_per_share: Decimal | None = None
     dividend_yield: Decimal | None = None
+    dividend_tax: Decimal | None = None
+    trade_fee: Decimal | None = None
+
+
+def _fee(bought: int, price: Decimal, fee_rate: Decimal) -> Decimal | None:
+    """그 매수의 수수료. 사지 않았으면 `None`이다 — "수수료 0"과 "매수 없음"을 구별한다."""
+    return Decimal(bought) * price * fee_rate if bought > 0 else None
 
 
 def _month_first_dates(bars: list[DayBar], start: dt.date) -> set[dt.date]:
@@ -158,8 +172,12 @@ def simulate_detailed(
     cash = _ZERO
     invested = False
     rows: list[Row] = []
+    # 006 FR-058 — 재투자 매수가 걸린 거래일의 순번. **거래일로 센다** — 달력일로 세면 휴장일에
+    # 매수가 걸려 시가가 없고 매수가 조용히 사라진다. 기간 밖이면 걸지 않는다(예수금으로 남는다).
+    reinvest_due: set[int] = set()
+    lag = condition.reinvest_lag_days
 
-    for bar in ordered:
+    for index, bar in enumerate(ordered):
         if bar.date < condition.start.replace(day=1):
             continue
 
@@ -189,30 +207,49 @@ def simulate_detailed(
                 held += bought_initial
                 cash -= spend_for(bought_initial, bar.open_price, condition.fee_rate)
 
-        # (2) 배당 — **분할은 반영하고 그날의 매수는 반영하지 않은** 보유 수다.
+        # (2) 배당 — **분할은 반영하고 그날의 매수는 반영하지 않은** 보유 수다. 세후 배당은
+        # 배당락일에 예수금에 들어온다(006 FR-058). 세금은 행에 남긴다(006 FR-059).
         per_share = by_dividend.get(bar.date)
         if per_share is not None and per_share > 0 and invested:
             net = (Decimal(held_at_open) * per_share
                    * (Decimal("1") - condition.tax_rate))
+            tax = Decimal(held_at_open) * per_share * condition.tax_rate
             cash += net
 
             bought_reinvest = 0
-            if condition.reinvest:
-                # 예수금 **전액**으로 그날 시가에 정수 매수한다 (FR-008).
+            if condition.reinvest and lag == 0:
+                # 예수금 **전액**으로 그날 시가에 정수 매수한다 (005 FR-008 — 지연 0).
                 bought_reinvest = buy_quantity(
                     cash, bar.open_price, condition.fee_rate)
                 if bought_reinvest > 0:
                     held += bought_reinvest
                     cash -= spend_for(
                         bought_reinvest, bar.open_price, condition.fee_rate)
+            elif condition.reinvest and index + lag < len(ordered):
+                reinvest_due.add(index + lag)
 
             rows.append(_row(
                 bar, "dividend", bought_reinvest, held, cash, condition,
-                dividend_per_share=per_share))
+                dividend_per_share=per_share, dividend_tax=tax,
+                trade_fee=_fee(bought_reinvest, bar.open_price, condition.fee_rate)))
 
-        # (3) 월 첫 거래일 스냅샷 (FR-025).
+        # (3) 걸어 둔 재투자 — 배당락일 뒤 `lag`번째 거래일의 시가로 예수금 **전액**을 쓴다(006
+        # FR-058). 월 스냅샷보다 먼저 한다 — 그날의 월 행이 재투자 뒤의 보유 수를 보이도록.
+        if index in reinvest_due:
+            reinvest_due.discard(index)
+            bought_later = buy_quantity(cash, bar.open_price, condition.fee_rate)
+            if bought_later > 0:
+                held += bought_later
+                cash -= spend_for(bought_later, bar.open_price, condition.fee_rate)
+                rows.append(_row(
+                    bar, "reinvest", bought_later, held, cash, condition,
+                    trade_fee=_fee(bought_later, bar.open_price, condition.fee_rate)))
+
+        # (4) 월 첫 거래일 스냅샷 (FR-025). 초기 매수가 있었으면 그 수수료를 남긴다(006 FR-059).
         if is_month_first:
-            rows.append(_row(bar, "month_first", bought_initial, held, cash, condition))
+            rows.append(_row(
+                bar, "month_first", bought_initial, held, cash, condition,
+                trade_fee=_fee(bought_initial, bar.open_price, condition.fee_rate)))
 
     rows.sort(key=lambda r: r.date, reverse=True)
 
@@ -233,6 +270,8 @@ def _row(
     condition: Condition,
     *,
     dividend_per_share: Decimal | None = None,
+    dividend_tax: Decimal | None = None,
+    trade_fee: Decimal | None = None,
 ) -> Row:
     """한 행을 만든다.
 
@@ -262,4 +301,6 @@ def _row(
         return_rate=rate,
         dividend_per_share=dividend_per_share,
         dividend_yield=yield_rate,
+        dividend_tax=dividend_tax,
+        trade_fee=trade_fee,
     )

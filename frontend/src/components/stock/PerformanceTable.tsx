@@ -13,13 +13,23 @@
  */
 
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
-import { formatMoney, formatPercent, formatRate, formatYield } from "@/lib/format";
+import {
+  formatDividend,
+  formatMoney,
+  formatPercent,
+  formatRate,
+  formatYield,
+} from "@/lib/format";
 import type { SimulationRow, SimulationSummary } from "@/lib/types";
 
+// 006 FR-059 — 배당 소득세(배당락 행)와 매매 수수료(매수 행). 원금 통화 금액이다.
 const COLUMNS = [
-  "날짜", "시작가", "주당 배당금", "배당율", "구매 주식수", "보유 주식",
-  "예수금", "투자금", "잔고", "투자 수익", "수익율",
+  "날짜", "시작가", "주당 배당금", "배당율", "배당 소득세", "구매 주식수", "매매 수수료",
+  "보유 주식", "예수금", "투자금", "잔고", "투자 수익", "수익율",
 ] as const;
+
+/** 원금 통화 금액 열 — 외화 종목이면 머리글에 원금 통화를 붙인다(FR-041). */
+const PRINCIPAL_COLUMNS = ["배당 소득세", "매매 수수료", "예수금", "투자금", "잔고", "투자 수익"];
 
 /** 외화 종목에만 붙는 열 (FR-041c). */
 const FX_COLUMN = "환율";
@@ -67,7 +77,7 @@ export function PerformanceTable({
     if (column === "시작가" || column === "주당 배당금") {
       return `${column} (${stockCurrency})`;
     }
-    if (["예수금", "투자금", "잔고", "투자 수익"].includes(column)) {
+    if (PRINCIPAL_COLUMNS.includes(column)) {
       return `${column} (${currency})`;
     }
     return column;
@@ -120,7 +130,9 @@ export function PerformanceTable({
                 key={`${row.date}:${row.kind}`}
                 data-kind={row.kind}
                 className={`border-b border-gray-100 last:border-0 ${
-                  row.kind === "dividend" ? "bg-amber-50/40" : ""
+                  row.kind === "dividend"
+                    ? "bg-amber-50/40"
+                    : row.kind === "reinvest" ? "bg-emerald-50/40" : ""
                 }`}
               >
                 <td className="whitespace-nowrap px-3 py-2 tabular-nums">
@@ -130,14 +142,21 @@ export function PerformanceTable({
                       ◆
                     </span>
                   )}
+                  {row.kind === "reinvest" && (
+                    // 006 FR-058 — 배당락 뒤 2번째 거래일의 재투자 매수. 색만으로 전달하지 않는다.
+                    <span title="배당 재투자" className="ml-1 text-xs text-emerald-700">
+                      ⟳ 재투자
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {formatRate(row.openPrice)}
                 </td>
                 {/* 월 행은 키 자체가 없다 — 빈 칸이 "배당 없음"을 뜻한다. */}
                 <td className="px-3 py-2 text-right tabular-nums">
+                  {/* 006 FR-057 — 종목 통화 값이라 원금 통화 규칙을 쓰지 않는다. 소수 3자리. */}
                   {row.dividendPerShare !== undefined
-                    ? formatMoney(row.dividendPerShare, currency)
+                    ? formatDividend(row.dividendPerShare)
                     : ""}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
@@ -146,7 +165,13 @@ export function PerformanceTable({
                     : ""}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
+                  {row.dividendTax !== undefined ? formatMoney(row.dividendTax, currency) : ""}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">
                   {row.boughtShares}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums">
+                  {row.tradeFee !== undefined ? formatMoney(row.tradeFee, currency) : ""}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {row.heldShares}

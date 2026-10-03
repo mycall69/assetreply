@@ -50,11 +50,12 @@ def _rate(raw: object, field: str) -> Decimal:
 async def read_settings(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> Json:
-    """현재 수수료·세율 (FR-015, FR-016)."""
+    """현재 수수료·세율 (FR-015, FR-016). 배당 소득세는 국내·해외 두 값이다(006 FR-055)."""
     settings = await get_settings(session)
     return {
         "tradeFeeRate": str(settings.trade_fee_rate),
-        "dividendTaxRate": str(settings.dividend_tax_rate),
+        "dividendTaxRateDomestic": str(settings.dividend_tax_rate_domestic),
+        "dividendTaxRateForeign": str(settings.dividend_tax_rate_foreign),
         # 002 FR-033과 같은 규약 — 기본값에서 벗어났음을 사용자가 알아야 한다.
         "isDefault": settings.is_default,
     }
@@ -66,8 +67,11 @@ async def update_settings(
     payload: Annotated[Json, Body()],
 ) -> Json:
     """수수료·세율을 저장한다."""
+    # 세 값을 모두 받는다 — 빠진 값을 기본값으로 채우면 사용자가 넣지 않은 값으로 계산된다.
     fee = _rate(payload.get("tradeFeeRate"), "매매 수수료")
-    tax = _rate(payload.get("dividendTaxRate"), "배당 소득세")
-    await save_settings(session, trade_fee_rate=fee, dividend_tax_rate=tax)
+    domestic = _rate(payload.get("dividendTaxRateDomestic"), "배당 소득세(국내)")
+    foreign = _rate(payload.get("dividendTaxRateForeign"), "배당 소득세(해외)")
+    await save_settings(session, trade_fee_rate=fee, dividend_tax_rate_domestic=domestic,
+                        dividend_tax_rate_foreign=foreign)
     await session.commit()
     return await read_settings(session)
