@@ -22,12 +22,18 @@ const nextConfig: NextConfig = {
    * - 허용 출처 목록을 환경마다 관리하지 않아도 된다
    * - `EventSource`(SSE)는 CORS 설정이 까다롭고 커스텀 헤더를 붙일 수 없다.
    *   동일 출처면 이 문제가 사라진다 (contracts/sse-progress.md)
+   *
+   * **`/api/*` 전체를 넘긴다.** 자산군마다 접두사를 더하는 구조였을 때 005가 `/api/stocks`를
+   * 빠뜨려, 주식 화면의 모든 요청이 Next.js의 404("Not Found")가 되었다(버그
+   * `stock-search-not-found`). 프론트엔드에는 API 라우트 핸들러가 없고, 배열로 돌려준 rewrite는
+   * 화면·정적 파일을 먼저 확인한 뒤(afterFiles) 적용되어 화면 경로와 부딪히지 않는다.
+   * `tests/nextConfigProxy.test.ts`가 소스가 쓰는 모든 `/api` 접두사가 넘어가는지 검사한다.
    */
   async rewrites() {
     return [
       {
-        source: "/api/fx/:path*",
-        destination: `${backendUrl}/api/fx/:path*`,
+        source: "/api/:path*",
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },
