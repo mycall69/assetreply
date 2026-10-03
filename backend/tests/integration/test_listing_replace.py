@@ -11,8 +11,8 @@ import hashlib
 
 import pytest
 from sqlalchemy import func, select
-from src.api.services.listing_refresh import AuthBlocker, refresh_unit
 
+from src.api.services.listing_refresh import AuthBlocker, refresh_unit
 from src.db.models import (
     StockListing,
     StockListingRaw,

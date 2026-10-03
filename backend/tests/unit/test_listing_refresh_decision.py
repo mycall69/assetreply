@@ -8,6 +8,7 @@ from __future__ import annotations
 import datetime as dt
 
 import pytest
+
 from src.api.services.listing_refresh import (
     RefreshRecord,
     kst_date,

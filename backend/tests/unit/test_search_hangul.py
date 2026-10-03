@@ -8,6 +8,7 @@ from __future__ import annotations
 import unicodedata
 
 import pytest
+
 from src.search.hangul import (
     CHOSEONG,
     char_matches,

@@ -12,9 +12,9 @@ import json
 from pathlib import Path
 
 import pytest
-from src.ingestion.kiwoom.parse import ListingRow, parse_domestic, parse_listing
 
 from src.ingestion.kiwoom.errors import KiwoomInvalidResponse
+from src.ingestion.kiwoom.parse import ListingRow, parse_domestic, parse_listing
 
 FIXTURES = Path(__file__).resolve().parent / "fixtures" / "kiwoom"
 

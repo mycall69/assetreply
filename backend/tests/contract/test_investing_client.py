@@ -19,14 +19,14 @@ from typing import Self
 
 import aiohttp
 import pytest
+
+from src.config.settings import Settings, load_settings
 from src.ingestion.investing.client import InvestingClient
 from src.ingestion.investing.errors import (
     InvestingBlocked,
     InvestingFormatError,
     InvestingNetworkError,
 )
-
-from src.config.settings import Settings, load_settings
 
 FIXTURES = Path(__file__).parent / "fixtures" / "crypto"
 D = dt.date.fromisoformat

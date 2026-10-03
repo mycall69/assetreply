@@ -20,6 +20,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+
 from src.ingestion.investing.errors import InvestingFormatError
 from src.ingestion.investing.parse import (
     ROW_LIMIT_GUARD,
