@@ -83,11 +83,11 @@
 
 ```text
 specs/006-stock-simulation-enhancements/
-├── spec.md              # 명세 (FR 68, SC 24 — 구현 단계 반영으로 FR-047a·FR-065·FR-034·SC-007b, 반복 2026-10-03으로 FR-045a·FR-053·SC-017~019 추가)
+├── spec.md              # 명세 (FR 69, SC 25 — 구현 단계 반영으로 FR-047a·FR-065·FR-034·SC-007b, 반복 2026-10-03으로 FR-045a·FR-053·SC-017~019, 반복 2026-10-03 #2로 FR-054·SC-020 추가)
 ├── plan.md              # 이 파일
 ├── research.md          # R6-1 ~ R6-17
 ├── data-model.md        # 신규 테이블 5개, 설정, 원금 통화
-├── quickstart.md        # 검증 시나리오 26개(24~26은 반복 2026-10-03)
+├── quickstart.md        # 검증 시나리오 27개(24~26은 반복 2026-10-03, 27은 반복 2026-10-03 #2)
 ├── contracts/
 │   ├── rest-api.md      # 검색 2종, 종목 등록, 시뮬레이션 변경점
 │   └── ui-wireframes.md # W1 시작일 ~ W4 수집 중
@@ -157,12 +157,14 @@ frontend/
 │   ├── lib/principalFormat.ts       # 신규 — 원금 쉼표 표시·쉼표 없는 값 (T115, FR-053)
 │   ├── lib/displayCode.ts           # 신규 — 시세 식별자 → 표시용 코드 (T116, FR-025)
 │   ├── lib/stockProgressStream.ts   # 변경 — 스냅샷 `daysDone`·`daysTotal` (T118)
+│   ├── lib/format.ts                # 변경 — 통화 기호 `currencySymbol`·`formatMoneyWithSymbol` (T123, FR-054)
 │   ├── components/stock/
 │   │   ├── StartDateInput.tsx       # 신규 — W1, W1a
 │   │   ├── StockSearch.tsx          # 변경 — 두 영역, 목록 상태, 잘림, W2a. 종목명(코드) (T116)
 │   │   ├── SimulationForm.tsx       # 변경 — 원금 통화 제한 W3. 원금 쉼표 (T115)
 │   │   ├── SimulationHistory.tsx    # 변경 — 막힌 조합 항목 표시
-│   │   └── CollectingNotice.tsx     # 변경 — 환율 줄 W4, W4a. 받은 날 / 받을 날 (T118)
+│   │   ├── CollectingNotice.tsx     # 변경 — 환율 줄 W4, W4a. 받은 날 / 받을 날 (T118)
+│   │   └── PerformanceBoard.tsx     # 변경 — 투자 원금·투자 수익에 통화 기호 W5 (T123, FR-054)
 │   ├── stores/stockStore.ts         # 변경 — 시작일 기본값, 종목 등록, 환율 대기 재요청
 │   └── lib/types.ts                 # 변경 — 검색 응답, 202 fx, 오류 본문
 └── tests/                           # 각 변경에 대응하는 테스트
@@ -241,6 +243,7 @@ frontend/
 | FR-051 (막힌 조합은 계산되지 않음) | research R6-11 |
 | FR-052 (같은 통화는 환전 없음) | 005 FR-023 유지, quickstart 20 |
 | FR-053, SC-018 (원금 쉼표 — 표시에만, 반복 2026-10-03) | research R6-20, `frontend/src/lib/principalFormat.ts`, `SimulationForm.tsx`, ui-wireframes W3, tasks T111·T115, quickstart 24 |
+| FR-054, SC-020 (성과 보드 통화 기호 — 반복 2026-10-03 #2) | research R6-21, `frontend/src/lib/format.ts` `currencySymbol`·`formatMoneyWithSymbol`, `PerformanceBoard.tsx`, ui-wireframes W5, tasks T122·T123, quickstart 27 |
 | FR-060, SC-014 (비밀은 설정) | data-model 7절, research R6-1 토큰 메모리, R6-14 정적 검사, quickstart 21 |
 | FR-061 (인증 응답 보관 안 함, 원본 보존) | research R6-1·R6-13, data-model 4·4a절 "헤더를 담지 않는다"·"지우지 않는다", quickstart 21 |
 | FR-062 (인증 실패는 갱신만 실패) | research R6-3, data-model 2절 `auth_blocked`, quickstart 9 |
