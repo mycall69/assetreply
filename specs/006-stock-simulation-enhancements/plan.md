@@ -133,6 +133,7 @@ backend/
 │   ├── worker/listing_queue.py      # 신규 — 갱신 요청 큐(단위로 중복 거르기). 주식 큐와 섞지 않는다
 │   ├── worker/stock_worker.py       # 변경 — 출처가 심볼을 모르면 작업 사유에 표지 (FR-032, R6-6), 출처를 연다 (T096)
 │   ├── ingestion/yahoo/errors.py    # 변경 — "구간에 시세 없음"(HTTP 400)은 빈 구간 (T097)
+│   ├── ingestion/yahoo/parse.py     # 변경 — 분할 비율이 실수(5.0)로 온다. 양의 정수만 받는다 (T103, 결함 5 결정 대기)
 │   ├── db/models.py                 # 변경 — 신규 테이블 5개
 │   ├── db/migrations/versions/      # 신규 마이그레이션 1개
 │   └── config/settings.py           # 변경 — 키움·목록 설정 (data-model 7절)
@@ -220,7 +221,7 @@ frontend/
 | FR-046 (다른 통화 수집 대기, 화면이 다시 요청) | research R6-10 한 번에 한 통화·"화면이 다시 요청하는 시점"·스트림 `busyWith`, contracts/rest-api `fx.state: waiting`·6a절, quickstart 18 |
 | FR-046a (실제로 실행되는 수집 경로) | research R6-10 "발견한 결함"·수집 표, `api/services/collection_gate.py`, contracts/rest-api 6a절(외환 202), quickstart 18 |
 | FR-047 (수집 실패 시 메우지 않음) | research R6-10, Constitution Check V |
-| FR-047a (수집 실패 뒤 자동으로 다시 요청하지 않음) | `frontend/src/stores/stockStore.ts`(실패 사유 표시), research R6-6(심볼 미확인은 다시 수집하지 않음), quickstart 실행 기록 |
+| FR-047a (수집 실패 뒤 자동으로 다시 요청하지 않음) | `frontend/src/stores/stockStore.ts`(실패 사유 표시, `watchFx`가 `GET /api/fx/jobs`로 끝난 환율 작업의 성패를 확인 — tasks T099·T100), research R6-6(심볼 미확인은 다시 수집하지 않음)·R6-10, quickstart 실행 기록 |
 | FR-050, SC-011 (원금 통화 제한) | research R6-11, contracts/rest-api `currency_pair_not_allowed`, quickstart 20 |
 | FR-050a (모든 경로에서 거절) | research R6-11 서버 한 함수, quickstart 20 `curl` |
 | FR-050b, SC-011a (통화를 몰래 바꾸지 않음) | research R6-11 화면, ui-wireframes W3, quickstart 20 |
@@ -233,7 +234,7 @@ frontend/
 | FR-062 (인증 실패는 갱신만 실패) | research R6-3, data-model 2절 `auth_blocked`, quickstart 9 |
 | FR-063 (한도·재시도 설정) | data-model 7절 |
 | FR-064 (이용 조건 확인) | research R6-15, Complexity Tracking |
-| FR-065 (목록 갱신 사건 기록) | research R6-14, `api/services/listing_refresh.py` `_event`, `test_no_secret_in_events` |
+| FR-065 (목록 갱신 사건 기록) | research R6-14, `api/services/listing_refresh.py` `_event`, `tests/integration/test_listing_events.py`(tasks T101 — 구현 뒤 보강) |
 | FR-070 (기록 갱신) | research R6-16, quickstart 22 |
 | SC-001 (0.5초) | research R6-5 성능·입력 대기 150ms, quickstart 3 |
 
@@ -243,6 +244,7 @@ frontend/
 |-----------|-------------|------------------------------|
 | **원칙 II — 키움 이용약관** | 국내·미국 한글·초성 검색에는 한글 종목명을 주는 목록이 필요하고, 사용자가 키움을 지정했다 | 약관 페이지가 로그인 뒤에 있어 설계 중에는 읽지 못했다. **사용자가 확인했다(2026-10-02).** 공식 고객용 API의 조회 기능을 개인 용도로 쓰며 목록을 재배포하지 않는다 — 저장소도 비공개다(사용자 확인 2026-10-02). 도구를 공개하거나 여럿에게 제공하면 다시 따진다(005의 Yahoo 판단과 같은 전제) |
 | **메모리 색인** — DB가 원본인데 사본을 프로세스에 둔다 | 초성·혼용 일치는 SQL `LIKE` 하나로 표현할 수 없고, DB 고유 문법은 이식성 규약에 걸린다(R6-5) | 매 검색마다 전 목록을 DB에서 읽는 방법은 SC-001(0.5초)을 위협한다. 색인은 단위별 기준 시각을 버전으로 들고 검색마다 확인하므로 **DB와 어긋난 채 머물지 않는다** |
-| **005 결함 수정이 이 기능에 섞인다** — 종목 등록(FR-030b), 시작 가능 날짜 판정(FR-005a) | 006의 검색이 고른 종목을 시뮬레이션까지 잇지 못하면 이 기능 전체가 무의미하다. 기본 시작일 2020-01-01이 휴일이라 005의 판정으로는 매번 거절된다 | 005로 돌아가 따로 고치면 006이 그 수정을 기다려야 하고, 같은 파일을 두 브랜치가 고친다. 결함과 근거는 research R6-17·R6-8에 따로 적어 추적할 수 있게 했다 |
+| **005·003 결함 수정이 이 기능에 섞인다** — 종목 등록(FR-030b), 시작 가능 날짜 판정(FR-005a), 그리고 T090에서 찾은 넷: 주식 워커가 출처를 열지 않음(T096), 상장 전 구간의 HTTP 400(T097), 테스트가 운영 수집 로그에 씀(T098), 분할 비율 실수(T103) | 006의 검색이 고른 종목을 시뮬레이션까지 잇지 못하면 이 기능 전체가 무의미하다. 기본 시작일 2020-01-01이 휴일이라 005의 판정으로는 매번 거절된다. T096·T097·T103은 실제 출처로 돌리면 시세 수집이 매번 실패하는 결함이라 SC-007a를 막는다 | 005로 돌아가 따로 고치면 006이 그 수정을 기다려야 하고, 같은 파일을 두 브랜치가 고친다. 결함과 근거는 research R6-17·R6-8, tasks T096~T098·T102·T103, quickstart 실행 기록에 따로 적어 추적할 수 있게 했다 |
 | **001의 `ensure_background_job`을 006에서 고친다** — 외환 화면의 동작이 바뀐다 | 외환 화면이 남긴 고아 점유가 006의 환율 수집을 막는다(FR-046a, analyze H2) | 006이 감지만 하고 안내하는 방법은 외환 화면의 결함을 남긴다 — 지금은 외환 화면의 자동 수집이 실제로 돌지 않는다. 고치면 그것도 함께 돈다. 바뀌는 것은 "작업과 점유를 누가 만드는가"와 외환 202 본문(`jobId`가 `null`일 수 있음, `state`·`busyWith` 추가)이다. 외환 화면의 프론트엔드는 두 필드를 읽지 않아 화면은 그대로다. 기존 외환 테스트가 옛 동작을 단정하면 함께 고친다(tasks T091, analyze N1) |
 | **원칙 III — 구현 뒤 실패한 테스트를 멈추고 먼저 보고하지 않았다**(진행 과정의 위반, analyze D2. **사용자 확인 2026-10-03**) | **경위**: 구현 뒤 실패한 테스트를 같은 흐름에서 고치고 커밋 메시지와 완료 보고에 사후로 적었다 — Phase 4 `test_fx_background_job` 3건(하루치만 보는 경로라 202가 나지 않음 — 테스트 전제 오류), Phase 5 `startDate` 1행(어제 경계 밖의 기대값 — 테스트 데이터 오류), Phase 6 `test_stock_search_local` 3건(국내 단위만 있다는 Phase 3의 전제 — 이전에 통과하던 테스트), T090 `test_logging_config` 2건(운영 로그 경로를 전제). 모두 구현이 아니라 테스트 쪽이 틀렸다 | **재발 방지**: 구현 뒤 테스트가 실패하면 원인이 테스트 쪽으로 확실해 보여도 **멈추고 실패 목록과 원인 판단을 먼저 보고**한 뒤 진행한다. 이전에 통과하던 테스트가 실패로 바뀐 경우도 같다(헌법 원칙 III) |
+| **원칙 III — 실패하는 테스트 없이 구현한 태스크가 있다**(진행 과정의 위반, analyze D1·C1) | **경위**: T036(목록 갱신 워커를 만들고 `lifespan`에 등록)은 그것을 덮는 테스트 태스크가 목록에 없었다 — 판정·교체 테스트가 모두 `refresh_unit`을 직접 불러, 워커 등록이 빠져도 통과한다. 구현 뒤 T094로 보강했다. FR-065(목록 갱신 사건 기록)도 구현(`listing_refresh._event`)이 먼저 있었고 T101로 보강했다. 두 보강 테스트는 처음부터 통과해 "먼저 실패함"의 기록이 없다 | **재발 방지**: "실행 주체"(워커 등록·`lifespan`·스케줄러·사건 기록처럼 다른 경로가 대신 불러 주지 않는 것)를 만드는 태스크에는, **그 주체를 거쳐야만 통과하는** 테스트 태스크를 짝지어 둔다. 내부 함수를 직접 부르는 테스트는 주체가 빠져도 통과한다 — 003·005가 겪은 "실행되지 않는 수집"과 같은 유형이다 |
