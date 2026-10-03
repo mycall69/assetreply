@@ -65,7 +65,9 @@ def make_client(session_factory, queue):  # type: ignore[no-untyped-def]
 
         app.dependency_overrides[get_session] = _session
         app.dependency_overrides[crypto_search.get_now] = lambda: now
-        app.dependency_overrides[crypto_search.get_crypto_list_settings] = crypto_settings
+        # 함수를 그대로 넘기면 FastAPI가 `**over`를 쿼리 매개변수로 읽는다
+        app.dependency_overrides[crypto_search.get_crypto_list_settings] = (
+            lambda: crypto_settings())
         app.dependency_overrides[crypto_search.get_crypto_list_queue] = lambda: queue
         app.dependency_overrides[crypto_list_progress.get_crypto_list_queue] = lambda: queue
         return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
@@ -109,12 +111,12 @@ class Test찾기:
         assert (top["symbol"], top["nameKo"]) == ("BNB", None)
 
     async def test_같은_심볼은_순위순으로_따로_보인다(self, session_factory, make_client) -> None:
-        """FR-004 — "max"를 치면 MAX 심볼 코인 다섯이 이름·순위로 구별된다(ui-wireframes C2의 실제
-        값)."""
+        """FR-004 — "max"를 치면 MAX 심볼 코인 다섯이 이름·순위로 구별된다. 순위는 픽스처(T001)의
+        값이다 — ui-wireframes C2의 예시는 계획 때 따로 잰 값이라 조금 다르다."""
         await seed_compact(session_factory)
         results = (await search(make_client, "max"))["results"][:5]
         assert [r["symbol"] for r in results] == ["MAX"] * 5
-        assert [r["rank"] for r in results] == [763, 1358, 2757, 3084, 5359]
+        assert [r["rank"] for r in results] == [764, 1340, 2758, 3085, 5403]
         assert len({r["coinId"] for r in results}) == 5
         assert results[0]["name"] == "MAX Exchange Token"
 
@@ -399,10 +401,10 @@ class Test앱_수명:
         self, session_factory, monkeypatch
     ) -> None:
         from fastapi.testclient import TestClient
-        from src.worker.crypto_list_queue import get_crypto_list_queue
 
         from src.api.routes import crypto_list_progress
         from src.ingestion.investing import client as investing_client
+        from src.worker.crypto_list_queue import get_crypto_list_queue
 
         real = investing_client.InvestingClient
         fake = _FakeSession()
