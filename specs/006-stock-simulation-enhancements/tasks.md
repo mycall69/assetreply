@@ -268,6 +268,8 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T110 `frontend/next.config.ts` — rewrite를 `/api/:path*` → 백엔드 하나로 바꾼다. 프론트엔드에는 API 라우트 핸들러가 없고, 배열 rewrite는 화면·정적 파일 뒤에(afterFiles) 적용되어 화면 경로와 부딪히지 않는다. 자산군마다 규칙을 더하는 구조를 없앤다. 고친 뒤 3030 경유로 검색이 200인지 확인한다
 - [X] T120 [P] `backend/tests/contract/test_stock_source_parse.py`·`backend/tests/unit/test_money.py` — **버그 `fractional-split-ratio`**(`.specify/bugs/fractional-split-ratio/`): 삼성물산(`028260.KS`) 2020-05-13 `0.985:1`이 T103의 "양의 정수만" 규칙에 걸려 그 날짜를 포함한 수집이 매번 실패했다. 실제 응답 픽스처(`chart_split_fractional.json`)의 분할을 `(2020-05-13, 197, 200)`으로 읽는지, 되살린 2020-05-08 시가가 정확히 `104500`·2020-05-12가 `102000`(호가 단위)인지, `2.5:1`→`5:2`·`4:2`→`2:1`처럼 기약 정수 쌍인지, 0·음수·숫자 아닌 값·`INT`를 넘는 기약 분수는 여전히 거절하는지, 보유 100주에 197:200 → 98주(버림)인지. 기존 "정수가 아닌 비율은 거절" 테스트는 "쓸 수 없는 비율은 거절"로 좁혔다 (FR-034, 005 FR-010·FR-010a)
 - [X] T121 `backend/src/ingestion/yahoo/parse.py` — 분할의 분자·분모를 `Decimal(str(값))`로 읽어 비율을 `Fraction`으로 **정확히** 나누고 기약 정수 쌍으로 담는다(반올림 없음). 0·음수·무한·숫자 아닌 값, `INT`(2,147,483,647)를 넘는 기약 분수는 `StockSourceUnavailable` (FR-034, 005 FR-010a, research R6-18)
+- [ ] T146 [P] `frontend/tests/StockSearchEnter.test.tsx`에 더한다 — **버그 `search-enter-ime`**(`.specify/bugs/search-enter-ime/`): 한글로 "삼성전자"를 치고 엔터를 치면 칸이 `자`가 되고 `자` 검색 결과가 열렸다. 입력기가 마지막 글자를 조합 중인 채로 받은 엔터(조합 확정, keyCode 229)에서 처리기가 고르고 칸을 비워, 입력기가 조합 중이던 `자`를 빈 칸에 확정해 넣었다(Chrome 154 재현). 조합 중 엔터에서는 고르지 않고 칸이 그대로인지, 확정 뒤 엔터에서 맨 위 결과를 **한 번** 고르고 칸이 비는지, Safari 순서(조합 확정 뒤 keyCode 229 엔터)도 무시하는지, 조합 중 방향키가 항목을 옮기지 않는지. T129의 테스트는 `userEvent.type`으로 조합 없이 넣어 이 경로를 지나지 않았다 (FR-056)
+- [ ] T147 `frontend/src/components/stock/StockSearch.tsx` — `onKeyDown` 맨 앞에서 조합 중 키 입력(`nativeEvent.isComposing` 또는 keyCode 229)을 무시한다. 조합이 확정된 뒤 오는 엔터에서 고른다. 고친 뒤 브라우저에서 조합을 거치는 입력(조합 중 엔터 → 확정 → 엔터)으로 칸이 비고 삼성전자가 골라지는지 확인한다 (FR-056)
 
 ---
 
@@ -338,7 +340,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T131 `backend/src/db/models.py`·마이그레이션·`backend/src/repository/stock_setting.py`·`backend/src/api/routes/stock_settings.py` — 해외 세율 열, 설정 API의 국내·해외 세율(`dividendTaxRateDomestic`·`dividendTaxRateForeign`) (FR-055, research R6-23)
 - [X] T132 `backend/src/api/services/stock_simulation.py`·`backend/src/api/routes/stock_simulation.py` — 시장으로 세율 고르기, 재투자 지연 2 거래일, `convert_row`가 세금·수수료를 원금 통화로 환산, 행 JSON에 `dividendTax`·`tradeFee` (FR-055, FR-058, FR-059)
 - [X] T133 `frontend/src/lib/format.ts`·`frontend/src/lib/types.ts`·`frontend/src/components/stock/PerformanceTable.tsx` — 주당 배당금 소수 3자리 서식, 배당율 2자리 고정, 새 열·재투자 행 (FR-057, FR-059, research R6-24)
-- [X] T134 `frontend/src/components/stock/StockSearch.tsx`·`frontend/src/components/settings/StockSettingsForm.tsx`(·설정 페이지 연결) — 엔터로 맨 위 결과, 세율 두 칸 (FR-056, FR-055)
+- [X] T134 `frontend/src/components/stock/StockSearch.tsx`·`frontend/src/components/settings/StockSettingsForm.tsx`(·설정 페이지 연결) — 엔터로 맨 위 결과(**T147이 한글 조합 중 엔터를 무시하게 고쳤다**), 세율 두 칸 (FR-056, FR-055)
 - [X] T135 실제 브라우저(3030)로 확인한다 — 설정의 세율 두 칸, 엔터 선택, VOO 원화 원금 실행에서 2026-09-28 배당 `1.823`과 배당 소득세·재투자 행(배당락 뒤 2번째 거래일)·매매 수수료 (SC-021~025, quickstart 28~31)
 
 **Checkpoint**: 브라우저에서 설정 세율 두 칸, 엔터로 `현대차(005380)`, VOO 표의 `1.823`·배당 소득세·재투자 행·매매 수수료.
@@ -427,7 +429,7 @@ Setup → Foundational ─┬→ US1 (MVP) ──→ US4 (미국)
 | `backend/tests/unit/test_search_match.py` | T014, T067 |
 | `frontend/src/stores/stockStore.ts` | T044, T054, T062, T080, T081, T100 |
 | `frontend/src/components/stock/SimulationForm.tsx` | T062, T080, T115 |
-| `frontend/src/components/stock/StockSearch.tsx` | T043, T075, T116, T134 |
+| `frontend/src/components/stock/StockSearch.tsx` | T043, T075, T116, T134, T147 |
 | `frontend/src/components/stock/CollectingNotice.tsx` | T055, T118 |
 | `backend/src/api/routes/stock_progress.py`·`collection.py`·`collect.py` | T117 |
 | `frontend/tests/CollectingNotice.test.tsx` | T114 |
