@@ -14,8 +14,10 @@ describe("전역 내비게이션 사이드바", () => {
   it("메뉴 8개를 정해진 순서로 표시한다", () => {
     render(<Sidebar current="/fx" />);
     const labels = MENU.map((m) => m.label);
+    // 2026-10-03(007 analyze M3): 헌법 원칙 IX의 자산군 순서대로 외환 → 가상자산 → 주식이다. 005가 주식을 먼저 만들며
+    // 주식을 가상자산 앞에 두었던 것을 바로잡는다.
     expect(labels).toEqual([
-      "대시보드", "외환", "주식", "가상자산", "예금", "부동산", "투자 비교", "설정",
+      "대시보드", "외환", "가상자산", "주식", "예금", "부동산", "투자 비교", "설정",
     ]);
     for (const label of labels) {
       expect(screen.getByText(label)).toBeInTheDocument();
@@ -30,8 +32,8 @@ describe("전역 내비게이션 사이드바", () => {
 
   it("준비되지 않은 자산군은 링크가 아니다", () => {
     render(<Sidebar current="/fx" />);
-    // 2026-10-02: 005가 주식을 구현해 목록에서 뺐다.
-    for (const label of ["가상자산", "예금", "부동산", "투자 비교", "대시보드"]) {
+    // 2026-10-02: 005가 주식을 구현해 목록에서 뺐다. 2026-10-03: 007이 가상자산을 구현해 뺐다.
+    for (const label of ["예금", "부동산", "투자 비교", "대시보드"]) {
       const item = screen.getByText(label).closest("li");
       expect(item).not.toBeNull();
       expect(within(item as HTMLElement).queryByRole("link")).toBeNull();
@@ -40,22 +42,23 @@ describe("전역 내비게이션 사이드바", () => {
 
   it("준비되지 않은 항목은 준비 중임을 표시한다", () => {
     render(<Sidebar current="/fx" />);
-    expect(screen.getAllByText("준비중").length).toBe(5);
+    expect(screen.getAllByText("준비중").length).toBe(4);
   });
 
   it("준비되지 않은 항목은 키보드 포커스 대상이 아니다", () => {
     render(<Sidebar current="/fx" />);
-    const item = screen.getByText("가상자산").closest("li") as HTMLElement;
+    // 007이 가상자산을 구현해 준비되지 않은 항목의 예를 예금으로 바꿨다.
+    const item = screen.getByText("예금").closest("li") as HTMLElement;
     const focusable = item.querySelectorAll("a, button, [tabindex]:not([tabindex='-1'])");
     expect(focusable.length).toBe(0);
   });
 
   it("준비된 자산군만 이동 가능하다", () => {
-    // 2026-10-02: 005가 주식을 더했다. 다음 자산군(가상자산)이 오면 여기도 함께 는다.
+    // 2026-10-02: 005가 주식을 더했다. 2026-10-03: 007이 가상자산을 더했다.
     render(<Sidebar current="/fx" />);
     const links = screen.getAllByRole("link");
     expect(links.map((l) => l.getAttribute("href")).sort()).toEqual(
-      ["/fx", "/settings", "/stocks"],
+      ["/crypto", "/fx", "/settings", "/stocks"],
     );
   });
 

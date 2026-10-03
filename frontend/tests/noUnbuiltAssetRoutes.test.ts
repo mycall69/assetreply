@@ -19,11 +19,13 @@ const APP = join(process.cwd(), "src", "app");
 /**
  * 아직 오지 않은 자산군.
  *
+ * **2026-10-03: `crypto`를 뺐다.** 007이 가상자산 시뮬레이션을 구현했다(T028·T033).
+ *
  * **2026-10-02: `stocks`를 뺐다.** 005가 주식 시뮬레이션을 구현해 더 이상 "준비되지
  * 않은" 상태가 아니다. 자산군 순서(원칙 IX)에서 가상자산을 건너뛴 이탈은 005 plan의
  * Complexity Tracking에 기록돼 있으며, 가상자산은 006으로 수행한다.
  */
-const UNBUILT = ["crypto", "deposits", "realestate", "compare", "dashboard"];
+const UNBUILT = ["deposits", "realestate", "compare", "dashboard"];
 
 describe("미구현 자산군", () => {
   it("라우트 디렉토리가 존재하지 않는다", () => {
@@ -34,7 +36,7 @@ describe("미구현 자산군", () => {
   it("사이드바가 준비되지 않은 항목에 경로를 주지 않는다", () => {
     const src = readFileSync(join(process.cwd(), "src/components/shell/Sidebar.tsx"), "utf-8");
     const hrefs = [...src.matchAll(/href:\s*"([^"]+)"/g)].map((m) => m[1]).sort();
-    expect(hrefs).toEqual(["/fx", "/settings", "/stocks"]);
+    expect(hrefs).toEqual(["/crypto", "/fx", "/settings", "/stocks"]);
   });
 
   /**

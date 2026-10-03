@@ -44,6 +44,16 @@ def _reset_fx_queue():
     reset_queue()
 
 
+@pytest.fixture(autouse=True)
+def _reset_crypto_queue():
+    """007 가상자산 수집 큐를 테스트 사이에 비운다 — 주식 큐와 같은 이유다."""
+    from src.worker.crypto_queue import reset_crypto_queue
+
+    reset_crypto_queue()
+    yield
+    reset_crypto_queue()
+
+
 @pytest.fixture
 def settings() -> Settings:
     return load_settings()

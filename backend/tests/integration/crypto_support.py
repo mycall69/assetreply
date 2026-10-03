@@ -118,3 +118,114 @@ def reset_crypto_list_state() -> None:
 
     reset_coin_index()
     reset_crypto_list_queue()
+
+
+# ── 일봉 수집 (Phase 4) ──────────────────────────────────────────────
+
+LEASH_ID = "1230723"
+SHIB_ID = "1177506"
+
+
+async def add_coin(session_factory, source_id: str = BTC_ID, symbol: str = "BTC",  # type: ignore[no-untyped-def]
+                   name: str = "Bitcoin", *, name_ko: str | None = "비트코인",
+                   first_available: dt.date | None = None, rank: int | None = 1) -> int:
+    """코인 한 줄을 넣는다. 목록 교체 규칙을 보는 테스트가 아니면 이것으로 충분하다."""
+    from src.db.models import CryptoCoin
+
+    async with session_factory() as s:
+        coin = CryptoCoin(
+            source="investing", source_id=source_id, slug=name.lower(), symbol=symbol,
+            name_en=name, name_ko=name_ko, quote_currency="USD", market_rank=rank,
+            status="listed", first_available_date=first_available,
+            first_seen_at=NOW, last_seen_at=NOW)
+        s.add(coin)
+        await s.commit()
+        return int(coin.id)
+
+
+def _rows(*names: str) -> list[dict]:  # type: ignore[type-arg]
+    rows: dict[str, dict] = {}  # type: ignore[type-arg]
+    for name in names:
+        data = json.loads(fixture(name))["data"] or []
+        for row in data:
+            rows[row["rowDateTimestamp"][:10]] = row
+    return [rows[k] for k in sorted(rows, reverse=True)]
+
+
+class StubDailySource:
+    """`CryptoSource` 스텁. 코인마다 픽스처 행을 모아 두고, 요청 구간의 행만 실어 **실제 응답
+    모양**으로 돌려준다.
+
+    응답 해석은 실제 파서(`parse_daily`)가 한다 — 형식 오류도 실제 경로로 난다. `errors`는 n번째
+    호출(1부터)에서 낼 예외, `corrupt`는 n번째 호출 응답의 첫 행에서 망가뜨릴 필드다.
+    """
+
+    def __init__(self, data: dict[str, Sequence[str]]) -> None:
+        self._rows = {source_id: _rows(*names) for source_id, names in data.items()}
+        self.calls: list[tuple[str, dt.date, dt.date]] = []
+        self.errors: dict[int, Exception] = {}
+        self.corrupt: dict[int, str] = {}
+        self.gate: object | None = None
+
+    async def fetch_daily(self, source_id: str, start: dt.date, end: dt.date, *,
+                          last_day: dt.date):  # type: ignore[no-untyped-def]
+        import asyncio
+
+        from src.ingestion.investing.client import DailyFetch
+        from src.ingestion.investing.parse import parse_daily
+
+        self.calls.append((source_id, start, end))
+        n = len(self.calls)
+        if isinstance(self.gate, asyncio.Event):
+            await self.gate.wait()
+        if n in self.errors:
+            raise self.errors[n]
+        rows = [dict(r) for r in self._rows.get(source_id, [])
+                if start <= dt.date.fromisoformat(r["rowDateTimestamp"][:10]) <= end]
+        if n in self.corrupt and rows:
+            rows[0][self.corrupt[n]] = "-"
+        body = json.dumps({"data": rows or None, "summary": {}})
+        return DailyFetch(bars=parse_daily(body, last_day=last_day), requested_from=start,
+                          requested_to=end, raw=body, status=200)
+
+
+async def seed_daily(session_factory, coin_id: int, *names: str,  # type: ignore[no-untyped-def]
+                     covered: tuple[dt.date, dt.date] | None = None,
+                     drop: Sequence[dt.date] = ()) -> None:
+    """수집을 마친 상태를 흉내 낸다 — 일봉과 커버리지. 커버리지를 적지 않으면 미수집으로 판정돼
+    202다."""
+    from src.ingestion.investing.parse import parse_daily
+    from src.repository import crypto_daily
+
+    body = json.dumps({"data": _rows(*names), "summary": {}})
+    bars = [b for b in parse_daily(body, last_day=dt.date(2100, 1, 1)) if b.day not in drop]
+    async with session_factory() as s:
+        await crypto_daily.store_bars(s, coin_id, bars)
+        if covered is not None:
+            await crypto_daily.record_coverage(s, coin_id, *covered)
+        await s.commit()
+
+
+async def seed_usd(session_factory, start: dt.date, end: dt.date, *,  # type: ignore[no-untyped-def]
+                   provisional: Sequence[dt.date] = ()) -> None:
+    """매일의 USD 매매기준율과 커버리지. 값은 날마다 달라 행마다 그 날짜의 환율을 썼는지
+    드러난다."""
+    from decimal import Decimal
+
+    from src.db.dialect import upsert
+    from src.db.models import FxCoverage, FxRate
+
+    days = [start + dt.timedelta(days=i) for i in range((end - start).days + 1)]
+    async with session_factory() as s:
+        await upsert(s, FxRate, [{
+            "currency_code": "USD", "quote_date": d,
+            "base_rate": Decimal(1100 + d.toordinal() % 100), "quote_unit": 1,
+            "source": "ECOS:731Y001", "is_provisional": d in provisional} for d in days])
+        await upsert(s, FxCoverage, [{
+            "currency_code": "USD", "covered_from": start, "covered_through": end}], preserve=())
+        await s.commit()
+
+
+def usd_rate(day: dt.date) -> str:
+    """`seed_usd`가 넣은 그날의 환율(소수 6자리 문자열)."""
+    return f"{1100 + day.toordinal() % 100}.000000"
