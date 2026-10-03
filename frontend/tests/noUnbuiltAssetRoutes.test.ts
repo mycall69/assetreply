@@ -37,6 +37,10 @@ describe("미구현 자산군", () => {
     expect(hrefs).toEqual(["/fx", "/settings", "/stocks"]);
   });
 
+  /**
+   * **2026-10-03: API 호출 검사에서 `crypto`를 뺐다**(007 T028을 T020으로 앞당김). 007의 코인 검색 칸(T020)이
+   * `/api/crypto/search`를 부른다. 라우트 디렉토리·사이드바 검사의 `crypto`는 화면을 만드는 T028·T033에서 뺀다.
+   */
   it("다른 자산군 API를 호출하지 않는다", () => {
     const walk = (dir: string): string[] =>
       readdirSync(dir).flatMap((n) => {
@@ -44,7 +48,7 @@ describe("미구현 자산군", () => {
         return statSync(full).isDirectory() ? walk(full) : [full];
       });
     const offenders = walk(join(process.cwd(), "src"))
-      .filter((f) => /\/api\/(crypto|deposits|realestate)/.test(readFileSync(f, "utf-8")));
+      .filter((f) => /\/api\/(deposits|realestate)/.test(readFileSync(f, "utf-8")));
     expect(offenders).toEqual([]);
   });
 });
