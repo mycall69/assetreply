@@ -24,7 +24,7 @@ from src.api.main import create_app
 from src.api.routes import stock_search
 from src.db.models import Stock, StockCollectionJob
 from src.db.session import get_session
-from src.ingestion.yahoo.parse import ChartData, DailyPrice
+from src.ingestion.yahoo.parse import ChartData, ChartFetch, DailyPrice, RawBody
 from src.worker.listing_queue import ListingQueue
 from src.worker.stock_queue import get_stock_queue
 from src.worker.stock_worker import run_stock_job
@@ -59,10 +59,11 @@ class StubChart:
 
     async def fetch_chart(self, symbol: str, date_from: dt.date, date_to: dt.date):  # type: ignore[no-untyped-def]
         self.calls.append((date_from, date_to))
-        return (ChartData(currency="KRW", first_trade_date=None, prices=[
+        return ChartFetch(ChartData(currency="KRW", first_trade_date=None, prices=[
             DailyPrice(quote_date=d, open_raw=Decimal("10000"), close_raw=Decimal("10000"),
                        close_adjusted=Decimal("10000"))
-            for d in self.days if date_from <= d <= date_to]), "{}", 200)
+            for d in self.days if date_from <= d <= date_to]),
+            [RawBody("chart", "{}", 200, date_from, date_to)])
 
     async def delay_between_chunks(self) -> None:
         return None

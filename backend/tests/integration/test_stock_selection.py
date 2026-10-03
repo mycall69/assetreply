@@ -14,13 +14,13 @@ from decimal import Decimal
 import pytest
 from httpx2 import ASGITransport, AsyncClient
 from sqlalchemy import func, select
-from src.worker.listing_queue import ListingQueue
 
 from src.api.main import create_app
 from src.api.routes import stock_search
 from src.db.models import Stock, StockCollectionJob
 from src.db.session import get_session
-from src.ingestion.yahoo.parse import ChartData, DailyPrice
+from src.ingestion.yahoo.parse import ChartData, ChartFetch, DailyPrice, RawBody
+from src.worker.listing_queue import ListingQueue
 from src.worker.stock_queue import get_stock_queue
 from src.worker.stock_worker import run_stock_job
 from tests.integration.listing_support import (
@@ -153,12 +153,12 @@ class Test외부_결과_등록:
 
 class StubChart:
     async def fetch_chart(self, symbol: str, date_from: dt.date, date_to: dt.date):  # type: ignore[no-untyped-def]
-        return (ChartData(currency="KRW", first_trade_date=None, prices=[
+        return ChartFetch(ChartData(currency="KRW", first_trade_date=None, prices=[
             DailyPrice(quote_date=D("2021-08-02"), open_raw=Decimal("80000"),
                        close_raw=Decimal("80100"), close_adjusted=Decimal("80100")),
             DailyPrice(quote_date=D("2021-08-03"), open_raw=Decimal("81000"),
                        close_raw=Decimal("81100"), close_adjusted=Decimal("81100")),
-        ]), "{}", 200)
+        ]), [RawBody("chart", "{}", 200, date_from, date_to)])
 
     async def delay_between_chunks(self) -> None:
         return None

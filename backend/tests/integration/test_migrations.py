@@ -104,3 +104,45 @@ async def test_잠금_테이블_기본키에_범위가_포함된다(engine: Asyn
             "WHERE table_schema = DATABASE() AND table_name = 'fx_collection_lock' "
             "AND constraint_name = 'PRIMARY'"))).all()]
     assert set(cols) == {"scope", "currency_code"}, f"기본 키가 {cols}"
+
+
+async def test_분할_기준_정정이_주식_커버리지만_비운다(engine: AsyncEngine) -> None:
+    """006 T106 — FR-034, research R6-18. T090 결함 5.
+
+    고치기 전에 받은 시세는 **분할을 소급 반영한 값을 원주가로 저장했다.** 어느 종목이 그런지는
+    DB만으로 알 수 없다 — 분할이 든 청크는 수집이 실패해 분할 행조차 없다. 그래서 주식 커버리지를
+    비워 **모두 다시 받게** 한다. 받으면 upsert가 되살린 원주가로 덮는다.
+
+    시세·배당·분할·원본은 **지우지 않는다**(헌법 원칙 V). 커버리지가 비면 202 게이트가 그 구간을
+    미수집으로 보므로, 다시 받기 전의 값으로 계산되는 일은 없다.
+    """
+    import asyncio
+
+    from alembic import command
+
+    from src.db.migrate import _run
+
+    await asyncio.to_thread(_run, command.downgrade, "f2b8c4d61a07")
+    async with engine.begin() as conn:
+        await conn.execute(text(
+            "INSERT INTO stock (id, market, symbol, name, currency) "
+            "VALUES (1, 'TSE', '7203.T', '토요타', 'JPY')"))
+        await conn.execute(text(
+            "INSERT INTO stock_price (stock_id, quote_date, open_raw, close_raw, source) "
+            "VALUES (1, '2021-09-28', 2084, 2077, 'yahoo:chart')"))
+        await conn.execute(text(
+            "INSERT INTO stock_coverage (stock_id, covered_from, covered_through) "
+            "VALUES (1, '2021-08-01', '2026-10-02')"))
+        await conn.execute(text(
+            "INSERT INTO stock_raw_response (stock_id, kind, body, status_code) "
+            "VALUES (1, 'chart', '{}', 200)"))
+
+    await upgrade_head()
+
+    async with engine.connect() as conn:
+        def count(table: str) -> object:
+            return conn.execute(text(f"SELECT COUNT(*) FROM {table}"))
+        assert (await count("stock_coverage")).scalar() == 0
+        assert (await count("stock_price")).scalar() == 1
+        assert (await count("stock_raw_response")).scalar() == 1
+        assert (await count("stock")).scalar() == 1

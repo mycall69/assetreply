@@ -250,7 +250,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T087 `frontend/`에서 `npx tsc --noEmit`과 `npx eslint .`를 통과시킨다. `any` 금지
 - [X] T088 `backend/`에서 커버리지 80% 이상을 확인한다 — `cd backend && .venv/bin/python -m pytest -q --cov=src`
 - [X] T089 `backend/tests/`와 `frontend/tests/` 전체가 **네트워크 차단 상태에서** 통과하는지 확인한다. 005가 더한 소켓 가드가 키움 호출도 막는지 본다 — `backend/tests/unit/test_network_guard.py`가 키움 도메인 접속과 aiohttp 경로(해석된 주소)가 가드에 걸리는지 검증한다 (헌법 원칙 III)
-- [ ] T090 **부분 완료 — 엔화 시나리오는 2026-10-03에 실행했다(16·19-1 통과, 17·18-1 부분 통과). Yahoo 분할 비율 결함(quickstart 실행 기록 결함 4)은 T102·T103으로 고치되, 고친 파서로 다시 돌리자 드러난 결함 5(분할이 두 번 들어감)와 함께 결정을 기다린다. 남은 것: 결함 4·5의 결정, 시나리오 9(다음 날), 화면 조작 시나리오(프론트엔드 테스트가 대신함)**. `quickstart.md`의 시나리오 22개를 순서대로 수동 실행하고 결과를 기록한다. 시나리오 1은 인증 정보를 넣기 전에 해야 한다. 시나리오 2의 측정값으로 research R6-2를 채운다. **실제 출처를 부르므로 미국 목록은 분당 제한을 지킨다.** 시나리오마다 검증하는 FR·SC는 quickstart에 적혀 있다 — 범위 표기로 묶지 않는다(004의 교훈: 범위 표기는 검색에 걸리지 않는다)
+- [ ] T090 **부분 완료 — 엔화 시나리오는 2026-10-03에 실행했다(16·19-1 통과, 17·18-1 부분 통과). Yahoo 분할 비율 결함(quickstart 실행 기록 결함 4)과 고친 파서로 다시 돌리자 드러난 결함 5(분할이 두 번 들어감)는 T102~T108이 고친다(사용자 결정 A안). 남은 것: 시나리오 9(다음 날), 화면 조작 시나리오(프론트엔드 테스트가 대신함)**. `quickstart.md`의 시나리오 22개를 순서대로 수동 실행하고 결과를 기록한다. 시나리오 1은 인증 정보를 넣기 전에 해야 한다. 시나리오 2의 측정값으로 research R6-2를 채운다. **실제 출처를 부르므로 미국 목록은 분당 제한을 지킨다.** 시나리오마다 검증하는 FR·SC는 quickstart에 적혀 있다 — 범위 표기로 묶지 않는다(004의 교훈: 범위 표기는 검색에 걸리지 않는다)
 - [X] T096 `backend/src/worker/stock_worker.py` — **T090에서 발견**: 주식 수집 워커가 출처를 열지 않아 실제 경로의 모든 시세 수집이 실패했다(005 결함). 003의 `worker_loop`처럼 출처를 열고 닫는다. 재현 테스트 `test_stock_worker.py::Test출처_열기`(열어야만 동작하는 스텁) (005 FR-043, 006 SC-007a, FR-047a)
 - [X] T097 `backend/src/ingestion/yahoo/errors.py` — **T090에서 발견**: 시세가 시작되기 전 구간에 대한 HTTP 400 + `chart.error`("Data doesn't exist for startDate …")를 빈 구간으로 받는다. 실제 응답을 픽스처(`chart_no_data_in_range.json`)로 계약 테스트한다. 다른 400은 그대로 오류 (006 FR-005, FR-005a)
 - [X] T098 `backend/tests/conftest.py` — **T090에서 발견**: 테스트 세션의 수집 로그를 임시 경로로 옮긴다(`TestClient`가 `lifespan`을 돌려 운영 로그에 썼다). `.env`의 값을 존중하지 않는다. 재현 테스트 `test_logging_config.py::test_테스트는_운영_수집_로그에_쓰지_않는다` (헌법 원칙 III, CLAUDE.md "로그는 두 곳")
@@ -258,7 +258,12 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T100 `frontend/src/stores/stockStore.ts`의 `watchFx` — 스트림의 `idle`은 끝났다는 것만 알리고 **성공인지 실패인지 알리지 않는다.** 구독할 때 그 통화의 마지막 작업 번호를 기준으로 받아 두고(`GET /api/fx/jobs?currency=&limit=`), 끝났다고 판단하면 작업을 조회한다 — `succeeded`면 다시 요청, `failed`·`partial`이면 구독을 끊고 `lastError`를 오류로 보이며 다시 요청하지 않는다. 진행을 본 작업(`snapshot`의 `activeJob.jobId`) 또는 기준보다 새 작업만 이번 수집으로 본다. 조회가 실패하거나 새 작업이 없으면 다시 요청한다 — 서버가 다시 판정한다. **판정 없는 다시 요청은 사용자 실행 한 번에 한 번이다** — 두 번째에는 마지막 작업을 이번 수집으로 본다 (FR-047a, research R6-10)
 - [X] T101 [P] `backend/tests/integration/test_listing_events.py` — **구현 뒤 보강한 테스트다**(analyze C1, T094와 같은 유형). 목록 갱신의 시작·완료(쪽 수·종목 수·새 종목·빠진 종목)·실패(실패 종류) 사건이 수집 전용 로그에 남는지, 출처 문구가 키·토큰을 되돌려 보내도 사건에 싣지 않는지. 구현(`listing_refresh._event`)이 먼저 있어 처음부터 통과한다 (FR-065, FR-060, SC-014)
 - [X] T102 [P] `backend/tests/contract/test_stock_source_parse.py`에 더한다 — **T090에서 발견**: 실제 응답은 분할 비율을 실수(`5.0`)로 준다. 실제 응답 픽스처(`chart_split_float.json`, 토요타 2021-09-29 5:1)의 분할을 정수로 읽는지, 같은 응답의 일봉·배당도 읽는지, 정수가 아니거나 0·음수인 비율은 반올림하지 않고 출처 오류로 거절하는지 (005 FR-012, 헌법 원칙 V·VI)
-- [ ] T103 `backend/src/ingestion/yahoo/parse.py` — 분할 비율을 `Decimal(str(값))`로 읽고 **양의 정수일 때만** `int`로 바꾼다. 아니면 `StockSourceUnavailable`(응답이 유효하지 않음). 005의 `int(str(…))`는 `'5.0'`에서 실패해, 구간에 분할이 있는 모든 종목의 시세 수집이 매번 실패했다 — 005 결함, plan Complexity Tracking "005 결함 수정이 이 기능에 섞인다" (005 FR-012, 006 SC-007a). **보류(2026-10-03)**: 고친 파서로 실제 출처를 다시 돌리자 결함 5(출처의 "원시" 시세가 이미 분할을 반영한 값이라 분할이 두 번 들어간다)가 드러났다 — 분할 비율만 고치면 수집 실패가 **조용히 틀린 수익률**로 바뀐다. 결함 5의 결정과 함께 처리한다(quickstart 실행 기록)
+- [ ] T103 `backend/src/ingestion/yahoo/parse.py` — 분할 비율을 `Decimal(str(값))`로 읽고 **양의 정수일 때만** `int`로 바꾼다. 아니면 `StockSourceUnavailable`(응답이 유효하지 않음). 005의 `int(str(…))`는 `'5.0'`에서 실패해, 구간에 분할이 있는 모든 종목의 시세 수집이 매번 실패했다 — 005 결함, plan Complexity Tracking "005 결함 수정이 이 기능에 섞인다" (005 FR-012, 006 SC-007a). **결함 5와 함께 커밋한다**: 고친 파서로 실제 출처를 다시 돌리자 결함 5(출처의 시세가 이미 분할을 반영한 값이라 분할이 두 번 들어간다)가 드러났다 — 분할 비율만 고치면 수집 실패가 **조용히 틀린 수익률**로 바뀐다. 사용자가 A안(원주가로 되살리기)을 골랐다(2026-10-03). T107과 한 커밋에 넣는다
+- [X] T104 [P] `backend/tests/contract/test_stock_source_parse.py`에 더한다 — **T090 결함 5**: 실제 응답 픽스처(토요타 청크 + 2021-09 이후 분할 기록, 애플 2000-01·2012-08 청크 + 2000 이후 분할 기록)로 반영가를 원주가로 되살리는지. 토요타 2021-09-28 시가 10,420엔(×5), 분할 날부터는 그대로, 수정종가는 그대로, 애플 2000-01-03 시가 104.875010(실제 104.87, ×112), 2012-08-09 배당 2.650004(실제 2.65, ×28). 뒤의 분할이 없으면 값이 그대로인지, 병합(1:10·1:3)은 나누고 저장 자릿수로 맞추는지, 같은 날의 비율이 어긋나면 거절하는지, 월봉 분할 기록에서 실제 분할일을 읽는지 (FR-034, SC-007b)
+- [X] T105 [P] `backend/tests/contract/test_yahoo_client.py` — 청크마다 **청크 시작일부터 지금까지의 분할 기록**(월봉, `events=splits`)을 함께 요청하는지, 되살린 원주가와 **원본 둘**(`chart`·`splits`, 요청 구간 포함)을 돌려주는지, 분할 기록이 "구간에 시세 없음"(400)이면 뒤의 분할 없음으로 보는지, 분할 기록을 받지 못하면 청크도 돌려주지 않는지, 넘겨받은 세션을 닫지 않는지. 세션은 흉내 낸다 (FR-034, 헌법 원칙 II·III·V)
+- [X] T106 [P] `backend/tests/integration/test_stock_collection.py`에 더한다 — 수집이 한 번 받을 때 온 **원본을 모두** `stock_raw_response`에 남기는지(`kind`·요청 구간). 시세 출처 스텁 넷(`test_stock_collection.py`·`test_stock_worker.py`·`test_start_available.py`·`test_stock_selection.py`)을 새 반환 형태(`ChartFetch`)로 바꾼다. `backend/tests/integration/test_migrations.py`에 더한다 — 정정 마이그레이션이 **주식 커버리지만 비우고** 시세·원본·종목은 남기는지 (FR-034, 헌법 원칙 V)
+- [ ] T107 `backend/src/ingestion/yahoo/parse.py` — `parse_splits`(분할 기록 응답의 분할만 읽는다), `restore_unadjusted`(날짜 이후의 분할·병합 비율을 곱해 시가·종가·배당을 되살린다. 수정종가는 그대로. 저장 자릿수 6으로 반올림. 같은 날 비율이 어긋나면 `StockSourceUnavailable`), 반환 형태 `ChartFetch`·`RawBody`. T103과 한 커밋 (FR-034, research R6-18)
+- [ ] T108 `backend/src/ingestion/yahoo/client.py` — 세션·현재 시각 주입, `fetch_chart`가 청크 뒤 분할 기록을 받아 되살리고 원본 둘을 돌려준다. `backend/src/worker/stock_runner.py` — `StockSource`의 반환 형태를 바꾸고 원본을 모두 저장한다. 마이그레이션 — `stock_coverage`를 비운다(시세·배당·분할·원본은 지우지 않는다). `db/models.py`의 `StockPrice` 설명(원주가는 되살린 값) (FR-034, research R6-18, data-model 6절)
 
 ---
 
@@ -311,7 +316,10 @@ Setup → Foundational ─┬→ US1 (MVP) ──→ US4 (미국)
 | `backend/tests/unit/test_search_match.py` | T014, T067 |
 | `frontend/src/stores/stockStore.ts` | T044, T054, T062, T080, T081, T100 |
 | `frontend/tests/CollectingNoticeFx.test.tsx` | T048, T099 |
-| `backend/src/ingestion/yahoo/parse.py` | T103 |
+| `backend/src/ingestion/yahoo/parse.py` | T103, T107 |
+| `backend/src/ingestion/yahoo/client.py`·`backend/src/worker/stock_runner.py` | T108 |
+| `backend/tests/contract/test_stock_source_parse.py` | T102, T104 |
+| `backend/tests/integration/test_stock_collection.py`·`test_stock_worker.py`·`test_start_available.py`·`test_stock_selection.py` | T106 (스텁 반환 형태) |
 | `frontend/src/components/stock/StockSearch.tsx` | T043, T075 |
 | `frontend/src/components/stock/SimulationForm.tsx` | T062, T080 |
 | `frontend/src/lib/types.ts` | T041, T053, T064 |

@@ -20,7 +20,7 @@ from src.db.models import (
     StockCollectionLock,
     StockPrice,
 )
-from src.ingestion.yahoo.parse import ChartData, DailyPrice
+from src.ingestion.yahoo.parse import ChartData, ChartFetch, DailyPrice, RawBody
 from src.repository.stock_job import acquire_or_get_running
 from src.worker.stock_queue import StockWork
 from src.worker.stock_worker import run_stock_job
@@ -37,19 +37,19 @@ class StubSource:
 
     async def fetch_chart(
         self, symbol: str, date_from: dt.date, date_to: dt.date
-    ) -> tuple[ChartData, str, int]:
+    ) -> ChartFetch:
         self.calls.append((date_from, date_to))
         if self.fail:
             raise RuntimeError("출처가 응답하지 않습니다")
-        return (
-            ChartData(
+        return ChartFetch(
+            data=ChartData(
                 currency="KRW",
                 first_trade_date=D("1975-06-11"),
                 prices=[DailyPrice(
                     quote_date=date_from, open_raw=Decimal("40000"),
                     close_raw=Decimal("40100"), close_adjusted=Decimal("40100"))],
             ),
-            "{}", 200,
+            raws=[RawBody("chart", "{}", 200, date_from, date_to)],
         )
 
     async def delay_between_chunks(self) -> None:

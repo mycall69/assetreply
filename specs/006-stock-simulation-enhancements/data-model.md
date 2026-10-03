@@ -150,7 +150,8 @@
 | `currency` (001) | **`first_available_date`** — 출처의 실제 최초 고시일(001 FR-002a) | 없음. "출처에 없음" 판정(FR-043a ①) |
 | 설정 (001) | `ECOS_PROBE_START_*`·`ECOS_PROBE_FLOOR` → `probe_start(통화)` | 없음. "수집 범위 설정 밖" 판정(FR-043a ②) |
 | `stock` (005) | `(market, symbol)`, 미국은 `symbol`로 먼저 찾기 | 없음(FR-030, FR-030a) |
-| `stock_price`·`stock_coverage` (005) | 시작 월 일봉 존재, 수집 범위 | 없음(FR-005a) |
+| `stock_price`·`stock_coverage` (005) | 시작 월 일봉 존재, 수집 범위 | 스키마 없음(FR-005a). **데이터 정정 하나** — 마이그레이션이 `stock_coverage`를 비워 모든 종목을 다시 받게 한다. 그전 시세는 반영가가 원주가 자리에 들어 있다. 다시 받으면 되살린 원주가로 덮인다. 시세·배당·분할은 지우지 않는다(FR-034, research R6-18) |
+| `stock_raw_response` (005) | 원본 보관 | 스키마 없음. `kind`에 `splits`(원주가를 되살리는 데 쓴 분할 기록)가 더해진다(FR-034) |
 
 ---
 

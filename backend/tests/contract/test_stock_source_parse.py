@@ -149,3 +149,117 @@ class Test검색:
 
     def test_결과가_없으면_빈_목록이다(self) -> None:
         assert parse_search(load("search_empty.json")) == []
+
+
+class Test분할_반영가를_원주가로_되살린다:
+    """006 T104 — FR-034, research R6-18. T090 결함 5.
+
+    **출처의 시가·종가·배당은 분할을 소급 반영한 값이다.** 005는 그것을 바뀌지 않는 원주가로
+    보고 분할 날 주식 수를 다시 늘려, 분할이 두 번 들어갔다(토요타 2021-08 시작이 580%).
+    어댑터가 **그날 이후의 분할 비율을 곱해** 원주가로 되살린다.
+
+    픽스처는 모두 실제 응답이다(2026-10-03 받음). 분할 기록(`splits_*`)은 월봉 요청이라 이벤트
+    키가 월 시작이지만 `date`는 실제 분할일이다. 되살린 값은 그날의 실제 시가·배당과 출처의
+    소수점 오차 안에서 같다 — 애플 2000-01-03 시가 104.87달러, 2012-08-09 배당 2.65달러.
+    """
+
+    def test_분할_기록을_읽는다(self) -> None:
+        from src.ingestion.yahoo.parse import parse_splits
+
+        assert [(s.effective_date, s.numerator, s.denominator)
+                for s in parse_splits(load("splits_aapl_since_2000.json"))] == [
+            (dt.date(2000, 6, 21), 2, 1), (dt.date(2005, 2, 28), 2, 1),
+            (dt.date(2014, 6, 9), 7, 1), (dt.date(2020, 8, 31), 4, 1)]
+
+    def test_토요타는_분할_전날까지_5배로_되살린다(self) -> None:
+        from src.ingestion.yahoo.parse import parse_splits, restore_unadjusted
+
+        chart = parse_chart(load("chart_split_float.json"))
+        restored = restore_unadjusted(
+            chart, parse_splits(load("splits_toyota_since_2021_09.json")))
+        prices = {p.quote_date: p for p in restored.prices}
+        assert (prices[dt.date(2021, 9, 1)].open_raw,
+                prices[dt.date(2021, 9, 1)].close_raw) == (
+            Decimal("9700.999756"), Decimal("9652.000122"))
+        assert (prices[dt.date(2021, 9, 28)].open_raw,
+                prices[dt.date(2021, 9, 28)].close_raw) == (
+            Decimal("10420.000000"), Decimal("10385.000000"))
+
+    def test_분할_날부터는_그대로다(self) -> None:
+        """분할 날의 시세는 이미 분할 뒤 값이다 — 그날 이후의 분할만 곱한다."""
+        from src.ingestion.yahoo.parse import parse_splits, restore_unadjusted
+
+        chart = parse_chart(load("chart_split_float.json"))
+        restored = restore_unadjusted(
+            chart, parse_splits(load("splits_toyota_since_2021_09.json")))
+        after = [(p.quote_date, p.open_raw, p.close_raw) for p in restored.prices
+                 if p.quote_date >= dt.date(2021, 9, 29)]
+        assert after == [(p.quote_date, p.open_raw, p.close_raw) for p in chart.prices
+                         if p.quote_date >= dt.date(2021, 9, 29)]
+        assert after[0][1] == Decimal("2052.0")
+        # 분할 날의 배당은 분할 뒤 주식에 붙는다(005 spec Assumptions) — 그대로다.
+        assert restored.dividends == chart.dividends
+        assert restored.splits == chart.splits
+
+    def test_수정종가는_출처가_준_그대로_둔다(self) -> None:
+        """수정종가는 계산에 쓰지 않는다(005 FR-011). 되살리면 그 열의 뜻이 바뀐다."""
+        from src.ingestion.yahoo.parse import parse_splits, restore_unadjusted
+
+        chart = parse_chart(load("chart_split_float.json"))
+        restored = restore_unadjusted(
+            chart, parse_splits(load("splits_toyota_since_2021_09.json")))
+        assert [p.close_adjusted for p in restored.prices] == [
+            p.close_adjusted for p in chart.prices]
+
+    def test_애플_2000년_시가는_이후_네_번의_분할로_112배다(self) -> None:
+        from src.ingestion.yahoo.parse import parse_splits, restore_unadjusted
+
+        chart = parse_chart(load("chart_aapl_2000_01.json"))
+        restored = restore_unadjusted(chart, parse_splits(load("splits_aapl_since_2000.json")))
+        first = restored.prices[0]
+        assert first.quote_date == dt.date(2000, 1, 3)
+        assert (first.open_raw, first.close_raw) == (
+            Decimal("104.875010"), Decimal("111.937502"))
+        # 그날의 실제 시가·종가(104.87·111.94)와 출처의 소수점 오차 안에서 같다.
+        assert abs(first.open_raw - Decimal("104.87")) < Decimal("0.01")
+        assert abs(first.close_raw - Decimal("111.94")) < Decimal("0.01")
+
+    def test_배당도_이후의_분할로_되살린다(self) -> None:
+        from src.ingestion.yahoo.parse import parse_splits, restore_unadjusted
+
+        chart = parse_chart(load("chart_aapl_2012_08.json"))
+        restored = restore_unadjusted(chart, parse_splits(load("splits_aapl_since_2000.json")))
+        assert [(d.ex_date, d.amount_per_share) for d in restored.dividends] == [
+            (dt.date(2012, 8, 9), Decimal("2.650004"))]
+        assert restored.prices[0].open_raw == Decimal("615.910011")
+
+    def test_뒤의_분할이_없으면_값을_바꾸지_않는다(self) -> None:
+        from src.ingestion.yahoo.parse import restore_unadjusted
+
+        chart = parse_chart(load("chart_aapl_2012_08.json"))
+        assert restore_unadjusted(chart, []) == chart
+
+    @pytest.mark.parametrize(("numerator", "denominator", "expected"), [
+        (1, 10, Decimal("10.000000")),
+        (1, 3, Decimal("33.333333")),
+        (3, 2, Decimal("150.000000")),
+    ])
+    def test_병합은_나누고_정수가_아닌_배율도_그대로_곱한다(
+            self, numerator: int, denominator: int, expected: Decimal) -> None:
+        """병합(1:10)이면 과거 원주가는 반영가보다 작다. 나눗셈은 저장 자릿수(6)로 맞춘다."""
+        from src.ingestion.yahoo.parse import ChartData, DailyPrice, SplitEvent, restore_unadjusted
+
+        chart = ChartData(currency="USD", first_trade_date=None, prices=[
+            DailyPrice(dt.date(2020, 1, 2), Decimal("100"), Decimal("100"), Decimal("100"))])
+        restored = restore_unadjusted(
+            chart, [SplitEvent(dt.date(2020, 6, 1), numerator, denominator)])
+        assert restored.prices[0].open_raw == expected
+
+    def test_같은_날의_비율이_어긋나면_거절한다(self) -> None:
+        """두 응답이 같은 분할을 다르게 말하면 어느 쪽으로 되살려도 틀릴 수 있다."""
+        from src.ingestion.yahoo.errors import StockSourceUnavailable
+        from src.ingestion.yahoo.parse import SplitEvent, restore_unadjusted
+
+        chart = parse_chart(load("chart_split_float.json"))
+        with pytest.raises(StockSourceUnavailable):
+            restore_unadjusted(chart, [SplitEvent(dt.date(2021, 9, 29), 4, 1)])

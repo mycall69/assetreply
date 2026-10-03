@@ -14,8 +14,15 @@ import pytest
 from sqlalchemy import select
 
 from src.db.dialect import upsert
-from src.db.models import Stock, StockPrice
-from src.ingestion.yahoo.parse import ChartData, DailyPrice, DividendEvent, SplitEvent
+from src.db.models import Stock, StockPrice, StockRawResponse
+from src.ingestion.yahoo.parse import (
+    ChartData,
+    ChartFetch,
+    DailyPrice,
+    DividendEvent,
+    RawBody,
+    SplitEvent,
+)
 from src.repository.stock import get_coverage
 from src.worker.stock_runner import collect_range
 
@@ -32,7 +39,7 @@ class StubSource:
 
     async def fetch_chart(
         self, symbol: str, date_from: dt.date, date_to: dt.date
-    ) -> tuple[ChartData, str, int]:
+    ) -> ChartFetch:
         self.requests.append((symbol, date_from, date_to))
         if self.raise_on_call is not None and len(self.requests) > self.raise_after:
             raise self.raise_on_call
@@ -41,8 +48,8 @@ class StubSource:
             if day.weekday() < 5:
                 days.append(day)
             day += dt.timedelta(days=1)
-        return (
-            ChartData(
+        return ChartFetch(
+            data=ChartData(
                 currency="KRW",
                 first_trade_date=D("1975-06-11"),
                 prices=[DailyPrice(d, Decimal("1000"), Decimal("1010"), Decimal("990"))
@@ -50,7 +57,9 @@ class StubSource:
                 dividends=[DividendEvent(days[0], Decimal("300"))] if days else [],
                 splits=[SplitEvent(days[0], 2, 1)] if days else [],
             ),
-            "{}", 200,
+            # 006 — 한 번 받을 때 원본이 둘이다: 청크와, 원주가를 되살리는 데 쓴 분할 기록.
+            raws=[RawBody("chart", '{"chunk": true}', 200, date_from, date_to),
+                  RawBody("splits", '{"splits": true}', 200, date_from, D("2026-10-03"))],
         )
 
     async def delay_between_chunks(self) -> None:
@@ -189,3 +198,26 @@ class Test값을_만들어내지_않는다:
                 await s.execute(select(StockPrice))).scalars()}
         assert D("2021-01-09") not in dates  # 토
         assert D("2021-01-10") not in dates  # 일
+
+
+class Test원본을_모두_남긴다:
+    """006 T106 — FR-034, research R6-18, 헌법 시계열 불변식(원본과 정규화의 분리 저장).
+
+    출처가 한 번에 원본을 둘 준다 — 청크와, 원주가를 되살리는 데 쓴 분할 기록. 분할 기록을 버리면
+    되살린 값이 틀렸을 때 무엇으로 계산했는지 되짚을 수 없다.
+    """
+
+    async def test_청크와_분할_기록의_원본이_남는다(self, session_factory, stock_id) -> None:
+        source = StubSource()
+        async with session_factory() as s:
+            await collect_range(s, source, stock_id, "005930.KS",
+                                D("2021-01-01"), D("2021-03-31"))
+            await s.commit()
+        async with session_factory() as s:
+            rows = (await s.execute(
+                select(StockRawResponse).order_by(StockRawResponse.id))).scalars().all()
+        assert [(r.stock_id, r.kind, r.body, r.status_code, r.requested_from, r.requested_to)
+                for r in rows] == [
+            (stock_id, "chart", '{"chunk": true}', 200, D("2021-01-01"), D("2021-03-31")),
+            (stock_id, "splits", '{"splits": true}', 200, D("2021-01-01"), D("2026-10-03")),
+        ]
