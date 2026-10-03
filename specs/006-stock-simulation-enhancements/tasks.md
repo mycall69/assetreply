@@ -264,6 +264,8 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T106 [P] `backend/tests/integration/test_stock_collection.py`에 더한다 — 수집이 한 번 받을 때 온 **원본을 모두** `stock_raw_response`에 남기는지(`kind`·요청 구간). 시세 출처 스텁 넷(`test_stock_collection.py`·`test_stock_worker.py`·`test_start_available.py`·`test_stock_selection.py`)을 새 반환 형태(`ChartFetch`)로 바꾼다. `backend/tests/integration/test_migrations.py`에 더한다 — 정정 마이그레이션이 **주식 커버리지만 비우고** 시세·원본·종목은 남기는지 (FR-034, 헌법 원칙 V)
 - [X] T107 `backend/src/ingestion/yahoo/parse.py` — `parse_splits`(분할 기록 응답의 분할만 읽는다), `restore_unadjusted`(날짜 이후의 분할·병합 비율을 곱해 시가·종가·배당을 되살린다. 수정종가는 그대로. 저장 자릿수 6으로 반올림. 같은 날 비율이 어긋나면 `StockSourceUnavailable`), 반환 형태 `ChartFetch`·`RawBody`. T103과 한 커밋 (FR-034, research R6-18)
 - [X] T108 `backend/src/ingestion/yahoo/client.py` — 세션·현재 시각 주입, `fetch_chart`가 청크 뒤 분할 기록을 받아 되살리고 원본 둘을 돌려준다. `backend/src/worker/stock_runner.py` — `StockSource`의 반환 형태를 바꾸고 원본을 모두 저장한다. 마이그레이션 — `stock_coverage`를 비운다(시세·배당·분할·원본은 지우지 않는다). `db/models.py`의 `StockPrice` 설명(원주가는 되살린 값) (FR-034, research R6-18, data-model 6절)
+- [X] T109 [P] `frontend/tests/nextConfigProxy.test.ts` — **버그 `stock-search-not-found`**(`.specify/bugs/stock-search-not-found/`): 브라우저에서 종목을 검색하면 "Not Found". `next.config.ts`의 rewrite가 `/api/fx`만 백엔드로 넘겨 **주식 화면의 모든 `/api/stocks/*` 요청이 Next.js의 404**가 되었다(005부터). `rewrites()`가 주식·외환 주요 경로를 같은 경로 그대로 백엔드로 넘기는지, **프론트엔드 소스가 부르는 모든 `/api/<접두사>`가 덮이는지** 검사한다 — 다른 프론트엔드 테스트는 `apiClient`를 흉내 내어 프록시를 거치지 않는다 (005 FR-001·FR-002a, 006 FR-020·SC-007a)
+- [ ] T110 `frontend/next.config.ts` — rewrite를 `/api/:path*` → 백엔드 하나로 바꾼다. 프론트엔드에는 API 라우트 핸들러가 없고, 배열 rewrite는 화면·정적 파일 뒤에(afterFiles) 적용되어 화면 경로와 부딪히지 않는다. 자산군마다 규칙을 더하는 구조를 없앤다. 고친 뒤 3030 경유로 검색이 200인지 확인한다
 
 ---
 
@@ -318,6 +320,7 @@ Setup → Foundational ─┬→ US1 (MVP) ──→ US4 (미국)
 | `frontend/tests/CollectingNoticeFx.test.tsx` | T048, T099 |
 | `backend/src/ingestion/yahoo/parse.py` | T103, T107 |
 | `backend/src/ingestion/yahoo/client.py`·`backend/src/worker/stock_runner.py` | T108 |
+| `frontend/next.config.ts` | T110 |
 | `backend/tests/contract/test_stock_source_parse.py` | T102, T104 |
 | `backend/tests/integration/test_stock_collection.py`·`test_stock_worker.py`·`test_start_available.py`·`test_stock_selection.py` | T106 (스텁 반환 형태) |
 | `frontend/src/components/stock/StockSearch.tsx` | T043, T075 |
