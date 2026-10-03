@@ -25,8 +25,10 @@ import {
 import type {
   BeforeListingBody,
   ExchangeInfo,
+  CurrencyCode,
   FxCollecting,
   FxNotAvailableBefore,
+  JobRow,
   PrincipalCurrency,
   SelectionResponse,
   SimulationCollecting,
@@ -152,6 +154,10 @@ function selectionBody(choice: StockChoice): Record<string, unknown> {
 let unwatch: (() => void) | null = null;
 /** 환율 수집 구독 해제 함수 (006). 주식 진행과 따로 산다 — 둘 다 끝나야 결과가 나온다. */
 let unwatchFx: (() => void) | null = null;
+/** 화면이 스스로 다시 요청할 때 켠다. `run`이 읽고 끈다 — 사용자의 실행과 구별한다. */
+let automaticRun = false;
+/** 끝난 작업을 판정하지 못한 채 다시 요청한 적이 있는지. 사용자가 실행하면 지운다 (FR-047a). */
+let unjudgedRerun = false;
 
 function stopWatching(): void {
   unwatch?.();
@@ -161,28 +167,99 @@ function stopWatching(): void {
 }
 
 /**
- * 환율 수집을 구독하고 **끝나면 다시 요청한다** (006 FR-046, research R6-10).
+ * 그 통화의 최근 수집 작업(최신이 먼저). 조회하지 못하면 `null`이다 — "작업이 없다"(빈 배열)와
+ * 구별한다.
+ */
+async function recentFxJobs(currency: CurrencyCode): Promise<JobRow[] | null> {
+  try {
+    const body = await apiClient.get<{ jobs: JobRow[] }>(
+      `/api/fx/jobs?currency=${currency}&limit=5`,
+    );
+    return body.jobs;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 환율 수집을 구독하고 **끝나면 결과를 확인한다** (006 FR-046, FR-047a, research R6-10).
  *
  * 003의 통화별 스트림은 진행 중이면 `snapshot`, 아니면 5초마다 `idle`을 보낸다.
  *
  * - `waiting`: 다른 통화가 끝나면(`idle`의 `busyWith`가 비면) 다시 요청한다
  * - `queued`·`collecting`: 진행을 본 뒤 `idle`이 오면 끝난 것이다. 진행을 한 번도 못 보고
- *   `idle`이 두 번 오면 구독이 붙기 전에 끝났다고 보고 다시 요청한다 — 진행을 못 봤다고
- *   영원히 기다리면 화면이 "받고 있습니다"에 머문다. 한 번의 `idle`로 다시 요청하지 않는
- *   이유는 워커가 큐에서 꺼내기 직전일 수 있어서다
+ *   `idle`이 두 번 오면 구독이 붙기 전에 끝났다고 본다 — 진행을 못 봤다고 영원히 기다리면
+ *   화면이 "받고 있습니다"에 머문다. 한 번의 `idle`로 판단하지 않는 이유는 워커가 큐에서
+ *   꺼내기 직전일 수 있어서다
+ *
+ * **`idle`은 끝났다는 것만 알리고 성공인지 알리지 않는다.** 끝나면 작업을 조회해 실패·부분
+ * 성공이면 사유를 보이고 멈춘다. 그대로 다시 요청하면 서버가 실패한 수집을 또 시작하고,
+ * 고쳐지지 않은 원인으로 같은 실패가 끝없이 반복된다(T090에서 실제로 쌓였다).
+ *
+ * 이번 수집의 작업은 진행에서 본 작업, 아니면 구독할 때의 마지막 작업보다 새 작업이다. 그것을
+ * 찾지 못하면 다시 요청해 서버가 판정하게 한다 — 다만 **사용자 실행 한 번에 한 번만** 그렇게
+ * 한다. 출처가 곧바로 거절하면 작업이 구독보다 먼저 끝나 기준 자체가 되기 때문이다. 두 번째에는
+ * 마지막 작업을 이번 수집으로 본다.
  */
-function watchFx(fx: FxCollecting, get: () => StockState): void {
+function watchFx(
+  fx: FxCollecting,
+  set: (partial: Partial<StockState>) => void,
+  get: () => StockState,
+): void {
   unwatchFx?.();
-  let sawActive = false;
+  let closed = false;
+  let activeJobId: number | null = null;
   let idleCount = 0;
+  let judging = false;
+  // 구독할 때의 마지막 작업 번호. 조회하지 못하면 `undefined` — 새 작업을 가를 수 없다.
+  const baseline: Promise<number | null | undefined> = fx.state === "waiting"
+    ? Promise.resolve(undefined)
+    : recentFxJobs(fx.currency).then((jobs) =>
+      jobs === null ? undefined : (jobs[0]?.jobId ?? null));
+
   const rerun = () => {
-    unwatchFx?.();
-    unwatchFx = null;
+    stopWatching();
+    automaticRun = true;
     void get().run();
   };
-  unwatchFx = subscribeCollection(fx.currency, {
-    onSnapshot: () => {
-      sawActive = true;
+
+  const judge = async () => {
+    if (judging) return;
+    judging = true;
+    const [jobs, base] = await Promise.all([recentFxJobs(fx.currency), baseline]);
+    judging = false;
+    if (closed) return;
+    const latest = jobs?.[0] ?? null;
+    let ours: JobRow | null = null;
+    if (jobs !== null && activeJobId !== null) {
+      ours = jobs.find((job) => job.jobId === activeJobId) ?? null;
+    } else if (latest !== null && base !== undefined && latest.jobId > (base ?? 0)) {
+      ours = latest;
+    } else if (latest !== null && unjudgedRerun) {
+      ours = latest;
+    }
+    if (ours === null || ours.status === "running") {
+      // 이번 작업을 찾지 못했다. 서버가 다시 판정한다 — 아직 비었으면 다시 202를 준다.
+      if (activeJobId === null) unjudgedRerun = true;
+      rerun();
+      return;
+    }
+    if (ours.status === "succeeded") {
+      rerun();
+      return;
+    }
+    stopWatching();
+    set({
+      collecting: null,
+      progress: null,
+      error: `${fx.currency} 환율을 받지 못했습니다. `
+        + `${ours.lastError ?? "출처가 사유를 알려주지 않았습니다."} 다시 실행하면 다시 받습니다.`,
+    });
+  };
+
+  const unsubscribe = subscribeCollection(fx.currency, {
+    onSnapshot: (snapshot) => {
+      if (snapshot.activeJob !== undefined) activeJobId = snapshot.activeJob.jobId;
     },
     onIdle: (payload) => {
       if (fx.state === "waiting") {
@@ -190,10 +267,14 @@ function watchFx(fx: FxCollecting, get: () => StockState): void {
         return;
       }
       idleCount += 1;
-      if (sawActive || idleCount >= 2) rerun();
+      if (activeJobId !== null || idleCount >= 2) void judge();
     },
     onEvent: () => undefined,
   });
+  unwatchFx = () => {
+    closed = true;
+    unsubscribe();
+  };
 }
 
 /**
@@ -324,6 +405,9 @@ export const useStockStore = create<StockState>((set, get) => ({
    * (002 FR-036c·003 FR-028·004 FR-010과 같은 계열).
    */
   run: async () => {
+    // 사용자가 실행하면 판정 없이 다시 요청한 기록을 지운다 (FR-047a).
+    if (!automaticRun) unjudgedRerun = false;
+    automaticRun = false;
     const { input } = get();
     const query = toQuery(input);
     if (input.stock === null || query === "") {
@@ -355,7 +439,7 @@ export const useStockStore = create<StockState>((set, get) => ({
         // 006 — 주식 시세와 환율을 따로 기다린다. 어느 쪽이 끝나도 다시 요청하고, 서버가
         // 둘 다 끝났는지 판정한다(FR-045).
         if (body.jobId !== undefined) watchProgress(body.jobId, set, get);
-        if (body.fx !== undefined) watchFx(body.fx, get);
+        if (body.fx !== undefined) watchFx(body.fx, set, get);
         return;
       }
       const result = body as SimulationResponse;

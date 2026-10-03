@@ -82,7 +82,8 @@ const job = (jobId: number, status: JobRow["status"],
 
 /**
  * 경로별로 답한다. 시뮬레이션은 준 순서대로(마지막 것을 반복), 환율 작업 조회는 `jobs`가 정한다.
- * 돌려주는 `simulation`은 **시뮬레이션 요청만** 센다 — 작업 조회까지 세면 다시 요청했는지 알 수 없다.
+ * 돌려주는 `simulation`은 **표 요청만** 센다 — 작업 조회나 결과 뒤의 차트 요청(`/series`)까지 세면
+ * 다시 요청했는지 알 수 없다.
  */
 function mockGet(...bodies: unknown[]) {
   return mockRoutes(bodies, () => []);
@@ -101,7 +102,7 @@ function mockRoutes(bodies: unknown[], jobs: () => JobRow[]) {
         return Promise.reject(err);
       }
     }
-    simulation(path);
+    if (path.startsWith("/api/stocks/simulation?")) simulation(path);
     return Promise.resolve(queue.length > 1 ? queue.shift() : queue[0]);
   }) as typeof apiClient.get);
   return Object.assign(simulation, { spy, fxJobs });
