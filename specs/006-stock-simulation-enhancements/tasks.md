@@ -339,7 +339,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T132 `backend/src/api/services/stock_simulation.py`·`backend/src/api/routes/stock_simulation.py` — 시장으로 세율 고르기, 재투자 지연 2 거래일, `convert_row`가 세금·수수료를 원금 통화로 환산, 행 JSON에 `dividendTax`·`tradeFee` (FR-055, FR-058, FR-059)
 - [X] T133 `frontend/src/lib/format.ts`·`frontend/src/lib/types.ts`·`frontend/src/components/stock/PerformanceTable.tsx` — 주당 배당금 소수 3자리 서식, 배당율 2자리 고정, 새 열·재투자 행 (FR-057, FR-059, research R6-24)
 - [X] T134 `frontend/src/components/stock/StockSearch.tsx`·`frontend/src/components/settings/StockSettingsForm.tsx`(·설정 페이지 연결) — 엔터로 맨 위 결과, 세율 두 칸 (FR-056, FR-055)
-- [ ] T135 실제 브라우저(3030)로 확인한다 — 설정의 세율 두 칸, 엔터 선택, VOO 원화 원금 실행에서 2026-09-28 배당 `1.823`과 배당 소득세·재투자 행(배당락 뒤 2번째 거래일)·매매 수수료 (SC-021~025, quickstart 28~31)
+- [X] T135 실제 브라우저(3030)로 확인한다 — 설정의 세율 두 칸, 엔터 선택, VOO 원화 원금 실행에서 2026-09-28 배당 `1.823`과 배당 소득세·재투자 행(배당락 뒤 2번째 거래일)·매매 수수료 (SC-021~025, quickstart 28~31)
 
 **Checkpoint**: 브라우저에서 설정 세율 두 칸, 엔터로 `현대차(005380)`, VOO 표의 `1.823`·배당 소득세·재투자 행·매매 수수료.
 
