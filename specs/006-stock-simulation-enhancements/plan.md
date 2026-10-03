@@ -256,7 +256,7 @@ frontend/
 | FR-053, SC-018 (원금 쉼표 — 표시에만, 반복 2026-10-03) | research R6-20, `frontend/src/lib/principalFormat.ts`, `SimulationForm.tsx`, ui-wireframes W3, tasks T111·T115, quickstart 24 |
 | FR-054, SC-020 (성과 보드 통화 기호 — 반복 2026-10-03 #2) | research R6-21, `frontend/src/lib/format.ts` `currencySymbol`·`formatMoneyWithSymbol`, `PerformanceBoard.tsx`, ui-wireframes W5, tasks T122·T123, quickstart 27 |
 | FR-055, SC-021 (배당 소득세 국내·해외 — 반복 2026-10-03 #3) | research R6-23, data-model 6절 `stock_setting`, `repository/stock_setting.py`·`api/routes/stock_settings.py`·`api/services/stock_simulation.py`, `StockSettingsForm.tsx`, contracts/rest-api 설정, ui-wireframes W7, tasks T126·T129·T131·T132·T134, quickstart 28 |
-| FR-056, SC-022 (엔터로 맨 위 결과) | `StockSearch.tsx`, ui-wireframes W2, tasks T129·T134, quickstart 29 |
+| FR-056, SC-022 (엔터로 맨 위 결과, 한글 조합 중 엔터는 확정) | `StockSearch.tsx`, ui-wireframes W2, tasks T129·T134·T146·T147, quickstart 29 |
 | FR-057, SC-023 (주당 배당금 3자리·배당율 2자리) | research R6-24, `lib/format.ts`, `PerformanceTable.tsx`, ui-wireframes W6, tasks T128·T133, quickstart 30 |
 | FR-058, SC-024 (재투자는 배당락 뒤 2번째 거래일 — 005 FR-008 대체) | research R6-22, `simulation/reinvest.py` `reinvest_lag_days`, `api/services/stock_simulation.py`, tasks T124·T130·T132, quickstart 31 |
 | FR-059, SC-025 (배당 소득세·매매 수수료 열, 재투자 행) | research R6-24, data-model 시뮬레이션 행, `simulation/reinvest.py`·`api/services/stock_simulation.py`(환산)·`api/routes/stock_simulation.py`, `PerformanceTable.tsx`, contracts/rest-api 행 필드, ui-wireframes W6, tasks T125·T127·T128·T130·T132·T133, quickstart 31 |

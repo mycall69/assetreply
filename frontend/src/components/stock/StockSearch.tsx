@@ -227,6 +227,10 @@ export function StockSearch({
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // 한글 조합 중의 키 입력은 입력기의 것이다(버그 search-enter-ime). 조합 중 엔터에서 고르고 칸을 비우면
+    // 입력기가 조합 중이던 글자를 빈 칸에 확정해 넣어, "삼성전자" 뒤 엔터가 칸을 "자"로 만들었다. 확정 뒤에
+    // 오는 엔터에서 고른다. keyCode 229도 본다 — Safari는 확정을 keydown보다 먼저 보내 isComposing이 거짓이다.
+    if (e.nativeEvent.isComposing || e.keyCode === 229) return;
     if (options.length === 0) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
