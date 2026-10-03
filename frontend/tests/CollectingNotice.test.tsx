@@ -39,15 +39,28 @@ describe("수집 중 안내", () => {
     expect(text).toContain("2024-12-31");
   });
 
-  it("진행이 오면 진행률을 보인다", () => {
+  it("진행이 오면 받은 날 / 받을 날로 보인다", () => {
+    // 006 FR-045a(반복 2026-10-03) — "3 / 4 구간"은 숫자가 작아 얼마나 남았는지 가늠하기 어렵다.
+    // 막대도 날 기준이다.
     render(
       <CollectingNotice {...base}
-        progress={{ jobId: 17, chunksDone: 3, chunksTotal: 4,
-          rangeStart: "2021-08-01", rangeEnd: "2024-12-31" }} />,
+        progress={{ jobId: 17, chunksDone: 1, chunksTotal: 4,
+          rangeStart: "2021-08-01", rangeEnd: "2024-12-31", daysDone: 730, daysTotal: 2467 }} />,
     );
     const bar = screen.getByRole("progressbar");
-    expect(bar).toHaveAttribute("aria-valuenow", "3");
-    expect(bar).toHaveAttribute("aria-valuemax", "4");
+    expect(bar).toHaveAttribute("aria-valuenow", "730");
+    expect(bar).toHaveAttribute("aria-valuemax", "2467");
+    expect(screen.getByRole("status").textContent).toContain("730 / 2,467일");
+    expect(screen.getByRole("status").textContent).not.toContain("구간 ");
+  });
+
+  it("큰 숫자도 3자리마다 쉼표로 보인다", () => {
+    render(
+      <CollectingNotice {...base}
+        progress={{ jobId: 17, chunksDone: 2, chunksTotal: 19,
+          rangeStart: "1990-01-01", rangeEnd: "2026-10-02", daysDone: 1460, daysTotal: 13424 }} />,
+    );
+    expect(screen.getByRole("status").textContent).toContain("1,460 / 13,424일");
   });
 
   it("진행이 아직 없으면 그 사실을 말한다", () => {

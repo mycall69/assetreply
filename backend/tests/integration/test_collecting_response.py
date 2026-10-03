@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 from decimal import Decimal
 
 import pytest
@@ -142,3 +143,42 @@ class Test진행_표시:
     def test_갱신_간격이_십초를_넘지_않는다(self) -> None:
         """SC-001a — 간격이 길면 진행이 멈춘 것처럼 보여 사용자가 새로고침한다."""
         assert POLL_SECONDS <= 10
+
+
+def snapshot_data(frame: str) -> dict[str, object]:
+    data: dict[str, object] = json.loads(frame.split("data: ", 1)[1])
+    return data
+
+
+class Test받은_날:
+    """006 T113 — FR-045a, research R6-19, contracts/rest-api 진행 스트림. 반복 2026-10-03.
+
+    진행을 **받은 날 / 받을 날**(달력 일수)로 보인다. 받을 날은 작업 구간의 일수, 받은 날은
+    그 구간 가운데 커버리지가 덮는 일수다 — 커버리지는 청크마다 커밋되므로 따로 세지 않는다.
+    """
+
+    async def test_작업_구간의_일수와_받은_날을_싣는다(self, session_and_client) -> None:
+        factory, client = session_and_client
+        body = (await client.get("/api/stocks/simulation", params=PARAMS)).json()
+        async with factory() as s:
+            data = snapshot_data(await anext(stream_body(s, body["jobId"], max_frames=1)))
+        # 비어 있던 2021-10-01~2021-11-30 — 61일. 아직 받은 날은 없다.
+        assert (data["rangeStart"], data["rangeEnd"]) == ("2021-10-01", "2021-11-30")
+        assert (data["daysDone"], data["daysTotal"]) == (0, 61)
+        # 구간 수는 그대로 남는다(호환).
+        assert "chunksDone" in data and "chunksTotal" in data
+
+    async def test_구간을_받을수록_받은_날이_는다(self, session_and_client) -> None:
+        factory, client = session_and_client
+        body = (await client.get("/api/stocks/simulation", params=PARAMS)).json()
+        async with factory() as s:
+            stock_id = int((await s.execute(select(Stock))).scalar_one().id)
+            # 워커가 10월을 받아 커버리지가 10-31까지 늘었다.
+            await upsert(s, StockCoverage, [{
+                "stock_id": stock_id, "covered_from": D("2021-08-01"),
+                "covered_through": D("2021-10-31")}], preserve=())
+            await s.commit()
+        async with factory() as s:
+            data = snapshot_data(await anext(stream_body(s, body["jobId"], max_frames=1)))
+        assert (data["daysDone"], data["daysTotal"]) == (31, 61)
+

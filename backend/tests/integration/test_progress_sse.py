@@ -86,3 +86,38 @@ class Test스트림:
 
 def test_ProgressEvent가_공개된다() -> None:
     assert ProgressEvent is not None
+
+
+class Test스트림_머리글:
+    """006 T113 — FR-045a, SC-017, research R6-19, contracts/rest-api. 반복 2026-10-03.
+
+    **중간 프록시가 스트림을 압축하면 이벤트가 스트림이 끝날 때까지 도착하지 않는다.**
+    2026-10-03 실측 — Next.js 개발 서버(3030)가 브라우저 요청에 gzip을 걸어 `EventSource`에
+    메시지가 0건 도착했다. `no-transform`이 압축을 막는다. 흉내 낸 프론트엔드 테스트로는 잡히지
+    않아 머리글을 여기서 본다.
+    """
+
+    async def test_모든_SSE_응답이_변환을_막는다(self) -> None:
+        from src.api.routes.collect import progress_endpoint
+        from src.api.routes.collection import get_stream
+        from src.api.routes.stock_progress import get_progress
+
+        responses = [
+            await progress_endpoint(session=None, job_id=1),  # type: ignore[arg-type]
+            await get_stream(session=None, currency="USD"),  # type: ignore[arg-type]
+            await get_progress(session=None, job_id=1),  # type: ignore[arg-type]
+        ]
+        for response in responses:
+            cache_control = response.headers["cache-control"]
+            assert "no-cache" in cache_control and "no-transform" in cache_control
+            assert response.headers["x-accel-buffering"] == "no"
+
+    def test_SSE를_내는_곳이_빠짐없이_검사된다(self) -> None:
+        """새 스트림이 머리글을 빠뜨리면 여기서 걸린다 — 위 검사에 더해야 한다."""
+        from pathlib import Path
+
+        api = Path(__file__).resolve().parents[2] / "src" / "api"
+        files = sorted(p.name for p in api.rglob("*.py")
+                       if 'media_type="text/event-stream"' in p.read_text(encoding="utf-8"))
+        assert files == ["collect.py", "collection.py", "stock_progress.py"]
+
