@@ -17,7 +17,7 @@ from typing import Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.ingestion.yahoo.parse import ChartData
+from src.ingestion.yahoo.parse import ChartFetch
 from src.repository.stock import Range, get_coverage, missing_ranges, record_coverage
 from src.repository.stock_price import store_chart, store_raw
 
@@ -31,7 +31,9 @@ class StockSource(Protocol):
 
     async def fetch_chart(
         self, symbol: str, date_from: dt.date, date_to: dt.date
-    ) -> tuple[ChartData, str, int]: ...
+    ) -> ChartFetch:
+        """청크의 **원주가**와 그것을 만드는 데 쓴 원본 전부 (006 FR-034)."""
+        ...
 
     async def delay_between_chunks(self) -> None: ...
 
@@ -77,14 +79,15 @@ async def collect_range(
         for chunk_start, chunk_end in split_into_chunks(
             gap_start, gap_end, CHUNK_DAYS
         ):
-            data, raw, status = await source.fetch_chart(
-                symbol, chunk_start, chunk_end)
+            fetched = await source.fetch_chart(symbol, chunk_start, chunk_end)
 
-            await store_raw(
-                session, stock_id=stock_id, kind="chart", body=raw,
-                status_code=status, requested_from=chunk_start,
-                requested_to=chunk_end)
-            stored += await store_chart(session, stock_id, data)
+            # 원본을 **모두** 남긴다 — 청크와, 원주가를 되살리는 데 쓴 분할 기록(006 FR-034).
+            for raw in fetched.raws:
+                await store_raw(
+                    session, stock_id=stock_id, kind=raw.kind, body=raw.body,
+                    status_code=raw.status, requested_from=raw.requested_from,
+                    requested_to=raw.requested_to)
+            stored += await store_chart(session, stock_id, fetched.data)
             await record_coverage(session, stock_id, chunk_start, chunk_end)
 
             # 청크마다 커밋한다. 중단되면 받은 데까지는 남아야 재개가 성립한다.

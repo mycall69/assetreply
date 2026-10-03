@@ -12,8 +12,11 @@
 from __future__ import annotations
 
 import datetime as dt
-from dataclasses import dataclass, field
-from decimal import Decimal
+from collections.abc import Iterable
+from dataclasses import dataclass, field, replace
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+
+from src.ingestion.yahoo.errors import StockSourceUnavailable
 
 #: 출처의 거래소 코드 → 우리가 쓰는 시장 이름.
 #: 매핑에 없는 거래소는 다루지 않는다 — 통화와 거래 규칙을 모르는 채로 시뮬레이션하면
@@ -99,13 +102,33 @@ class StockQuote:
 
 @dataclass(frozen=True, slots=True)
 class ChartData:
-    """정규화된 시세 묶음."""
+    """정규화된 시세 묶음. 시가·종가·배당은 `restore_unadjusted`를 거친 뒤에 원주가다."""
 
     currency: str
     first_trade_date: dt.date | None
     prices: list[DailyPrice] = field(default_factory=list)
     dividends: list[DividendEvent] = field(default_factory=list)
     splits: list[SplitEvent] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True)
+class RawBody:
+    """출처가 보낸 본문 하나. 받은 그대로 보관한다 (헌법 시계열 불변식)."""
+
+    #: `chart`(일봉 청크) · `splits`(원주가를 되살리는 데 쓴 분할 기록)
+    kind: str
+    body: str
+    status: int
+    requested_from: dt.date
+    requested_to: dt.date
+
+
+@dataclass(frozen=True, slots=True)
+class ChartFetch:
+    """청크 한 번의 결과 — 정규화한 시세와, 그것을 만드는 데 쓴 **원본 전부**(006 FR-034)."""
+
+    data: ChartData
+    raws: list[RawBody]
 
 
 def _decimal(value: object) -> Decimal | None:
@@ -119,6 +142,23 @@ def _decimal(value: object) -> Decimal | None:
     return Decimal(str(value))
 
 
+def _split_ratio_part(value: object) -> int:
+    """분할 비율의 한쪽을 정수로 읽는다.
+
+    **실제 응답은 실수로 준다**(`5.0`, 006 T090에서 발견). 005는 `int(str(…))`로 읽어
+    `'5.0'`에서 실패했고, 구간에 분할이 있는 종목의 시세 수집이 매번 실패했다.
+    양의 정수가 아니면 거절한다 — `2.5`를 2나 3으로 바꾸면 보유 수량이 조용히
+    틀린다(헌법 원칙 V·VI).
+    """
+    try:
+        number = Decimal(str(value))
+    except InvalidOperation:
+        number = Decimal("NaN")
+    if not number.is_finite() or number <= 0 or number != number.to_integral_value():
+        raise StockSourceUnavailable("시세 출처의 응답이 유효하지 않습니다.")
+    return int(number)
+
+
 def _local_date(epoch_seconds: int, gmt_offset: int) -> dt.date:
     """거래소 현지 날짜.
 
@@ -128,21 +168,52 @@ def _local_date(epoch_seconds: int, gmt_offset: int) -> dt.date:
     return moment.date()
 
 
-def parse_chart(body: object) -> ChartData:
-    """일봉·배당·분할을 도메인 타입으로 바꾼다.
-
-    값이 없는 날(출처가 `null`을 준 날)은 **행을 만들지 않는다.** 없는 값을 만들어
-    채우면 헌법 원칙 V 위반이다.
-    """
+def _first_result(body: object) -> tuple[dict[str, object], dict[str, object], int]:
+    """응답의 첫 결과, 그 메타, 거래소 시간대 오프셋(초)."""
     root = body if isinstance(body, dict) else {}
     chart = root.get("chart")
     chart_map = chart if isinstance(chart, dict) else {}
     result = chart_map.get("result")
     entries = result if isinstance(result, list) else []
     first = entries[0] if entries and isinstance(entries[0], dict) else {}
-    meta = first.get("meta") if isinstance(first.get("meta"), dict) else {}
+    meta = first.get("meta")
     meta_map = meta if isinstance(meta, dict) else {}
     offset = int(str(meta_map.get("gmtoffset") or 0))
+    return first, meta_map, offset
+
+
+def _split_events(first: dict[str, object], offset: int) -> list[SplitEvent]:
+    """결과의 분할 이벤트. 키는 봉의 시각이라(월봉이면 월 시작) **`date`를 읽는다**."""
+    raw_events = first.get("events")
+    events = raw_events if isinstance(raw_events, dict) else {}
+    return sorted(
+        (SplitEvent(
+            effective_date=_local_date(int(str(item["date"])), offset),
+            numerator=_split_ratio_part(item["numerator"]),
+            denominator=_split_ratio_part(item["denominator"]),
+        ) for item in _event_items(events.get("splits"))),
+        key=lambda s: s.effective_date)
+
+
+def parse_splits(body: object) -> list[SplitEvent]:
+    """분할 기록 응답(월봉, `events=splits`)에서 분할만 읽는다 (006 FR-034).
+
+    봉은 읽지 않는다 — 월봉 값은 계산에 쓰지 않는다. 결과가 없으면(구간에 시세 없음) 빈 목록이다.
+    """
+    first, _, offset = _first_result(body)
+    return _split_events(first, offset)
+
+
+def parse_chart(body: object) -> ChartData:
+    """일봉·배당·분할을 도메인 타입으로 바꾼다.
+
+    값이 없는 날(출처가 `null`을 준 날)은 **행을 만들지 않는다.** 없는 값을 만들어
+    채우면 헌법 원칙 V 위반이다.
+
+    **돌려주는 시가·종가·배당은 출처가 분할을 소급 반영한 값이다**(006 T090 결함 5). 원주가로 쓰려면
+    그 뒤의 분할 기록과 함께 `restore_unadjusted`를 거쳐야 한다 — 클라이언트가 한다.
+    """
+    first, meta_map, offset = _first_result(body)
     currency = str(meta_map.get("currency") or "")
 
     first_trade = meta_map.get("firstTradeDate")
@@ -186,20 +257,56 @@ def parse_chart(body: object) -> ChartData:
         ) for item in _event_items(events.get("dividends"))),
         key=lambda d: d.ex_date)
 
-    splits = sorted(
-        (SplitEvent(
-            effective_date=_local_date(int(str(item["date"])), offset),
-            numerator=int(str(item["numerator"])),
-            denominator=int(str(item["denominator"])),
-        ) for item in _event_items(events.get("splits"))),
-        key=lambda s: s.effective_date)
-
     return ChartData(
         currency=currency,
         first_trade_date=first_trade_date,
         prices=prices,
         dividends=dividends,
-        splits=splits,
+        splits=_split_events(first, offset),
+    )
+
+
+#: 되살린 값의 자릿수. 저장 열(`stock_price`·`stock_dividend`, 소수 6자리)과 같다. 병합(1:3)은
+#: 나눗셈이라 맞추지 않으면 끝나지 않는다.
+_RESTORED_PLACES = Decimal("0.000001")
+
+
+def restore_unadjusted(chart: ChartData, later_splits: Iterable[SplitEvent]) -> ChartData:
+    """출처가 분할을 소급 반영한 시가·종가·배당을 **원주가·원 배당으로 되살린다** (006 FR-034).
+
+    날짜 d의 원주가 = 반영가 × (d **이후**에 적용된 분할·병합의 분자 곱 ÷ 분모 곱). 분할 날의 시세는
+    이미 분할 뒤 값이라 곱하지 않는다 — 배당도 같다(분할 날의 배당은 분할 뒤 주식에 붙는다).
+
+    `later_splits`는 청크 시작일부터 지금까지의 분할 기록이다. 청크 안의 분할과 같은 날이면
+    비율이 같아야 한다 — 어긋나면 어느 쪽으로 되살려도 틀릴 수 있어 거절한다.
+
+    수정종가는 되살리지 않는다. 계산에 쓰지 않으며(005 FR-011) 되살리면 그 열의 뜻이 바뀐다.
+    곱할 것이 없는 값은 건드리지 않는다.
+    """
+    ratios: dict[dt.date, tuple[int, int]] = {}
+    for split in [*chart.splits, *later_splits]:
+        ratio = (split.numerator, split.denominator)
+        known = ratios.setdefault(split.effective_date, ratio)
+        if known != ratio:
+            raise StockSourceUnavailable("시세 출처의 응답이 유효하지 않습니다.")
+
+    def restore(value: Decimal, day: dt.date) -> Decimal:
+        numerator = denominator = 1
+        for effective, (num, den) in ratios.items():
+            if effective > day:
+                numerator *= num
+                denominator *= den
+        if numerator == denominator:
+            return value
+        return (value * numerator / denominator).quantize(_RESTORED_PLACES, ROUND_HALF_UP)
+
+    return replace(
+        chart,
+        prices=[replace(p, open_raw=restore(p.open_raw, p.quote_date),
+                        close_raw=restore(p.close_raw, p.quote_date))
+                for p in chart.prices],
+        dividends=[replace(d, amount_per_share=restore(d.amount_per_share, d.ex_date))
+                   for d in chart.dividends],
     )
 
 

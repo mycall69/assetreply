@@ -87,7 +87,7 @@ specs/006-stock-simulation-enhancements/
 ├── plan.md              # 이 파일
 ├── research.md          # R6-1 ~ R6-17
 ├── data-model.md        # 신규 테이블 5개, 설정, 원금 통화
-├── quickstart.md        # 검증 시나리오 22개
+├── quickstart.md        # 검증 시나리오 23개
 ├── contracts/
 │   ├── rest-api.md      # 검색 2종, 종목 등록, 시뮬레이션 변경점
 │   └── ui-wireframes.md # W1 시작일 ~ W4 수집 중
@@ -213,7 +213,7 @@ frontend/
 | FR-031, SC-008 (시장·기호 정확히, 검증 표본) | research R6-6 티커 표기 다섯 갈래, 계약 테스트(클래스 주식), quickstart 11·12·실행 기록 |
 | FR-032 (출처가 모름 ≠ 시세 없음) | research R6-6(수집 작업의 표지), contracts/rest-api `price_symbol_unknown`·진행 스트림 `status`, quickstart 12 |
 | FR-033 (005 이력 유효) | data-model 8절, research R6-17 재실행 경로 |
-| FR-034, SC-007b (반영가를 원주가로 되살림, 분할 이중 적용 없음) | research R6-18, `ingestion/yahoo/parse.py` `restore_unadjusted`·`parse_splits`, `ingestion/yahoo/client.py`(분할 기록 요청), `worker/stock_runner.py`(원본 둘 저장), 마이그레이션(주식 커버리지 비우기), data-model 6절, tasks T102~T108, quickstart 실행 기록 결함 5 |
+| FR-034, SC-007b (반영가를 원주가로 되살림, 분할 이중 적용 없음) | research R6-18, `ingestion/yahoo/parse.py` `restore_unadjusted`·`parse_splits`, `ingestion/yahoo/client.py`(분할 기록 요청), `worker/stock_runner.py`(원본 둘 저장), 마이그레이션(주식 커버리지 비우기), data-model 6절, tasks T102~T108, quickstart 23·실행 기록 결함 5 |
 | FR-040 (원화 원금 환전 규칙 유지) | 005 `stock_fx.py`, research R6-9 |
 | FR-041 (첫 매수일 환율) | 005 `build_exchange` 유지, quickstart 16 |
 | FR-042, SC-009 (고시 단위) | research R6-9, `simulation/fx_convert.py` `per_unit`, contracts/rest-api 7절, quickstart 16 |

@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import random
+from collections.abc import Callable
 from types import TracebackType
 from typing import Self
 
@@ -32,12 +33,28 @@ from src.ingestion.yahoo.errors import (
     StockSourceUnavailable,
     raise_for_response,
 )
-from src.ingestion.yahoo.parse import ChartData, StockQuote, parse_chart, parse_search
+from src.ingestion.yahoo.parse import (
+    ChartFetch,
+    RawBody,
+    StockQuote,
+    parse_chart,
+    parse_search,
+    parse_splits,
+    restore_unadjusted,
+)
 
 #: 출처가 브라우저가 아닌 요청을 거절하므로 일반적인 UA를 보낸다.
 _USER_AGENT = "Mozilla/5.0 (compatible; AssetReplay/1.0)"
 
 _SECONDS_PER_DAY = 86_400
+
+
+def _utc_now() -> dt.datetime:
+    return dt.datetime.now(dt.UTC)
+
+
+def _epoch(day: dt.date) -> int:
+    return int(dt.datetime.combine(day, dt.time.min, dt.UTC).timestamp())
 
 
 class YahooStockClient:
@@ -47,18 +64,29 @@ class YahooStockClient:
     않는다 — 003에서 세션을 열지 않아 수집이 한 번도 성공하지 못한 적이 있다.
     """
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        *,
+        session: aiohttp.ClientSession | None = None,
+        now: Callable[[], dt.datetime] = _utc_now,
+    ) -> None:
         self._settings = settings
-        self._session: aiohttp.ClientSession | None = None
+        # 넘겨받은 세션은 닫지 않는다 — 수명은 넘겨준 쪽이 관리한다
+        # (계약 테스트가 흉내 낸 세션을 넣는다).
+        self._session = session
+        self._owns_session = session is None
+        self._now = now
         self._gate = asyncio.Semaphore(settings.stock_max_concurrent)
 
     async def __aenter__(self) -> Self:
-        timeout = aiohttp.ClientTimeout(
-            total=self._settings.stock_request_timeout_seconds)
-        self._session = aiohttp.ClientSession(
-            timeout=timeout,
-            headers={"User-Agent": _USER_AGENT, "Accept": "application/json"},
-        )
+        if self._session is None:
+            timeout = aiohttp.ClientTimeout(
+                total=self._settings.stock_request_timeout_seconds)
+            self._session = aiohttp.ClientSession(
+                timeout=timeout,
+                headers={"User-Agent": _USER_AGENT, "Accept": "application/json"},
+            )
         return self
 
     async def __aexit__(
@@ -67,33 +95,47 @@ class YahooStockClient:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
-        if self._session is not None:
+        if self._owns_session and self._session is not None:
             await self._session.close()
             self._session = None
 
     async def fetch_chart(
         self, symbol: str, date_from: dt.date, date_to: dt.date
-    ) -> tuple[ChartData, str, int]:
-        """일봉·배당·분할을 한 번에 받는다.
+    ) -> ChartFetch:
+        """일봉·배당·분할을 받아 **원주가로 되살려** 돌려준다 (006 FR-034, research R6-18).
 
-        정규화된 데이터와 **원본 본문·상태 코드**를 함께 돌려준다. 원본을 보관해야
-        같은 날짜의 값이 나중에 달라졌을 때 되짚을 수 있다 (FR-046, 시계열 불변식).
+        출처의 시가·종가·배당은 받는 시점까지의 분할을 소급 반영한 값이다. 청크만 보면 그 뒤의
+        분할을 알 수 없으므로 **청크 시작일부터 지금까지의 분할 기록**(월봉 — 응답이 작다)을
+        함께 받는다. 분할 기록을 받지 못하면 청크도 돌려주지 않는다 — 되살리지 못한 값을
+        원주가로 저장하면 분할이 두 번 들어간다.
+
+        두 응답을 모두 원본으로 돌려준다. 원본을 보관해야 같은 날짜의 값이 나중에 달라졌을 때
+        되짚을 수 있다 (005 FR-046, 시계열 불변식).
         """
-        # 종료일을 포함하려면 그날 끝까지 요청해야 한다.
-        period1 = int(dt.datetime.combine(date_from, dt.time.min, dt.UTC).timestamp())
-        period2 = (
-            int(dt.datetime.combine(date_to, dt.time.min, dt.UTC).timestamp())
-            + _SECONDS_PER_DAY - 1
-        )
         path = f"/v8/finance/chart/{symbol}"
-        params = {
-            "period1": str(period1),
-            "period2": str(period2),
+        # 종료일을 포함하려면 그날 끝까지 요청해야 한다.
+        chunk_body, chunk_raw, chunk_status = await self._get(path, {
+            "period1": str(_epoch(date_from)),
+            "period2": str(_epoch(date_to) + _SECONDS_PER_DAY - 1),
             "interval": "1d",
             "events": "div,splits",
-        }
-        body, raw, status = await self._get(path, params)
-        return parse_chart(body), raw, status
+        })
+        chart = parse_chart(chunk_body)
+
+        now = self._now()
+        history_body, history_raw, history_status = await self._get(path, {
+            "period1": str(_epoch(date_from)),
+            "period2": str(int(now.timestamp())),
+            "interval": "1mo",
+            "events": "splits",
+        })
+        return ChartFetch(
+            data=restore_unadjusted(chart, parse_splits(history_body)),
+            raws=[
+                RawBody("chart", chunk_raw, chunk_status, date_from, date_to),
+                RawBody("splits", history_raw, history_status, date_from, now.date()),
+            ],
+        )
 
     async def search(self, query: str, limit: int) -> tuple[list[StockQuote], str, int]:
         """종목을 검색한다 (FR-002a).
