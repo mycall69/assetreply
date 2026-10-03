@@ -119,7 +119,7 @@ description: "Task list for 006-stock-simulation-enhancements"
 - [X] T040 [US1] `backend/src/api/main.py`의 오류 처리기를 나눈다 — 시세 출처가 심볼을 모를 때 `price_symbol_unknown`, 우리 DB에 종목이 없을 때 `unknown_stock`. 출처가 모른다는 사실은 수집 워커 안에서 드러나므로, `worker/stock_worker.py`가 작업 사유에 표지를 붙이고 `stock_collect.plan_collection`이 그 표지로 끝난 종목의 수집을 되풀이하지 않는다. 진행 스트림의 `failed`에 `status`를 싣는다 (FR-032, research R6-6, contracts/rest-api 4절)
 - [X] T041 [US1] `frontend/src/lib/types.ts`에 검색 응답(`results`·`truncated`·`lists`)·외부 검색·등록 응답 타입을 더한다 (contracts/rest-api)
 - [X] T042 [US1] `frontend/src/lib/searchSequence.ts` (FR-029a)
-- [X] T043 [US1] `frontend/src/components/stock/StockSearch.tsx`를 두 영역(국내·미국 / 일본)으로 바꾼다. 로컬 입력 대기 150ms·외부 300ms, 목록 상태 줄, 잘림 안내, W2a (FR-024, FR-025, FR-027, FR-028, FR-028a, FR-029, ui-wireframes W2, W2a)
+- [X] T043 [US1] `frontend/src/components/stock/StockSearch.tsx`를 두 영역(국내·미국 / 일본)으로 바꾼다. 로컬 입력 대기 150ms·외부 300ms, 목록 상태 줄, 잘림 안내, W2a (FR-024, FR-025, FR-027, FR-028, FR-028a, FR-029, ui-wireframes W2, W2a) **Phase 9에서 결과 줄과 고른 종목 표시가 `종목명(코드)`로 바뀐다(T116).**
 - [X] T044 [US1] `frontend/src/stores/stockStore.ts` — 결과를 고르면 등록하고, 등록 응답의 식별을 입력·이력에 쓴다 (FR-030, FR-030b)
 
 **Checkpoint**: 국내 종목을 한글·초성으로 찾아 시뮬레이션까지 간다
@@ -152,7 +152,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T052 [US2] `backend/src/api/routes/stock_simulation.py`·`stock_series.py`의 202 본문에 `fx`를 싣고, `main.py`에 `fx_not_available_before`(409) 처리기를 더한다 (FR-043a, FR-045, contracts/rest-api 5·6절)
 - [X] T053 [US2] `frontend/src/lib/types.ts`에 202 `fx`와 `fx_not_available_before` 본문 타입을 더한다
 - [X] T054 [US2] `frontend/src/stores/stockStore.ts` — `fx.state: waiting`이면 003 수집 스트림(`lib/collectionStream.ts`)을 구독하고 끝나면 다시 요청한다. 화면을 떠나면 구독을 끊는다. `queued`·`collecting`도 같은 스트림으로 끝을 본다. 수집이 실패하면 사유를 보이고 자동으로 다시 요청하지 않는다(FR-047a) — **환율 쪽은 이 판정이 빠진 채 완료로 표시되었다. T099·T100이 고친다(analyze I1).** **003의 스트림은 `busyWith`를 연결할 때 한 번만 읽어 `waiting`이 풀린 것을 알 수 없었다** — 백엔드 `routes/collection.py`·`api/collection_stream.py`가 프레임마다 읽게 함께 고쳤다(구현 단계 발견, T091이 검증) (FR-046, research R6-10)
-- [X] T055 [US2] `frontend/src/components/stock/CollectingNotice.tsx`에 환율 줄(W4)과 W4a를 더한다. W4a는 `reason`에 따라 두 문구를 나눈다 (FR-043a, FR-045, FR-046, ui-wireframes W4, W4a)
+- [X] T055 [US2] `frontend/src/components/stock/CollectingNotice.tsx`에 환율 줄(W4)과 W4a를 더한다. W4a는 `reason`에 따라 두 문구를 나눈다 (FR-043a, FR-045, FR-046, ui-wireframes W4, W4a) **Phase 9에서 진행 줄이 "N / M 구간"에서 "받은 날 / 받을 날"로 바뀐다(T118).**
 - [X] T092 [US2] `backend/src/api/services/collection_gate.py`의 `ensure_background_job`이 **작업도 점유도 만들지 않고** 003의 `StartQueue`로 요청만 넘기게 한다. 작업 번호 대신 **수집 표**(`state`: `collecting`·`queued`·`waiting`, `jobId`: 점유가 있을 때만, `busyWith`, `progressUrl`)를 돌려준다. 큐가 거절하면 아무것도 남기지 않는다 (FR-046a, research R6-10, analyze N1)
 - [X] T093 [US2] 외환 화면의 202를 만드는 `backend/src/api/routes/series.py`·`daily.py`·`rates.py`·`latest.py`가 수집 표를 싣게 한다 — `jobId`가 `null`일 수 있고 `state`·`busyWith`가 더해지며, 시작 전이면 `progressUrl`이 `/api/fx/collection/stream?currency=`다. 006의 시뮬레이션 202 `fx`(T051·T052)도 같은 수집 표를 쓴다. 외환 화면의 프론트엔드는 이 필드를 읽지 않으므로 화면은 바꾸지 않는다 (FR-046a, contracts/rest-api 6a절)
 
@@ -178,7 +178,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 
 - [X] T060 [US3] `frontend/src/lib/startDate.ts` — 정수 날짜 산술, 그 달 말일로 맞춤, 어제 경계 (FR-002, FR-003, FR-004)
 - [X] T061 [US3] `frontend/src/components/stock/StartDateInput.tsx` — W1·W1a (FR-001, FR-002, FR-004, FR-005, ui-wireframes W1, W1a)
-- [X] T062 [US3] `frontend/src/components/stock/SimulationForm.tsx`가 `StartDateInput`을 쓰게 하고, `stockStore`의 시작일 초기값을 2020-01-01로, 종목 변경이 시작일을 건드리지 않게 한다 (FR-001, FR-006)
+- [X] T062 [US3] `frontend/src/components/stock/SimulationForm.tsx`가 `StartDateInput`을 쓰게 하고, `stockStore`의 시작일 초기값을 2020-01-01로, 종목 변경이 시작일을 건드리지 않게 한다 (FR-001, FR-006) **Phase 9에서 원금 칸이 3자리 쉼표로 보인다(T115).**
 - [X] T063 [US3] `backend/src/api/services/stock_simulation.py` — 시작 가능 날짜를 두 단계로 판정한다: 수집 전에는 목록 상장일(과 출처가 준 시세 시작일)을 하한으로, 수집 후에는 시작 월의 실제 일봉으로. `run_simulation`이 메타데이터(`listed_on`)를 실제 일봉보다 먼저 믿지 않게 바꾼다. **받아 둔 첫 시세를 수집 전 근거로 쓰지 않고, 주식 수집을 시작 월 1일부터 한다**(`stock_collect.collecting_body`, 구현 단계 결정) (FR-005, FR-005a, research R6-8)
 - [X] T064 [US3] `backend/src/api/main.py`의 `before_listing` 처리기가 `startableFrom`·`basis`를 싣게 하고, `frontend/src/lib/types.ts`에 본문 타입을 더한다 (FR-005, FR-005a, contracts/rest-api 2절)
 
@@ -211,7 +211,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T072 [US4] `backend/src/api/services/listing_refresh.py`에 `NYSE`·`NASDAQ`·`AMEX` 단위와 미국 쪽 사이 간격을 더한다. **`worker/listing_worker.py`를 국내·미국 두 줄로 나누고 `ingestion/kiwoom/client.py`의 토큰 발급을 잠근다**(T068의 "국내가 미국을 기다리지 않음"·"토큰 한 번"을 만족시키려면 필요했다, 구현 단계 결정) (FR-011, FR-015, FR-017, FR-063, research R6-3)
 - [X] T073 [US4] `backend/src/api/services/stock_selection.py` — 미국은 **티커로 기존 종목을 먼저 찾는다** (FR-030a)
 - [X] T074 [US4] `backend/src/api/services/listing_index.py`에 미국 일치 필드(한글명·영문명·티커)를 더한다 (FR-021)
-- [X] T075 [US4] `frontend/src/components/stock/StockSearch.tsx`가 미국 결과에 영문 종목명을 함께 보이게 한다 (FR-025)
+- [X] T075 [US4] `frontend/src/components/stock/StockSearch.tsx`가 미국 결과에 영문 종목명을 함께 보이게 한다 (FR-025) **Phase 9에서 코드가 오른쪽 칸에서 이름 옆으로 옮겨진다(T116).**
 
 **Checkpoint**: 미국 종목을 한글·초성·영문·티커로 찾는다
 
@@ -233,7 +233,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 ### Implementation for User Story 5
 
 - [X] T079 [US5] `backend/src/api/services/stock_simulation.py` — `check_principal_currency(code, stock_currency)`가 `{KRW, 종목 통화}`만 받게 하고 원금 통화 목록에서 EUR을 뺀다. 표·차트·이력 재실행이 모두 이 함수를 지나게 한다. `main.py`에 처리기를 더한다 (FR-050, FR-050a, FR-050d, FR-051, research R6-11)
-- [X] T080 [US5] `frontend/src/components/stock/SimulationForm.tsx`·`frontend/src/stores/stockStore.ts` — 종목에 따라 선택지를 정하고, 허용되지 않게 되면 값을 바꾸지 않고 막는다 (FR-050b, FR-050d, ui-wireframes W3)
+- [X] T080 [US5] `frontend/src/components/stock/SimulationForm.tsx`·`frontend/src/stores/stockStore.ts` — 종목에 따라 선택지를 정하고, 허용되지 않게 되면 값을 바꾸지 않고 막는다 (FR-050b, FR-050d, ui-wireframes W3) **Phase 9에서 원금 칸이 3자리 쉼표로 보인다(T115).**
 - [X] T081 [US5] `frontend/src/components/stock/SimulationHistory.tsx`·`stockStore.ts` — 막힌 이력 항목을 사유와 함께 표시한다. 비교에 고르면 서버에 묻지 않고 사유와 함께 실패 목록에 올린다. **005의 이력 화면에는 "다시 실행" 버튼이 없어** 재실행 경로의 거절은 서버(T079, T076)가 맡는다 (FR-050c)
 
 **Checkpoint**: 다섯 스토리가 모두 독립적으로 동작한다
@@ -250,7 +250,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - [X] T087 `frontend/`에서 `npx tsc --noEmit`과 `npx eslint .`를 통과시킨다. `any` 금지
 - [X] T088 `backend/`에서 커버리지 80% 이상을 확인한다 — `cd backend && .venv/bin/python -m pytest -q --cov=src`
 - [X] T089 `backend/tests/`와 `frontend/tests/` 전체가 **네트워크 차단 상태에서** 통과하는지 확인한다. 005가 더한 소켓 가드가 키움 호출도 막는지 본다 — `backend/tests/unit/test_network_guard.py`가 키움 도메인 접속과 aiohttp 경로(해석된 주소)가 가드에 걸리는지 검증한다 (헌법 원칙 III)
-- [ ] T090 **부분 완료 — 엔화 시나리오는 2026-10-03에 실행했다(16·19-1 통과, 17·18-1 부분 통과). Yahoo 분할 비율 결함(quickstart 실행 기록 결함 4)과 고친 파서로 다시 돌리자 드러난 결함 5(분할이 두 번 들어감)는 T102~T108이 고쳤고 시나리오 23(토요타·애플)으로 확인했다(사용자 결정 A안). 남은 것: 시나리오 9(다음 날), 화면 조작 시나리오 — **브라우저로 실제 실행해야 한다.** "프론트엔드 테스트가 대신한다"는 가정은 틀렸다: 그 테스트는 `apiClient`를 흉내 내어 프록시를 거치지 않았고, 주식 화면 전체가 브라우저에서 404였다(T109·T110, 버그 `stock-search-not-found`)**. `quickstart.md`의 시나리오 23개를 순서대로 수동 실행하고 결과를 기록한다. 시나리오 1은 인증 정보를 넣기 전에 해야 한다. 시나리오 2의 측정값으로 research R6-2를 채운다. **실제 출처를 부르므로 미국 목록은 분당 제한을 지킨다.** 시나리오마다 검증하는 FR·SC는 quickstart에 적혀 있다 — 범위 표기로 묶지 않는다(004의 교훈: 범위 표기는 검색에 걸리지 않는다)
+- [ ] T090 **부분 완료 — 엔화 시나리오는 2026-10-03에 실행했다(16·19-1 통과, 17·18-1 부분 통과). Yahoo 분할 비율 결함(quickstart 실행 기록 결함 4)과 고친 파서로 다시 돌리자 드러난 결함 5(분할이 두 번 들어감)는 T102~T108이 고쳤고 시나리오 23(토요타·애플)으로 확인했다(사용자 결정 A안). 남은 것: 시나리오 9(다음 날), 화면 조작 시나리오 — **브라우저로 실제 실행해야 한다.** "프론트엔드 테스트가 대신한다"는 가정은 틀렸다: 그 테스트는 `apiClient`를 흉내 내어 프록시를 거치지 않았고, 주식 화면 전체가 브라우저에서 404였다(T109·T110, 버그 `stock-search-not-found`)**. `quickstart.md`의 시나리오 23개(24~26은 T119가 맡는다)를 순서대로 수동 실행하고 결과를 기록한다. 시나리오 1은 인증 정보를 넣기 전에 해야 한다. 시나리오 2의 측정값으로 research R6-2를 채운다. **실제 출처를 부르므로 미국 목록은 분당 제한을 지킨다.** 시나리오마다 검증하는 FR·SC는 quickstart에 적혀 있다 — 범위 표기로 묶지 않는다(004의 교훈: 범위 표기는 검색에 걸리지 않는다)
 - [X] T096 `backend/src/worker/stock_worker.py` — **T090에서 발견**: 주식 수집 워커가 출처를 열지 않아 실제 경로의 모든 시세 수집이 실패했다(005 결함). 003의 `worker_loop`처럼 출처를 열고 닫는다. 재현 테스트 `test_stock_worker.py::Test출처_열기`(열어야만 동작하는 스텁) (005 FR-043, 006 SC-007a, FR-047a)
 - [X] T097 `backend/src/ingestion/yahoo/errors.py` — **T090에서 발견**: 시세가 시작되기 전 구간에 대한 HTTP 400 + `chart.error`("Data doesn't exist for startDate …")를 빈 구간으로 받는다. 실제 응답을 픽스처(`chart_no_data_in_range.json`)로 계약 테스트한다. 다른 400은 그대로 오류 (006 FR-005, FR-005a)
 - [X] T098 `backend/tests/conftest.py` — **T090에서 발견**: 테스트 세션의 수집 로그를 임시 경로로 옮긴다(`TestClient`가 `lifespan`을 돌려 운영 로그에 썼다). `.env`의 값을 존중하지 않는다. 재현 테스트 `test_logging_config.py::test_테스트는_운영_수집_로그에_쓰지_않는다` (헌법 원칙 III, CLAUDE.md "로그는 두 곳")
@@ -269,6 +269,34 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 
 ---
 
+## Phase 9: 화면 표시 개선과 진행 전달 (반복 2026-10-03)
+
+**Purpose**: 투자 원금의 3자리 쉼표(FR-053), 검색 결과·고른 종목의 `종목명(코드)`(FR-025), 시세 수집의 "받은 날 / 받을
+날"(FR-045a). 진행이 화면에 하나도 도착하지 않던 원인 — Next.js 프록시가 SSE를 gzip으로 압축해 모아 둔다 — 을 함께
+고친다(research R6-19).
+
+**순서**: 테스트(T111~T114)를 먼저 커밋하고 최초 실패를 확인한 뒤 구현(T115~T118), 마지막에 실제 브라우저 확인(T119).
+구현 뒤 테스트가 실패하면 멈추고 먼저 보고한다(헌법 원칙 III, plan Complexity Tracking D2).
+
+### Tests for Phase 9 ⚠️
+
+- [ ] T111 [P] `frontend/tests/principalFormat.test.ts`·`frontend/tests/SimulationFormPrincipal.test.tsx` — 순수 함수: `"10000000"` → `"10,000,000"`, `"1234.5"` → `"1,234.5"`, 쉼표·공백이 섞인 입력을 쉼표 없는 문자열로, 숫자 아닌 글자 제거, 빈 값. 화면: 칸에 `10,000,000`이 보이고 `onChange`는 `"10000000"`을 받는지, 붙여넣은 `1,000,000`도 같은지, `toQuery`의 `principal`과 이력 저장값에 쉼표가 없는지 (FR-053, SC-018)
+- [ ] T112 [P] `frontend/tests/displayCode.test.ts`·`frontend/tests/StockSearchCode.test.tsx` — 순수 함수: `KRX` `005930.KS` → `005930`, `.KQ`, `TSE` `7203.T` → `7203`, 미국 `AAPL`·`BRK-B`는 그대로, 영문 섞인 국내 코드 `0030R0`. 화면: 결과 줄이 `삼성전자(005930)`·`애플(AAPL)`·`토요타자동차(7203)`, 오른쪽 칸에 코드가 두 번 나오지 않는지, 고른 종목 표시가 `삼성전자(005930)`인지 (FR-025, SC-019)
+- [ ] T113 [P] `backend/tests/integration/test_progress_sse.py`에 더한다 — 진행 스냅샷에 `daysTotal`(작업 구간의 달력 일수)과 `daysDone`(그 구간 가운데 커버리지가 덮는 날 수)이 있고 청크를 받을수록 늘어나는지. 또 **모든 SSE 응답**(`/api/stocks/progress`, `/api/fx/collection/stream`, 001의 진행 스트림)의 `Cache-Control`에 `no-transform`이 있는지 (FR-045a, SC-017)
+- [ ] T114 [P] `frontend/tests/CollectingNotice.test.tsx`에 더한다 — 스냅샷이 오면 `730 / 2,467일`처럼 쉼표와 함께 보이고 막대 값이 일수 기준인지, 스냅샷 전에는 "시작하는 중…"인지 (FR-045a)
+
+### Implementation for Phase 9
+
+- [ ] T115 `frontend/src/lib/principalFormat.ts`(신규)와 `frontend/src/components/stock/SimulationForm.tsx` — 칸은 쉼표 형식으로 보이고 상태에는 쉼표 없는 문자열을 둔다. 입력 중 커서는 **커서 앞의 숫자 개수**를 기준으로 되돌린다 (FR-053, research R6-20)
+- [ ] T116 `frontend/src/lib/displayCode.ts`(신규)와 `frontend/src/components/stock/StockSearch.tsx` — 결과 줄과 고른 종목 표시를 `종목명(코드)`로, 오른쪽 칸의 코드를 뺀다 (FR-025, research R6-20)
+- [ ] T117 `backend/src/api/routes/stock_progress.py` — 스냅샷에 `daysDone`·`daysTotal`. `routes/stock_progress.py`·`collection.py`·`collect.py`의 SSE 머리글을 `Cache-Control: no-cache, no-transform`으로 (FR-045a, research R6-19)
+- [ ] T118 `frontend/src/lib/stockProgressStream.ts`·`frontend/src/components/stock/CollectingNotice.tsx` — 스냅샷 타입에 `daysDone`·`daysTotal`, 진행 줄을 `받은 날 / 받을 날`로 (FR-045a)
+- [ ] T119 실제 브라우저(3030 경유)로 확인한다 — 아직 받지 않은 종목을 실행해 진행 메시지가 **실시간으로 도착**하고 숫자가 늘어나는지, 원금 칸의 쉼표, 결과의 코드 표기. **`no-transform`으로도 Next.js가 압축하면** `frontend/next.config.ts`의 `compress: false`로 바꾸고 그 사실을 research R6-19에 적는다 (SC-017, SC-018, SC-019, quickstart 24~26)
+
+**Checkpoint**: 브라우저에서 원금 `10,000,000`, 결과 `삼성전자(005930)`, 수집 중 `N / M일`이 늘어나다 결과가 나온다.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -281,6 +309,7 @@ T092·T093은 analyze에서 덧붙인 ID라 목록 순서가 실행 순서와 �
 - **US4 (Phase 6)**: **US1 완료 후**. 검색 핵심을 재사용한다
 - **US5 (Phase 7)**: Foundational 완료 후. 다른 스토리와 독립
 - **Polish (Phase 8)**: 원하는 스토리가 모두 끝난 뒤
+- **Phase 9 (반복 2026-10-03)**: Phase 8 뒤. US1(검색)·US2(수집 안내)·US5(원금 칸)의 화면을 고친다. T110(프록시)이 먼저 있어야 T119를 브라우저로 확인할 수 있다
 
 ### 스토리 간 의존
 
@@ -317,14 +346,17 @@ Setup → Foundational ─┬→ US1 (MVP) ──→ US4 (미국)
 | `backend/tests/unit/test_price_symbol.py` | T016, T066 |
 | `backend/tests/unit/test_search_match.py` | T014, T067 |
 | `frontend/src/stores/stockStore.ts` | T044, T054, T062, T080, T081, T100 |
+| `frontend/src/components/stock/SimulationForm.tsx` | T062, T080, T115 |
+| `frontend/src/components/stock/StockSearch.tsx` | T043, T075, T116 |
+| `frontend/src/components/stock/CollectingNotice.tsx` | T055, T118 |
+| `backend/src/api/routes/stock_progress.py`·`collection.py`·`collect.py` | T117 |
+| `frontend/tests/CollectingNotice.test.tsx` | T114 |
 | `frontend/tests/CollectingNoticeFx.test.tsx` | T048, T099 |
 | `backend/src/ingestion/yahoo/parse.py` | T103, T107 |
 | `backend/src/ingestion/yahoo/client.py`·`backend/src/worker/stock_runner.py` | T108 |
 | `frontend/next.config.ts` | T110 |
 | `backend/tests/contract/test_stock_source_parse.py` | T102, T104 |
 | `backend/tests/integration/test_stock_collection.py`·`test_stock_worker.py`·`test_start_available.py`·`test_stock_selection.py` | T106 (스텁 반환 형태) |
-| `frontend/src/components/stock/StockSearch.tsx` | T043, T075 |
-| `frontend/src/components/stock/SimulationForm.tsx` | T062, T080 |
 | `frontend/src/lib/types.ts` | T041, T053, T064 |
 
 ### Parallel Opportunities
@@ -365,6 +397,7 @@ backend/src/search/hangul.py → match.py → price_symbol.py   # T030~T032
 3. US3 — 시작일. 기본값 휴일 거절이 여기서 닫힌다
 4. US4 — 미국 검색
 5. US5 — 원금 통화 제한
+6. Phase 9 — 원금 쉼표, 종목명(코드), 수집 진행 표시(반복 2026-10-03)
 
 각 스토리는 앞 스토리를 깨지 않고 더해진다.
 

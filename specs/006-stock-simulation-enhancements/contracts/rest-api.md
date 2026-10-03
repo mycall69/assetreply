@@ -294,3 +294,31 @@ research R6-17).
 
 응답 모양은 같다. **값이 바뀐다** — `exchange.rate`와 행의 `fxRate`는 **1엔당** 원화 값이다(예:
 `9.000000`). 005는 100엔당 값(`900.000000`)을 1엔당으로 썼다.
+
+---
+
+## `GET /api/stocks/progress` — 받은 날 / 받을 날 (FR-045a) — 반복 2026-10-03
+
+`snapshot` 사건에 두 필드를 더한다. 기존 필드는 그대로다(호환).
+
+```json
+{ "jobId": 127, "chunksDone": 1, "chunksTotal": 4,
+  "rangeStart": "2020-01-01", "rangeEnd": "2026-10-02",
+  "daysDone": 730, "daysTotal": 2467 }
+```
+
+- `daysTotal`: 작업 구간(`rangeStart`~`rangeEnd`, 양끝 포함)의 달력 일수
+- `daysDone`: 그 구간 가운데 주식 커버리지가 덮는 달력 일수. 청크마다 커밋된 커버리지로 계산한다 — 작업 구간 앞뒤로
+  이미 받아 둔 구간이 겹치면 처음부터 0보다 크다
+- 화면은 `daysDone / daysTotal`을 3자리 쉼표로 보인다(`730 / 2,467일`)
+
+## 모든 `text/event-stream` 응답의 머리글 (FR-045a) — 반복 2026-10-03
+
+```
+Cache-Control: no-cache, no-transform
+X-Accel-Buffering: no
+```
+
+대상: `/api/stocks/progress`, `/api/fx/collection/stream`(003), 001의 진행 스트림. **`no-transform`이 없으면 중간
+프록시가 압축하면서 이벤트를 모아 둔다** — 2026-10-03 실측으로 Next.js 개발 서버(3030)가 브라우저 요청에 gzip을 걸어
+스트림이 끝날 때까지 이벤트가 도착하지 않았다(research R6-19).
