@@ -7,6 +7,10 @@
 - 출처는 **오류도 HTTP 200으로 반환**하므로 본문 판별이 필수다 (parser가 담당).
 - 호출 제한을 지키기 위해 동시 호출 수를 제한하고 실패 시 지수 백오프 + 지터를 적용한다
   (FR-007, FR-012).
+
+008부터 요청은 **프로세스 하나의 관문**(`gate.EcosGate`)을 지난다 — 예금 금리와 같은 출처의
+동시 수와 한도 신호(`INFO-300`)를 함께 지킨다(008 research R8-6). 한도 초과의 백오프는 관문
+전체를 닫는다.
 """
 
 from __future__ import annotations
@@ -20,7 +24,8 @@ from typing import Self
 import aiohttp
 
 from src.config.settings import Settings
-from src.ingestion.ecos.errors import SourceError, SourceUnavailable
+from src.ingestion.ecos.errors import SourceError, SourceRateLimited, SourceUnavailable
+from src.ingestion.ecos.gate import get_gate
 from src.ingestion.ecos.item_mapping import resolve_item_mapping
 from src.ingestion.ecos.parser import parse_search_response
 from src.ingestion.protocols import FetchResult, ItemMapping
@@ -88,18 +93,24 @@ class EcosClient:
     async def _get(self, url: str) -> tuple[str, int]:
         if self._session is None:
             raise RuntimeError("EcosClient를 async with로 열어야 합니다.")
-        async with self._semaphore:
+        async with self._semaphore, get_gate(self._settings).slot():
             try:
                 async with self._session.get(url) as response:
                     return await response.text(), response.status
             except aiohttp.ClientError as exc:
                 raise SourceUnavailable(f"출처에 연결하지 못했습니다: {exc}") from exc
 
-    async def _backoff(self, attempt: int) -> None:
-        """지수 백오프 + 지터. 여러 통화가 동시에 재시도하며 겹치는 것을 흩는다."""
+    async def _backoff(self, attempt: int, *, rate_limited: bool = False) -> None:
+        """지수 백오프 + 지터. 여러 통화가 동시에 재시도하며 겹치는 것을 흩는다.
+
+        한도 초과면 관문 전체를 같은 시간 닫는다 — 예금 수집도 그동안 부르지 않는다(008 R8-6).
+        """
         base = self._settings.ecos_retry_base_delay_ms / 1000
         delay = base * (2 ** attempt) + random.uniform(0, base)
-        await asyncio.sleep(delay)
+        if rate_limited:
+            await get_gate(self._settings).pause(delay)
+        else:
+            await asyncio.sleep(delay)
 
     # ── FxRateSource ────────────────────────────────────────────────
 
@@ -122,7 +133,7 @@ class EcosClient:
                 if not exc.retryable:
                     raise
                 last = exc
-                await self._backoff(attempt)
+                await self._backoff(attempt, rate_limited=isinstance(exc, SourceRateLimited))
 
         assert last is not None
         raise last

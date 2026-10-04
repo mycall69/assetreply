@@ -172,6 +172,12 @@ class Settings:
     ecos_max_concurrent_currencies: int = 3
     ecos_retry_max_attempts: int = 5
     ecos_retry_base_delay_ms: int = 1000
+    # 환율(001)과 예금 금리(008)가 함께 쓰는 ECOS 동시 요청 수 — 프로세스 하나의 관문이
+    # 지킨다(008 R8-6). 001의 통화 동시 수와 같게 두어 환율 수집의 속도는 그대로다.
+    ecos_max_concurrent_requests: int = 3
+    # 예금 금리를 다시 확인할 때 마지막으로 받은 달의 몇 달 전부터 받을지 — 겹친 달로 출처의
+    # 사후 수정을 관측한다(덮어쓰지 않는다, 008 R8-4).
+    deposit_recheck_overlap_months: int = 2
 
     # ── 주식 시세 출처 (005 research R5-1) ──
     #
@@ -330,6 +336,8 @@ def load_settings(env_file: Path | None = None) -> Settings:
         ecos_max_concurrent_currencies=_env_int("ECOS_MAX_CONCURRENT_CURRENCIES", 3, minimum=1),
         ecos_retry_max_attempts=_env_int("ECOS_RETRY_MAX_ATTEMPTS", 5, minimum=1),
         ecos_retry_base_delay_ms=_env_int("ECOS_RETRY_BASE_DELAY_MS", 1000),
+        ecos_max_concurrent_requests=_env_int("ECOS_MAX_CONCURRENT_REQUESTS", 3, minimum=1),
+        deposit_recheck_overlap_months=_env_int("DEPOSIT_RECHECK_OVERLAP_MONTHS", 2),
         stock_source_base_url=_env_str(
             "STOCK_SOURCE_BASE_URL", "https://query1.finance.yahoo.com"),
         stock_chunk_delay_ms=_env_int("STOCK_CHUNK_DELAY_MS", 1500),

@@ -751,3 +751,118 @@ class CryptoSetting(Base):
     trade_fee_rate: Mapped[Decimal] = mapped_column(SPREAD, nullable=False)
     updated_at: Mapped[dt.datetime] = mapped_column(
         TS, server_default=func.now(), onupdate=func.now())
+
+
+# ── 예금 (008) ────────────────────────────────────────────────────────────────
+#
+# 투자처는 테이블이 아니다 — 다섯으로 고정이고(FR-003) 출처의 통계표·항목 코드는 ECOS 어댑터 안에만
+# 있다(헌법 원칙 II, research R8-1). DB에는 투자처 키(`commercial_bank` 등)만 둔다.
+# **달은 그 달 1일의 DATE다** — 문자열(YYYYMM)이면 범위 비교가 문자열 비교가 된다.
+
+# 금리는 연 % 그대로다(실측 최댓값 16.2, 소수 2자리 — 여유를 둔다, research R8-11).
+RATE_PCT = Numeric(7, 4, asdecimal=True)
+
+
+class DepositRate(Base):
+    """월별 금리. **발표된 달만** 있다 — 잠정 금리는 저장하지 않는다(FR-024).
+    이미 있는 달은 다시 받아도 바꾸지 않는다(research R8-4)."""
+
+    __tablename__ = "deposit_rate"
+
+    institution: Mapped[str] = mapped_column(String(24), primary_key=True)
+    month: Mapped[dt.date] = mapped_column(Date, primary_key=True)
+    rate: Mapped[Decimal] = mapped_column(RATE_PCT, nullable=False)
+    source: Mapped[str] = mapped_column(String(16), nullable=False)
+    ingested_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+
+class DepositRawResponse(Base):
+    """받은 원본. **요청 URL은 담지 않는다** — 인증키가 경로에 있다(FR-014).
+
+    항목 목록은 통계표 하나가 여러 투자처를 덮으므로 투자처가 비고, `source_ref`는 어댑터가 준
+    불투명한 참조다(analyze I2).
+    """
+
+    __tablename__ = "deposit_raw_response"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    institution: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    endpoint: Mapped[str] = mapped_column(String(24), nullable=False)
+    source_ref: Mapped[str] = mapped_column(String(32), nullable=False)
+    requested_from: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    requested_to: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    status_code: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    result_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    body: Mapped[str] = mapped_column(Text(length=16_777_215), nullable=False)
+    received_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+    __table_args__ = (Index("ix_deposit_raw_received", "received_at"),)
+
+
+class DepositCoverage(Base):
+    """받은 구간 `[first_month, latest_month]`과 마지막으로 확인한 날(한국 시간).
+
+    그 안의 빈 달은 결측, 그 뒤의 달은 미발표다. `checked_on`은 확인이 **성공했을 때만**
+    갱신한다(FR-010).
+    """
+
+    __tablename__ = "deposit_coverage"
+
+    institution: Mapped[str] = mapped_column(String(24), primary_key=True)
+    first_month: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    latest_month: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    checked_on: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())
+
+
+class DepositCollectionJob(Base):
+    """수집 작업. 구간은 **그 실행에 필요한 구간**(시작 달 ~ 이번 달)이라 요청 때 늘 안다.
+
+    진행(받은 달 / 받을 달)도 이 구간으로 센다(analyze I1·U2).
+    """
+
+    __tablename__ = "deposit_collection_job"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    institution: Mapped[str] = mapped_column(String(24), nullable=False)
+    range_start: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    range_end: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    status: Mapped[JobStatus] = mapped_column(
+        Enum(JobStatus, native_enum=False, length=16), nullable=False)
+    months_total: Mapped[int] = mapped_column(Integer, nullable=False)
+    months_done: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    started_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
+    finished_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    # 사유 종류(`auth`·`rate_limited`·`format`·`network`)를 앞에 둔다(FR-016).
+    # 문구는 mask_secrets를 거친다.
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (Index("ix_deposit_job_status", "institution", "status"),)
+
+
+class DepositCollectionLock(Base):
+    """투자처별 단일 수집 작업 잠금. 기본 키 INSERT 충돌이 곧 "이미 진행 중"이다(FR-012)."""
+
+    __tablename__ = "deposit_collection_lock"
+
+    institution: Mapped[str] = mapped_column(String(24), primary_key=True)
+    job_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("deposit_collection_job.id"), nullable=False)
+    acquired_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
+    heartbeat_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())
+
+
+class DepositSetting(Base):
+    """예금 설정. **전역 단일 행**, 주식·가상자산 설정과 따로다(FR-030).
+
+    행이 없으면 기본값(15.4%)이다.
+    """
+
+    __tablename__ = "deposit_setting"
+
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, default=1)
+    interest_tax_rate: Mapped[Decimal] = mapped_column(SPREAD, nullable=False)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())

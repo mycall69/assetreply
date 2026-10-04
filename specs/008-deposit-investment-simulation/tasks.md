@@ -79,7 +79,7 @@ description: "Task list for 008-deposit-investment-simulation"
 
 ### Tests for Phase 2 ⚠️
 
-- [ ] T003 [P] `backend/tests/contract/test_ecos_deposit_parse.py` — T001 픽스처로: 월 시계열 → `MonthlyRate(month=그 달 1일, rate=Decimal)`,
+- [X] T003 [P] `backend/tests/contract/test_ecos_deposit_parse.py` — T001 픽스처로: 월 시계열 → `MonthlyRate(month=그 달 1일, rate=Decimal)`,
   `"3.2"`는 `Decimal("3.2")`(끝의 0이 없어도), 쉼표를 지운다, 행은 달 순서, 5개 시계열의 첫 달·마지막 달·행 수가 README와 같다(시중은행
   2012-01·176행, 저축은행·신협·상호금융 1997-08·349행, 새마을금고 2012-01·176행), `INFO-200` → 미발표 결과(빈 행, 오류 아님),
   `INFO-100` → 인증 오류(재시도 안 함), `INFO-300` → 한도 초과(재시도), `ERROR-*` → 형식 오류, JSON이 아님 → 연결 오류, `list_total_count` >
@@ -87,16 +87,17 @@ description: "Task list for 008-deposit-investment-simulation"
   항목 목록 → 투자처 다섯의 항목 코드를 이름 패턴으로 확정(시중은행 `^정기예금\(1년\)$`, 저축은행 `상호저축은행.*정기예금\(1년\)`, 신협
   `신협.*정기예탁금\(1년\)`, 상호금융 `^정기예탁금\(1년만기\)$`, 새마을금고 `새마을금고.*정기예탁금\(1년\)`), 월 주기(`CYCLE = M`) 행의
   `START_TIME`, 알려진 코드가 바뀌어도 이름으로 다시 찾음, 못 찾으면 형식 오류 (FR-008, FR-016, FR-017, research R8-1·R8-3·R8-5)
-- [ ] T004 [P] `backend/tests/contract/test_ecos_deposit_client.py` — 가짜 세션으로: 항목 목록 URL(`StatisticItemList/{키}/json/kr/1/10000/{통계표}/`)과
+- [X] T004 [P] `backend/tests/contract/test_ecos_deposit_client.py` — 가짜 세션으로: 항목 목록 URL(`StatisticItemList/{키}/json/kr/1/10000/{통계표}/`)과
   시계열 URL(`StatisticSearch/…/{통계표}/M/{YYYYMM}/{YYYYMM}/{항목}`)의 모양, 돌려주는 원본에 **URL이 없다**, 연결 오류·한도 초과의 오류 문구에
   인증키가 없다(가짜 키 `TESTKEY1234567890abcd`로 확인 — `mask_secrets`), 한도 초과는 백오프+지터로 설정 횟수만큼 재시도, 인증 오류는 재시도하지
   않음, 넘겨받은 세션을 닫지 않음 (FR-014, FR-016, research R8-5)
-- [ ] T005 [P] `backend/tests/contract/test_ecos_gate.py` — `EcosGate`: 001 `EcosClient`와 예금 클라이언트가 **같은 관문**을 지나 동시 요청이
+- [X] T005 [P] `backend/tests/contract/test_ecos_gate.py` — `EcosGate`: 001 `EcosClient`와 예금 클라이언트가 **같은 관문**을 지나 동시 요청이
   `ECOS_MAX_CONCURRENT_REQUESTS`를 넘지 않음(가짜 세션의 동시 수 측정), 한쪽이 `INFO-300`을 받으면 다른 쪽의 다음 요청도 백오프 동안 기다림
   (주입한 시계), 한도 신호가 없으면 서로 기다리지 않음. `EcosClient`의 기존 동작(재시도·잘림·항목 매핑)은 001 테스트 그대로 (FR-013, SC-012,
   research R8-6)
-- [ ] T006 [P] `backend/tests/integration/test_deposit_schema.py` — 마이그레이션 뒤 테이블 6개와 열(data-model): `deposit_rate`의 기본 키
-  `(institution, month)`·`rate DECIMAL(7,4)`·`source`·`ingested_at`, `deposit_raw_response`에 URL 열이 없음·`body MEDIUMTEXT`,
+- [X] T006 [P] `backend/tests/integration/test_deposit_schema.py` — 마이그레이션 뒤 테이블 6개와 열(data-model): `deposit_rate`의 기본 키
+  `(institution, month)`·`rate DECIMAL(7,4)`·`source`·`ingested_at`, `deposit_raw_response`에 URL 열이 없음·`body` LONGTEXT
+  (utf8mb4 — 구현 뒤 D2 승인으로 기대값 수정),
   `deposit_raw_response`의 `institution`은 NULL 허용(**항목 목록이면 NULL**)·`source_ref VARCHAR(32) NOT NULL`,
   `deposit_coverage`의 `first_month`·`latest_month`·`checked_on`(모두 DATE NOT NULL), 작업·점유(기본 키 `institution`, 작업의
   **`range_start`·`range_end`는 NOT NULL**),
@@ -104,14 +105,14 @@ description: "Task list for 008-deposit-investment-simulation"
 
 ### Implementation for Phase 2
 
-- [ ] T007 `backend/src/config/settings.py` — `ecos_max_concurrent_requests`(기본 3, 최소 1), `deposit_recheck_overlap_months`(기본 2, 최소 0),
+- [X] T007 `backend/src/config/settings.py` — `ecos_max_concurrent_requests`(기본 3, 최소 1), `deposit_recheck_overlap_months`(기본 2, 최소 0),
   `load_settings`에 연결 (FR-013, research R8-4·R8-6)
-- [ ] T008 `backend/src/db/models.py`·`backend/src/db/migrations/versions/…_예금_스키마.py` — Deposit* 6개(data-model 1~5절). 형식 이름 `RATE_PCT`
+- [X] T008 `backend/src/db/models.py`·`backend/src/db/migrations/versions/…_예금_스키마.py` — Deposit* 6개(data-model 1~5절). 형식 이름 `RATE_PCT`
   (`DECIMAL(7,4)`), 세율은 기존 `SPREAD`. 이전 head `b7e3c9d14a26` (FR-009, FR-029, FR-030)
-- [ ] T009 `backend/src/ingestion/protocols.py`(`MonthlyRate`, `DepositRateSource` Protocol, 결과·원본 타입)·`backend/src/ingestion/ecos/deposit_items.py`
+- [X] T009 `backend/src/ingestion/protocols.py`(`MonthlyRate`, `DepositRateSource` Protocol, 결과·원본 타입)·`backend/src/ingestion/ecos/deposit_items.py`
   (투자처 키 → 통계표·항목 코드·이름 패턴, `resolve_deposit_items`)·`backend/src/ingestion/ecos/deposit_parse.py`(`parse_monthly`, `INFO-200` = 미발표,
   잘림·숫자 검사) — 오류는 기존 `ingestion/ecos/errors.py`의 계층을 쓴다 (FR-008, FR-016, FR-017)
-- [ ] T010 `backend/src/ingestion/ecos/gate.py`(`EcosGate` — 프로세스 하나, 동시 수 + `INFO-300` 공유 백오프)·`backend/src/ingestion/ecos/client.py`
+- [X] T010 `backend/src/ingestion/ecos/gate.py`(`EcosGate` — 프로세스 하나, 동시 수 + `INFO-300` 공유 백오프)·`backend/src/ingestion/ecos/client.py`
   (`_get`이 관문을 지난다 — **나머지 동작 불변**)·`backend/src/ingestion/ecos/deposit_client.py`(`EcosDepositClient(settings, *, session=None)`:
   `fetch_items(table)`, `fetch_series(institution, from_month, to_month)` → (행 또는 미발표, 원본 본문), 같은 관문). 오류 문구는 `mask_secrets`
   (FR-013, FR-014, research R8-5·R8-6)

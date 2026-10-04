@@ -65,7 +65,9 @@ async def test_원본에_URL_열이_없고_항목_목록은_투자처가_빈다(
     assert cols["institution"]["nullable"] is True
     assert (cols["source_ref"]["length"], cols["source_ref"]["nullable"]) == (32, False)
     assert cols["endpoint"]["nullable"] is False
-    assert cols["body"]["type"] == "mediumtext"
+    # utf8mb4에서 Text(16_777_215)는 MEDIUMTEXT의 바이트 한도를 넘어 LONGTEXT가 된다.
+    # 005~007의 원본 본문 열도 모두 longtext다(D2 사용자 승인 2026-10-04).
+    assert cols["body"]["type"] == "longtext"
     assert cols["result_code"]["nullable"] is True
 
 

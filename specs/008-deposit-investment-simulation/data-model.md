@@ -40,7 +40,7 @@
 | `requested_from` / `requested_to` | DATE NULL | 금리 요청의 구간(항목 확인이면 NULL) |
 | `status_code` | SMALLINT NOT NULL | |
 | `result_code` | VARCHAR(16) NULL | `RESULT.CODE`(`INFO-200` 등) — 정상 응답이면 NULL |
-| `body` | MEDIUMTEXT NOT NULL | 응답 본문 그대로. **요청 URL은 담지 않는다**(인증키가 경로에 있다 — FR-014) |
+| `body` | LONGTEXT NOT NULL(`Text(16_777_215)` — utf8mb4에서 LONGTEXT, 005~007과 같다) | 응답 본문 그대로. **요청 URL은 담지 않는다**(인증키가 경로에 있다 — FR-014) |
 | `received_at` | TS NOT NULL | |
 
 - 지우지 않는다. 크기: 한 투자처 전체 시계열 응답이 수십 KB, 하루 확인은 많아야 5회 — 1년에 수 MB 수준이다(007 data-model과 같은 정책:

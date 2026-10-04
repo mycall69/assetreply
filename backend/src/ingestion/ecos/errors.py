@@ -30,6 +30,15 @@ class SourceUnavailable(SourceError):
     """
 
 
+class SourceFormatError(SourceError):
+    """응답 형식이 예상과 다르다 — 숫자가 아닌 값, 달이 아닌 시각, `ERROR-*` 코드(008 FR-017).
+
+    재시도해도 같으므로 즉시 중단한다. 읽지 못한 행만 버리면 그 달이 결측으로 위장된다.
+    """
+
+    retryable = False
+
+
 class SourceResponseTruncated(SourceError):
     """출처가 요청 구간의 일부만 돌려줬다.
 
