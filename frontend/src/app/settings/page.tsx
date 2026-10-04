@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from "react";
 import { CryptoSettingsForm } from "@/components/settings/CryptoSettingsForm";
+import { DepositSettingsForm } from "@/components/settings/DepositSettingsForm";
 import { RestoreDefaultsDialog } from "@/components/settings/RestoreDefaultsDialog";
 import { SpreadForm } from "@/components/settings/SpreadForm";
 import {
@@ -16,7 +17,13 @@ import {
   type StockSettingsChange,
 } from "@/components/settings/StockSettingsForm";
 import { ApiError, apiClient } from "@/lib/apiClient";
-import type { CryptoSettings, DerivedRates, SpreadRow, StockSettings } from "@/lib/types";
+import type {
+  CryptoSettings,
+  DepositSettings,
+  DerivedRates,
+  SpreadRow,
+  StockSettings,
+} from "@/lib/types";
 import { useFxWorkspaceStore } from "@/stores/fxWorkspaceStore";
 import { useSpreadStore } from "@/stores/spreadStore";
 
@@ -83,6 +90,9 @@ export default function SettingsPage() {
 
       {/* 007 — 가상자산 거래 조건. 주식 설정과 따로 저장한다(FR-032). */}
       <CryptoSettingsSection />
+
+      {/* 008 — 예금 이자 소득세. 주식·가상자산 설정과 따로 저장한다(FR-030). */}
+      <DepositSettingsSection />
 
       {pending !== null && (
         <RestoreDefaultsDialog
@@ -195,6 +205,55 @@ function CryptoSettingsSection() {
       {value !== null && (
         // 저장 뒤 값이 바뀌면 폼을 새로 그린다 — 칸에 이전 값이 남지 않게 한다.
         <CryptoSettingsForm key={value.tradeFeeRate} value={value} onSave={(r) => void save(r)} />
+      )}
+    </div>
+  );
+}
+
+
+/**
+ * 예금 설정 구역 (T026) — 008 FR-030, FR-031.
+ *
+ * 주식·가상자산 설정과 **상태를 공유하지 않는다** — 한쪽의 실패가 다른 쪽을 가리면 무엇이 저장됐는지 알 수 없다(005·007과 같은
+ * 이유).
+ */
+function DepositSettingsSection() {
+  const [value, setValue] = useState<DepositSettings | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        setValue(await apiClient.get<DepositSettings>("/api/deposit/settings"));
+      } catch (err) {
+        setFailure(err instanceof ApiError ? err.message : "예금 설정을 불러오지 못했습니다.");
+      }
+    })();
+  }, []);
+
+  const save = async (interestTaxRate: string) => {
+    try {
+      setValue(await apiClient.put<DepositSettings>("/api/deposit/settings", { interestTaxRate }));
+      setNotice("저장했습니다. 예금 화면으로 돌아가면 새 값으로 다시 계산합니다.");
+      setFailure(null);
+    } catch (err) {
+      setFailure(err instanceof ApiError ? err.message : "예금 설정을 저장하지 못했습니다.");
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <h2 className="text-xl font-bold tracking-tight">예금 이자 소득세</h2>
+      {failure !== null && (
+        <p role="alert" className="rounded border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {failure}
+        </p>
+      )}
+      {notice !== null && <p className="text-sm text-gray-600">{notice}</p>}
+      {value !== null && (
+        // 저장 뒤 값이 바뀌면 폼을 새로 그린다 — 칸에 이전 값이 남지 않게 한다.
+        <DepositSettingsForm key={value.interestTaxRate} value={value} onSave={(r) => void save(r)} />
       )}
     </div>
   );

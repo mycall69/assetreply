@@ -11,7 +11,7 @@ import { RESULT } from "./support/depositFixtures";
 
 vi.mock("@/lib/depositProgressStream", () => ({ subscribeDepositProgress: () => () => undefined }));
 
-const simulations = (get: ReturnType<typeof vi.spyOn>) =>
+const simulations = (get: { mock: { calls: unknown[][] } }) =>
   get.mock.calls.filter(([p]) => String(p).startsWith("/api/deposit/simulation?"));
 
 beforeEach(() => {

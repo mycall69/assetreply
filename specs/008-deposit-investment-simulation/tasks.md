@@ -205,16 +205,16 @@ description: "Task list for 008-deposit-investment-simulation"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T023 [P] [US2] `backend/tests/integration/test_deposit_settings_api.py` — `GET` 기본 `{"interestTaxRate": "0.154000", "isDefault": true}`,
+- [X] T023 [P] [US2] `backend/tests/integration/test_deposit_settings_api.py` — `GET` 기본 `{"interestTaxRate": "0.154000", "isDefault": true}`,
   `PUT "0.095"` 뒤 시뮬레이션이 그 세율로 계산(`condition.interestTaxRate`), 0 미만·1 이상·숫자 아님 → `422 invalid_setting`, 주식·가상자산 설정
   불변 (FR-030, FR-031, SC-008)
-- [ ] T024 [P] [US2] `frontend/tests/DepositSettingsForm.test.tsx`·`depositStoreSettings.test.ts` — 15.4 % 표시·저장·범위 밖 거절·기본값으로, 설정
+- [X] T024 [P] [US2] `frontend/tests/DepositSettingsForm.test.tsx`·`depositStoreSettings.test.ts` — 15.4 % 표시·저장·범위 밖 거절·기본값으로, 설정
   화면에 주식·가상자산·예금 칸이 따로, 설정을 바꾸고 예금 화면에 돌아오면 다시 요청(007 `refreshIfRan`과 같다) (FR-030, FR-031, SC-008)
 
 ### Implementation for User Story 2
 
-- [ ] T025 [US2] `backend/src/api/routes/deposit_settings.py`·`backend/src/api/main.py`(라우터) — `GET`·`PUT /api/deposit/settings` (FR-030, FR-031)
-- [ ] T026 [US2] `frontend/src/components/settings/DepositSettingsForm.tsx`·`frontend/src/app/settings/page.tsx`·`frontend/src/stores/depositStore.ts`
+- [X] T025 [US2] `backend/src/api/routes/deposit_settings.py`·`backend/src/api/main.py`(라우터) — `GET`·`PUT /api/deposit/settings` (FR-030, FR-031)
+- [X] T026 [US2] `frontend/src/components/settings/DepositSettingsForm.tsx`·`frontend/src/app/settings/page.tsx`·`frontend/src/stores/depositStore.ts`
   (설정 변경 뒤 다시 요청) — D7 (FR-030, FR-031)
 
 **Checkpoint**: 세율을 바꾸면 예금 결과가 새 세율로 다시 나온다

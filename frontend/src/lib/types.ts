@@ -861,3 +861,9 @@ export interface BeforeFirstMonthBody {
   message: string;
   startableFrom: string;
 }
+
+/** 예금 이자 소득세율 (008 FR-030). 주식·가상자산 설정과 따로다. */
+export interface DepositSettings {
+  interestTaxRate: DecimalString;
+  isDefault: boolean;
+}
