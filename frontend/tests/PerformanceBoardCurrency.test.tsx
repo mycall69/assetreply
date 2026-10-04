@@ -1,8 +1,13 @@
 /**
- * 성과 보드의 통화 기호 (T122) — 006 FR-054, SC-020, research R6-21, ui-wireframes W5. 반복 2026-10-03 #2.
+ * 성과 보드의 통화 기호 (T122, T049) — 006 FR-054, SC-020, research R6-21, ui-wireframes W5. 반복 2026-10-03 #2.
+ * 007 FR-042a, SC-014, research R7-14, ui-wireframes C3 — 반복 2026-10-04.
  *
- * 투자 원금·투자 수익에 **원금 통화의 기호를 숫자 뒤에** 붙인다(`10,000,000₩`, `1,000$`). 숫자만 있으면 원화
+ * 투자 원금·투자 수익에 **통화 기호를 숫자 앞에** 붙인다(`₩10,000,000`, `$1,000`). 숫자만 있으면 원화
  * 원금으로 외화 종목을 볼 때 "… 기준" 줄을 찾아 읽어야 통화를 알고, 놓치면 1,000달러를 1,000원으로 읽는다.
+ * 006은 숫자 뒤(`10,000,000₩`)였다 — 사용자 요청(2026-10-04)으로 앞으로 옮겼고, 이 파일의 기대값도 그때 바꿨다.
+ *
+ * 손실은 부호가 기호 앞이다(`-₩5,446`) — `₩-5,446`이면 손실 표시가 숫자 가운데 묻힌다. 기호를 모르는 통화는
+ * 코드와 공백(`GBP 1,000`) — 붙여 쓰면 코드와 숫자가 한 덩어리로 읽힌다.
  *
  * `formatMoney`는 표·차트·이력도 쓰므로 바꾸지 않는다 — 기호는 보드에만 붙는다.
  */
@@ -24,12 +29,15 @@ describe("통화 기호", () => {
   });
 
   it.each([
-    ["10000000", "KRW", "10,000,000₩"],
-    ["188131842", "KRW", "188,131,842₩"],
-    ["1000.50", "USD", "1,000.50$"],
-    ["1000", "USD", "1,000$"],
-    ["100000", "JPY", "100,000¥"],
-    ["-5446", "KRW", "-5,446₩"],
+    ["10000000", "KRW", "₩10,000,000"],
+    ["188131842", "KRW", "₩188,131,842"],
+    ["1000.50", "USD", "$1,000.50"],
+    ["1000", "USD", "$1,000"],
+    ["100000", "JPY", "¥100,000"],
+    ["-5446", "KRW", "-₩5,446"],
+    ["-120.50", "USD", "-$120.50"],
+    ["1000", "GBP", "GBP 1,000"],
+    ["-1000", "GBP", "-GBP 1,000"],
   ])("%s %s → %s", (value, currency, shown) => {
     expect(formatMoneyWithSymbol(value, currency)).toBe(shown);
   });
@@ -49,10 +57,10 @@ const valueOf = (label: string) =>
   screen.getByText(label).nextElementSibling?.textContent ?? "";
 
 describe("성과 보드", () => {
-  it("원화 원금이면 원금과 수익에 ₩가 숫자 뒤에 붙는다", () => {
+  it("원화 원금이면 원금과 수익에 ₩가 숫자 앞에 붙는다", () => {
     render(<PerformanceBoard summary={summary} currency="KRW" />);
-    expect(valueOf("투자 원금")).toBe("10,000,000₩");
-    expect(valueOf("투자 수익")).toBe("188,131,842₩");
+    expect(valueOf("투자 원금")).toBe("₩10,000,000");
+    expect(valueOf("투자 수익")).toBe("₩188,131,842");
   });
 
   it("수익률에는 기호가 없고 기준 줄은 그대로다", () => {
@@ -66,20 +74,20 @@ describe("성과 보드", () => {
   it("달러 원금이면 원금은 $, 수익은 ₩다", () => {
     render(<PerformanceBoard currency="USD"
       summary={{ ...summary, principal: "1000", profit: "162900" }} />);
-    expect(valueOf("투자 원금")).toBe("1,000$");
-    expect(valueOf("투자 수익")).toBe("162,900₩");
+    expect(valueOf("투자 원금")).toBe("$1,000");
+    expect(valueOf("투자 수익")).toBe("₩162,900");
   });
 
   it("엔 원금이면 원금은 ¥, 수익은 ₩다", () => {
     render(<PerformanceBoard currency="JPY"
       summary={{ ...summary, principal: "100000", profit: "12345" }} />);
-    expect(valueOf("투자 원금")).toBe("100,000¥");
-    expect(valueOf("투자 수익")).toBe("12,345₩");
+    expect(valueOf("투자 원금")).toBe("¥100,000");
+    expect(valueOf("투자 수익")).toBe("₩12,345");
   });
 
-  it("손실이면 부호가 앞에 온다", () => {
+  it("손실이면 부호가 기호 앞에 온다", () => {
     render(<PerformanceBoard currency="KRW"
       summary={{ ...summary, profit: "-5446", returnRate: "-0.000545" }} />);
-    expect(valueOf("투자 수익")).toBe("-5,446₩");
+    expect(valueOf("투자 수익")).toBe("-₩5,446");
   });
 });

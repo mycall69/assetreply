@@ -4,6 +4,8 @@
  * 투자 수익·수익률은 **원금 통화와 관계없이 KRW**다. 달러 원금만 달러 기준이면 이력 비교에서 원화 원금 실행과 다른
  * 기준의 수익률이 나란히 놓인다. 투자 원금은 입력한 통화로 보이고, 원화가 아니면 괄호에 KRW 값(첫 매수일 매매기준율로
  * 평가)을 붙인다.
+ *
+ * 007 반복 2026-10-04(T049, FR-042a) — 기호를 숫자 앞으로 옮겨 아래 기대값을 바꿨다(`10,000,000₩` → `₩10,000,000`).
  */
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -28,21 +30,21 @@ const usd: SimulationSummary = {
 describe("성과 보드 (FR-068)", () => {
   it("원화 원금이면 원금에 괄호가 없다", () => {
     render(<PerformanceBoard summary={krw} currency="KRW" />);
-    expect(valueOf("투자 원금")).toBe("10,000,000₩");
-    expect(valueOf("투자 수익")).toBe("19,810,175₩");
+    expect(valueOf("투자 원금")).toBe("₩10,000,000");
+    expect(valueOf("투자 수익")).toBe("₩19,810,175");
   });
 
   it("달러 원금이면 원금은 달러와 괄호에 KRW, 수익은 KRW다", () => {
     render(<PerformanceBoard summary={usd} currency="USD" />);
-    expect(valueOf("투자 원금")).toBe("10,000$ (13,520,000₩)");
-    expect(valueOf("투자 수익")).toBe("1,352,000₩");
+    expect(valueOf("투자 원금")).toBe("$10,000 (₩13,520,000)");
+    expect(valueOf("투자 수익")).toBe("₩1,352,000");
     expect(valueOf("수익률")).toBe("+10.00%");
   });
 
   it("엔 원금이면 원금은 엔과 괄호에 KRW다", () => {
     render(<PerformanceBoard currency="JPY"
       summary={{ ...usd, principal: "100000", principalKrw: "1045000" }} />);
-    expect(valueOf("투자 원금")).toBe("100,000¥ (1,045,000₩)");
+    expect(valueOf("투자 원금")).toBe("¥100,000 (₩1,045,000)");
   });
 
   it("기준 줄은 원금 통화와 관계없이 KRW 기준이다", () => {

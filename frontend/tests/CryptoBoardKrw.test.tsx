@@ -3,6 +3,8 @@
  *
  * 투자 수익·수익률은 원금 통화와 관계없이 **KRW 기준**이다. 달러 원금이면 원금 옆 괄호에 KRW 값(첫 매수일 매매기준율 —
  * 수익률의 분모), 원화 원금이면 **환전 줄**(현금 살 때 환율과 그 날짜, 우대)이 붙는다. 006의 보드를 그대로 쓴다.
+ *
+ * 반복 2026-10-04(T049, FR-042a) — 기호가 숫자 앞이다(`$10,000 (₩11,564,000)`). 그 전에는 `10,000$ (11,564,000₩)`였다.
  */
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -49,9 +51,8 @@ describe("성과 보드 — 원금 통화", () => {
   it("달러 원금이면 원금 옆에 KRW 값이 붙고 환전 줄이 없다", () => {
     show("USD");
     const text = board().textContent ?? "";
-    expect(text).toContain("10,000$");
-    expect(text).toContain("(11,564,000₩)");
-    expect(text).toContain("82,175,123₩");
+    expect(text).toContain("$10,000 (₩11,564,000)");
+    expect(text).toContain("₩82,175,123");
     expect(text).toContain("KRW 기준");
     expect(text).not.toContain("환전");
   });
@@ -59,9 +60,9 @@ describe("성과 보드 — 원금 통화", () => {
   it("원화 원금이면 환전 줄이 붙는다 — 그 날짜와 우대", () => {
     show("KRW");
     const text = board().textContent ?? "";
-    expect(text).toContain("10,000,000₩");
+    expect(text).toContain("₩10,000,000");
     // 원화 원금에는 KRW 괄호가 없다 — 같은 값을 두 번 쓰지 않는다
-    expect(text).not.toMatch(/10,000,000₩\s*\(/);
+    expect(text).not.toMatch(/₩10,000,000\s*\(/);
     expect(text).toContain("환전 2019-12-31 현금 살 때 1,159.88");
     expect(text).toContain("90% 우대");
   });
