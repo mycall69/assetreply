@@ -56,7 +56,7 @@ description: "Task list for 008-deposit-investment-simulation"
 
 **Purpose**: 실제 응답 픽스처와 설정 자리
 
-- [ ] T001 ECOS의 **실제 응답**을 받아 `backend/tests/contract/fixtures/deposit/`에 저장한다 — `.env`의 `ECOS_API_KEY`를 파일에서 읽고(셸 인자로
+- [X] T001 ECOS의 **실제 응답**을 받아 `backend/tests/contract/fixtures/deposit/`에 저장한다 — `.env`의 `ECOS_API_KEY`를 파일에서 읽고(셸 인자로
   넘기지 않는다), 요청 사이 1초. 받는 것: 항목 목록 `items_121Y002.json`·`items_121Y004.json`, 다섯 투자처의 전체 월 시계열
   `series_commercial_bank.json`(121Y002 `BEABAA2118`)·`series_savings_bank.json`(121Y004 `BEBBBE01`)·`series_credit_union.json`(`BEBBBG01`)·
   `series_mutual_finance.json`(`BEBBBI01`)·`series_saemaul.json`(`BEBBA000`), 미발표 구간(마지막 발표 달 다음 달 ~ 이번 달) `unpublished_info200.json`.
@@ -65,7 +65,7 @@ description: "Task list for 008-deposit-investment-simulation"
   `fixtures/deposit/README.md`에 적는다. 스크립트는 저장소에 넣지 않는다(일회성). **약관**은 research R8-2에 확인해 두었다(2026-10-04) — 받기
   전에 Open API 사이트의 이용약관 시행일이 바뀌었는지 보고, 바뀌었으면 개인 이용과 맞지 않는 조항이 있는지 확인한다. 있으면 멈추고 보고한다
   (005·007처럼 이탈 기록이 필요하면 사용자 결정) (FR-008, FR-009, FR-017, research R8-1·R8-2·R8-3)
-- [ ] T002 [P] `.env.example`에 설정 자리를 더한다 — `ECOS_MAX_CONCURRENT_REQUESTS`(3 — 환율과 예금이 함께 쓰는 ECOS 동시 요청 수),
+- [X] T002 [P] `.env.example`에 설정 자리를 더한다 — `ECOS_MAX_CONCURRENT_REQUESTS`(3 — 환율과 예금이 함께 쓰는 ECOS 동시 요청 수),
   `DEPOSIT_RECHECK_OVERLAP_MONTHS`(2 — 다시 확인할 때 마지막 받은 달의 몇 달 전부터 받을지). 값의 의미를 주석으로. 비밀은 없다(인증키는
   기존 `ECOS_API_KEY`) (FR-013, FR-014, research R8-4·R8-6)
 
