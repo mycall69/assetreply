@@ -131,7 +131,7 @@ description: "Task list for 007-crypto-investment-simulation"
   한 트랜잭션 교체, 한글 이름은 **식별자로만** 짝지음, 이번 목록에 없는 코인은 `missing`(지우지 않음)·다시 보이면 `listed`, 이전보다 50% 넘게
   줄면 거절(`shrunk`)하고 아무것도 바꾸지 않음, 영문 판 실패 → 아무것도 안 바뀜, **한국어 판만 실패 → 영문으로 교체하고 한글 이름은 이전 값**,
   같은 본문은 원본 한 번만, 갱신 기록(`as_of`·`row_count`·`attempts`·`last_error_kind`), 점유 중이면 두 번째 갱신은 시작하지 않음, 수집 전용
-  로그에 시작·완료·실패 사건 — 사용자 에이전트·헤더 값 없음 (FR-004, FR-005, FR-005a, FR-006, FR-019, SC-011)
+  로그에 시작·완료·실패 사건 — 사용자 에이전트·헤더 값 없음, 정체된 점유 회수 (FR-004, FR-005, FR-005a, FR-006, FR-014a, FR-019, SC-011)
 - [X] T015 [P] [US2] `backend/tests/integration/test_crypto_search_api.py` — `GET /api/crypto/search`: "btc"·"Bitcoin"·"비트코인"·"ㅂㅌㅋㅇ" → 맨 위
   비트코인, "max" → MAX 5개가 순위순으로 구별(`coinId`가 다름), `nameKo`는 한글 이름이 있을 때만, `listStatus: missing` 표시, `list.state`
   (`never`·`refreshing`·`failed`+`reason`·`ready`)와 `list.koreanNames`, `q` 없음 → 400. **실행 주체**: 갱신 주기가 된 첫 검색이 **기다리지 않고**
@@ -151,7 +151,7 @@ description: "Task list for 007-crypto-investment-simulation"
   검색 색인용 전 코인 읽기 (FR-005, FR-005a, data-model 1~4절)
 - [X] T018 [US2] `backend/src/api/services/crypto_list_refresh.py`·`backend/src/worker/crypto_list_queue.py`·`backend/src/worker/crypto_list_worker.py`·
   `backend/src/api/routes/crypto_list_progress.py`·`backend/src/api/main.py`(`lifespan` 등록·라우터) — 주기 판정, 요청(기다리지 않음), 두 판
-  받기·축소 검사·교체, 쪽마다 점유 행에 진행 기록, 진행 스트림, 사건 기록 (FR-005, FR-005b, FR-006, FR-019)
+  받기·축소 검사·교체, 쪽마다 점유 행에 진행 기록, 진행 스트림, 사건 기록, 기동 시·정체된 점유 회수 (FR-005, FR-005b, FR-006, FR-014a, FR-019)
 - [X] T019 [US2] `backend/src/api/services/crypto_index.py`·`backend/src/api/routes/crypto_search.py`·`backend/src/api/main.py`(라우터) — 메모리 색인(갱신
   기록 버전), `SearchEntry(names=(한글, 영문), codes=(심볼,), priority=순위)`, 응답(rest-api 검색) (FR-003, FR-004, FR-006)
 - [X] T020 [US2] `frontend/src/lib/types.ts`(검색 응답·목록 진행 사건)·`frontend/src/lib/cryptoListProgressStream.ts`·
@@ -174,7 +174,7 @@ description: "Task list for 007-crypto-investment-simulation"
   0.1% → 수량 1.38819719, 수수료 9.9900099215980029296875, 예수금 0.0000684803990673828125 — 계산 과정을 주석으로), 수수료 포함 총액 ≤ 원금·예수금 ≥
   0, 원금이 최소 단위 값보다 작으면 수량 0·전액 예수금, **1개 값이 원금보다 커도 소수로 산다**(원금 100달러·시가 84,513달러·0.1% → ⌊100 ÷ 84,597.513⌋₈
   = 0.00118206 — 계산 과정을 주석으로, analyze L3), 아주 작은 가격(1e-12)도 0으로 잘리지 않음, 같은 입력 같은 결과, 잔고 = 수량 × 그 행의 시가(예수금
-  제외) (FR-025~FR-031, SC-004, SC-006)
+  제외) (FR-025~FR-031, FR-027a, SC-004, SC-006)
 - [X] T022 [P] [US1] `backend/tests/unit/test_buy_fraction.py` — `buy_fraction(예수금, 시가, 수수료율)`: 소수 8자리 버림, 총액 ≤ 예수금, 시가·예수금
   0 이하 → 0, 정수 수량 함수 `buy_quantity`는 그대로 (FR-026)
 - [X] T023 [P] [US1] `backend/tests/integration/test_crypto_collection.py` — 가짜 출처로 `crypto_runner`: 시작 월 1일 ~ 계산 끝을 730일 청크로, 청크마다
@@ -195,7 +195,7 @@ description: "Task list for 007-crypto-investment-simulation"
   바뀜, 범위 밖(−0.1, 1, 1.5)·숫자 아님·빠짐 → 422 `invalid_setting`, **주식 설정과 따로**(주식 수수료 그대로). 바꾼 수수료가 다음 시뮬레이션에
   쓰이고 `condition.tradeFeeRate`에 보인다 (FR-032, FR-033, SC-008)
 - [X] T027 [P] [US1] `backend/tests/integration/test_crypto_worker.py` — **실행 주체**: 앱 기동이 가상자산 수집 줄과 목록 갱신 줄을 띄운다(태스크 6개),
-  기동 시 오래된 가상자산 점유를 회수, 주식 수집이 진행 중이어도 가상자산 수집이 기다리지 않고(반대도) 함께 끝난다 (FR-014, FR-015, SC-012)
+  기동 시 오래된 가상자산 점유를 회수, 주식 수집이 진행 중이어도 가상자산 수집이 기다리지 않고(반대도) 함께 끝난다 (FR-014, FR-014a, FR-015, SC-012)
 - [X] T028 [P] [US1] `frontend/tests/` — `CryptoPage.test.tsx`(`/crypto` 화면, 재투자 칸 없음, 일봉 기준 UTC 안내, 시작일 상한 = UTC 어제),
   `CryptoPerformanceTable.test.tsx`(열 구성·배당 열 없음, 머리글 통화 아래 줄, 수량 8자리, 매수 행에만 수수료, `◇`와 글자 설명, 잔고 `USD (KRW)`, 표
   `w-max`), `formatPrice.test.ts`(1 이상 소수 2자리, 1 미만 유효 숫자 4자리 이상, `0.00000579`, `0`·`0.00`이 되지 않음), `cryptoStore.test.ts`(202 →
@@ -207,11 +207,11 @@ description: "Task list for 007-crypto-investment-simulation"
 
 ### Implementation for User Story 1
 
-- [X] T029 [US1] `backend/src/simulation/money.py`(`buy_fraction`)·`backend/src/simulation/crypto_hold.py` (FR-025~FR-031)
+- [X] T029 [US1] `backend/src/simulation/money.py`(`buy_fraction`)·`backend/src/simulation/crypto_hold.py` (FR-025~FR-031, FR-027a)
 - [X] T030 [US1] `backend/src/repository/crypto_daily.py`·`crypto_job.py`·`crypto_setting.py` — 일봉 upsert·조회, 커버리지, 첫 일봉 기록, 작업·점유,
   수수료율(기본 0.001) (FR-010, FR-011, FR-014, FR-032)
 - [X] T031 [US1] `backend/src/worker/crypto_queue.py`·`crypto_runner.py`·`crypto_worker.py`·`backend/src/api/main.py`(`lifespan`, 기동 시 회수) —
-  청크 수집, 원본 저장, 첫 일봉 기록, 실패 종류, 사건 기록 (FR-010~FR-015, FR-019, FR-020)
+  청크 수집, 원본 저장, 첫 일봉 기록, 실패 종류, 사건 기록 (FR-010~FR-015, FR-014a, FR-019, FR-020)
 - [X] T032 [US1] `backend/src/api/services/crypto_collect.py`·`crypto_simulation.py`·`backend/src/api/routes/crypto_simulation.py`·`crypto_progress.py`·
   `crypto_settings.py`·`backend/src/api/main.py`(라우터) — 202 판정(일봉 + 환율), 시작 가능 날짜, 계산 끝 UTC 어제, KRW 평가(`evaluate_krw`), 응답
   (FR-002, FR-007~FR-009, FR-013, FR-022, FR-024, FR-033, FR-035, FR-036)
@@ -255,12 +255,12 @@ description: "Task list for 007-crypto-investment-simulation"
 
 **Goal**: 일봉마다의 잔고(KRW)·수익률 차트, 결측은 끊어 그린다
 
-**Independent Test**: 결과로 차트가 그려지고, 결측 구간에서 선이 끊기며, 끝점이 표 최신 행과 같은지
+**Independent Test**: 결과로 차트가 그려지고, 결측 구간에서 선이 끊기며, 표의 행과 같은 날짜의 점이 그 행과 같은 값이고 끝점이 보드와 같은지
 
 ### Tests for User Story 4 ⚠️
 
 - [X] T039 [P] [US4] `backend/tests/integration/test_crypto_series_api.py` — `GET /api/crypto/simulation/series`: 점은 일봉마다, 잔고 = `balanceKrw`,
-  수익률 KRW 기준, **표 최신 행과 같은 날짜·값**, `basisCurrency: "KRW"`, 커버리지 안 빈 날(픽스처에서 하루를 뺀 일봉) → `gaps.reason: source_missing`
+  수익률 KRW 기준, **표의 행과 같은 날짜의 점은 그 행과 같은 값, 끝점은 보드와 같은 날짜·값**(FR-044 — 리뷰 CHK019로 문구를 테스트에 맞췄다), `basisCurrency: "KRW"`, 커버리지 안 빈 날(픽스처에서 하루를 뺀 일봉) → `gaps.reason: source_missing`
   (`no_quote` 없음), 다운샘플링 표시, 202·오류는 표와 같다 (FR-023, FR-043, FR-044, SC-005, SC-007)
 - [X] T040 [P] [US4] `frontend/tests/chartSeriesSourceMissing.test.ts`·`PerformanceChartMissing.test.tsx` — `source_missing`에서 선이 끊긴다,
   `no_quote`는 여전히 잇는다(외환·주식 불변), 범례 "결측 N구간" (FR-023, FR-043)

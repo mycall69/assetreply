@@ -40,7 +40,7 @@
 | 검색 | 006의 메모리 색인(`src/search/`) + 시가총액 `priority` (R7-6) |
 | 성능 목표 | 받은 구간이면 결과 3초 안(SC-001). 수집 진행 2초 안(SC-003) |
 | 규모 | 코인 3,654개(목록 74요청/주). BTC 일봉 약 5,900행(2010-07-18~), 730일 청크 9개 |
-| 제약 | 백엔드 단일 워커(CLAUDE.md), 테스트는 네트워크 없이(헌법 원칙 III), 출처 요청 사이 최소 1.5초 |
+| 제약 | 백엔드 단일 워커(CLAUDE.md) — 기동 시 남은 점유를 끝난 프로세스의 것으로 보고 회수한다(FR-014a). 여러 프로세스로 띄우면 이 회수가 다른 프로세스의 진행 중인 수집을 끊는다. 테스트는 네트워크 없이(헌법 원칙 III), 출처 요청 사이 최소 1.5초 |
 
 ## Constitution Check
 
@@ -178,27 +178,28 @@ frontend/
 | FR-001 (메뉴) | C1, `Sidebar.tsx`, `app/crypto/page.tsx`, `noUnbuiltAssetRoutes.test.ts`, tasks T028·T033 |
 | FR-002, FR-007 (입력·원금 통화) | rest-api 시뮬레이션 매개변수·`currency_pair_not_allowed`, `CryptoSimulationForm`, `crypto_simulation.py`, tasks T024·T032·T033·T035 |
 | FR-003, FR-004, FR-006 (검색·같은 심볼·한글) | R7-4~R7-6, rest-api 검색, C2, `crypto_index.py`, `search/match.py`(`priority`), `CoinSearch`, tasks T003·T006·T014·T015·T016·T019·T020 |
-| FR-005, FR-005a (목록 저장·주기·빠짐) | R7-4, data-model 1~4절, `crypto_list_refresh.py`, `crypto_list_worker.py`, tasks T013·T014·T017·T018 |
+| FR-005, FR-005a (목록 저장·주기·축소 한도·빠짐) | R7-4, data-model 1~4절, `crypto_list_refresh.py`(축소 검사 `CRYPTO_LIST_SHRINK_THRESHOLD`), `crypto_list_worker.py`, tasks T013·T014·T017·T018 |
 | FR-005b (목록 갱신 진행) | R7-11, data-model 3절, rest-api `/api/crypto/list/progress`, C2, `crypto_list_progress.py`, tasks T015·T016·T018·T020 |
 | FR-008, FR-009 (시작 가능 날짜·계산 끝) | R7-10, rest-api `before_listing`·`start_after_end`, `crypto_runner.py`(첫 일봉), `crypto_simulation.py`, tasks T023·T024·T028·T032 |
 | FR-010~FR-014 (수집·재개·원본·진행·중복) | R7-3, R7-11, data-model 5~8절, rest-api 202·SSE, `crypto_collect.py`, `crypto_runner.py`, `crypto_progress.py`, tasks T023·T024·T025·T027·T030·T031 |
-| FR-012a (숫자 표기) | R7-3, `ingestion/investing/parse.py`, tasks T003·T010 |
-| FR-015 (서로 막지 않음) | R7-11 — 별도 줄, tasks T027·T031 |
-| FR-016, FR-017 (설정·비밀) | R7-1, `InvestingSettings`. 로그인이 없어 비밀 없음, tasks T002·T004·T008·T011 |
+| FR-012a (원값 필드·행 상한) | R7-3, `ingestion/investing/parse.py`(원값 필드, 4,900행 이상 형식 오류 `ROW_LIMIT_GUARD`), tasks T003·T010 |
+| FR-014a (점유 회수 — 기동 시·정체된 목록 점유) | `worker/crypto_worker.py`(`release_orphans` — 작업 `network` 마감), `worker/crypto_list_worker.py`(`release_all_locks`), `crypto_list_refresh.py`(`reclaim_stale_lock`, 10분), Technical Context 제약(단일 프로세스), tasks T014·T018·T027·T031 |
+| FR-015 (서로 막지 않음) | R7-11 — 자산군마다 별도 줄, 가상자산 두 줄은 `InvestingClient` 간격 공유, tasks T027·T031 |
+| FR-016, FR-017 (설정·재시도·헤더) | R7-1, `config/settings.py`의 `investing_*`·`crypto_list_*`(기본값은 FR-016), `ingestion/investing/client.py`(403 즉시 실패, 429·5xx·연결만 재시도), 사용자 에이전트는 설정이고 헤더는 로그·원본·실패 사유에 남기지 않는다, tasks T002·T004·T008·T011 |
 | FR-018 (출처·약관) | R7-1, R7-2, Complexity Tracking, tasks T001·T004·T011·T046 |
 | FR-019 (수집 로그) | R7-11, `crypto_list_refresh.py`·`crypto_runner.py`의 사건, tasks T014·T018·T023·T031 |
-| FR-020 (실패 사유) | R7-1, `ingestion/investing/errors.py`, rest-api SSE `failed.kind`, C7, tasks T004·T010·T011·T023·T025 |
+| FR-020 (실패 사유) | R7-1, `ingestion/investing/errors.py`(`blocked`·`format`·`network`·`empty`, 목록은 `shrunk`), `empty` = 코인 전체에 일봉 없음, rest-api SSE `failed.kind`, C7·C2 문구, tasks T004·T010·T011·T023·T025 |
 | FR-021, FR-022 (UTC·잠정) | R7-3 — 시간봉 확인, UTC 어제까지 저장, tasks T003·T023·T024·T028 |
 | FR-023, FR-043 (결측·차트) | R7-9, `series_query.compute_gaps`, `chartSeries.ts`, C5, tasks T006·T039·T040·T041·T042 |
 | FR-024 (끊김) | rest-api `isFinal`, `crypto_simulation.py`, tasks T024 |
-| FR-025~FR-031 (매수·수량·수수료·잔고·재현·1일 결측·정밀도) | R7-7, R7-13, `crypto_hold.py`, `money.buy_fraction`, tasks T021·T022·T024·T029 |
+| FR-025~FR-031, FR-027a (매수·수량·수수료·자릿수·잔고·재현·1일 결측·정밀도) | R7-7, R7-13, `crypto_hold.py`, `money.buy_fraction`, `fx_convert.evaluate_krw`(KRW 원 단위·수익률 6자리), tasks T021·T022·T024·T029 |
 | FR-032, FR-033 (설정) | data-model 9절, rest-api 설정, C6, `CryptoSettingsForm`, tasks T026·T028·T030·T033 |
 | FR-034~FR-036 (환전·KRW·환율 판정·확정 환율) | R7-8, `fx_convert.evaluate_krw`, `stock_fx.py`(`load_rates` 확정 전용), `crypto_collect.py`, tasks T005·T012·T024·T035·T036·T037 |
 | FR-037~FR-041, FR-037a (표·열별 통화) | C4, `CryptoPerformanceTable`, `format.formatPrice`·`formatQuantity`, tasks T028·T033 |
 | FR-042 (보드) | C3, `PerformanceBoard`(기호 위치만 FR-042a), tasks T028·T036 |
 | FR-042a, SC-014 (보드 기호 앞 — 반복 2026-10-04) | research R7-14, `format.ts` `formatMoneyWithSymbol`, `PerformanceBoard`, C3, tasks T049·T050·T053, quickstart 21 |
 | FR-043a, SC-015 (차트 축 쉼표 — 반복 2026-10-04) | research R7-14, `format.ts` `formatAxisNumber`, `chartSeries.ts` `axisPriceFormat`, `PerformanceChart`(구간마다 시리즈 `priceFormat`), C5, tasks T051·T052·T053, quickstart 22 |
-| FR-044 (차트 끝점) | `crypto_series.py` — 표와 같은 계산, tasks T039·T041 |
+| FR-044 (차트 점 — 표의 행과 같은 날은 같은 값, 끝점 = 보드) | `crypto_series.py` — 표와 같은 계산, tasks T039·T041 |
 | FR-045, FR-046 (이력·비교) | `cryptoHistory.ts`, `ComparisonChart`(축 형식만 FR-046a), tasks T043·T044·T045 |
 | FR-046a, SC-016 (비교 차트 수익률 축 쉼표 — 반복 2026-10-04 #2) | research R7-14, `chartSeries.ts` `axisPriceFormat`, `ComparisonChart`(항목·구간마다 시리즈 `priceFormat`), C5, tasks T054·T055·T056, quickstart 23 |
 | FR-047 (기록 갱신) | README·CLAUDE.md — "가상자산은 007", tasks T046 |
@@ -209,7 +210,7 @@ frontend/
 | SC-008 | quickstart 14, tasks T026 |
 | SC-009 | quickstart 12, `formatPrice` 테스트, tasks T028 |
 | SC-010 | quickstart 16, tasks T034·T048 |
-| SC-011 | 로그인 정보가 없다 — 사용자 에이전트가 로그·원본에 남지 않는지 quickstart 20, tasks T014·T034 |
+| SC-011 | 요청 헤더·사용자 에이전트가 로그·수집 기록·원본·실패 사유에 남지 않는지(로그인 정보는 없다) quickstart 17·20, tasks T014·T034 |
 | SC-012 | quickstart 18, tasks T027·T034 |
 | SC-013 | 자동 검사(전체 테스트), tasks T047 |
 
