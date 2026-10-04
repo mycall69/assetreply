@@ -10,9 +10,11 @@
 
 import { useEffect, useMemo } from "react";
 import { CoinSearch } from "@/components/crypto/CoinSearch";
+import { CryptoHistory } from "@/components/crypto/CryptoHistory";
 import { CryptoPerformanceTable } from "@/components/crypto/CryptoPerformanceTable";
 import { CryptoSimulationForm } from "@/components/crypto/CryptoSimulationForm";
 import { CollectingNotice, FxUnavailableNotice } from "@/components/stock/CollectingNotice";
+import { ComparisonChart } from "@/components/stock/ComparisonChart";
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
 import { PerformanceChart } from "@/components/stock/PerformanceChart";
 import { formatPercent } from "@/lib/format";
@@ -28,7 +30,9 @@ export default function CryptoPage() {
     input, rows, summary, condition, exchange, hasMore, series, seriesError, collecting, progress,
     fxBlocked,
     startable, loading, loadingMore, error, loadMoreError,
+    history, historySaveError, selectedHistory, comparison, comparing, comparisonError,
     setInput, selectCoin, run, loadMore, refreshIfRan, dispose,
+    restoreHistory, toggleHistory, removeHistoryEntry, rerunHistory, compareSelected,
   } = useCryptoStore();
 
   // FR-033 — 설정 화면에 다녀왔을 수 있다. 실행한 결과가 있으면 새 수수료로 다시 받는다.
@@ -37,6 +41,10 @@ export default function CryptoPage() {
   }, [refreshIfRan]);
   // 화면을 떠나면 진행 구독을 끊는다.
   useEffect(() => dispose, [dispose]);
+  // FR-045 — 이력은 브라우저에 있다. 화면이 열릴 때 읽는다.
+  useEffect(() => {
+    restoreHistory();
+  }, [restoreHistory]);
 
   // 시작일의 마지막 날 — UTC 어제. 화면을 연 때로 정한다(서버도 계산 끝을 UTC 어제로 잡는다).
   const limit = useMemo(() => utcYesterday(), []);
@@ -121,6 +129,22 @@ export default function CryptoPage() {
             onLoadMore={() => void loadMore()}
           />
         </section>
+      )}
+
+      <CryptoHistory
+        entries={history}
+        selected={selectedHistory}
+        comparing={comparing}
+        saveError={historySaveError}
+        onToggle={toggleHistory}
+        onRemove={removeHistoryEntry}
+        onCompare={() => void compareSelected()}
+        onRerun={(id) => void rerunHistory(id)}
+      />
+
+      {(comparing || comparison.length > 0 || comparisonError !== null) && (
+        // FR-046 — 모두 KRW 기준 수익률로 겹친다. 주식 이력과 섞이지 않는다.
+        <ComparisonChart items={comparison} loading={comparing} error={comparisonError} />
       )}
     </div>
   );

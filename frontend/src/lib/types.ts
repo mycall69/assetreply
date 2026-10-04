@@ -728,3 +728,26 @@ export interface CryptoSettings {
   tradeFeeRate: DecimalString;
   isDefault: boolean;
 }
+
+/** 고른 코인의 식별과 표시 — 검색 결과와 이력이 함께 맞는다. **식별은 `coinId`다**(심볼은 유일하지 않다, FR-004). */
+export interface CoinRef {
+  coinId: number;
+  symbol: string;
+  name: string;
+  nameKo: string | null;
+  slug: string | null;
+  currency: string;
+  rank?: number | null;
+}
+
+/**
+ * 가상자산 이력 한 줄 (FR-045). **조건만** 담는다 — 결과는 일봉·설정·환율의 함수라 바뀐다(005 R5-9). 주식 이력과 따로 둔다.
+ */
+export interface CryptoHistoryEntry {
+  id: string;
+  coin: Omit<CoinRef, "rank">;
+  start: string;
+  principal: DecimalString;
+  principalCurrency: PrincipalCurrency;
+  savedAt: string;
+}

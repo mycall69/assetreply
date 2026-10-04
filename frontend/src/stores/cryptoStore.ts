@@ -9,17 +9,20 @@
  */
 
 import { create } from "zustand";
+import type { ComparisonItem } from "@/components/stock/ComparisonChart";
 import { ApiError, apiClient } from "@/lib/apiClient";
 import { subscribeCollection } from "@/lib/collectionStream";
+import { loadCryptoHistory, removeCryptoHistory, saveCryptoHistory } from "@/lib/cryptoHistory";
 import { subscribeCryptoProgress, type CryptoProgressSnapshot } from "@/lib/cryptoProgressStream";
 import { isAllowedPrincipal, principalRule } from "@/lib/principalCurrency";
 import { DEFAULT_START } from "@/lib/startDate";
 import type {
   BeforeListingBody,
-  CoinSearchResult,
+  CoinRef,
   CryptoCollecting,
   CryptoCondition,
   CryptoFailureKind,
+  CryptoHistoryEntry,
   CryptoRow,
   CryptoSimulationResponse,
   CryptoSummary,
@@ -32,7 +35,7 @@ import type {
 } from "@/lib/types";
 
 export interface CryptoInput {
-  coin: CoinSearchResult | null;
+  coin: CoinRef | null;
   start: string;
   principal: string;
   principalCurrency: PrincipalCurrency;
@@ -61,15 +64,30 @@ interface CryptoState {
   error: string | null;
   loadMoreError: string | null;
 
+  /** 이력(FR-045). **조건만** 담긴다. 주식 이력과 따로다. */
+  history: CryptoHistoryEntry[];
+  historySaveError: string | null;
+  selectedHistory: string[];
+  comparison: ComparisonItem[];
+  comparing: boolean;
+  comparisonError: string | null;
+
   setInput: (next: Partial<CryptoInput>) => void;
   /** 검색에서 고른 코인. 시작일·원금은 그대로 둔다 — 같은 조건으로 두 코인을 비교하려던 사용자 몰래 바꾸지 않는다. */
-  selectCoin: (coin: CoinSearchResult) => void;
+  selectCoin: (coin: CoinRef) => void;
   run: () => Promise<void>;
   loadMore: () => Promise<void>;
   /** 설정이 바뀐 뒤 결과를 다시 받는다(FR-033). 실행한 적이 없으면 아무것도 하지 않는다. */
   refreshIfRan: () => Promise<void>;
   /** 화면을 떠날 때 진행 구독을 끊는다 — 남기면 떠난 화면이 다시 요청을 보낸다. */
   dispose: () => void;
+  restoreHistory: () => void;
+  toggleHistory: (id: string) => void;
+  removeHistoryEntry: (id: string) => void;
+  /** 이력의 조건을 입력에 넣고 실행한다. 코인이 없어졌으면 "검색에서 다시 고르세요"를 말한다. */
+  rerunHistory: (id: string) => Promise<void>;
+  /** 고른 이력을 **지금 다시 계산해서** 겹친다(FR-046) — 저장된 결과가 없다. */
+  compareSelected: () => Promise<void>;
 }
 
 /** 수집 실패 종류 → 할 일까지 말하는 문구 (ui-wireframes C7). */
@@ -203,6 +221,12 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   loadingMore: false,
   error: null,
   loadMoreError: null,
+  history: [],
+  historySaveError: null,
+  selectedHistory: [],
+  comparison: [],
+  comparing: false,
+  comparisonError: null,
 
   setInput: (next) => set({ input: { ...get().input, ...next } }),
 
@@ -247,6 +271,11 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
         exchange: result.exchange ?? null, hasMore: result.hasMore,
         oldestReturned: result.oldestReturned,
       });
+      // FR-045 — 실행한 조건을 이력에 남긴다. **결과는 넣지 않는다.** 수집 중(202)이면 남기지 않는다 — 아직 결과가 없다.
+      const saved = saveCryptoHistory({
+        coin: input.coin, start: input.start, principal: input.principal,
+        principalCurrency: input.principalCurrency });
+      set({ history: loadCryptoHistory(), historySaveError: saved.ok ? null : saved.reason });
       // **표가 수집 중이 아님을 확인한 뒤에 받는다** — 나란히 보내면 같은 구간에 수집 요청이 두 번 나간다(005와 같다).
       try {
         const series = await apiClient.get<SimulationSeriesResponse>(
@@ -277,6 +306,69 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   },
 
   dispose: () => stopWatching(),
+
+  restoreHistory: () => set({ history: loadCryptoHistory() }),
+
+  toggleHistory: (id) => {
+    const selected = get().selectedHistory;
+    set({ selectedHistory: selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id] });
+  },
+
+  removeHistoryEntry: (id) => {
+    const result = removeCryptoHistory(id);
+    set({
+      history: loadCryptoHistory(),
+      selectedHistory: get().selectedHistory.filter((x) => x !== id),
+      // 지운 항목의 선을 남기면 목록에 없는 조건이 차트에 남는다.
+      comparison: get().comparison.filter((c) => c.id !== id),
+      historySaveError: result.ok ? null : result.reason,
+    });
+  },
+
+  rerunHistory: async (id) => {
+    const entry = get().history.find((e) => e.id === id);
+    if (entry === undefined) return;
+    set({ input: { coin: entry.coin, start: entry.start, principal: entry.principal,
+      principalCurrency: entry.principalCurrency } });
+    await get().run();
+  },
+
+  compareSelected: async () => {
+    const { history, selectedHistory } = get();
+    const targets = history.filter((e) => selectedHistory.includes(e.id));
+    if (targets.length < 2) return;
+    set({ comparing: true, comparisonError: null, comparison: [] });
+    const items: ComparisonItem[] = [];
+    const failed: string[] = [];
+    for (const entry of targets) {
+      const label = `${entry.coin.nameKo ?? entry.coin.name} (${entry.coin.symbol})`;
+      if (!isAllowedPrincipal(entry.principalCurrency, entry.coin.currency)) {
+        // 조용히 빼지 않는다 — 빼고 비교하면 그 코인이 진 것으로 읽힌다.
+        failed.push(`${label}(원금 ${entry.principalCurrency} — ${principalRule(entry.coin.currency)})`);
+        continue;
+      }
+      const query = toQuery({ coin: entry.coin, start: entry.start, principal: entry.principal,
+        principalCurrency: entry.principalCurrency });
+      try {
+        const body = await apiClient.get<SimulationSeriesResponse | CryptoCollecting>(
+          `/api/crypto/simulation/series?${query}`);
+        if ("status" in body && body.status === "collecting") {
+          // 부분 결과를 완성된 선처럼 겹치지 않는다.
+          failed.push(`${label}(아직 받지 못한 구간이 있습니다 — 실행해서 받으세요)`);
+          continue;
+        }
+        items.push({ id: entry.id, label, start: entry.start, series: body as SimulationSeriesResponse });
+      } catch (err) {
+        failed.push(err instanceof ApiError && err.code === "unknown_coin"
+          ? `${label}(검색에서 다시 고르세요)` : label);
+      }
+    }
+    set({
+      comparison: items,
+      comparing: false,
+      comparisonError: failed.length === 0 ? null : `${failed.join(" · ")}의 시계열을 불러오지 못했습니다.`,
+    });
+  },
 
   /** 표를 이어 받는다. **기존 배열 끝에 덧붙인다** — 전체를 교체하면 보던 위치가 처음으로 튄다. */
   loadMore: async () => {

@@ -21,6 +21,7 @@ import type {
   CoinListProgress,
   CoinListReason,
   CoinListStatus,
+  CoinRef,
   CoinSearchResponse,
   CoinSearchResult,
 } from "@/lib/types";
@@ -78,7 +79,8 @@ function statusLines(
 /** 목록이 있어 "결과 없음"이라 말할 수 있는가. */
 const hasList = (list: CoinListStatus) => list.asOf !== null;
 
-const rankText = (rank: number | null) => (rank === null ? "" : `#${rank.toLocaleString("en-US")}`);
+const rankText = (rank: number | null | undefined) =>
+  (rank === null || rank === undefined ? "" : `#${rank.toLocaleString("en-US")}`);
 
 const message = (err: unknown) =>
   err instanceof ApiError ? err.message : "코인을 검색하지 못했습니다.";
@@ -87,7 +89,8 @@ export function CoinSearch({
   value,
   onSelect,
 }: {
-  value: CoinSearchResult | null;
+  /** 고른 코인 — 검색 결과 또는 이력에서 다시 실행한 코인(순위가 없을 수 있다). */
+  value: CoinRef | null;
   onSelect: (coin: CoinSearchResult) => void;
 }) {
   const [term, setTerm] = useState("");

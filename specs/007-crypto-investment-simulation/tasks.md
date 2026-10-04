@@ -284,13 +284,13 @@ description: "Task list for 007-crypto-investment-simulation"
 
 ### Tests for User Story 5 ⚠️
 
-- [ ] T043 [P] [US5] `frontend/tests/cryptoHistory.test.ts`·`CryptoHistory.test.tsx` — 실행하면 이력이 남고(코인 id·심볼·이름·slug·시작일·원금·통화),
+- [X] T043 [P] [US5] `frontend/tests/cryptoHistory.test.ts`·`CryptoHistory.test.tsx` — 실행하면 이력이 남고(코인 id·심볼·이름·slug·시작일·원금·통화),
   **주식 이력과 다른 저장 키**(서로 보이지 않음), 결과 수치를 저장하지 않음, 다시 실행해 `unknown_coin`이면 "검색에서 다시 고르세요", 막힌 원금 통화
   조합이면 사유, 둘 이상 고르면 비교 — 기준 문구 "모두 KRW 기준", 시작일이 다르면 범례에 각 시작일 (FR-045, FR-046)
 
 ### Implementation for User Story 5
 
-- [ ] T044 [US5] `frontend/src/lib/cryptoHistory.ts`·`frontend/src/components/crypto/CryptoHistory.tsx`(또는 006 `SimulationHistory`를 항목 표시를 받게
+- [X] T044 [US5] `frontend/src/lib/cryptoHistory.ts`·`frontend/src/components/crypto/CryptoHistory.tsx`(또는 006 `SimulationHistory`를 항목 표시를 받게
   일반화)·`frontend/src/stores/cryptoStore.ts`(이력·비교)·`frontend/src/app/crypto/page.tsx` — 비교는 `ComparisonChart` 그대로 (FR-045, FR-046)
 - [ ] T045 [US5] 실제 브라우저로 quickstart 15를 확인하고 기록한다 (FR-045, FR-046)
 
