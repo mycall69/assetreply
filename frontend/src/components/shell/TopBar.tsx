@@ -9,9 +9,16 @@
 import { usePathname } from "next/navigation";
 import { CollectionIndicator } from "./CollectionIndicator";
 
+/**
+ * 경로 → 제목. 사이드바에 경로를 더하면 여기에도 더한다 — 빠뜨리면 마지막 줄(`/`)에 걸려 "대시보드"로 보인다(005·007·008이
+ * 그랬다). `TopBarTitle.test.ts`가 사이드바의 메뉴마다 확인한다.
+ */
 const TITLES: ReadonlyArray<readonly [string, string]> = [
   ["/fx/collection", "수집 현황"],
   ["/fx", "외환"],
+  ["/crypto", "가상자산"],
+  ["/stocks", "주식"],
+  ["/deposit", "예금"],
   ["/settings", "설정"],
   ["/", "대시보드"],
 ];
