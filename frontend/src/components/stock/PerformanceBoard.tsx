@@ -24,8 +24,11 @@ export function PerformanceBoard({
   summary,
   currency,
   exchange,
+  notes = [],
 }: {
   summary: SimulationSummary;
+  /** 기준 줄에 덧붙일 말 — 가상자산의 매수일·수수료(007 ui-wireframes C3). */
+  notes?: string[];
   /** 입력한 원금 통화 — 투자 원금 칸의 통화다. 수익의 기준은 KRW다. */
   currency: string;
   exchange?: ExchangeInfo;
@@ -59,6 +62,9 @@ export function PerformanceBoard({
         <span className="tabular-nums">{summary.asOf}</span> 기준 ·{" "}
         {/* 006 FR-068 — 원금 통화와 관계없이 KRW다. */}
         <span>KRW 기준</span>
+        {notes.map((note) => (
+          <span key={note}> · {note}</span>
+        ))}
       </p>
 
       {!summary.isFinal && (

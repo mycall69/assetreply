@@ -8,6 +8,8 @@ contracts/rest-api.md의 공통 오류표와 1:1로 대응한다.
 
 from __future__ import annotations
 
+import datetime as dt
+
 
 class UnknownCurrency(Exception):
     """지원하지 않는 통화 (404)."""
@@ -63,3 +65,23 @@ class CurrencyPairNotAllowed(Exception):
     def __init__(self, message: str, allowed: list[str]) -> None:
         super().__init__(message)
         self.allowed = allowed
+
+
+class UnknownCoin(Exception):
+    """코인을 찾을 수 없다 (007, 404 `unknown_coin`). 검색에서 다시 고르면 풀린다 — 할 일을 함께
+    싣는다.
+
+    이력(브라우저)은 DB와 따로 산다. 지운 적은 없지만(FR-005a) DB를 새로 만들었으면 이력의 코인 id가
+    없다.
+    """
+
+
+class StartAfterEnd(Exception):
+    """시작일이 계산 끝(UTC 어제)보다 늦다 (007 FR-009, 400 `start_after_end`). 계산할 일봉이
+    없다."""
+
+    def __init__(self, last_day: dt.date) -> None:
+        super().__init__(
+            f"{last_day.isoformat()}(UTC 어제)까지의 일봉만 있습니다. "
+            "시작일을 그 이전으로 고르세요.")
+        self.last_day = last_day

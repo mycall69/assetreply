@@ -169,34 +169,34 @@ description: "Task list for 007-crypto-investment-simulation"
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T021 [P] [US1] `backend/tests/unit/test_crypto_hold.py` — 순수 함수: 시작 월 1일 일봉 시가로 매수(시작일이 15일이어도), 1일이 결측이면 그 달의
+- [X] T021 [P] [US1] `backend/tests/unit/test_crypto_hold.py` — 순수 함수: 시작 월 1일 일봉 시가로 매수(시작일이 15일이어도), 1일이 결측이면 그 달의
   첫 일봉으로 사고 행에 결측 표시, 월 행은 매달 첫 일봉·최신순, `latest` = 마지막 일봉, **손계산 참조값**(research R7-7: 7,196.39111328125·10,000·
   0.1% → 수량 1.38819719, 수수료 9.9900099215980029296875, 예수금 0.0000684803990673828125 — 계산 과정을 주석으로), 수수료 포함 총액 ≤ 원금·예수금 ≥
   0, 원금이 최소 단위 값보다 작으면 수량 0·전액 예수금, **1개 값이 원금보다 커도 소수로 산다**(원금 100달러·시가 84,513달러·0.1% → ⌊100 ÷ 84,597.513⌋₈
   = 0.00118206 — 계산 과정을 주석으로, analyze L3), 아주 작은 가격(1e-12)도 0으로 잘리지 않음, 같은 입력 같은 결과, 잔고 = 수량 × 그 행의 시가(예수금
   제외) (FR-025~FR-031, SC-004, SC-006)
-- [ ] T022 [P] [US1] `backend/tests/unit/test_buy_fraction.py` — `buy_fraction(예수금, 시가, 수수료율)`: 소수 8자리 버림, 총액 ≤ 예수금, 시가·예수금
+- [X] T022 [P] [US1] `backend/tests/unit/test_buy_fraction.py` — `buy_fraction(예수금, 시가, 수수료율)`: 소수 8자리 버림, 총액 ≤ 예수금, 시가·예수금
   0 이하 → 0, 정수 수량 함수 `buy_quantity`는 그대로 (FR-026)
-- [ ] T023 [P] [US1] `backend/tests/integration/test_crypto_collection.py` — 가짜 출처로 `crypto_runner`: 시작 월 1일 ~ 계산 끝을 730일 청크로, 청크마다
+- [X] T023 [P] [US1] `backend/tests/integration/test_crypto_collection.py` — 가짜 출처로 `crypto_runner`: 시작 월 1일 ~ 계산 끝을 730일 청크로, 청크마다
   원본 저장(요청 구간 포함), upsert 멱등(두 번 받아도 같은 행), 오늘·미래 행은 저장 안 함, 커버리지 = 요청한 구간, 앞부분이 빈 코인(ETH 픽스처)은
   `first_available_date` = 첫 일봉, 일봉 0행 코인은 `first_available_date` 없음, 실패 종류(`blocked`·`format`·`network`·`empty`)를 작업
   `last_error`에, **가격을 읽지 못한 행이 든 청크는 저장 0행·커버리지 그대로·`format`·사유에 날짜와 필드**(analyze M2), 중단 뒤 재실행은 빠진
   구간만, 같은 코인 점유 중이면 새 작업 없음, 수집 전용 로그 사건 (FR-008, FR-010~FR-014, FR-012a, FR-019, FR-020, FR-022, SC-005)
-- [ ] T024 [P] [US1] `backend/tests/integration/test_crypto_simulation_api.py` — `GET /api/crypto/simulation`(달러 원금, USD 환율 픽스처 있음):
+- [X] T024 [P] [US1] `backend/tests/integration/test_crypto_simulation_api.py` — `GET /api/crypto/simulation`(달러 원금, USD 환율 픽스처 있음):
   받지 않은 구간 → 202(`jobId`·`progressUrl`, 결과 없음), USD 환율이 비면 202 `fx`, 다 있으면 200 — 행의 수량 8자리 문자열·`tradeFee`는 매수 행에만·
   `firstDayMissing`·열별 통화(시가·수수료·예수금·잔고 USD, `balanceKrw`, `profit`·`returnRate` KRW 기준)·`summary.principalKrw`·`boughtOn`·
   `condition.tradeFeeRate`, 일봉이 계산 끝 전에 끊기면 `isFinal: false`·`asOf` = 마지막 일봉, `before_listing`(수집 전: 기록된 첫 일봉, 수집 후: 시작
   월에 일봉 없음), `start_after_end`, `unknown_coin`+`reselect`, `no_price_data`(Doge Killer), `currency_pair_not_allowed`(EUR·JPY), 원금 0·문자 →
   400. **실행 주체**: 202를 받은 요청이 `lifespan`의 가상자산 수집 줄로 이어져 작업이 끝나고, 다시 요청하면 200 (FR-002, FR-007~FR-009, FR-013,
   FR-022, FR-024~FR-028, FR-035, FR-036, FR-037a, SC-003, SC-006, SC-007)
-- [ ] T025 [P] [US1] `backend/tests/integration/test_crypto_progress_sse.py` — `GET /api/crypto/progress`: `snapshot`(받은 날 / 받을 날), `completed`,
+- [X] T025 [P] [US1] `backend/tests/integration/test_crypto_progress_sse.py` — `GET /api/crypto/progress`: `snapshot`(받은 날 / 받을 날), `completed`,
   `failed`(`kind`), 머리글 `no-transform`·`X-Accel-Buffering`, 프레임마다 새 스냅샷(006 R6-19) (FR-013, FR-020, SC-003)
-- [ ] T026 [P] [US1] `backend/tests/integration/test_crypto_settings_api.py` — `GET`: 기본 `0.001000`·`isDefault: true`, 문자열. `PUT`: 저장·`isDefault`
+- [X] T026 [P] [US1] `backend/tests/integration/test_crypto_settings_api.py` — `GET`: 기본 `0.001000`·`isDefault: true`, 문자열. `PUT`: 저장·`isDefault`
   바뀜, 범위 밖(−0.1, 1, 1.5)·숫자 아님·빠짐 → 422 `invalid_setting`, **주식 설정과 따로**(주식 수수료 그대로). 바꾼 수수료가 다음 시뮬레이션에
   쓰이고 `condition.tradeFeeRate`에 보인다 (FR-032, FR-033, SC-008)
-- [ ] T027 [P] [US1] `backend/tests/integration/test_crypto_worker.py` — **실행 주체**: 앱 기동이 가상자산 수집 줄과 목록 갱신 줄을 띄운다(태스크 6개),
+- [X] T027 [P] [US1] `backend/tests/integration/test_crypto_worker.py` — **실행 주체**: 앱 기동이 가상자산 수집 줄과 목록 갱신 줄을 띄운다(태스크 6개),
   기동 시 오래된 가상자산 점유를 회수, 주식 수집이 진행 중이어도 가상자산 수집이 기다리지 않고(반대도) 함께 끝난다 (FR-014, FR-015, SC-012)
-- [ ] T028 [P] [US1] `frontend/tests/` — `CryptoPage.test.tsx`(`/crypto` 화면, 재투자 칸 없음, 일봉 기준 UTC 안내, 시작일 상한 = UTC 어제),
+- [X] T028 [P] [US1] `frontend/tests/` — `CryptoPage.test.tsx`(`/crypto` 화면, 재투자 칸 없음, 일봉 기준 UTC 안내, 시작일 상한 = UTC 어제),
   `CryptoPerformanceTable.test.tsx`(열 구성·배당 열 없음, 머리글 통화 아래 줄, 수량 8자리, 매수 행에만 수수료, `◇`와 글자 설명, 잔고 `USD (KRW)`, 표
   `w-max`), `formatPrice.test.ts`(1 이상 소수 2자리, 1 미만 유효 숫자 4자리 이상, `0.00000579`, `0`·`0.00`이 되지 않음), `cryptoStore.test.ts`(202 →
   진행 구독 → 완료 뒤 다시 요청, 실패 사유 종류별 문구), `CryptoSettingsForm.test.tsx`(0.1 % 표시·저장·범위 밖 거절·기본값으로),
@@ -207,15 +207,15 @@ description: "Task list for 007-crypto-investment-simulation"
 
 ### Implementation for User Story 1
 
-- [ ] T029 [US1] `backend/src/simulation/money.py`(`buy_fraction`)·`backend/src/simulation/crypto_hold.py` (FR-025~FR-031)
-- [ ] T030 [US1] `backend/src/repository/crypto_daily.py`·`crypto_job.py`·`crypto_setting.py` — 일봉 upsert·조회, 커버리지, 첫 일봉 기록, 작업·점유,
+- [X] T029 [US1] `backend/src/simulation/money.py`(`buy_fraction`)·`backend/src/simulation/crypto_hold.py` (FR-025~FR-031)
+- [X] T030 [US1] `backend/src/repository/crypto_daily.py`·`crypto_job.py`·`crypto_setting.py` — 일봉 upsert·조회, 커버리지, 첫 일봉 기록, 작업·점유,
   수수료율(기본 0.001) (FR-010, FR-011, FR-014, FR-032)
-- [ ] T031 [US1] `backend/src/worker/crypto_queue.py`·`crypto_runner.py`·`crypto_worker.py`·`backend/src/api/main.py`(`lifespan`, 기동 시 회수) —
+- [X] T031 [US1] `backend/src/worker/crypto_queue.py`·`crypto_runner.py`·`crypto_worker.py`·`backend/src/api/main.py`(`lifespan`, 기동 시 회수) —
   청크 수집, 원본 저장, 첫 일봉 기록, 실패 종류, 사건 기록 (FR-010~FR-015, FR-019, FR-020)
-- [ ] T032 [US1] `backend/src/api/services/crypto_collect.py`·`crypto_simulation.py`·`backend/src/api/routes/crypto_simulation.py`·`crypto_progress.py`·
+- [X] T032 [US1] `backend/src/api/services/crypto_collect.py`·`crypto_simulation.py`·`backend/src/api/routes/crypto_simulation.py`·`crypto_progress.py`·
   `crypto_settings.py`·`backend/src/api/main.py`(라우터) — 202 판정(일봉 + 환율), 시작 가능 날짜, 계산 끝 UTC 어제, KRW 평가(`evaluate_krw`), 응답
   (FR-002, FR-007~FR-009, FR-013, FR-022, FR-024, FR-033, FR-035, FR-036)
-- [ ] T033 [US1] `frontend/src/lib/types.ts`·`format.ts`(`formatPrice`·`formatQuantity`)·`cryptoProgressStream.ts`·`frontend/src/stores/cryptoStore.ts`·
+- [X] T033 [US1] `frontend/src/lib/types.ts`·`format.ts`(`formatPrice`·`formatQuantity`)·`cryptoProgressStream.ts`·`frontend/src/stores/cryptoStore.ts`·
   `frontend/src/components/crypto/CryptoSimulationForm.tsx`·`CryptoPerformanceTable.tsx`·`frontend/src/app/crypto/page.tsx`·
   `frontend/src/components/settings/CryptoSettingsForm.tsx`·`frontend/src/app/settings/page.tsx`·`frontend/src/components/shell/Sidebar.tsx` —
   보드는 `PerformanceBoard` 그대로, 수집 안내는 `CollectingNotice`(대상 이름을 받게) (FR-001, FR-009, FR-013, FR-032, FR-037~FR-042)

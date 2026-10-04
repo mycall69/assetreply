@@ -12,7 +12,7 @@
 
 from __future__ import annotations
 
-from decimal import ROUND_FLOOR, Decimal
+from decimal import ROUND_FLOOR, Decimal, localcontext
 
 #: 통화별 소수 자릿수. 원화·엔화에 소수점 금액은 존재하지 않는다.
 CURRENCY_SCALE: dict[str, int] = {
@@ -24,6 +24,13 @@ CURRENCY_SCALE: dict[str, int] = {
 
 #: 수익률·배당율의 소수 자릿수. 참조 구현과 같다.
 RATE_SCALE = 6
+
+#: 가상자산 수량의 소수 자릿수 (007 FR-026). 대개의 거래소 최소 단위(1e-8, 비트코인의 사토시)다.
+QUANTITY_PLACES = 8
+_QUANTUM = Decimal(1).scaleb(-QUANTITY_PLACES)
+#: 소수 수량 계산의 정밀도. 1e-12달러 시가에 원금 수천만 원이면 수량이 정수부 18자리 + 소수 8자리라,
+#: 기본 28자리 문맥에서 곱하면 반올림이 끼어들어 총액이 예수금을 넘을 수 있다.
+CALC_PRECISION = 60
 
 _ONE = Decimal("1")
 
@@ -77,3 +84,19 @@ def apply_split(held: int, numerator: int, denominator: int) -> int:
     if held == 0 or denominator == 0:
         return held
     return (held * numerator) // denominator
+
+
+def buy_fraction(cash: Decimal, price: Decimal, fee_rate: Decimal) -> Decimal:
+    """살 수 있는 최대 **소수** 수량 (007 FR-026, research R7-7).
+
+    `수량 = ⌊예수금 ÷ (시가 × (1 + 수수료율))⌋₈` — 소수 8자리에서 **버린다.** 올리거나 반올림하면
+    수수료를 포함한 총액이 예수금을 넘어 예수금이 음수가 된다 — 값이 작아 눈에 띄지 않는다(SC-004).
+    정수 수량(`buy_quantity`)과 따로 둔다 — 주식은 소수 주식을 사지 않는다(005 FR-007).
+
+    시가·예수금이 0 이하면 사지 않는다. 0으로 나누는 경로를 만들지 않는다.
+    """
+    if price <= 0 or cash <= 0:
+        return Decimal(0)
+    with localcontext() as ctx:
+        ctx.prec = CALC_PRECISION
+        return (cash / (price * (_ONE + fee_rate))).quantize(_QUANTUM, rounding=ROUND_FLOOR)

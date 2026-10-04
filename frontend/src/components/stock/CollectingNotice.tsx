@@ -10,8 +10,20 @@
  * (FR-045).
  */
 
+import type { CryptoProgressSnapshot } from "@/lib/cryptoProgressStream";
 import type { StockProgressSnapshot } from "@/lib/stockProgressStream";
-import type { FxCollecting, FxNotAvailableBefore, SimulationCollecting } from "@/lib/types";
+import type {
+  CryptoCollecting,
+  FxCollecting,
+  FxNotAvailableBefore,
+  SimulationCollecting,
+} from "@/lib/types";
+
+/** 수집 중 본문 — 주식(005·006)과 가상자산(007)의 202. 이 안내는 대상(종목·코인)의 식별을 쓰지 않는다. */
+export type CollectingLike = SimulationCollecting | CryptoCollecting;
+
+/** 진행 — 받은 날 / 받을 날(006 FR-045a)만 쓴다. */
+export type ProgressLike = StockProgressSnapshot | CryptoProgressSnapshot;
 
 /** 환율 줄 (W4). `waiting`은 다른 통화의 수집이 끝나야 시작한다 (FR-046). */
 function fxLine(fx: FxCollecting): string {
@@ -30,9 +42,10 @@ export function CollectingNotice({
   stockName,
   progress,
 }: {
-  collecting: SimulationCollecting;
+  collecting: CollectingLike;
+  /** 받고 있는 대상의 이름 — 종목명이나 코인 이름(007). */
   stockName: string;
-  progress: StockProgressSnapshot | null;
+  progress: ProgressLike | null;
 }) {
   // 006 FR-045a — 받은 날 / 받을 날(달력 일수). "3 / 4 구간"은 숫자가 작아 얼마나 남았는지
   // 가늠하기 어렵다. 출처에 2년치씩 요청하므로 숫자는 구간마다 늘어난다.

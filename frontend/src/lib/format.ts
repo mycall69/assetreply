@@ -117,3 +117,34 @@ export function formatKst(iso: string): string {
   return `${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())} `
     + `${pad(shifted.getUTCHours())}:${pad(shifted.getUTCMinutes())}`;
 }
+
+/* ───────────────────────── 007: 가상자산 ───────────────────────── */
+
+/** 쉼표를 넣은 정수부. */
+const group = (whole: string) => whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+
+/**
+ * 가상자산 가격 (007 FR-040, SC-009). **유효 숫자를 잃지 않게** — 1 이상이면 소수 2자리, 1 미만이면 유효 숫자 4자리까지(뒤의 0은
+ * 지우되 소수 2자리는 둔다). SHIB(0.0000053달러)를 소수 2자리로 보이면 `0.00`이 되어 시세가 없거나 0이라고 읽힌다.
+ * 반올림하지 않고 자른다 — 문자열 조작이다(헌법 원칙 VI).
+ */
+export function formatPrice(value: DecimalString): string {
+  const negative = value.trimStart().startsWith("-");
+  const [whole = "0", fraction = ""] = value.replace("-", "").split(".");
+  const sign = negative ? "-" : "";
+  const intPart = whole.replace(/^0+(?=\d)/, "");
+  if (intPart !== "0") {
+    return `${sign}${group(intPart)}.${(fraction + "00").slice(0, 2)}`;
+  }
+  const leading = fraction.match(/^0*/)?.[0].length ?? 0;
+  if (leading === fraction.length) return `${sign}0.00`;
+  const kept = fraction.slice(0, leading + 4).replace(/0+$/, "");
+  return `${sign}0.${kept.padEnd(2, "0")}`;
+}
+
+/** 가상자산 수량 — 소수 8자리 그대로, 정수부는 3자리마다 쉼표(FR-026). 0은 `0`이다. */
+export function formatQuantity(value: DecimalString): string {
+  const [whole = "0", fraction = ""] = value.split(".");
+  if (/^0*$/.test(whole) && /^0*$/.test(fraction)) return "0";
+  return `${group(whole.replace(/^0+(?=\d)/, ""))}.${fraction.padEnd(8, "0").slice(0, 8)}`;
+}

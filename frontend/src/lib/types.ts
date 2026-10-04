@@ -653,3 +653,77 @@ export interface CoinListProgress {
   pagesExpected: number | null;
   coinsSeen: number;
 }
+
+/** 수집 실패 종류 (007 FR-020). 할 일이 다르다 — 차단은 기다려도 풀리지 않고, 형식 변경은 고쳐야 하고, 네트워크는 다시 하면 된다. */
+export type CryptoFailureKind = "blocked" | "format" | "network" | "empty";
+
+/**
+ * 가상자산 표 한 행 (007 contracts/rest-api). **매달 첫 일봉**뿐이다 — 배당 행이 없다(FR-038).
+ *
+ * 수량은 소수 8자리 문자열(FR-026), 시가는 출처 원값(14자리, FR-040). `tradeFee`는 매수 행에만, `firstDayMissing`은 그 달 1일
+ * 일봉이 없어 다른 날이 행이 된 경우에만 있다(FR-030). 금액 열은 시세 통화, 투자 수익·수익율은 KRW 기준이다(FR-035).
+ */
+export interface CryptoRow {
+  date: string;
+  kind: "month_first";
+  openPrice: DecimalString;
+  boughtQuantity: DecimalString;
+  heldQuantity: DecimalString;
+  tradeFee?: DecimalString;
+  cash: DecimalString;
+  principal: DecimalString;
+  balance: DecimalString;
+  balanceKrw?: DecimalString;
+  profit: DecimalString;
+  returnRate: DecimalString;
+  fxRate?: DecimalString;
+  fxRateDate?: string;
+  firstDayMissing?: string;
+}
+
+/** 요약. `boughtOn`은 실제 매수일 — 시작 월 1일이 결측이면 1일이 아니다(FR-030). */
+export interface CryptoSummary extends SimulationSummary {
+  boughtOn: string;
+}
+
+export interface CryptoCondition {
+  start: string;
+  principal: DecimalString;
+  principalCurrency: PrincipalCurrency;
+  tradeFeeRate: DecimalString;
+}
+
+export interface CryptoCoinRef {
+  coinId: number;
+  symbol: string;
+  name: string;
+  nameKo: string | null;
+  currency: string;
+}
+
+export interface CryptoSimulationResponse {
+  coin: CryptoCoinRef;
+  condition: CryptoCondition;
+  summary: CryptoSummary;
+  exchange?: ExchangeInfo;
+  rows: CryptoRow[];
+  hasMore: boolean;
+  oldestReturned: string | null;
+}
+
+/** 수집 중(202). 일봉이 다 있으면 `jobId` 등이 없고, 환율이 다 있으면 `fx`가 없다. 결과를 싣지 않는다(FR-013). */
+export interface CryptoCollecting {
+  status: "collecting";
+  coinId: number;
+  jobId?: number;
+  missingFrom?: string;
+  missingThrough?: string;
+  progressUrl?: string;
+  fx?: FxCollecting;
+}
+
+/** 가상자산 거래 수수료율 (FR-032). 주식 설정과 따로다. */
+export interface CryptoSettings {
+  tradeFeeRate: DecimalString;
+  isDefault: boolean;
+}

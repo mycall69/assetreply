@@ -18,6 +18,8 @@ from src.api.errors import (
     InvalidSetting,
     InvalidSpread,
     OutOfRange,
+    StartAfterEnd,
+    UnknownCoin,
     UnknownCurrency,
     UnknownListing,
     UnknownStock,
@@ -63,6 +65,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from src.worker.crypto_list_queue import get_crypto_list_queue
     from src.worker.crypto_list_worker import crypto_list_worker_loop
     from src.worker.crypto_list_worker import startup as crypto_list_startup
+    from src.worker.crypto_queue import get_crypto_queue
+    from src.worker.crypto_worker import crypto_worker_loop
+    from src.worker.crypto_worker import startup as crypto_startup
     from src.worker.listing_queue import get_listing_queue
     from src.worker.listing_worker import listing_worker_loop
     from src.worker.listing_worker import startup as listing_startup
@@ -83,8 +88,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await reconcile_on_startup(factory)
     # 006 — 목록 갱신 점유도 같다. 프로세스가 하나라 남은 점유는 죽은 프로세스의 것이다.
     await listing_startup(factory)
-    # 007 — 코인 목록 갱신 점유도 같다.
+    # 007 — 코인 목록 갱신 점유와 가상자산 수집 점유도 같다.
     await crypto_list_startup(factory)
+    await crypto_startup(factory)
 
     # 005 — 주식 수집 워커. **FX와 분리한다**: 출처가 달라 호출 한도도 따로이고,
     # 한 루프에 섞으면 환율 수집이 주식 수집을 막으면서 그 이유가 화면에 드러나지
@@ -113,6 +119,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # 007 — 코인 목록 갱신 줄. 시세 수집과 다른 줄이다 — 목록(약 2분)이 시세 수집을 막지 않는다.
         asyncio.create_task(crypto_list_worker_loop(
             factory, crypto_client, get_crypto_list_queue(), settings=settings)),
+        # 007 — 가상자산 시세 수집 줄. **주식 수집과 다른 줄이다** — 출처가 달라 한쪽이 막혀도 다른
+        # 쪽이 기다리지 않는다(SC-012). 목록 갱신 줄과 같은 클라이언트(간격 제한기)를 쓴다.
+        asyncio.create_task(crypto_worker_loop(
+            factory, crypto_client, get_crypto_queue(), settings=settings)),
     ]
     try:
         yield
@@ -210,6 +220,19 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=404, content={
             "status": "unknown_stock", "message": str(exc), "action": "reselect"})
 
+    @app.exception_handler(UnknownCoin)
+    async def _unknown_coin(_: Request, exc: UnknownCoin) -> JSONResponse:
+        # 007 — 검색에서 다시 고르면 풀린다. 할 일을 함께 싣는다(006 unknown_stock과 같다).
+        return JSONResponse(status_code=404, content={
+            "status": "unknown_coin", "message": str(exc), "action": "reselect"})
+
+    @app.exception_handler(StartAfterEnd)
+    async def _start_after_end(_: Request, exc: StartAfterEnd) -> JSONResponse:
+        # 007 FR-009 — 계산할 일봉이 없다. 계산 끝(UTC 어제)을 함께 싣는다.
+        return JSONResponse(status_code=400, content={
+            "status": "start_after_end", "message": str(exc),
+            "lastDay": exc.last_day.isoformat()})
+
     @app.exception_handler(UnknownListing)
     async def _unknown_listing(_: Request, exc: UnknownListing) -> JSONResponse:
         return _json(404, "unknown_listing", str(exc))
@@ -253,7 +276,10 @@ def create_app() -> FastAPI:
     from src.api.routes import collection as collection_routes
     from src.api.routes import coverage as coverage_routes
     from src.api.routes import crypto_list_progress as crypto_list_progress_routes
+    from src.api.routes import crypto_progress as crypto_progress_routes
     from src.api.routes import crypto_search as crypto_search_routes
+    from src.api.routes import crypto_settings as crypto_settings_routes
+    from src.api.routes import crypto_simulation as crypto_simulation_routes
     from src.api.routes import daily as daily_routes
     from src.api.routes import jobs as job_routes
     from src.api.routes import latest as latest_routes
@@ -289,6 +315,9 @@ def create_app() -> FastAPI:
     # 007 — 가상자산 투자 시뮬레이션
     app.include_router(crypto_search_routes.router)
     app.include_router(crypto_list_progress_routes.router)
+    app.include_router(crypto_simulation_routes.router)
+    app.include_router(crypto_progress_routes.router)
+    app.include_router(crypto_settings_routes.router)
 
     return app
 

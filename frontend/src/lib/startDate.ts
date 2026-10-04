@@ -95,3 +95,12 @@ export function yesterdayOf(today: string): string {
 export function localYesterday(now: Date = new Date()): string {
   return yesterdayOf(format({ y: now.getFullYear(), m: now.getMonth() + 1, d: now.getDate() }));
 }
+
+/**
+ * UTC로 본 어제 — 마지막으로 마감된 UTC 하루 (007 FR-009, FR-022). 가상자산의 일봉은 UTC 00:00 기준이다(헌법 원칙 V). 한국 시간
+ * 어제로 두면 한국 오전 9시 전에는 아직 마감되지 않은 UTC 하루를 고를 수 있다 — 서버는 그 일봉을 저장하지 않는다.
+ */
+export function utcYesterday(now: Date = new Date()): string {
+  return yesterdayOf(format({
+    y: now.getUTCFullYear(), m: now.getUTCMonth() + 1, d: now.getUTCDate() }));
+}

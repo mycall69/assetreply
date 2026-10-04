@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { CryptoSettingsForm } from "@/components/settings/CryptoSettingsForm";
 import { RestoreDefaultsDialog } from "@/components/settings/RestoreDefaultsDialog";
 import { SpreadForm } from "@/components/settings/SpreadForm";
 import {
@@ -15,7 +16,7 @@ import {
   type StockSettingsChange,
 } from "@/components/settings/StockSettingsForm";
 import { ApiError, apiClient } from "@/lib/apiClient";
-import type { DerivedRates, SpreadRow, StockSettings } from "@/lib/types";
+import type { CryptoSettings, DerivedRates, SpreadRow, StockSettings } from "@/lib/types";
 import { useFxWorkspaceStore } from "@/stores/fxWorkspaceStore";
 import { useSpreadStore } from "@/stores/spreadStore";
 
@@ -80,6 +81,9 @@ export default function SettingsPage() {
       {/* 005 — 주식 매매 조건. 002의 스프레드 설정과 같은 자리에 둔다 (FR-015). */}
       <StockSettingsSection />
 
+      {/* 007 — 가상자산 거래 조건. 주식 설정과 따로 저장한다(FR-032). */}
+      <CryptoSettingsSection />
+
       {pending !== null && (
         <RestoreDefaultsDialog
           scope={pending}
@@ -143,6 +147,54 @@ function StockSettingsSection() {
       {notice !== null && <p className="text-sm text-gray-600">{notice}</p>}
       {value !== null && (
         <StockSettingsForm value={value} onSave={(c) => void save(c)} />
+      )}
+    </div>
+  );
+}
+
+
+/**
+ * 가상자산 설정 구역 (T033) — 007 FR-032, FR-033.
+ *
+ * 주식 설정과 **상태를 공유하지 않는다** — 한쪽의 실패가 다른 쪽을 가리면 무엇이 저장됐는지 알 수 없다(005와 같은 이유).
+ */
+function CryptoSettingsSection() {
+  const [value, setValue] = useState<CryptoSettings | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        setValue(await apiClient.get<CryptoSettings>("/api/crypto/settings"));
+      } catch (err) {
+        setFailure(err instanceof ApiError ? err.message : "가상자산 설정을 불러오지 못했습니다.");
+      }
+    })();
+  }, []);
+
+  const save = async (tradeFeeRate: string) => {
+    try {
+      setValue(await apiClient.put<CryptoSettings>("/api/crypto/settings", { tradeFeeRate }));
+      setNotice("저장했습니다. 가상자산 화면으로 돌아가면 새 값으로 다시 계산합니다.");
+      setFailure(null);
+    } catch (err) {
+      setFailure(err instanceof ApiError ? err.message : "가상자산 설정을 저장하지 못했습니다.");
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <h2 className="text-xl font-bold tracking-tight">가상자산 거래 조건</h2>
+      {failure !== null && (
+        <p role="alert" className="rounded border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {failure}
+        </p>
+      )}
+      {notice !== null && <p className="text-sm text-gray-600">{notice}</p>}
+      {value !== null && (
+        // 저장 뒤 값이 바뀌면 폼을 새로 그린다 — 칸에 이전 값이 남지 않게 한다.
+        <CryptoSettingsForm key={value.tradeFeeRate} value={value} onSave={(r) => void save(r)} />
       )}
     </div>
   );
