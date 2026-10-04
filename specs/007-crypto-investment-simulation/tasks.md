@@ -270,7 +270,7 @@ description: "Task list for 007-crypto-investment-simulation"
 - [X] T041 [US4] `backend/src/api/services/crypto_series.py`·`backend/src/api/routes/crypto_series.py`(`compute_gaps(…, inside_reason="source_missing")`)·
   `frontend/src/lib/chartSeries.ts`·`frontend/src/components/stock/PerformanceChart.tsx`(범례)·`frontend/src/app/crypto/page.tsx`(차트 연결)
   (FR-023, FR-043, FR-044)
-- [ ] T042 [US4] 결측이 있는 실데이터를 찾으면 브라우저로 quickstart 19를 확인하고, 못 찾으면 T039·T040으로 대신했다고 기록한다 (FR-023)
+- [X] T042 [US4] 결측이 있는 실데이터를 찾으면 브라우저로 quickstart 19를 확인하고, 못 찾으면 T039·T040으로 대신했다고 기록한다 (FR-023)
 
 **Checkpoint**: 차트 포함
 
