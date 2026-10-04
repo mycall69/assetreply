@@ -11,17 +11,32 @@
  * 미수집은 끊는다 — 미수집을 이으면 구멍 위에 온전한 선이 그려져 사용자가 데이터를
  * 다 가졌다고 믿는다. 같은 `splitSeriesAtGaps`를 부르므로 자산군마다 규칙이 갈릴
  * 수 없다.
+ *
+ * **축 눈금에 천 단위 쉼표를 넣는다**(007 FR-043a, 반복 2026-10-04) — 잔고는 기준 통화 자릿수(KRW 소수점 없음), 수익률은
+ * 소수 2자리. 축 형식은 시리즈 옵션이라 **구간마다** 준다 — 첫 구간에만 주면 축이 다른 시리즈를 따를 때 쉼표가 빠진다.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
 import { splitSeriesAtGaps, toPerformanceData } from "@/lib/chartSeries";
-import { formatMoney, formatYield } from "@/lib/format";
+import { formatAxisNumber, formatMoney, formatYield } from "@/lib/format";
 import type { CryptoCollecting, SimulationCollecting, SimulationSeriesResponse } from "@/lib/types";
 
 /** 잔고는 왼쪽, 수익률은 오른쪽. 축을 섞지 않는 것이 이 컴포넌트의 존재 이유다. */
 const BALANCE_AXIS = "left";
 const RETURN_AXIS = "right";
+
+/** 원화·엔화에는 소수점 금액이 없다 — `formatMoney`와 같은 규칙이다. */
+const NO_DECIMAL_CURRENCIES = new Set(["KRW", "JPY"]);
+
+/** 축 눈금 형식 (FR-043a). 그리기용 숫자를 받는다 — 값의 진실은 툴팁·표의 원본 문자열이다. */
+function axisFormat(fractionDigits: number) {
+  return {
+    type: "custom" as const,
+    minMove: 10 ** -fractionDigits,
+    formatter: (price: number) => formatAxisNumber(price, fractionDigits),
+  };
+}
 
 interface Hover {
   date: string;
@@ -53,6 +68,9 @@ export function PerformanceChart({
       timeScale: { borderVisible: false },
     });
 
+    const balanceFormat = axisFormat(NO_DECIMAL_CURRENCIES.has(series.basisCurrency) ? 0 : 2);
+    const returnFormat = axisFormat(2);
+
     const lookup = new Map<string, Hover>();
     for (const p of series.points) {
       lookup.set(p.date, {
@@ -67,6 +85,7 @@ export function PerformanceChart({
         color: "#1f2937",
         lineWidth: 2,
         priceScaleId: BALANCE_AXIS,
+        priceFormat: balanceFormat,
         priceLineVisible: false,
         lastValueVisible: false,
       });
@@ -81,6 +100,7 @@ export function PerformanceChart({
         lineWidth: 2,
         lineStyle: 2,
         priceScaleId: RETURN_AXIS,
+        priceFormat: returnFormat,
         priceLineVisible: false,
         lastValueVisible: false,
       });

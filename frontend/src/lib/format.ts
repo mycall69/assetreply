@@ -49,13 +49,35 @@ export function currencySymbol(currency: string): string {
 }
 
 /**
- * 금액 뒤에 통화 기호를 붙인다 — `10,000,000₩`, `1,000$` (006 FR-054, research R6-21).
+ * 금액 앞에 통화 기호를 붙인다 — `₩10,000,000`, `$1,000` (007 FR-042a, research R7-14).
+ *
+ * 006(FR-054)은 숫자 뒤(`10,000,000₩`)였다 — 사용자 요청(2026-10-04)으로 앞으로 옮겼다.
  *
  * 성과 보드만 쓴다. `formatMoney`는 표·차트·이력이 함께 쓰므로 바꾸지 않는다. 기호는 표시일 뿐
- * 금액 문자열은 건드리지 않는다(헌법 원칙 VI). 손실은 부호가 앞에 온다(`-5,446₩`).
+ * 금액 문자열은 건드리지 않는다(헌법 원칙 VI). 손실은 부호 → 기호 → 숫자(`-₩5,446`) — `₩-5,446`이면 손실 표시가
+ * 숫자 가운데 묻힌다. 기호를 모르는 통화는 코드와 공백(`GBP 1,000`) — 붙이면 코드와 숫자가 한 덩어리로 읽힌다.
  */
 export function formatMoneyWithSymbol(value: DecimalString, currency: string): string {
-  return `${formatMoney(value, currency)}${currencySymbol(currency)}`;
+  const shown = formatMoney(value, currency);
+  const negative = shown.startsWith("-");
+  const symbol = currencySymbol(currency);
+  const prefix = symbol === currency ? `${symbol} ` : symbol;
+  return `${negative ? "-" : ""}${prefix}${negative ? shown.slice(1) : shown}`;
+}
+
+/**
+ * 차트 축 눈금에 천 단위 쉼표를 넣는다 — `360,000,000`, `3,200.00` (007 FR-043a, research R7-14).
+ *
+ * **축 눈금 전용이다.** 그리기용 숫자(차트가 이미 `Number`로 받은 값)를 받는다 — 금액 문자열에 쓰면 IEEE 754를
+ * 거쳐 헌법 원칙 VI가 무너진다. 값의 진실은 툴팁·표의 원본 문자열이다. 로캘에 따라 구분자가 바뀌는
+ * `toLocaleString`은 쓰지 않는다. 반올림해 0이 되는 음수는 부호를 뗀다 — 0 눈금이 `-0.00`이면 손실처럼 읽힌다.
+ */
+export function formatAxisNumber(value: number, fractionDigits: number): string {
+  const fixed = Math.abs(value).toFixed(fractionDigits);
+  const [whole, fraction] = fixed.split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  const negative = value < 0 && Number(fixed) !== 0;
+  return `${negative ? "-" : ""}${grouped}${fraction ? `.${fraction}` : ""}`;
 }
 
 /**

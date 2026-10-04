@@ -318,17 +318,18 @@ description: "Task list for 007-crypto-investment-simulation"
 먼저 보고한다(D2). **006 테스트 두 파일(`PerformanceBoardCurrency`·`PerformanceBoardKrw`)의 기대값을 바꾼다** — 요구사항이 바뀐 것이고
 사용자가 반복 정의(2026-10-04)에서 승인했다. 테스트 커밋에서 바꾸고 사유를 적는다
 
-- [ ] T049 [P] `frontend/tests/PerformanceBoardCurrency.test.tsx`·`PerformanceBoardKrw.test.tsx`·`CryptoBoardKrw.test.tsx` — `formatMoneyWithSymbol`
+- [X] T049 [P] `frontend/tests/PerformanceBoardCurrency.test.tsx`·`PerformanceBoardKrw.test.tsx`·`CryptoBoardKrw.test.tsx` — `formatMoneyWithSymbol`
   기대값을 기호 앞으로 고쳐 쓴다: `"10000000" KRW` → `₩10,000,000`, `"1000.50" USD` → `$1,000.50`, `"1000" USD` → `$1,000`, `"100000" JPY` →
   `¥100,000`, `"-5446" KRW` → `-₩5,446`, 모르는 통화 `"1000" GBP` → `GBP 1,000`. 보드 렌더링: 원화 원금의 원금·수익, 달러 원금 `$10,000 (₩…)`,
-  엔 원금, 손실. `formatMoney`는 그대로다(표·차트·이력이 쓴다) (FR-042a, SC-014)
-- [ ] T050 `frontend/src/lib/format.ts` `formatMoneyWithSymbol` — 부호 → 기호 → 숫자 순, 모르는 통화는 코드와 공백.
+  엔 원금, 손실. `formatMoney`는 그대로다(표·차트·이력이 쓴다) (FR-042a, SC-014). **구현 뒤 005 `PerformanceBoard.test.tsx`의 손실 부호
+  정규식(`-5,446`)이 실패해 `-₩5,446`으로 고쳤다** — 반복 정의의 영향 분석이 기호 없는 단언을 놓쳤다(D2, 사용자 승인 2026-10-04)
+- [X] T050 `frontend/src/lib/format.ts` `formatMoneyWithSymbol` — 부호 → 기호 → 숫자 순, 모르는 통화는 코드와 공백.
   `frontend/src/components/stock/PerformanceBoard.tsx` 머리 주석의 `10,000,000₩` 예시 갱신 (FR-042a, SC-014)
-- [ ] T051 [P] `frontend/tests/PerformanceChartAxis.test.tsx`(신규) — 순수 함수 `formatAxisNumber`: `(360000000, 0)` → `360,000,000`, `(3200, 2)` →
+- [X] T051 [P] `frontend/tests/PerformanceChartAxis.test.tsx`(신규) — 순수 함수 `formatAxisNumber`: `(360000000, 0)` → `360,000,000`, `(3200, 2)` →
   `3,200.00`, `(-400, 2)` → `-400.00`, `(999, 2)` → `999.00`, `(1234.6, 0)` → `1,235`. 차트: 기존 `lightweight-charts` 모의로 잔고·수익률 시리즈
   옵션의 `priceFormat`이 `type: "custom"`이고 그 formatter가 위 형식을 내는지, 결측으로 끊긴 **모든 구간의** 두 시리즈에 형식이 있는지(첫 구간만이
   아니다) (FR-043a, SC-015)
-- [ ] T052 `frontend/src/lib/format.ts` `formatAxisNumber(value: number, fractionDigits: number)` — 축 눈금 전용(그리기용 숫자를 받는다, 금액 문자열에
+- [X] T052 `frontend/src/lib/format.ts` `formatAxisNumber(value: number, fractionDigits: number)` — 축 눈금 전용(그리기용 숫자를 받는다, 금액 문자열에
   쓰지 않는다). `frontend/src/components/stock/PerformanceChart.tsx` — 구간마다 잔고 시리즈에 `priceFormat: { type: "custom", minMove: 1, formatter }`
   (KRW·JPY 0자리, 그 밖 2자리 — `basisCurrency`로 고른다), 수익률 시리즈에 `minMove: 0.01`, 2자리 (FR-043a, SC-015)
 - [ ] T053 브라우저(3030) 확인 — quickstart 21·22를 주식(SK하이닉스, 원화 1,000만, 2020-01-01)과 가상자산(비트코인, 달러 원금)으로 실행하고

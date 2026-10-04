@@ -56,7 +56,8 @@ describe("성과 보드", () => {
         summary={{ ...summary, profit: "-5446", returnRate: "-0.062600" }}
       />,
     );
-    expect(screen.getByText(/-5,446|−5,446/)).toBeInTheDocument();
+    // 007 FR-042a(반복 2026-10-04) — 기호가 숫자 앞이라 부호와 숫자 사이에 기호가 온다(`-₩5,446`). 사용자 승인(D2).
+    expect(screen.getByText(/-₩5,446|−₩5,446/)).toBeInTheDocument();
     expect(screen.getByText(/-6\.26%|−6\.26%/)).toBeInTheDocument();
   });
 });
