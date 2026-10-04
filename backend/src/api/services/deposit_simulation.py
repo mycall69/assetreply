@@ -22,6 +22,7 @@ from src.api.errors import (
     StartAfterEnd,
     UnknownInstitution,
 )
+from src.api.services.deposit_collect import judge
 from src.repository import deposit_rate, deposit_setting
 from src.repository.deposit_setting import DepositSettings
 from src.simulation.deposit_rollover import DepositOutcome, simulate_deposit
@@ -98,6 +99,42 @@ def calculation_end(start: dt.date, end: dt.date | None) -> dt.date:
 class Prepared:
     outcome: DepositOutcome
     settings: DepositSettings
+    #: 오늘 금리 확인이 실패했으면 그 종류와 사유(FR-016).
+    recheck_failed: tuple[str, str] | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Request:
+    institution: Institution
+    start: dt.date
+    end: dt.date
+    principal: Decimal
+
+
+def read_request(institution: str, start: str, principal: str, principal_currency: str | None,
+                 end: str | None) -> Request:
+    """입력 검증 — 표와 차트가 같은 순서로 막는다. 막힌 입력이면 수집도 계산도 하지 않는다."""
+    amount = parse_won(principal)
+    first_day = parse_day(start, "시작일")
+    found = require_institution(institution)
+    check_currency(principal_currency)
+    finish = calculation_end(first_day, None if end is None else parse_day(end, "끝 날짜"))
+    return Request(found, first_day, finish, amount)
+
+
+async def simulate_or_collect(
+    session: AsyncSession, request: Request,
+) -> Prepared | dict[str, object]:
+    """받지 않은 달이 있으면 202 본문, 아니면 계산 결과. **표와 차트가 이 함수 하나를 거친다** —
+    판정이나 계산이 갈리면 차트의 점과 표의 행이 어긋나는데 양쪽 다 그럴듯한 숫자라 알아챌 신호가
+    없다(005 SC-032와 같은 이유)."""
+    judgment = await judge(session, request.institution.key, request.start, request.end,
+                           kst_today())
+    if judgment.collecting is not None:
+        return judgment.collecting
+    prepared = await prepare(session, request.institution.key, start=request.start,
+                             end=request.end, principal=request.principal)
+    return Prepared(prepared.outcome, prepared.settings, judgment.recheck_failed)
 
 
 async def prepare(session: AsyncSession, institution: str, *, start: dt.date, end: dt.date,

@@ -229,18 +229,18 @@ description: "Task list for 008-deposit-investment-simulation"
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T027 [P] [US3] `backend/tests/integration/test_deposit_series_api.py` — `GET /api/deposit/simulation/series`: 점 = 표의 행 날짜(같은 날 만기·재예치는
+- [X] T027 [P] [US3] `backend/tests/integration/test_deposit_series_api.py` — `GET /api/deposit/simulation/series`: 점 = 표의 행 날짜(같은 날 만기·재예치는
   하나) + 계산 끝, **표의 행과 같은 날짜의 점은 그 행의 `balance`·`returnRate`와 같고 끝점은 `summary`와 같다**, `gaps: []`, 잠정이면
   `provisionalFrom`, 결측으로 멈추면 그 만기일에서 끝, 202·오류는 표와 같다 (FR-036, SC-005, SC-009)
-- [ ] T028 [P] [US3] `frontend/tests/PerformanceChartProvisional.test.tsx` — `provisionalFrom`이 있으면 그 날짜부터의 점을 연한 색 시리즈로(잔고·수익률
+- [X] T028 [P] [US3] `frontend/tests/PerformanceChartProvisional.test.tsx` — `provisionalFrom`이 있으면 그 날짜부터의 점을 연한 색 시리즈로(잔고·수익률
   둘 다, 같은 축·같은 축 형식 — 007 FR-043a), 경계 점을 양쪽에 넣어 선이 이어짐, 범례 "잠정(날짜부터)", `null`·없으면 지금과 같은 시리즈(005~007
   `PerformanceChart*.test.tsx`는 그대로 통과) (FR-036, SC-005)
 
 ### Implementation for User Story 3
 
-- [ ] T029 [US3] `backend/src/api/services/deposit_series.py`·`backend/src/api/routes/deposit_series.py`·`backend/src/api/main.py`(라우터) — 시뮬레이션과 같은
+- [X] T029 [US3] `backend/src/api/services/deposit_series.py`·`backend/src/api/routes/deposit_series.py`·`backend/src/api/main.py`(라우터) — 시뮬레이션과 같은
   계산의 행 날짜 + 계산 끝, `provisionalFrom` (FR-036)
-- [ ] T030 [US3] `frontend/src/components/stock/PerformanceChart.tsx`(선택 속성 `provisionalFrom`)·`frontend/src/lib/types.ts`(`SimulationSeriesResponse.provisionalFrom?`)·
+- [X] T030 [US3] `frontend/src/components/stock/PerformanceChart.tsx`(선택 속성 `provisionalFrom`)·`frontend/src/lib/types.ts`(`SimulationSeriesResponse.provisionalFrom?`)·
   `frontend/src/stores/depositStore.ts`(시계열)·`frontend/src/app/deposit/page.tsx`(차트 연결) — D5 (FR-036)
 
 **Checkpoint**: 차트가 표·보드와 같은 값으로 그려지고 잠정 구간이 구별된다

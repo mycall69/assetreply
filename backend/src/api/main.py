@@ -339,6 +339,7 @@ def create_app() -> FastAPI:
     from src.api.routes import daily as daily_routes
     from src.api.routes import deposit_institutions as deposit_institutions_routes
     from src.api.routes import deposit_progress as deposit_progress_routes
+    from src.api.routes import deposit_series as deposit_series_routes
     from src.api.routes import deposit_settings as deposit_settings_routes
     from src.api.routes import deposit_simulation as deposit_simulation_routes
     from src.api.routes import jobs as job_routes
@@ -382,6 +383,7 @@ def create_app() -> FastAPI:
     # 008 — 예금 투자 시뮬레이션
     app.include_router(deposit_institutions_routes.router)
     app.include_router(deposit_simulation_routes.router)
+    app.include_router(deposit_series_routes.router)
     app.include_router(deposit_progress_routes.router)
     app.include_router(deposit_settings_routes.router)
 

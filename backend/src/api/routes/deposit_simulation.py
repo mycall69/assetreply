@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.services import deposit_simulation as service
-from src.api.services.deposit_collect import judge, month_text
+from src.api.services.deposit_collect import month_text
 from src.db.session import get_session
 from src.repository.deposit_rate import rate_text
 from src.simulation.deposit_rollover import DepositOutcome, OpenTerm, Row, Term
@@ -84,26 +84,17 @@ async def get_simulation(
     end: Annotated[str | None, Query(description="기본 오늘(한국 시간)")] = None,
 ) -> Json | JSONResponse:
     """시뮬레이션을 실행하고 표 전체와 보드를 돌려준다."""
-    amount = service.parse_won(principal)
-    first_day = service.parse_day(start, "시작일")
-    found = service.require_institution(institution)
-    # 막힌 입력이면 수집도 계산도 하지 않는다.
-    service.check_currency(principal_currency)
-    finish = service.calculation_end(
-        first_day, None if end is None else service.parse_day(end, "끝 날짜"))
-    judgment = await judge(session, found.key, first_day, finish, service.kst_today())
-    if judgment.collecting is not None:
-        return JSONResponse(status_code=202, content=judgment.collecting)
-
-    prepared = await service.prepare(session, found.key, start=first_day, end=finish,
-                                     principal=amount)
-    outcome = prepared.outcome
+    request = service.read_request(institution, start, principal, principal_currency, end)
+    result = await service.simulate_or_collect(session, request)
+    if not isinstance(result, service.Prepared):
+        return JSONResponse(status_code=202, content=result)
+    outcome = result.outcome
     return {
-        "institution": {"key": found.key, "name": found.name},
+        "institution": {"key": request.institution.key, "name": request.institution.name},
         # 설정은 언제든 바뀐다. 결과만 남으면 어느 조건의 수치인지 알 수 없다(FR-031).
-        "condition": {"start": first_day.isoformat(), "principal": won(amount),
-                      "interestTaxRate": format(prepared.settings.interest_tax_rate, "f")},
-        "summary": summary_json(outcome, judgment.recheck_failed),
+        "condition": {"start": request.start.isoformat(), "principal": won(request.principal),
+                      "interestTaxRate": format(result.settings.interest_tax_rate, "f")},
+        "summary": summary_json(outcome, result.recheck_failed),
         "terms": [term_json(t) for t in outcome.terms],
         "rows": [row_json(r) for r in outcome.rows],
     }

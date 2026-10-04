@@ -24,6 +24,7 @@ import type {
   DepositRow,
   DepositSimulationResponse,
   DepositSummary,
+  SimulationSeriesResponse,
 } from "@/lib/types";
 
 export interface DepositInput {
@@ -45,6 +46,10 @@ interface DepositState {
   condition: DepositCondition | null;
   /** 결과의 투자처 이름 — 입력이 바뀌어도 결과가 어느 투자처의 것인지 남긴다. */
   resultName: string | null;
+  /** 차트용 시계열(FR-036). 표와 **같은 조건**으로 따로 받는다. */
+  series: SimulationSeriesResponse | null;
+  /** 차트만 실패한 사유. **표를 지우지 않는다** — 차트가 비는 것과 결과가 없는 것은 다른 사건이다(005와 같다). */
+  seriesError: string | null;
   collecting: DepositCollecting | null;
   /** 수집 진행. 스냅샷이 오기 전에는 `null`이다 — 0/0은 멈춘 것처럼 보인다. */
   progress: DepositProgressSnapshot | null;
@@ -103,8 +108,8 @@ export function toQuery(input: DepositInput): string {
 }
 
 const EMPTY_RESULT = {
-  rows: [], summary: null, condition: null, resultName: null, collecting: null, progress: null,
-  startable: null,
+  rows: [], summary: null, condition: null, resultName: null, series: null, seriesError: null,
+  collecting: null, progress: null, startable: null,
 } satisfies Partial<DepositState>;
 
 export const useDepositStore = create<DepositState>((set, get) => {
@@ -174,8 +179,16 @@ export const useDepositStore = create<DepositState>((set, get) => {
         const result = body as DepositSimulationResponse;
         set({
           rows: result.rows, summary: result.summary, condition: result.condition,
-          resultName: result.institution.name, loading: false,
+          resultName: result.institution.name,
         });
+        // **표가 수집 중이 아님을 확인한 뒤에 받는다** — 나란히 보내면 같은 구간에 수집 요청이 두 번 나간다(005와 같다).
+        try {
+          const series = await apiClient.get<SimulationSeriesResponse>(
+            `/api/deposit/simulation/series?${toQuery(input)}`);
+          set({ series, loading: false });
+        } catch (err) {
+          set({ seriesError: message(err, "차트를 불러오지 못했습니다."), loading: false });
+        }
         // 받은 범위가 늘었을 수 있다 — 시작 가능 달을 새로 보인다.
         void get().loadInstitutions();
       } catch (err) {

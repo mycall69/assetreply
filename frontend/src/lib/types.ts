@@ -572,6 +572,11 @@ export interface SimulationSeriesResponse {
   sourcePointCount: number;
   points: SimulationPoint[];
   gaps: SeriesGap[];
+  /**
+   * 잠정 구간의 시작일(008 FR-036) — 예금만 싣는다. 그 날짜부터 연한 색으로 그린다. 주식·가상자산 응답에는 이 키가 없고
+   * 화면은 없는 것을 `null`로 읽는다.
+   */
+  provisionalFrom?: string | null;
 }
 
 /** 수수료·세율 (FR-015, FR-016). 배당 소득세는 국내·해외 두 값이다(006 FR-055). */

@@ -15,6 +15,7 @@ import { DepositSimulationForm } from "@/components/deposit/DepositSimulationFor
 import { InstitutionPicker } from "@/components/deposit/InstitutionPicker";
 import { CollectingNotice } from "@/components/stock/CollectingNotice";
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
+import { PerformanceChart } from "@/components/stock/PerformanceChart";
 import { shiftDecimal } from "@/lib/format";
 import { kstToday } from "@/lib/startDate";
 import { INSTITUTION_NAMES, useDepositStore } from "@/stores/depositStore";
@@ -28,7 +29,8 @@ export function taxPercent(rate: string): string {
 
 export default function DepositPage() {
   const {
-    input, institutions, rows, summary, condition, resultName, collecting, progress, startable,
+    input, institutions, rows, summary, condition, resultName, series, seriesError, collecting,
+    progress, startable,
     loading, error, setInput, selectInstitution, loadInstitutions, run, refreshIfRan, dispose,
   } = useDepositStore();
 
@@ -99,6 +101,21 @@ export default function DepositPage() {
           <PerformanceBoard summary={summary} currency="KRW" notes={notes} notFinalNotice={false} />
           <DepositNotice summary={summary} start={condition?.start ?? input.start} />
         </div>
+      )}
+
+      {summary !== null && (
+        <section>
+          <h3 className="mb-2 text-sm font-semibold">성과 추이</h3>
+          {seriesError !== null ? (
+            // 표는 그대로 둔다 — 차트가 빈 것과 결과가 없는 것은 다른 사건이다.
+            <p role="alert" className="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {seriesError}
+            </p>
+          ) : (
+            // 점은 표의 행 날짜 + 계산 끝. 잠정 구간은 연한 색이다(FR-036, D5).
+            <PerformanceChart series={series} collecting={collecting} loading={loading} />
+          )}
+        </section>
       )}
 
       {summary !== null && (

@@ -14,13 +14,23 @@
  *
  * **축 눈금에 천 단위 쉼표를 넣는다**(007 FR-043a, 반복 2026-10-04) — 잔고는 기준 통화 자릿수(KRW 소수점 없음), 수익률은
  * 소수 2자리. 축 형식은 시리즈 옵션이라 **구간마다** 준다 — 첫 구간에만 주면 축이 다른 시리즈를 따를 때 쉼표가 빠진다.
+ *
+ * **잠정 구간은 연한 색이다**(008 FR-036, research R8-10). 응답의 `provisionalFrom`부터 같은 두 선을 같은 축·같은 축 형식에
+ * 연한 색으로 이어 그리고 범례가 "잠정(날짜부터)"을 말한다 — 같은 색이면 잠정 값을 확정 값으로 읽는다(헌법 원칙 V). 경계
+ * 점은 양쪽에 넣는다 — 빼면 선이 끊겨 결측처럼 보인다. 주식·가상자산은 이 키가 없어 지금과 같다.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
 import { axisPriceFormat, splitSeriesAtGaps, toPerformanceData } from "@/lib/chartSeries";
 import { formatMoney, formatYield } from "@/lib/format";
-import type { CryptoCollecting, SimulationCollecting, SimulationSeriesResponse } from "@/lib/types";
+import type {
+  CryptoCollecting,
+  DepositCollecting,
+  SimulationCollecting,
+  SimulationPoint,
+  SimulationSeriesResponse,
+} from "@/lib/types";
 
 /** 잔고는 왼쪽, 수익률은 오른쪽. 축을 섞지 않는 것이 이 컴포넌트의 존재 이유다. */
 const BALANCE_AXIS = "left";
@@ -28,6 +38,28 @@ const RETURN_AXIS = "right";
 
 /** 원화·엔화에는 소수점 금액이 없다 — `formatMoney`와 같은 규칙이다. */
 const NO_DECIMAL_CURRENCIES = new Set(["KRW", "JPY"]);
+
+/** 선 색. 잠정 구간은 같은 선의 연한 색이다(008). */
+const COLORS = {
+  confirmed: { balance: "#1f2937", returnRate: "#b45309" },
+  provisional: { balance: "#9ca3af", returnRate: "#fcd34d" },
+} as const;
+
+/**
+ * 구간을 확정·잠정으로 나눈다. 경계 점(잠정 시작일)은 양쪽에 둔다 — 선이 이어진다. 확정 쪽이 점 하나뿐이면(처음부터 잠정)
+ * 그리지 않는다.
+ */
+function splitAtProvisional(
+  points: SimulationPoint[], from: string | null,
+): { points: SimulationPoint[]; tone: keyof typeof COLORS }[] {
+  if (from === null) return [{ points, tone: "confirmed" }];
+  const confirmed = points.filter((p) => p.date <= from);
+  const provisional = points.filter((p) => p.date >= from);
+  const parts: { points: SimulationPoint[]; tone: keyof typeof COLORS }[] = [];
+  if (confirmed.length > 1) parts.push({ points: confirmed, tone: "confirmed" });
+  if (provisional.length > 0) parts.push({ points: provisional, tone: "provisional" });
+  return parts;
+}
 
 interface Hover {
   date: string;
@@ -41,8 +73,8 @@ export function PerformanceChart({
   loading,
 }: {
   series: SimulationSeriesResponse | null;
-  /** 수집 중이면 차트 대신 안내 — 주식(005·006)과 가상자산(007)의 202. */
-  collecting: SimulationCollecting | CryptoCollecting | null;
+  /** 수집 중이면 차트 대신 안내 — 주식(005·006)·가상자산(007)·예금(008)의 202. */
+  collecting: SimulationCollecting | CryptoCollecting | DepositCollecting | null;
   loading: boolean;
 }) {
   const container = useRef<HTMLDivElement>(null);
@@ -72,9 +104,12 @@ export function PerformanceChart({
 
     // 구간마다 두 시리즈 — **잔고와 수익률이 같은 자리에서 함께 끊겨야 한다.**
     // 한쪽만 끊기면 두 선이 다른 구간을 말하게 되고 어느 쪽이 맞는지 알 수 없다.
-    for (const segment of splitSeriesAtGaps(series.points, series.gaps)) {
+    const provisionalFrom = series.provisionalFrom ?? null;
+    const parts = splitSeriesAtGaps(series.points, series.gaps)
+      .flatMap((segment) => splitAtProvisional(segment, provisionalFrom));
+    for (const { points: segment, tone } of parts) {
       const balance = instance.addSeries(LineSeries, {
-        color: "#1f2937",
+        color: COLORS[tone].balance,
         lineWidth: 2,
         priceScaleId: BALANCE_AXIS,
         priceFormat: balanceFormat,
@@ -88,7 +123,7 @@ export function PerformanceChart({
       );
 
       const profit = instance.addSeries(LineSeries, {
-        color: "#b45309",
+        color: COLORS[tone].returnRate,
         lineWidth: 2,
         lineStyle: 2,
         priceScaleId: RETURN_AXIS,
@@ -165,6 +200,10 @@ export function PerformanceChart({
         <span className="text-amber-700">╌ 수익률 (%)</span>
         {notCollected > 0 && <span>╌╌ 미수집 {notCollected}구간</span>}
         {missing > 0 && <span>┆ 결측 {missing}구간</span>}
+        {/* 008 — 잠정 금리로 계산한 구간. 연한 색 선이 무엇인지 범례가 말한다. */}
+        {series.provisionalFrom != null && (
+          <span className="text-gray-400">┄ 잠정({series.provisionalFrom}부터)</span>
+        )}
         <span className="ml-auto">
           {series.downsampled
             ? `원본 ${series.sourcePointCount.toLocaleString()}개 중 ${series.points.length.toLocaleString()}개 (${series.algorithm.toUpperCase()})`
