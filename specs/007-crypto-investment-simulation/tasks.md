@@ -238,7 +238,7 @@ description: "Task list for 007-crypto-investment-simulation"
   고시가 없으면 이전 고시일과 그 날짜(`exchange.rateDate`), 환전한 달러로 매수, 행마다 `fxRate`·`fxRateDate`, `profit` = (잔고 + 예수금) × 그 행의
   환율 − 원금, `principalKrw` 없음, **행 날짜의 환율이 잠정이면 앞 확정일의 환율과 그 날짜(`fxRateDate`)**(analyze C1). 환율 구간을 채울 수 없으면
   409 `fx_not_available_before`, 수집했는데 값이 없으면 409 `fx_unavailable`, 환율이 비면 202 `fx`(외환 화면과 같은 수집 표) (FR-034~FR-036, SC-007)
-- [X] T036 [P] [US3] `frontend/tests/CryptoBoardKrw.test.tsx`·`cryptoStoreFx.test.ts` — 원화 원금이면 보드에 환전 줄, 달러 원금이면 `10,000$ (…₩)`, 환율
+- [X] T036 [P] [US3] `frontend/tests/CryptoBoardKrw.test.tsx`·`cryptoStoreFx.test.ts` — 원화 원금이면 보드에 환전 줄, 달러 원금이면 `10,000$ (…₩)`(반복 2026-10-04에 `$10,000 (₩…)` — T049), 환율
   수집 대기(202 `fx`) 뒤 외환 수집 스트림 완료 시 다시 요청(006 stockStore의 환율 대기와 같다) (FR-034~FR-036, FR-042)
 
 ### Implementation for User Story 3
@@ -309,6 +309,35 @@ description: "Task list for 007-crypto-investment-simulation"
 
 ---
 
+## Phase 9: 보드 통화 기호 위치·차트 축 쉼표 (반복 2026-10-04)
+
+**Goal**: 성과 보드의 투자 원금·투자 수익에서 통화 기호를 숫자 앞으로 옮기고(`₩10,000,000`, `$10,000 (₩…)`, `-₩5,446`), 성과 추이 차트의 두 축
+눈금에 천 단위 쉼표를 넣는다(잔고 `360,000,000`, 수익률 `3,200.00`). 보드·차트는 주식 화면도 함께 쓴다 (FR-042a, FR-043a, SC-014, SC-015)
+
+**순서**: 테스트(T049·T051)를 먼저 커밋하고 최초 실패를 확인한 뒤 구현(T050·T052), 마지막에 브라우저 확인(T053). 구현 뒤 테스트가 실패하면 멈추고
+먼저 보고한다(D2). **006 테스트 두 파일(`PerformanceBoardCurrency`·`PerformanceBoardKrw`)의 기대값을 바꾼다** — 요구사항이 바뀐 것이고
+사용자가 반복 정의(2026-10-04)에서 승인했다. 테스트 커밋에서 바꾸고 사유를 적는다
+
+- [ ] T049 [P] `frontend/tests/PerformanceBoardCurrency.test.tsx`·`PerformanceBoardKrw.test.tsx`·`CryptoBoardKrw.test.tsx` — `formatMoneyWithSymbol`
+  기대값을 기호 앞으로 고쳐 쓴다: `"10000000" KRW` → `₩10,000,000`, `"1000.50" USD` → `$1,000.50`, `"1000" USD` → `$1,000`, `"100000" JPY` →
+  `¥100,000`, `"-5446" KRW` → `-₩5,446`, 모르는 통화 `"1000" GBP` → `GBP 1,000`. 보드 렌더링: 원화 원금의 원금·수익, 달러 원금 `$10,000 (₩…)`,
+  엔 원금, 손실. `formatMoney`는 그대로다(표·차트·이력이 쓴다) (FR-042a, SC-014)
+- [ ] T050 `frontend/src/lib/format.ts` `formatMoneyWithSymbol` — 부호 → 기호 → 숫자 순, 모르는 통화는 코드와 공백.
+  `frontend/src/components/stock/PerformanceBoard.tsx` 머리 주석의 `10,000,000₩` 예시 갱신 (FR-042a, SC-014)
+- [ ] T051 [P] `frontend/tests/PerformanceChartAxis.test.tsx`(신규) — 순수 함수 `formatAxisNumber`: `(360000000, 0)` → `360,000,000`, `(3200, 2)` →
+  `3,200.00`, `(-400, 2)` → `-400.00`, `(999, 2)` → `999.00`, `(1234.6, 0)` → `1,235`. 차트: 기존 `lightweight-charts` 모의로 잔고·수익률 시리즈
+  옵션의 `priceFormat`이 `type: "custom"`이고 그 formatter가 위 형식을 내는지, 결측으로 끊긴 **모든 구간의** 두 시리즈에 형식이 있는지(첫 구간만이
+  아니다) (FR-043a, SC-015)
+- [ ] T052 `frontend/src/lib/format.ts` `formatAxisNumber(value: number, fractionDigits: number)` — 축 눈금 전용(그리기용 숫자를 받는다, 금액 문자열에
+  쓰지 않는다). `frontend/src/components/stock/PerformanceChart.tsx` — 구간마다 잔고 시리즈에 `priceFormat: { type: "custom", minMove: 1, formatter }`
+  (KRW·JPY 0자리, 그 밖 2자리 — `basisCurrency`로 고른다), 수익률 시리즈에 `minMove: 0.01`, 2자리 (FR-043a, SC-015)
+- [ ] T053 브라우저(3030) 확인 — quickstart 21·22를 주식(SK하이닉스, 원화 1,000만, 2020-01-01)과 가상자산(비트코인, 달러 원금)으로 실행하고
+  기록한다. 품질 게이트(`npm test`, `npx tsc --noEmit`, `npx eslint .`) (SC-014, SC-015)
+
+**Checkpoint**: 두 화면의 보드가 `₩…`·`$… (₩…)`로, 차트 두 축이 쉼표로 보인다. 이력 비교 차트 축과 수익률 표시는 그대로다(범위 밖, research R7-14)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -319,6 +348,7 @@ description: "Task list for 007-crypto-investment-simulation"
 - **US3 (Phase 5)**, **US4 (Phase 6)**: US1 뒤. 서로 독립 — 같은 파일(`crypto_simulation.py`·`page.tsx`)을 만지면 순서대로
 - **US5 (Phase 7)**: US1 뒤 (US4의 시계열을 비교에 쓴다 — US4 뒤가 자연스럽다)
 - **Polish (Phase 8)**: 모든 스토리 뒤
+- **Phase 9 (반복 2026-10-04)**: Phase 8 뒤. 테스트(T049·T051)가 구현(T050·T052)보다 먼저, 브라우저 확인(T053)은 마지막
 
 ### Within Each Phase
 
@@ -336,7 +366,8 @@ description: "Task list for 007-crypto-investment-simulation"
 | `frontend/tests/Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts` | T028 |
 | `frontend/src/stores/cryptoStore.ts` | T033, T037, T044 |
 | `frontend/src/app/crypto/page.tsx` | T033, T041, T044 |
-| `frontend/src/components/stock/PerformanceChart.tsx` | T041 |
+| `frontend/src/components/stock/PerformanceChart.tsx` | T041, T052 |
+| `frontend/src/lib/format.ts` | T033, T050, T052 |
 
 ### Parallel Opportunities
 
@@ -373,6 +404,7 @@ Task: "T007 test_crypto_schema.py"
 3. US4 — 차트(결측)
 4. US5 — 이력·비교
 5. Polish — 기록 갱신, 게이트, quickstart 전체
+6. 반복 2026-10-04 — 보드 기호 위치, 차트 축 쉼표 (Phase 9)
 
 ---
 

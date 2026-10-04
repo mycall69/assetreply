@@ -149,12 +149,14 @@ frontend/
 │   │   ├── CryptoSimulationForm.tsx      # 신규 — 재투자 없음, 원금 KRW·USD, 시작일 상한 UTC 어제 (C1)
 │   │   └── CryptoPerformanceTable.tsx    # 신규 — 수량·결측 표시·열별 통화·내용 폭 (C4)
 │   ├── components/stock/PerformanceBoard.tsx·PerformanceChart.tsx·ComparisonChart.tsx·StartDateInput.tsx·CollectingNotice.tsx
-│   │                                     # 그대로 쓴다(필요하면 대상 이름을 받게) (R7-12)
+│   │                                     # 그대로 쓴다(필요하면 대상 이름을 받게) (R7-12). 반복 2026-10-04 — PerformanceBoard는
+│   │                                     # 기호 앞(FR-042a, 006 FR-054 대체), PerformanceChart는 두 축 눈금 형식(FR-043a) (R7-14)
 │   ├── components/settings/CryptoSettingsForm.tsx  # 신규 — 거래 수수료율 (C6)
 │   ├── app/settings/page.tsx             # 변경 — 가상자산 칸 연결
 │   ├── components/shell/Sidebar.tsx      # 변경 — /crypto 경로, 헌법 순서(가상자산 → 주식) (C1)
 │   ├── lib/types.ts                      # 변경 — 가상자산 응답 형식
-│   ├── lib/format.ts                     # 변경 — formatPrice(유효 숫자), formatQuantity(8자리) (FR-040)
+│   ├── lib/format.ts                     # 변경 — formatPrice(유효 숫자), formatQuantity(8자리) (FR-040).
+│   │                                     # 반복 2026-10-04 — formatMoneyWithSymbol 기호 앞(FR-042a), formatAxisNumber(FR-043a)
 │   ├── lib/chartSeries.ts                # 변경 — source_missing도 끊는다 (C5)
 │   ├── lib/cryptoHistory.ts              # 신규 — 이력(주식과 다른 저장 키) (FR-045)
 │   └── lib/cryptoProgressStream.ts       # 신규 — /api/crypto/progress 구독 (또는 stockProgressStream을 경로를 받게)
@@ -191,7 +193,9 @@ frontend/
 | FR-032, FR-033 (설정) | data-model 9절, rest-api 설정, C6, `CryptoSettingsForm`, tasks T026·T028·T030·T033 |
 | FR-034~FR-036 (환전·KRW·환율 판정·확정 환율) | R7-8, `fx_convert.evaluate_krw`, `stock_fx.py`(`load_rates` 확정 전용), `crypto_collect.py`, tasks T005·T012·T024·T035·T036·T037 |
 | FR-037~FR-041, FR-037a (표·열별 통화) | C4, `CryptoPerformanceTable`, `format.formatPrice`·`formatQuantity`, tasks T028·T033 |
-| FR-042 (보드) | C3, `PerformanceBoard`(그대로), tasks T028·T036 |
+| FR-042 (보드) | C3, `PerformanceBoard`(기호 위치만 FR-042a), tasks T028·T036 |
+| FR-042a, SC-014 (보드 기호 앞 — 반복 2026-10-04) | research R7-14, `format.ts` `formatMoneyWithSymbol`, `PerformanceBoard`, C3, tasks T049·T050·T053, quickstart 21 |
+| FR-043a, SC-015 (차트 축 쉼표 — 반복 2026-10-04) | research R7-14, `format.ts` `formatAxisNumber`, `PerformanceChart`(구간마다 시리즈 `priceFormat`), C5, tasks T051·T052·T053, quickstart 22 |
 | FR-044 (차트 끝점) | `crypto_series.py` — 표와 같은 계산, tasks T039·T041 |
 | FR-045, FR-046 (이력·비교) | `cryptoHistory.ts`, `ComparisonChart`(그대로), tasks T043·T044·T045 |
 | FR-047 (기록 갱신) | README·CLAUDE.md — "가상자산은 007", tasks T046 |
