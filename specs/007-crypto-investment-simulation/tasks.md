@@ -234,18 +234,18 @@ description: "Task list for 007-crypto-investment-simulation"
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T035 [P] [US3] `backend/tests/integration/test_crypto_simulation_krw.py` — 원화 원금: 환전 = 첫 매수일 현금 살 때 환율 + 스프레드 90% 우대, 그날
+- [X] T035 [P] [US3] `backend/tests/integration/test_crypto_simulation_krw.py` — 원화 원금: 환전 = 첫 매수일 현금 살 때 환율 + 스프레드 90% 우대, 그날
   고시가 없으면 이전 고시일과 그 날짜(`exchange.rateDate`), 환전한 달러로 매수, 행마다 `fxRate`·`fxRateDate`, `profit` = (잔고 + 예수금) × 그 행의
   환율 − 원금, `principalKrw` 없음, **행 날짜의 환율이 잠정이면 앞 확정일의 환율과 그 날짜(`fxRateDate`)**(analyze C1). 환율 구간을 채울 수 없으면
   409 `fx_not_available_before`, 수집했는데 값이 없으면 409 `fx_unavailable`, 환율이 비면 202 `fx`(외환 화면과 같은 수집 표) (FR-034~FR-036, SC-007)
-- [ ] T036 [P] [US3] `frontend/tests/CryptoBoardKrw.test.tsx`·`cryptoStoreFx.test.ts` — 원화 원금이면 보드에 환전 줄, 달러 원금이면 `10,000$ (…₩)`, 환율
+- [X] T036 [P] [US3] `frontend/tests/CryptoBoardKrw.test.tsx`·`cryptoStoreFx.test.ts` — 원화 원금이면 보드에 환전 줄, 달러 원금이면 `10,000$ (…₩)`, 환율
   수집 대기(202 `fx`) 뒤 외환 수집 스트림 완료 시 다시 요청(006 stockStore의 환율 대기와 같다) (FR-034~FR-036, FR-042)
 
 ### Implementation for User Story 3
 
-- [ ] T037 [US3] `backend/src/api/services/crypto_simulation.py`(환전 경로 — `build_exchange`·`cash_buy_spread`·`load_rates`를 그대로)·
+- [X] T037 [US3] (Phase 4의 T032·T033이 함께 연결해 코드 변경 없음 — T035·T036이 구현 변경 없이 통과) `backend/src/api/services/crypto_simulation.py`(환전 경로 — `build_exchange`·`cash_buy_spread`·`load_rates`를 그대로)·
   `frontend/src/stores/cryptoStore.ts`(환율 대기) — 006과 같은 규칙 (FR-034~FR-036)
-- [ ] T038 [US3] 실제 브라우저로 quickstart 9를 확인하고 기록한다 (SC-007)
+- [X] T038 [US3] 실제 브라우저로 quickstart 9를 확인하고 기록한다 (SC-007)
 
 **Checkpoint**: 원화·달러 원금 모두 KRW 기준
 
