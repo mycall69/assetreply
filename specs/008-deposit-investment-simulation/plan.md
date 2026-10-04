@@ -174,6 +174,7 @@ frontend/
 | FR-013 (서로 막지 않음·한도 공유) | R8-6, `ingestion/ecos/gate.py`, 별도 수집 줄, quickstart 18, tasks T002·T005·T007·T010·T015 |
 | FR-014, FR-015 (인증키·수집 로그) | data-model 2·4절(URL 없음), `mask_secrets`, 수집 사건, quickstart 19, tasks T004·T010·T012·T036 |
 | FR-016, FR-017 (실패 사유·값 읽기) | rest-api 출처 절·SSE `failed.kind`, D8, `deposit_parse.py`, tasks T003·T004·T009·T012·T013·T016 |
+| FR-016a (확인 실패 뒤 자동 다시 요청 — 반복 2026-10-04) | D8, rest-api "다음 실행의 판정", `depositStore`(투자처 목록의 `firstMonth`, 한 실행에 한 번), quickstart 17, tasks T037·T038·T039 |
 | FR-018~FR-020 (한국 시간·결측·잠정 관측) | R8-3, R8-4, R8-8, `deposit_rollover.py`, `deposit_rate_revised` 사건, tasks T011·T012·T013·T017 |
 | FR-021~FR-027 (가입·만기·이자·재예치·경과·계산 끝·수익) | R8-7, `deposit_rollover.py`, 참조값 다섯, tasks T011·T017·T022 |
 | FR-028, FR-029 (재현성·정밀도) | R8-11, `Decimal`, `RATE_PCT`·`SPREAD`, tasks T006·T008·T011·T017 |
@@ -193,6 +194,7 @@ frontend/
 | SC-010 | quickstart 16, tasks T022·T033 |
 | SC-011 | quickstart 19, 원본·사건·실패 사유 검사, tasks T012·T036 |
 | SC-012 | R8-6, quickstart 18, 관문 계약 테스트, tasks T005·T015·T036 |
+| SC-014 | quickstart 17, 스토어 테스트, tasks T037·T038·T039 |
 | SC-013 | 자동 검사(전체 테스트), tasks T035 |
 
 ## Complexity Tracking
