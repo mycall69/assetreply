@@ -300,11 +300,11 @@ description: "Task list for 007-crypto-investment-simulation"
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T046 [P] `README.md`·`CLAUDE.md` — "가상자산은 다음 자산군 기능(번호 미정)"을 007로 갱신, 현재 상태 표에 007, `lifespan` 태스크 6개(가상자산 수집·
+- [X] T046 [P] `README.md`·`CLAUDE.md` — "가상자산은 다음 자산군 기능(번호 미정)"을 007로 갱신, 현재 상태 표에 007, `lifespan` 태스크 6개(가상자산 수집·
   목록 갱신 추가), **investing.com 원칙 II 이탈(개인 이용 잠정)**과 사용자 에이전트 설정, 가상자산 일봉 = UTC 하루·잠정 미저장 (FR-047, FR-018)
-- [ ] T047 품질 게이트 — 백엔드 전체 테스트·커버리지 80% 이상·mypy strict·ruff, 프론트엔드 테스트·tsc·eslint. **006의 기존 테스트가 고치지 않고
+- [X] T047 품질 게이트 — 백엔드 전체 테스트·커버리지 80% 이상·mypy strict·ruff, 프론트엔드 테스트·tsc·eslint. **006의 기존 테스트가 고치지 않고
   통과하는지** 따로 확인한다 (SC-013)
-- [ ] T048 quickstart 전체(1~20)를 실제 브라우저로 한 번 더 돌려 실행 기록을 채운다 — 앞의 스토리별 확인과 다른 날이면 목록 주기·UTC 경계도 본다
+- [X] T048 quickstart 전체(1~20)를 실제 브라우저로 한 번 더 돌려 실행 기록을 채운다 — 앞의 스토리별 확인과 다른 날이면 목록 주기·UTC 경계도 본다
   (SC-001~SC-012)
 
 ---
