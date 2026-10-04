@@ -18,8 +18,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
-import { splitSeriesAtGaps, toPerformanceData } from "@/lib/chartSeries";
-import { formatAxisNumber, formatMoney, formatYield } from "@/lib/format";
+import { axisPriceFormat, splitSeriesAtGaps, toPerformanceData } from "@/lib/chartSeries";
+import { formatMoney, formatYield } from "@/lib/format";
 import type { CryptoCollecting, SimulationCollecting, SimulationSeriesResponse } from "@/lib/types";
 
 /** 잔고는 왼쪽, 수익률은 오른쪽. 축을 섞지 않는 것이 이 컴포넌트의 존재 이유다. */
@@ -28,15 +28,6 @@ const RETURN_AXIS = "right";
 
 /** 원화·엔화에는 소수점 금액이 없다 — `formatMoney`와 같은 규칙이다. */
 const NO_DECIMAL_CURRENCIES = new Set(["KRW", "JPY"]);
-
-/** 축 눈금 형식 (FR-043a). 그리기용 숫자를 받는다 — 값의 진실은 툴팁·표의 원본 문자열이다. */
-function axisFormat(fractionDigits: number) {
-  return {
-    type: "custom" as const,
-    minMove: 10 ** -fractionDigits,
-    formatter: (price: number) => formatAxisNumber(price, fractionDigits),
-  };
-}
 
 interface Hover {
   date: string;
@@ -68,8 +59,9 @@ export function PerformanceChart({
       timeScale: { borderVisible: false },
     });
 
-    const balanceFormat = axisFormat(NO_DECIMAL_CURRENCIES.has(series.basisCurrency) ? 0 : 2);
-    const returnFormat = axisFormat(2);
+    const balanceFormat = axisPriceFormat(NO_DECIMAL_CURRENCIES.has(series.basisCurrency) ? 0 : 2);
+    // 이력 비교 차트의 수익률 축과 같은 형식이다(FR-046a) — 같은 화면에서 두 수익률 축이 갈리지 않는다.
+    const returnFormat = axisPriceFormat(2);
 
     const lookup = new Map<string, Hover>();
     for (const p of series.points) {

@@ -20,8 +20,23 @@
  * 보여준다 — 선을 잇는 것과 값이 있다고 말하는 것은 다르다.
  */
 
-import { shiftDecimal } from "./format";
+import { formatAxisNumber, shiftDecimal } from "./format";
 import type { SeriesGap, SeriesPoint, SimulationPoint } from "./types";
+
+/**
+ * 축 눈금 형식 — 시리즈의 `priceFormat`에 넘긴다 (007 FR-043a·FR-046a, research R7-14).
+ *
+ * 성과 추이 차트와 이력 비교 차트가 **함께 쓴다.** 결측 규칙을 `splitSeriesAtGaps` 하나로 두는 것과 같은 이유다 —
+ * 두 벌이면 한쪽만 고쳐져 같은 화면의 두 수익률 축이 다른 형식으로 보인다. 축은 붙은 시리즈 하나의 형식을 따르므로
+ * 쓰는 쪽은 구간·항목마다 만드는 **모든 시리즈에** 준다. 그리기용 숫자를 받는다 — 값의 진실은 툴팁·표의 원본 문자열이다.
+ */
+export function axisPriceFormat(fractionDigits: number) {
+  return {
+    type: "custom" as const,
+    minMove: 10 ** -fractionDigits,
+    formatter: (price: number) => formatAxisNumber(price, fractionDigits),
+  };
+}
 
 /** 차트 라이브러리에 넘길 형태. `raw`는 표시용 원본 문자열이다. */
 export interface ChartDatum {

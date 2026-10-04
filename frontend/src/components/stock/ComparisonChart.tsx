@@ -10,11 +10,15 @@
  * **비교 기준을 밝힌다**(FR-039, SC-015). 기준은 응답의 `basisCurrency`다 — 006 FR-068부터 원금
  * 통화와 관계없이 KRW라, 원금 통화가 다른 이력끼리도 그대로 겹칠 수 있다. 원금 통화로 판정하면
  * 기준이 같은데 "다르다"는 틀린 경고가 나온다. 기준이 다르면 그 사실이 드러나야 한다.
+ *
+ * **수익률 축 눈금에 천 단위 쉼표를 넣는다**(007 FR-046a, 반복 2026-10-04 #2) — `1,881.47`. 성과 추이 차트의 수익률 축과
+ * 같은 형식 함수(`axisPriceFormat`)를 쓴다. 이력 항목마다, 결측으로 끊긴 구간마다 시리즈가 따로라 **모든 시리즈에** 준다 —
+ * 일부에만 주면 축이 다른 시리즈를 따를 때 쉼표가 빠진다.
  */
 
 import { useEffect, useRef } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
-import { splitSeriesAtGaps, toPerformanceData } from "@/lib/chartSeries";
+import { axisPriceFormat, splitSeriesAtGaps, toPerformanceData } from "@/lib/chartSeries";
 import type { SimulationSeriesResponse } from "@/lib/types";
 
 /** 비교 대상 한 건. `series`는 그 조건으로 **지금 다시 받은** 시계열이다. */
@@ -63,6 +67,8 @@ export function ComparisonChart({
       timeScale: { borderVisible: false },
     });
 
+    const returnFormat = axisPriceFormat(2);
+
     items.forEach((item, index) => {
       const color = COLORS[index % COLORS.length];
       // 결측 규칙은 성과 차트와 같다 — 휴장일은 잇고 미수집은 끊는다 (FR-034).
@@ -70,6 +76,7 @@ export function ComparisonChart({
         const line = instance.addSeries(LineSeries, {
           color,
           lineWidth: 2,
+          priceFormat: returnFormat,
           priceLineVisible: false,
           lastValueVisible: false,
         });

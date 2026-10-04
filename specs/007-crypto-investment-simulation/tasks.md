@@ -349,11 +349,11 @@ description: "Task list for 007-crypto-investment-simulation"
 보고한다(D2). 축 형식 함수를 옮기므로 Phase 9의 `PerformanceChartAxis.test.tsx`(T051)와 기존 `ComparisonChart.test.tsx`(005 T087)·
 `CryptoHistory.test.tsx`(T043)는 고치지 않고 통과해야 한다
 
-- [ ] T054 [P] `frontend/tests/ComparisonChartAxis.test.tsx`(신규) — 공용 함수 `axisPriceFormat`(`@/lib/chartSeries`): `(2)` → `type: "custom"`,
+- [X] T054 [P] `frontend/tests/ComparisonChartAxis.test.tsx`(신규) — 공용 함수 `axisPriceFormat`(`@/lib/chartSeries`): `(2)` → `type: "custom"`,
   `minMove: 0.01`, formatter `(1881.47)` → `1,881.47`, `(3200)` → `3,200.00`, `(-400)` → `-400.00`; `(0)` → `minMove: 1`, formatter `(360000000)` →
   `360,000,000`. 차트: 기존 `lightweight-charts` 모의로 두 이력 항목(그중 하나는 `source_missing` 결측으로 두 구간)을 그리면 시리즈 3개 **모두**의
   `priceFormat`이 `custom`·`minMove 0.01`이고 formatter가 `1,881.47`을 내는지 (FR-046a, SC-016)
-- [ ] T055 `frontend/src/lib/chartSeries.ts` `axisPriceFormat(fractionDigits)` — `PerformanceChart.tsx`의 `axisFormat`을 옮긴다(`formatAxisNumber`를
+- [X] T055 `frontend/src/lib/chartSeries.ts` `axisPriceFormat(fractionDigits)` — `PerformanceChart.tsx`의 `axisFormat`을 옮긴다(`formatAxisNumber`를
   쓴다). `frontend/src/components/stock/PerformanceChart.tsx`는 그것을 쓰고, `frontend/src/components/stock/ComparisonChart.tsx`는 항목·구간마다
   시리즈에 `priceFormat: axisPriceFormat(2)`를 준다. 머리 주석에 FR-046a (FR-043a, FR-046a, SC-015, SC-016)
 - [ ] T056 브라우저(3030) 확인 — quickstart 23을 주식(이력 둘)과 가상자산(비트코인·솔라나 — 솔라나는 결측 1구간) 비교로 실행하고 기록한다.
