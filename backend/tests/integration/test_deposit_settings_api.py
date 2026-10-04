@@ -56,6 +56,17 @@ async def test_범위_밖이나_숫자_문자열이_아니면_422다(client, bod
     assert (await client.get("/api/deposit/settings")).json()["isDefault"] is True
 
 
+async def test_소수_6자리를_넘는_세율은_422다(client) -> None:  # type: ignore[no-untyped-def]
+    """저장 자릿수(비율 소수 6자리)를 넘으면 조용히 반올림되어 넣은 세율과 달라진다(FR-030, 반복
+    #2)."""
+    response = await client.put("/api/deposit/settings", json={"interestTaxRate": "0.1234567"})
+    assert response.status_code == 422
+    assert response.json()["status"] == "invalid_setting"
+    assert (await client.get("/api/deposit/settings")).json()["isDefault"] is True
+    saved = await client.put("/api/deposit/settings", json={"interestTaxRate": "0.123456"})
+    assert saved.json() == {"interestTaxRate": "0.123456", "isDefault": False}
+
+
 async def test_주식·가상자산_설정과_따로다(client) -> None:  # type: ignore[no-untyped-def]
     stocks = (await client.get("/api/stocks/settings")).json()
     crypto = (await client.get("/api/crypto/settings")).json()

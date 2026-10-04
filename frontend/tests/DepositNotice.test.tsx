@@ -45,6 +45,26 @@ describe("예금 안내 줄", () => {
     expect(line).toContain("그날까지의 결과입니다");
   });
 
+  it.each([
+    ["auth", "인증키 설정을 확인하세요"],
+    ["format", "어댑터를 고쳐야 합니다"],
+  ] as const)("확인 실패(%s)면 줄 끝에 할 일을 붙인다(반복 #2)", (kind, action) => {
+    const summary: DepositSummary = { ...RESULT.summary, recheckFailed: { kind, reason: "사유" } };
+    render(<DepositNotice summary={summary} start="2020-01-15" />);
+    const line = screen.getByRole("status").textContent ?? "";
+    expect(line).toContain("내일 다시 확인합니다");
+    expect(line).toContain(action);
+  });
+
+  it.each(["rate_limited", "network"] as const)("확인 실패(%s)는 기다리면 되므로 할 일을 붙이지 않는다", (kind) => {
+    const summary: DepositSummary = { ...RESULT.summary, recheckFailed: { kind, reason: "사유" } };
+    render(<DepositNotice summary={summary} start="2020-01-15" />);
+    const line = screen.getByRole("status").textContent ?? "";
+    expect(line).toMatch(/내일 다시 확인합니다\.$/);
+    expect(line).not.toContain("인증키 설정");
+    expect(line).not.toContain("어댑터");
+  });
+
   it("오늘 확인이 실패했으면 사유와 받아 둔 금리로 계산했다는 사실", () => {
     const summary: DepositSummary = { ...PROVISIONAL.summary,
       recheckFailed: { kind: "network", reason: "출처에 연결하지 못했습니다" } };

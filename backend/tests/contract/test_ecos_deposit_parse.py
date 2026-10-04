@@ -127,6 +127,23 @@ class Test미발표와_오류:
         assert _kind(info.value) == "format"
         assert "2012-11" in str(info.value) or "201211" in str(info.value)
 
+    def test_소수_4자리를_넘는_금리는_응답_전체가_형식_오류다(self) -> None:
+        """저장 자릿수(연 % 소수 4자리)를 넘으면 조용히 반올림되어 출처 값과 달라진다(FR-017·FR-029,
+        반복 #2)."""
+        payload = json.loads(load("deposit/series_saemaul.json"))
+        payload["StatisticSearch"]["row"][10]["DATA_VALUE"] = "3.12345"
+        with pytest.raises(SourceError) as info:
+            parse_monthly(json.dumps(payload, ensure_ascii=False), status=200)
+        assert _kind(info.value) == "format"
+        assert "201211" in str(info.value) or "2012-11" in str(info.value)
+
+    @pytest.mark.parametrize("value", ["3.1234", "3.2", "3", "-0.5"])
+    def test_소수_4자리까지는_그대로_읽는다(self, value: str) -> None:
+        payload = json.loads(load("deposit/series_saemaul.json"))
+        payload["StatisticSearch"]["row"][10]["DATA_VALUE"] = value
+        result = parse_monthly(json.dumps(payload, ensure_ascii=False), status=200)
+        assert result.rates[10].rate == Decimal(value)
+
     def test_달_형식이_아니면_형식_오류다(self) -> None:
         payload = json.loads(load("deposit/series_saemaul.json"))
         payload["StatisticSearch"]["row"][0]["TIME"] = "2012"

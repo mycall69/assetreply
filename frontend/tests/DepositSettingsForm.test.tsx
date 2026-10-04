@@ -53,6 +53,27 @@ describe("예금 이자 소득세", () => {
     expect(screen.getByRole("alert").textContent).toContain("0 이상 100 미만");
   });
 
+  it("백분율 소수 4자리를 넘으면 저장하지 않는다 — 조용히 반올림하지 않는다(반복 #2)", async () => {
+    const onSave = vi.fn();
+    render(<DepositSettingsForm value={DEFAULT} onSave={onSave} />);
+    const box = screen.getByLabelText("이자 소득세");
+    await userEvent.clear(box);
+    await userEvent.type(box, "15.12345");
+    await userEvent.click(screen.getByRole("button", { name: "저장" }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert").textContent).toContain("소수 4자리까지");
+  });
+
+  it("백분율 소수 4자리까지는 비율 문자열로 저장한다", async () => {
+    const onSave = vi.fn();
+    render(<DepositSettingsForm value={DEFAULT} onSave={onSave} />);
+    const box = screen.getByLabelText("이자 소득세");
+    await userEvent.clear(box);
+    await userEvent.type(box, "15.1234");
+    await userEvent.click(screen.getByRole("button", { name: "저장" }));
+    expect(onSave).toHaveBeenCalledWith("0.151234");
+  });
+
   it("기본값과 다르면 기본값으로 되돌리는 수단이 있다", async () => {
     const onSave = vi.fn();
     render(<DepositSettingsForm value={{ interestTaxRate: "0.095000", isDefault: false }} onSave={onSave} />);
