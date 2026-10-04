@@ -182,7 +182,8 @@
 { "interestTaxRate": "0.154000", "isDefault": true }
 ```
 
-- `PUT` 본문 `{"interestTaxRate": "0.095"}` — 0 ≤ 값 < 1, 문자열. 아니면 `422 invalid_setting`
+- `PUT` 본문 `{"interestTaxRate": "0.095"}` — 0 ≤ 값 < 1, 문자열, 소수 6자리까지(반복 #2 — 넘으면 조용히 반올림하지 않는다). 아니면
+  `422 invalid_setting`
 - 주식(`/api/stocks/settings`)·가상자산(`/api/crypto/settings`) 설정과 따로다
 
 ---
@@ -200,4 +201,5 @@
 - 오류도 HTTP 200으로 온다 — `RESULT.CODE`를 본다: `INFO-200` = 구간에 값 없음(미발표, 오류 아님), `INFO-100` = 인증 실패(`auth`, 재시도
   안 함), `INFO-300` = 한도 초과(`rate_limited`, 관문 전체 백오프 — research R8-6), 그 밖 `ERROR-*` = `format`. JSON이 아니면 `network`
 - `list_total_count` > 받은 행 수면 잘린 것이다 — 형식 오류로 실패시키고 받은 구간으로 기록하지 않는다(001 parser와 같다)
-- `DATA_VALUE`는 쉼표를 지우고 `Decimal`로 읽는다. 숫자가 아니면 그 응답 전체가 형식 오류다(FR-017)
+- `DATA_VALUE`는 쉼표를 지우고 `Decimal`로 읽는다. 숫자가 아니거나 소수 4자리(저장 자릿수)를 넘으면 그 응답 전체가 형식 오류다(FR-017,
+  반복 #2)

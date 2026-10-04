@@ -90,7 +90,7 @@ specs/008-deposit-investment-simulation/
 │   ├── rest-api.md      # /api/deposit/* + 출처(ECOS) 계약
 │   └── ui-wireframes.md # D1~D8
 ├── checklists/requirements.md
-└── tasks.md             # /speckit-tasks — 39개, Phase 1~8(Phase 8은 반복 2026-10-04)
+└── tasks.md             # /speckit-tasks — 43개, Phase 1~9(Phase 8·9는 반복 2026-10-04)
 ```
 
 ### Source Code (repository root)
@@ -179,17 +179,18 @@ frontend/
 | FR-011, FR-012 (백그라운드·진행·중복·회수) | R8-9, rest-api 202·SSE, data-model 4절, `deposit_queue`·`deposit_worker`·`deposit_progress.py`, `api/main.py` 기동 시 회수, tasks T012·T014·T015·T018·T019·T020 |
 | FR-013 (서로 막지 않음·한도 공유) | R8-6, `ingestion/ecos/gate.py`, 별도 수집 줄, quickstart 18, tasks T002·T005·T007·T010·T015 |
 | FR-014, FR-015 (인증키·수집 로그) | data-model 2·4절(URL 없음), `mask_secrets`, 수집 사건, quickstart 19, tasks T004·T010·T012·T036 |
-| FR-016, FR-017 (실패 사유·값 읽기) | rest-api 출처 절·SSE `failed.kind`, D8, `deposit_parse.py`, tasks T003·T004·T009·T012·T013·T016 |
-| FR-016a (확인 실패 뒤 자동 다시 요청 — 반복 2026-10-04) | D8, rest-api "다음 실행의 판정", `depositStore`(투자처 목록의 `firstMonth`, 한 실행에 한 번), quickstart 17, tasks T037·T038·T039 |
+| FR-016, FR-017 (실패 사유·값 읽기) | rest-api 출처 절·SSE `failed.kind`, D8, `deposit_parse.py`(소수 4자리 초과 = 형식 오류 — 반복 #2), tasks T003·T004·T009·T012·T013·T016·T040·T041 |
+| FR-016a (확인 실패 뒤 자동 다시 요청 — 반복 2026-10-04) | D8, rest-api "다음 실행의 판정", `depositStore`(투자처 목록의 `firstMonth`, 한 실행에 한 번), `DepositNotice`(확인 실패 줄의 할 일 — 반복 #2), quickstart 17·21, tasks T037·T038·T039·T040·T042·T043 |
 | FR-018~FR-020 (한국 시간·결측·잠정 관측) | R8-3, R8-4, R8-8, `deposit_rollover.py`, `deposit_rate_revised` 사건, tasks T011·T012·T013·T017 |
 | FR-021~FR-027 (가입·만기·이자·재예치·경과·계산 끝·수익) | R8-7, `deposit_rollover.py`, 참조값 다섯, tasks T011·T017·T022 |
-| FR-028, FR-029 (재현성·정밀도) | R8-11, `Decimal`, `RATE_PCT`·`SPREAD`, tasks T006·T008·T011·T017 |
-| FR-030, FR-031 (세율 설정) | data-model 5절, rest-api 설정, D7, `DepositSettingsForm`, tasks T023·T024·T025·T026·T033 |
+| FR-028, FR-029 (재현성·정밀도) | R8-11, `Decimal`, `RATE_PCT`·`SPREAD`, tasks T006·T008·T011·T017·T040·T041 |
+| FR-030, FR-031 (세율 설정) | data-model 5절, rest-api 설정(소수 6자리까지 — 반복 #2), D7, `DepositSettingsForm`, tasks T023·T024·T025·T026·T033·T040~T043 |
 | FR-032~FR-034 (표) | D4, `DepositPerformanceTable`, rest-api `rows`, tasks T016·T021·T022·T033 |
 | FR-035 (보드) | D3, `PerformanceBoard`(notes), `DepositNotice`, tasks T013·T016·T020·T021 |
 | FR-036 (차트) | D5, `deposit_series.py`, `PerformanceChart`(`provisionalFrom`), tasks T027·T028·T029·T030·T033 |
 | FR-037, FR-038 (이력·비교) | D6, `depositHistory.ts`, `DepositHistory`, `ComparisonChart`, tasks T031·T032·T033 |
 | FR-039 (기록 갱신) | README·CLAUDE.md, tasks T034 |
+| FR-040 (출처 표시 — 리뷰 CHK038) | D1 출처 줄, README 데이터 출처, research R8-2, tasks T016·T021·T034 |
 | SC-001, SC-002 | quickstart 4·6, tasks T022·T036 |
 | SC-003, SC-004 | research R8-7 참조값, `deposit_rollover` 단위 테스트, quickstart 5·12, tasks T011 |
 | SC-005 | R8-8, quickstart 7·8, 결측 픽스처 통합 테스트, tasks T011·T013·T016·T027·T028·T031 |

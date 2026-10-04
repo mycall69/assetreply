@@ -168,7 +168,7 @@ description: "Task list for 008-deposit-investment-simulation"
   `DepositNotice.test.tsx`(잠정 줄 — 잠정 시작일·대신 쓴 달과 값·"발표되면 값이 바뀝니다", 멈춤 줄, 확인 실패 줄, `role="status"`),
   `depositStore.test.ts`(202 → 진행 구독 → 완료 뒤 다시 요청, 실패 종류별 문구 D8, `409 before_first_month` → 옮기기 수단), 보드 `notes`에
   투자처·세율·지금 회차. **기존 `Sidebar.test.tsx`의 기대를 바꾼다**: 준비중 목록에서 예금 제거, 예금 항목이 `/deposit` 링크 — 테스트 커밋에서
-  바꾸고 사유를 적는다. `noUnbuiltAssetRoutes.test.ts`에서 `deposit`을 뺀다 (FR-001~FR-007, FR-016, FR-032~FR-035, SC-005)
+  바꾸고 사유를 적는다. `noUnbuiltAssetRoutes.test.ts`에서 `deposit`을 뺀다 (FR-001~FR-007, FR-016, FR-032~FR-035, FR-040, SC-005)
 
 ### Implementation for User Story 1
 
@@ -186,7 +186,7 @@ description: "Task list for 008-deposit-investment-simulation"
 - [X] T021 [US1] `frontend/src/lib/types.ts`(예금 응답)·`frontend/src/lib/depositProgressStream.ts`·`frontend/src/stores/depositStore.ts`·
   `frontend/src/components/deposit/InstitutionPicker.tsx`·`DepositSimulationForm.tsx`·`DepositPerformanceTable.tsx`·`DepositNotice.tsx`·
   `frontend/src/app/deposit/page.tsx`·`frontend/src/components/shell/Sidebar.tsx`(`/deposit`) — D1~D4·D8. 보드는 `PerformanceBoard` 그대로(`notes`),
-  수집 안내는 `CollectingNotice`(대상 이름·단위 "개월") (FR-001~FR-007, FR-032~FR-035)
+  수집 안내는 `CollectingNotice`(대상 이름·단위 "개월") (FR-001~FR-007, FR-032~FR-035, FR-040)
 - [X] T022 [US1] 브라우저(3030, 창 1440px) 확인 — quickstart 1~12를 실행하고 기록한다. 1(ECOS 화면의 상호금융 항목 계층), 4(202 → 결과, 진행
   2초 안), 5(참조값 1과 원 단위 일치 — 실행한 날 기준으로 진행 중 회차의 경과 일수가 다르면 그날 값으로 손계산), 6(같은 날 다시 실행 3초 안,
   출처 호출 없음), 7·8(잠정 — 그날의 마지막 발표 달을 적는다), 9(시작 가능 날짜), 10·11(다섯 투자처 × 시작 가능 날짜·중간 해 1월 15일·최근 발표
@@ -276,7 +276,7 @@ description: "Task list for 008-deposit-investment-simulation"
 - [X] T034 [P] `README.md`·`CLAUDE.md` — 현재 상태 표에 008(예금: ECOS 예금은행·비은행 가중평균 금리, 1년 정기예금 재예치, 이자 소득세 설정,
   미발표 달 잠정), 남은 자산군 부동산, `lifespan` 태스크 7개, **ECOS 관문을 환율과 예금이 함께 쓴다**, 시중은행은 2012-01부터(정확히 1년인 항목),
   **ECOS 인증키는 발급일부터 2년 유효(약관 제4조 ③) — 만료되면 환율·예금 수집이 함께 `auth`로 실패하므로 연장한다**, 화면·문서의 출처 표시(약관
-  제7조 ②) (FR-039, research R8-2)
+  제7조 ②) (FR-039, FR-040, research R8-2)
 - [X] T035 품질 게이트 — 백엔드 전체 테스트·커버리지 80% 이상·mypy strict·`ruff check --no-cache`, 프론트엔드 테스트·tsc·eslint. **001~007의 기존
   테스트가 고치지 않고 통과하는지** 따로 확인한다 (SC-013)
 - [X] T036 quickstart 전체(1~20)를 실제 브라우저로 한 번 더 돌려 실행 기록을 채운다 — 17(틀린 인증키 → `auth`, 같은 날 202 되풀이 없음, 확인 실패
@@ -310,6 +310,30 @@ description: "Task list for 008-deposit-investment-simulation"
 
 ---
 
+## Phase 9: 금리 자릿수·세율 정밀도·확인 실패 줄의 할 일 (반복 2026-10-04 #2)
+
+**Goal**: 리뷰 체크리스트(CHK020·CHK022·CHK026)가 드러낸 세 빈자리를 동작으로 고친다 — 출처 금리가 소수 4자리를 넘으면 형식 오류, 예금 이자
+소득세율은 백분율 소수 4자리까지, 자동 다시 요청 뒤 확인 실패 줄에 종류별 할 일 (FR-016a, FR-017, FR-029, FR-030)
+
+**순서**: 테스트(T040)를 먼저 커밋하고 최초 실패를 확인한 뒤 구현(T041·T042), 마지막에 브라우저 확인(T043). 구현 뒤 테스트가 실패하면 멈추고
+먼저 보고한다(D2). 가상자산 수수료 칸(007)은 바꾸지 않는다 — 같은 변환 함수를 쓰지만 자릿수 검사는 예금 폼에만 둔다
+
+- [ ] T040 [P] 테스트 — `backend/tests/contract/test_ecos_deposit_parse.py`(금리 `"3.12345"` → 형식 오류 `SourceFormatError`, `"3.1234"`·`"3.2"`는
+  그대로), `backend/tests/integration/test_deposit_settings_api.py`(`"0.1234567"` → `422 invalid_setting`, `"0.123456"`는 저장),
+  `frontend/tests/DepositSettingsForm.test.tsx`(백분율 `"15.12345"` → 저장하지 않고 사유, `"15.1234"`는 `"0.151234"`로 저장),
+  `frontend/tests/DepositNotice.test.tsx`(확인 실패 줄 — `auth`면 "인증키 설정을 확인하세요", `format`이면 "어댑터를 고쳐야 합니다",
+  `rate_limited`·`network`는 덧붙임 없음) (FR-016a, FR-017, FR-029, FR-030)
+- [ ] T041 `backend/src/ingestion/ecos/deposit_parse.py`(소수 4자리 초과 = 형식 오류)·`backend/src/api/routes/deposit_settings.py`(소수 6자리 초과
+  = 422) (FR-017, FR-029, FR-030)
+- [ ] T042 `frontend/src/components/settings/DepositSettingsForm.tsx`(백분율 소수 4자리 초과 거절 — 예금 폼만)·`frontend/src/components/deposit/DepositNotice.tsx`
+  (확인 실패 줄의 할 일) (FR-016a, FR-030)
+- [ ] T043 브라우저 확인 — quickstart 21(설정에서 15.12345 거절·15.1234 저장 뒤 되돌리기, 틀린 키로 받아 둔 투자처의 확인 실패 줄에 "인증키 설정을
+  확인하세요")을 실행하고 기록한다. 품질 게이트(백엔드 전체·mypy·ruff, 프론트엔드 테스트·tsc·eslint) (FR-016a, FR-030)
+
+**Checkpoint**: 출처 금리와 세율이 조용히 반올림되지 않고, 확인 실패 줄이 할 일을 말한다
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -321,6 +345,7 @@ description: "Task list for 008-deposit-investment-simulation"
 - **US4 (Phase 6)**: US1 뒤(US3의 시계열을 비교에 쓴다 — US3 뒤가 자연스럽다)
 - **Polish (Phase 7)**: 모든 스토리 뒤
 - **반복 (Phase 8)**: US1 뒤(수집 실패 처리를 바꾼다). Polish 뒤에 했다
+- **반복 #2 (Phase 9)**: US1·US2 뒤(파서·설정·안내 줄을 바꾼다). Phase 8 뒤에 했다
 
 ### Within Each Phase
 
@@ -335,6 +360,7 @@ description: "Task list for 008-deposit-investment-simulation"
 | `backend/src/ingestion/ecos/client.py` | T010 |
 | `frontend/src/lib/types.ts` | T021, T030 |
 | `frontend/src/stores/depositStore.ts` | T021, T026, T030, T032, T038 |
+| `frontend/src/components/deposit/DepositNotice.tsx`·`settings/DepositSettingsForm.tsx` | T021·T026, T042 |
 | `frontend/src/app/deposit/page.tsx` | T021, T030, T032 |
 | `frontend/src/components/stock/PerformanceChart.tsx` | T030 |
 | `frontend/tests/Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts` | T016 |
@@ -376,6 +402,7 @@ Task: "T016 frontend 예금 화면·표·안내·스토어"
 4. US4 — 이력·비교
 5. Polish — 기록 갱신, 게이트, quickstart 전체
 6. 반복 — 확인 실패 뒤 받아 둔 투자처 자동 다시 요청(Phase 8)
+7. 반복 #2 — 금리 자릿수·세율 정밀도·확인 실패 줄의 할 일(Phase 9)
 
 ---
 
