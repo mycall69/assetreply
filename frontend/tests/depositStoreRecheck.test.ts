@@ -98,7 +98,8 @@ describe("받아 둔 투자처", () => {
 describe("받은 적 없는 투자처", () => {
   it("다시 요청하지 않고 실패 문구만 보인다", async () => {
     useDepositStore.setState({ input: { institution: "savings_bank", start: "2020-01-15", principal: "10000000" } });
-    const get = respond(COLLECTING);
+    // 서버는 요청한 투자처의 202를 준다 — 공용 픽스처는 시중은행이다.
+    const get = respond({ ...COLLECTING, institution: "savings_bank" });
     await useDepositStore.getState().run();
     progress.handlers?.onFailed("auth", "사유");
     await new Promise((r) => setTimeout(r, 0));

@@ -4,7 +4,9 @@
  * 가상자산 화면(`cryptoStore`)을 본뜬다. **결과를 저장하지 않는다** — 설정과 금리가 바뀌면 결과가 달라진다(005 R5-9).
  *
  * - **부분 결과를 보여주지 않는다**(FR-011). 202면 결과를 비우고 진행(받은 달 / 받을 달)을 구독하고, 끝나면 다시 요청한다
- * - 수집이 실패하면 **종류마다 다른 말**로 할 일까지 보인다(FR-016)
+ * - 수집이 실패하면 **종류마다 다른 말**로 할 일까지 보인다(FR-016). 다만 금리를 **받아 둔 투자처**면 곧바로 한 번 다시 요청한다
+ *   (FR-016a) — 서버가 받아 둔 금리로 계산해 결과와 확인 실패(`recheckFailed`)를 준다. 받은 적 없는 투자처는 다시 요청하지 않는다 —
+ *   같은 실패가 되풀이되며 출처 호출만 쓴다. 다시 요청은 한 실행에 한 번이다
  * - 투자처를 바꾸면 결과를 지운다(D2) — 이전 투자처의 결과가 새 이름 아래 남으면 그 수치를 새 투자처의 것으로 읽는다
  */
 
@@ -112,6 +114,10 @@ const message = (err: unknown, fallback: string): string =>
   err instanceof ApiError ? err.message : fallback;
 
 let unwatch: (() => void) | null = null;
+/** 지금 실행이 화면이 스스로 한 것인지(수집 완료·실패 뒤). 사용자가 실행하면 자동 다시 요청의 기회를 되돌린다. */
+let automaticRun = false;
+/** 이 실행에서 실패 뒤 다시 요청했는지(FR-016a) — 한 실행에 한 번. */
+let retriedAfterFailure = false;
 
 function stopWatching(): void {
   unwatch?.();
@@ -131,17 +137,33 @@ const EMPTY_RESULT = {
 } satisfies Partial<DepositState>;
 
 export const useDepositStore = create<DepositState>((set, get) => {
+  /** 금리를 받아 둔 투자처인가 — 투자처 목록의 `firstMonth`로 안다. 목록을 받지 못했으면 모른다(받지 않은 것으로 본다). */
+  function hasRates(key: DepositInstitutionKey): boolean {
+    return (get().institutions ?? []).some((i) => i.key === key && i.firstMonth !== null);
+  }
+
+  function rerunAutomatically(): void {
+    automaticRun = true;
+    void get().run();
+  }
+
   /** 진행을 구독한다. **완료에 다시 요청한다** — 부분 결과를 먼저 보여주지 않는 대신 끝난 시점을 알려야 한다. */
-  function watchProgress(jobId: number): void {
+  function watchProgress(jobId: number, institution: DepositInstitutionKey): void {
     stopWatching();
     unwatch = subscribeDepositProgress(jobId, {
       onSnapshot: (progress) => set({ progress }),
       onCompleted: () => {
         stopWatching();
-        void get().run();
+        rerunAutomatically();
       },
       onFailed: (kind, reason) => {
         stopWatching();
+        // FR-016a — 받아 둔 금리로 답할 수 있으면 그 "다음 실행"을 화면이 대신 한다. 한 실행에 한 번.
+        if (hasRates(institution) && !retriedAfterFailure) {
+          retriedAfterFailure = true;
+          rerunAutomatically();
+          return;
+        }
         set({ collecting: null, progress: null, error: depositFailureText(kind, reason) });
       },
     });
@@ -185,6 +207,8 @@ export const useDepositStore = create<DepositState>((set, get) => {
 
     /** 실행 즉시 이전 결과를 비운다 — 남으면 지금 보는 수치가 어느 조건의 것인지 알 수 없다. */
     run: async () => {
+      if (!automaticRun) retriedAfterFailure = false;
+      automaticRun = false;
       const { input } = get();
       if (input.principal === "") {
         set({ error: "투자 원금을 입력하세요." });
@@ -197,7 +221,7 @@ export const useDepositStore = create<DepositState>((set, get) => {
           `/api/deposit/simulation?${toQuery(input)}`);
         if ("status" in body && body.status === "collecting") {
           set({ collecting: body, progress: null, loading: false });
-          watchProgress(body.jobId);
+          watchProgress(body.jobId, body.institution);
           return;
         }
         const result = body as DepositSimulationResponse;
