@@ -318,14 +318,14 @@ description: "Task list for 008-deposit-investment-simulation"
 **순서**: 테스트(T040)를 먼저 커밋하고 최초 실패를 확인한 뒤 구현(T041·T042), 마지막에 브라우저 확인(T043). 구현 뒤 테스트가 실패하면 멈추고
 먼저 보고한다(D2). 가상자산 수수료 칸(007)은 바꾸지 않는다 — 같은 변환 함수를 쓰지만 자릿수 검사는 예금 폼에만 둔다
 
-- [ ] T040 [P] 테스트 — `backend/tests/contract/test_ecos_deposit_parse.py`(금리 `"3.12345"` → 형식 오류 `SourceFormatError`, `"3.1234"`·`"3.2"`는
+- [X] T040 [P] 테스트 — `backend/tests/contract/test_ecos_deposit_parse.py`(금리 `"3.12345"` → 형식 오류 `SourceFormatError`, `"3.1234"`·`"3.2"`는
   그대로), `backend/tests/integration/test_deposit_settings_api.py`(`"0.1234567"` → `422 invalid_setting`, `"0.123456"`는 저장),
   `frontend/tests/DepositSettingsForm.test.tsx`(백분율 `"15.12345"` → 저장하지 않고 사유, `"15.1234"`는 `"0.151234"`로 저장),
   `frontend/tests/DepositNotice.test.tsx`(확인 실패 줄 — `auth`면 "인증키 설정을 확인하세요", `format`이면 "어댑터를 고쳐야 합니다",
   `rate_limited`·`network`는 덧붙임 없음) (FR-016a, FR-017, FR-029, FR-030)
-- [ ] T041 `backend/src/ingestion/ecos/deposit_parse.py`(소수 4자리 초과 = 형식 오류)·`backend/src/api/routes/deposit_settings.py`(소수 6자리 초과
+- [X] T041 `backend/src/ingestion/ecos/deposit_parse.py`(소수 4자리 초과 = 형식 오류)·`backend/src/api/routes/deposit_settings.py`(소수 6자리 초과
   = 422) (FR-017, FR-029, FR-030)
-- [ ] T042 `frontend/src/components/settings/DepositSettingsForm.tsx`(백분율 소수 4자리 초과 거절 — 예금 폼만)·`frontend/src/components/deposit/DepositNotice.tsx`
+- [X] T042 `frontend/src/components/settings/DepositSettingsForm.tsx`(백분율 소수 4자리 초과 거절 — 예금 폼만)·`frontend/src/components/deposit/DepositNotice.tsx`
   (확인 실패 줄의 할 일) (FR-016a, FR-030)
 - [ ] T043 브라우저 확인 — quickstart 21(설정에서 15.12345 거절·15.1234 저장 뒤 되돌리기, 틀린 키로 받아 둔 투자처의 확인 실패 줄에 "인증키 설정을
   확인하세요")을 실행하고 기록한다. 품질 게이트(백엔드 전체·mypy·ruff, 프론트엔드 테스트·tsc·eslint) (FR-016a, FR-030)

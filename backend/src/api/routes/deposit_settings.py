@@ -22,6 +22,9 @@ router = APIRouter(prefix="/api/deposit", tags=["deposit"])
 
 Json = dict[str, object]
 
+#: 세율의 저장 자릿수(비율, `DECIMAL(9,6)`).
+_PLACES = 6
+
 
 def _rate(raw: object) -> Decimal:
     """0 이상 1 미만의 비율 문자열. 100% 이상의 세금은 없고, 음수는 세금을 돌려받는다는 뜻이다."""
@@ -33,6 +36,11 @@ def _rate(raw: object) -> Decimal:
             value = None
     if value is None or not value.is_finite() or not (Decimal(0) <= value < Decimal(1)):
         raise InvalidSetting(f"이자 소득세율은 0 이상 1 미만의 수(문자열)여야 합니다: {raw}")
+    exponent = value.normalize().as_tuple().exponent
+    if isinstance(exponent, int) and -exponent > _PLACES:
+        # 저장 자릿수(DECIMAL(9,6))를 넘으면 조용히 반올림되어 넣은 세율과 달라진다
+        # (FR-030, 반복 #2).
+        raise InvalidSetting(f"이자 소득세율은 소수 {_PLACES}자리(백분율 4자리)까지입니다: {raw}")
     return value
 
 

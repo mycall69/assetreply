@@ -4,8 +4,8 @@
  * 예금 이자 소득세율 설정 (T026) — 008 FR-030, FR-031, ui-wireframes D7.
  *
  * 화면은 **백분율**, 계약은 **비율**이다. 변환은 가상자산 수수료와 같은 함수로 **문자열로** 한다(헌법 원칙 VI). 0 이상 100 미만이
- * 아니면 **저장을 막는다** — 조용히 0으로 떨어뜨리면 세금 없는 결과가 나오는데 값은 그럴듯하다. 주식·가상자산 설정과 따로
- * 저장한다.
+ * 아니면 **저장을 막는다** — 조용히 0으로 떨어뜨리면 세금 없는 결과가 나오는데 값은 그럴듯하다. 백분율 소수 4자리를 넘어도 막는다 —
+ * 저장할 때 조용히 반올림된다(반복 #2). 주식·가상자산 설정과 따로 저장한다.
  */
 
 import { useState } from "react";
@@ -14,6 +14,9 @@ import type { DepositSettings } from "@/lib/types";
 
 /** 기본 이자 소득세 15.4%(소득세 14% + 지방소득세 1.4%)의 비율. "기본값으로"가 보낸다. */
 const DEFAULT_RATE = "0.154";
+
+/** 백분율 소수 자릿수 상한 — 비율로 6자리, 저장 자릿수(`DECIMAL(9,6)`)와 같다(FR-030, 반복 #2). 가상자산 칸은 따로다. */
+const MAX_PERCENT_PLACES = 4;
 
 export function DepositSettingsForm({
   value,
@@ -29,6 +32,11 @@ export function DepositSettingsForm({
     const rate = toRate(tax);
     if (rate === null) {
       setError("0 이상 100 미만의 숫자를 입력하세요.");
+      return;
+    }
+    if ((tax.trim().split(".")[1] ?? "").length > MAX_PERCENT_PLACES) {
+      // 저장 자릿수(비율 6자리)를 넘으면 조용히 반올림되어 넣은 세율과 달라진다(FR-030, 반복 #2).
+      setError(`백분율 소수 ${MAX_PERCENT_PLACES}자리까지 입력하세요.`);
       return;
     }
     setError(null);

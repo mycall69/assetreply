@@ -62,6 +62,16 @@ def _rate(raw: object) -> Decimal | None:
     return value if value.is_finite() else None
 
 
+#: 금리의 저장 자릿수(연 %, `DECIMAL(7,4)`). 실측 최대 소수 2자리(research R8-11).
+RATE_PLACES = 4
+
+
+def _places(value: Decimal) -> int:
+    """소수 자릿수. 끝의 0은 세지 않는다(`"3.20"` → 1)."""
+    exponent = value.normalize().as_tuple().exponent
+    return -exponent if isinstance(exponent, int) and exponent < 0 else 0
+
+
 def _month(raw: str) -> dt.date | None:
     if len(raw) != 6 or not raw.isdigit():
         return None
@@ -105,6 +115,11 @@ def parse_monthly(body: str, *, status: int) -> MonthlyFetchResult:
             # 한 달이라도 못 읽으면 응답 전체를 버린다 — 그 달만 버리면 결측으로 위장된다(FR-017).
             raise SourceFormatError(
                 f"금리를 읽을 수 없습니다: TIME={raw_time!r} DATA_VALUE={row.get('DATA_VALUE')!r}")
+        if _places(rate) > RATE_PLACES:
+            # 저장 자릿수를 넘으면 조용히 반올림되어 출처 값과 달라진다(FR-017·FR-029, 반복 #2).
+            raise SourceFormatError(
+                f"금리가 소수 {RATE_PLACES}자리를 넘습니다: TIME={raw_time!r} "
+                f"DATA_VALUE={row.get('DATA_VALUE')!r}")
         rates.append(MonthlyRate(month, rate))
 
     # 1회 요청 행 한도에 걸려 일부만 왔는지 — 잘린 구간을 받은 것으로 기록하면 뒤쪽 달이 결측이
