@@ -104,3 +104,12 @@ export function utcYesterday(now: Date = new Date()): string {
   return yesterdayOf(format({
     y: now.getUTCFullYear(), m: now.getUTCMonth() + 1, d: now.getUTCDate() }));
 }
+
+/**
+ * 한국 시간으로 본 오늘 (008 FR-005, FR-018). 예금은 매일 이자가 붙어(경과분) 계산 끝이 **오늘**이다 — 서버도 한국 시간
+ * 오늘로 잡는다. 브라우저의 시간대에 기대지 않는다 — 다른 시간대에서 열면 하루가 어긋난다. 오늘을 읽을 때만 `Date`를 쓴다.
+ */
+export function kstToday(now: Date = new Date()): string {
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  return format({ y: kst.getUTCFullYear(), m: kst.getUTCMonth() + 1, d: kst.getUTCDate() });
+}

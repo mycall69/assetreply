@@ -751,3 +751,113 @@ export interface CryptoHistoryEntry {
   principalCurrency: PrincipalCurrency;
   savedAt: string;
 }
+
+/* ───────────────────────── 008: 예금 투자 시뮬레이션 ───────────────────────── */
+
+/** 투자처 키 — 화면 순서(FR-003). 출처의 통계표·항목 코드는 화면에 오지 않는다(헌법 원칙 II). */
+export type DepositInstitutionKey =
+  | "commercial_bank" | "savings_bank" | "credit_union" | "mutual_finance" | "saemaul";
+
+/** 투자처 목록의 한 줄. 받기 전에는 범위를 모른다 — `null`이다(research R8-12). */
+export interface DepositInstitution {
+  key: DepositInstitutionKey;
+  name: string;
+  description: string;
+  firstMonth: string | null;
+  latestMonth: string | null;
+  checkedOn: string | null;
+}
+
+export interface DepositInstitutionsResponse {
+  institutions: DepositInstitution[];
+  source: string;
+  basis: string;
+}
+
+/** 수집 실패 종류(FR-016). 할 일이 다르다(ui-wireframes D8). */
+export type DepositFailureKind = "auth" | "rate_limited" | "format" | "network";
+
+/** 행 구분 — 가입 · 매달 1일 · 만기 · 재예치(FR-033). */
+export type DepositRowKind = "join" | "month" | "maturity" | "reinvest";
+
+/** 표의 행. 금액은 원 단위 정수 문자열, 금리는 출처 문자열(`"3.2"`), `rateMonth`는 `YYYY-MM`(잠정이면 대신 쓴 달). */
+export interface DepositRow {
+  date: string;
+  kind: DepositRowKind;
+  rate: DecimalString;
+  rateMonth: string;
+  provisional: boolean;
+  principal: DecimalString;
+  interest: DecimalString;
+  tax: DecimalString;
+  afterTax: DecimalString;
+  balance: DecimalString;
+  profit: DecimalString;
+  returnRate: DecimalString;
+}
+
+/** 끝난 회차. */
+export interface DepositTerm {
+  no: number;
+  joinedOn: string;
+  maturesOn: string;
+  rate: DecimalString;
+  rateMonth: string;
+  provisional: boolean;
+  principal: DecimalString;
+  interest: DecimalString;
+  tax: DecimalString;
+  afterTax: DecimalString;
+}
+
+/** 계산 끝에 진행 중인 회차. */
+export interface DepositCurrentTerm {
+  joinedOn: string;
+  maturesOn: string;
+  rate: DecimalString;
+  rateMonth: string;
+  principal: DecimalString;
+  provisional: boolean;
+}
+
+/** 보드 요약. `PerformanceBoard`가 그대로 읽는다 — 예금 고유의 칸이 더 있다(FR-035). */
+export interface DepositSummary extends SimulationSummary {
+  currentTerm: DepositCurrentTerm | null;
+  /** 잠정 회차가 시작된 날. 없으면 `null`(FR-007, FR-024). */
+  provisionalFrom: string | null;
+  /** 결측으로 멈췄을 때만(FR-019). 이때 `isFinal: false`, `asOf`는 그 만기일이다. */
+  stopped: { date: string; reason: "rate_missing"; month: string } | null;
+  /** 오늘 금리 확인이 실패했을 때만(FR-016). */
+  recheckFailed: { kind: DepositFailureKind; reason: string } | null;
+}
+
+export interface DepositCondition {
+  start: string;
+  principal: DecimalString;
+  interestTaxRate: DecimalString;
+}
+
+export interface DepositSimulationResponse {
+  institution: { key: DepositInstitutionKey; name: string };
+  condition: DepositCondition;
+  summary: DepositSummary;
+  terms: DepositTerm[];
+  rows: DepositRow[];
+}
+
+/** 수집 중(202). 결과를 싣지 않는다(FR-011). */
+export interface DepositCollecting {
+  status: "collecting";
+  institution: DepositInstitutionKey;
+  jobId: number;
+  missingFrom: string;
+  missingThrough: string;
+  progressUrl: string;
+}
+
+/** 시작일이 투자처의 첫 달보다 이르다(409, FR-006). */
+export interface BeforeFirstMonthBody {
+  status: "before_first_month";
+  message: string;
+  startableFrom: string;
+}

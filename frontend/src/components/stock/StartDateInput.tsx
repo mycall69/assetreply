@@ -14,8 +14,13 @@
 import { canShift, isValidDate, monthOf, shift } from "@/lib/startDate";
 import type { BeforeListingBody } from "@/lib/types";
 
-/** 실행 뒤 서버가 알려 준 시작 가능 날짜 (006 contracts 2절 `before_listing`). */
-export type Startable = Pick<BeforeListingBody, "startableFrom" | "basis" | "message">;
+/**
+ * 실행 뒤 서버가 알려 준 시작 가능 날짜 (006 contracts 2절 `before_listing`). 008 — 예금의 `before_first_month`(투자처의 금리
+ * 통계가 시작하는 달, 근거 `rate_start`)도 같은 안내를 쓴다.
+ */
+export type Startable = Pick<BeforeListingBody, "startableFrom" | "message"> & {
+  basis: BeforeListingBody["basis"] | "rate_start";
+};
 
 interface Bound {
   date: string;
@@ -55,13 +60,16 @@ export function StartDateInput({
   limit,
   listedOn,
   startable,
+  afterLimitText,
   onChange,
 }: {
   value: string;
-  /** 고를 수 있는 마지막 날 — 어제. */
+  /** 고를 수 있는 마지막 날 — 어제. 예금(008)은 오늘이다. */
   limit: string;
   listedOn: string | null;
   startable: Startable | null;
+  /** 마지막 날보다 뒤를 골랐을 때의 사유. 없으면 시세 기준(어제)의 문구다. */
+  afterLimitText?: string;
   onChange: (start: string) => void;
 }) {
   const valid = isValidDate(value);
@@ -102,7 +110,7 @@ export function StartDateInput({
       )}
       {valid && value > limit && (
         <p role="alert" className="mt-1 text-xs text-red-700">
-          어제({limit})보다 뒤의 날짜는 계산할 시세가 없습니다.
+          {afterLimitText ?? `어제(${limit})보다 뒤의 날짜는 계산할 시세가 없습니다.`}
         </p>
       )}
       {bound !== null && (

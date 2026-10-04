@@ -26,8 +26,11 @@ export function PerformanceBoard({
   currency,
   exchange,
   notes = [],
+  notFinalNotice = true,
 }: {
   summary: SimulationSummary;
+  /** 계산이 오늘 전에 끝났다는 시세 기준의 안내를 보일지. 예금(008)은 멈춘 사유(빈 금리 달)를 따로 말한다. */
+  notFinalNotice?: boolean;
   /** 기준 줄에 덧붙일 말 — 가상자산의 매수일·수수료(007 ui-wireframes C3). */
   notes?: string[];
   /** 입력한 원금 통화 — 투자 원금 칸의 통화다. 수익의 기준은 KRW다. */
@@ -68,7 +71,7 @@ export function PerformanceBoard({
         ))}
       </p>
 
-      {!summary.isFinal && (
+      {!summary.isFinal && notFinalNotice && (
         // FR-014b — 계산의 마지막 날이 오늘이 아니다. 알리지 않으면 폐지 직전
         // 수익률을 오늘 값으로 읽는다.
         <p

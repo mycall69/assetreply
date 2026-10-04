@@ -130,7 +130,7 @@ description: "Task list for 008-deposit-investment-simulation"
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T011 [P] [US1] `backend/tests/unit/test_deposit_rollover.py` — 순수 함수(DB·HTTP 없음): **참조값 1**(research R8-7 표 — 회차 1~6의 금리·원금·
+- [X] T011 [P] [US1] `backend/tests/unit/test_deposit_rollover.py` — 순수 함수(DB·HTTP 없음): **참조값 1**(research R8-7 표 — 회차 1~6의 금리·원금·
   이자·세금·세후·재예치 원금, 진행 중 회차 7의 경과 262/365일 → 경과 이자 231,607·세금 35,667, 잔고 11,557,207, 투자 수익 1,557,207, 수익률
   0.155721 — 곱·나눗셈·버림 위치를 주석으로), **참조값 2**(2024-02-29 가입 → 만기 2025-02-28, 회차 일수 365, 이자 363,000), **참조값 3**(시작
   달 미발표 → 마지막 발표 달 금리로 잠정 가입, 회차·행 모두 `provisional`, `rateMonth` = 대신 쓴 달, `provisionalFrom` = 가입일), 확정 회차 뒤
@@ -140,29 +140,29 @@ description: "Task list for 008-deposit-investment-simulation"
   앞, 최신순), 가입일·만기일이 1일이면 그날 월 행 없음, 재예치 행 원금 = 만기 행 원금 + 세후 이자(SC-004), **결측**: 재예치 달이 결측이면 그
   만기일에서 멈춤(`stopped`·`isFinal: false`·`asOf` = 만기일, 뒤 행 없음), 가입 달이 결측이면 `rate_missing` 오류, 같은 입력 두 번 같은 결과,
   계산 끝 = 주입한 오늘(한국 시간) (FR-007, FR-018, FR-019, FR-021~FR-029, SC-003, SC-004, SC-005, SC-006)
-- [ ] T012 [P] [US1] `backend/tests/integration/test_deposit_collection.py` — 가짜 출처(T001 픽스처)로 실행기: 처음 받으면 항목 확인 → 전체 시계열 →
+- [X] T012 [P] [US1] `backend/tests/integration/test_deposit_collection.py` — 가짜 출처(T001 픽스처)로 실행기: 처음 받으면 항목 확인 → 전체 시계열 →
   금리 upsert·원본(본문만 — 항목 목록은 **통계표 하나에 한 행**·`institution` NULL·`source_ref`, 시계열은 투자처 행)·커버리지(`first_month`·
   `latest_month`·`checked_on` = 한국 시간 오늘), **작업 구간 = 그 실행에 필요한 구간**(시작 달 ~ 이번 달 — 처음 받을 때도), 다시 확인은 마지막 받은 달의
   2개월 전부터 요청(설정), 미발표(`INFO-200`)면 `latest_month` 그대로·`checked_on` 갱신, **겹친 달의 값이 다르면 바꾸지 않고**
   `deposit_rate_revised` 사건(투자처·달·이전 값·새 값), 실패 종류(`auth`·`rate_limited`·`format`·`network`)가 작업 `last_error`에 남고 **실패하면
   `checked_on`을 갱신하지 않음**, 실패 사유·사건·원본에 인증키 문자열 0건, 같은 투자처 점유 중이면 두 번째 작업 없음, 수집 전용 로그에 시작·
   완료·실패 사건(투자처·구간·종류) (FR-009, FR-010, FR-012, FR-014~FR-016, FR-020, SC-011)
-- [ ] T013 [P] [US1] `backend/tests/integration/test_deposit_simulation_api.py` — `GET /api/deposit/simulation`: 받은 적 없음 → 202(**`missingFrom`·
+- [X] T013 [P] [US1] `backend/tests/integration/test_deposit_simulation_api.py` — `GET /api/deposit/simulation`: 받은 적 없음 → 202(**`missingFrom`·
   `missingThrough` = 시작 달 ~ 이번 달**, 늘 있다)와 수집 요청, 커버리지 밖의 달이 있고 오늘 확인 전 → 202, **오늘 확인했는데 없는 달 → 200 잠정**(`provisionalFrom`), **오늘 확인 작업이 실패했고
   받아 둔 금리로 답할 수 있음 → 200 + `recheckFailed`(같은 날 202 되풀이 없음)**, 참조값 1의 `summary`·`terms`·`rows`(최신순, `kind`, 원 단위
   정수 문자열, 금리 문자열 그대로), `before_first_month`(`startableFrom`), `rate_missing`(가입 달 결측 픽스처 — 한 달을 뺀 시계열), 재예치 달 결측
   → 200 `stopped`, `unknown_institution`, `principalCurrency=USD` → `currency_not_allowed`, 시작일 > 오늘(한국 시간) → `start_after_end`, 원금
   정수 아님 → `invalid_query`, 수집을 마쳤는데 금리 0행 → `no_rate_data`, 세율은 `deposit_setting` 기본 0.154 (FR-002~FR-007, FR-010,
   FR-016, FR-019, FR-024, FR-026, FR-035, SC-005, SC-006)
-- [ ] T014 [P] [US1] `backend/tests/integration/test_deposit_progress_sse.py`·`test_deposit_institutions_api.py` — 진행 스트림: `snapshot`(투자처, **받을 달 =
+- [X] T014 [P] [US1] `backend/tests/integration/test_deposit_progress_sse.py`·`test_deposit_institutions_api.py` — 진행 스트림: `snapshot`(투자처, **받을 달 =
   필요한 구간의 달 수 — 처음 받을 때도 0보다 큼**, 받은 달 = 그중 받은 구간 안의 달, 미발표 달이 있으면 완료 때 받은 달 < 받을 달)·`completed`
   (`latestMonth`)·`failed`(`kind`, 인증키 없는 `reason`), 머리글 `no-transform`, 프레임마다 새 스냅샷(006 T113과 같은 검사). 투자처 목록: 순서
   5개·이름·설명·출처, 받기 전 `firstMonth: null`, 받은 뒤 첫 달·마지막 달·확인한 날 (FR-003, FR-006, FR-011, FR-016)
-- [ ] T015 [P] [US1] `backend/tests/integration/test_deposit_worker.py` — **실행 주체**: 앱 기동이 예금 수집 줄을 띄운다(태스크 7개), 시뮬레이션
+- [X] T015 [P] [US1] `backend/tests/integration/test_deposit_worker.py` — **실행 주체**: 앱 기동이 예금 수집 줄을 띄운다(태스크 7개), 시뮬레이션
   요청(202)이 큐를 거쳐 워커가 수집을 끝낸다(내부 함수를 직접 부르지 않는다), **기동 시 남은 예금 점유를 회수**하고 그 작업을 `network`로 마감,
   환율 수집이 진행 중이어도 예금 수집이 기다리지 않고(반대도) 함께 끝나며 두 줄의 ECOS 요청이 관문의 동시 수를 넘지 않음 (FR-011~FR-013,
   SC-012)
-- [ ] T016 [P] [US1] `frontend/tests/` — `DepositPage.test.tsx`(`/deposit` 화면, 라디오 다섯·기본 시중은행·설명 줄, 통화 칸·재투자 칸 없음, 원금
+- [X] T016 [P] [US1] `frontend/tests/` — `DepositPage.test.tsx`(`/deposit` 화면, 라디오 다섯·기본 시중은행·설명 줄, 통화 칸·재투자 칸 없음, 원금
   단위 "원", 출처 줄), `InstitutionPicker.test.tsx`(`fieldset`·`legend`, 방향키 선택, 바꾸면 결과를 지움 — D2), `DepositPerformanceTable.test.tsx`
   (열 10개·머리글 통화, 구분 글자 가입·월·만기·재예치, 잠정이면 "·잠정"과 "(26-08 대신)", 경과분 도움말, 금리 `"3.2"` → `3.20%`, 최신순, 표 `w-max`),
   `DepositNotice.test.tsx`(잠정 줄 — 잠정 시작일·대신 쓴 달과 값·"발표되면 값이 바뀝니다", 멈춤 줄, 확인 실패 줄, `role="status"`),
@@ -172,18 +172,18 @@ description: "Task list for 008-deposit-investment-simulation"
 
 ### Implementation for User Story 1
 
-- [ ] T017 [US1] `backend/src/simulation/deposit_rollover.py` — `simulate_deposit(principal, start, end, rates, latest_month, tax_rate)` → 회차·행·요약
+- [X] T017 [US1] `backend/src/simulation/deposit_rollover.py` — `simulate_deposit(principal, start, end, rates, latest_month, tax_rate)` → 회차·행·요약
   (잠정·멈춤 포함). `Decimal` 정밀도 60, 버림 두 곳, 수익률 `money.quantize_rate` (FR-019, FR-021~FR-029, research R8-7·R8-8)
-- [ ] T018 [US1] `backend/src/repository/deposit_rate.py`(금리 upsert — 있으면 바꾸지 않고 다른 값 목록을 돌려줌, 조회, 커버리지·`checked_on`,
+- [X] T018 [US1] `backend/src/repository/deposit_rate.py`(금리 upsert — 있으면 바꾸지 않고 다른 값 목록을 돌려줌, 조회, 커버리지·`checked_on`,
   원본)·`deposit_job.py`(작업·점유·고아 회수 — 007 `crypto_job`과 같은 수단)·`deposit_setting.py`(읽기·쓰기, 기본 0.154) (FR-009, FR-010, FR-012,
   FR-030, data-model 1~5절)
-- [ ] T019 [US1] `backend/src/worker/deposit_queue.py`·`deposit_runner.py`·`deposit_worker.py`·`backend/src/api/main.py`(`lifespan` 태스크 등록,
+- [X] T019 [US1] `backend/src/worker/deposit_queue.py`·`deposit_runner.py`·`deposit_worker.py`·`backend/src/api/main.py`(`lifespan` 태스크 등록,
   기동 시 회수) — 항목 확인(처음), 시계열 요청(처음은 `START_TIME`부터, 다시는 겹침 2개월), 원본·금리·커버리지, 겹침 비교 사건, 실패 종류,
   수집 사건(FR-009~FR-016, FR-020)
-- [ ] T020 [US1] `backend/src/api/services/deposit_collect.py`(202 판정 — 받지 않은 달, 오늘 확인 여부, 오늘 실패 작업)·`deposit_simulation.py`(입력 검증,
+- [X] T020 [US1] `backend/src/api/services/deposit_collect.py`(202 판정 — 받지 않은 달, 오늘 확인 여부, 오늘 실패 작업)·`deposit_simulation.py`(입력 검증,
   시작 가능 날짜, 계산 끝 오늘 한국 시간, 응답)·`backend/src/api/routes/deposit_simulation.py`·`deposit_institutions.py`·`deposit_progress.py`·
   `backend/src/api/main.py`(라우터) — contracts/rest-api (FR-002~FR-007, FR-010, FR-011, FR-016, FR-026, FR-035)
-- [ ] T021 [US1] `frontend/src/lib/types.ts`(예금 응답)·`frontend/src/lib/depositProgressStream.ts`·`frontend/src/stores/depositStore.ts`·
+- [X] T021 [US1] `frontend/src/lib/types.ts`(예금 응답)·`frontend/src/lib/depositProgressStream.ts`·`frontend/src/stores/depositStore.ts`·
   `frontend/src/components/deposit/InstitutionPicker.tsx`·`DepositSimulationForm.tsx`·`DepositPerformanceTable.tsx`·`DepositNotice.tsx`·
   `frontend/src/app/deposit/page.tsx`·`frontend/src/components/shell/Sidebar.tsx`(`/deposit`) — D1~D4·D8. 보드는 `PerformanceBoard` 그대로(`notes`),
   수집 안내는 `CollectingNotice`(대상 이름·단위 "개월") (FR-001~FR-007, FR-032~FR-035)

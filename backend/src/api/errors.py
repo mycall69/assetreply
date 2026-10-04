@@ -78,10 +78,33 @@ class UnknownCoin(Exception):
 
 class StartAfterEnd(Exception):
     """시작일이 계산 끝(UTC 어제)보다 늦다 (007 FR-009, 400 `start_after_end`). 계산할 일봉이
-    없다."""
+    없다. 008 — 예금은 계산 끝이 오늘(한국 시간)이라 문구를 따로 준다(FR-005)."""
 
-    def __init__(self, last_day: dt.date) -> None:
-        super().__init__(
+    def __init__(self, last_day: dt.date, message: str | None = None) -> None:
+        super().__init__(message or (
             f"{last_day.isoformat()}(UTC 어제)까지의 일봉만 있습니다. "
-            "시작일을 그 이전으로 고르세요.")
+            "시작일을 그 이전으로 고르세요."))
         self.last_day = last_day
+
+
+class UnknownInstitution(Exception):
+    """예금 투자처 키가 다섯 밖이다 (008 FR-003, 400 `unknown_institution`). 고를 수 있는 키를 함께
+    싣는다."""
+
+    def __init__(self, message: str, allowed: list[str]) -> None:
+        super().__init__(message)
+        self.allowed = allowed
+
+
+class CurrencyNotAllowed(Exception):
+    """예금 원금 통화가 원화가 아니다 (008 FR-004, 400 `currency_not_allowed`). 화면에는 통화 칸이
+    없지만 이력·직접 요청이 다른 통화를 실어 올 수 있다 — 조용히 원화로 읽지 않는다."""
+
+    def __init__(self, message: str, allowed: list[str]) -> None:
+        super().__init__(message)
+        self.allowed = allowed
+
+
+class NoRateData(Exception):
+    """수집을 마쳤는데 그 투자처의 금리가 하나도 없다 (008, 404 `no_rate_data`). 빈 표를 보이면
+    사용자는 수익이 0이라고 읽는다."""

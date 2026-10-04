@@ -102,6 +102,7 @@ class Test스트림_머리글:
         from src.api.routes.collection import get_stream
         from src.api.routes.crypto_list_progress import get_list_progress
         from src.api.routes.crypto_progress import get_progress as get_crypto_progress
+        from src.api.routes.deposit_progress import get_progress as get_deposit_progress
         from src.api.routes.stock_progress import get_progress
         from src.worker.crypto_list_queue import CryptoListQueue
 
@@ -113,6 +114,8 @@ class Test스트림_머리글:
             await get_list_progress(session=None, queue=CryptoListQueue()),  # type: ignore[arg-type]
             # 007 — 가상자산 수집 진행(FR-013)
             await get_crypto_progress(session=None, job_id=1),  # type: ignore[arg-type]
+            # 008 — 예금 금리 수집 진행(FR-011)
+            await get_deposit_progress(session=None, job_id=1),  # type: ignore[arg-type]
         ]
         for response in responses:
             cache_control = response.headers["cache-control"]
@@ -127,5 +130,5 @@ class Test스트림_머리글:
         files = sorted(p.name for p in api.rglob("*.py")
                        if 'media_type="text/event-stream"' in p.read_text(encoding="utf-8"))
         assert files == ["collect.py", "collection.py", "crypto_list_progress.py",
-                         "crypto_progress.py", "stock_progress.py"]
+                         "crypto_progress.py", "deposit_progress.py", "stock_progress.py"]
 

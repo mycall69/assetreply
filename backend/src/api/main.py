@@ -13,14 +13,17 @@ from fastapi.responses import JSONResponse
 
 from src.api.errors import (
     CollectionInProgress,
+    CurrencyNotAllowed,
     CurrencyPairNotAllowed,
     InvalidQuery,
     InvalidSetting,
     InvalidSpread,
+    NoRateData,
     OutOfRange,
     StartAfterEnd,
     UnknownCoin,
     UnknownCurrency,
+    UnknownInstitution,
     UnknownListing,
     UnknownStock,
 )
@@ -40,6 +43,7 @@ from src.ingestion.yahoo.errors import (
     StockSourceUnavailable,
     StockSymbolNotFound,
 )
+from src.simulation.deposit_rollover import BeforeFirstMonth, RateMissing
 
 
 @asynccontextmanager
@@ -58,6 +62,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from src.config.settings import load_settings
     from src.db.session import get_session_factory
     from src.ingestion.ecos.client import EcosClient
+    from src.ingestion.ecos.deposit_client import EcosDepositClient
     from src.ingestion.investing.client import InvestingClient
     from src.ingestion.kiwoom.client import KiwoomClient
     from src.ingestion.yahoo.client import YahooStockClient
@@ -68,6 +73,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from src.worker.crypto_queue import get_crypto_queue
     from src.worker.crypto_worker import crypto_worker_loop
     from src.worker.crypto_worker import startup as crypto_startup
+    from src.worker.deposit_queue import get_deposit_queue
+    from src.worker.deposit_worker import deposit_worker_loop
+    from src.worker.deposit_worker import startup as deposit_startup
     from src.worker.listing_queue import get_listing_queue
     from src.worker.listing_worker import listing_worker_loop
     from src.worker.listing_worker import startup as listing_startup
@@ -91,6 +99,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 007 — 코인 목록 갱신 점유와 가상자산 수집 점유도 같다.
     await crypto_list_startup(factory)
     await crypto_startup(factory)
+    # 008 — 예금 금리 수집 점유도 같다.
+    await deposit_startup(factory)
 
     # 005 — 주식 수집 워커. **FX와 분리한다**: 출처가 달라 호출 한도도 따로이고,
     # 한 루프에 섞으면 환율 수집이 주식 수집을 막으면서 그 이유가 화면에 드러나지
@@ -106,6 +116,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 입장에서는 한 클라이언트이고, 요청 사이 최소 간격을 두 줄이 함께 지킨다(research R7-11).
     crypto_client = InvestingClient(settings)
     await crypto_client.__aenter__()
+    # 008 — 예금 금리 출처 클라이언트. 환율과 같은 ECOS·같은 인증키다. 동시 요청 수와 한도 초과
+    # 백오프는 관문(`EcosGate`)이 환율 줄과 함께 지킨다(research R8-6).
+    deposit_client = EcosDepositClient(settings)
+    await deposit_client.__aenter__()
 
     tasks = [
         asyncio.create_task(worker_loop(
@@ -123,6 +137,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # 쪽이 기다리지 않는다(SC-012). 목록 갱신 줄과 같은 클라이언트(간격 제한기)를 쓴다.
         asyncio.create_task(crypto_worker_loop(
             factory, crypto_client, get_crypto_queue(), settings=settings)),
+        # 008 — 예금 금리 수집 줄. **환율 수집과 다른 줄이다** — 같은 출처라도 한쪽 작업이 다른 쪽을
+        # 기다리지 않는다(SC-012). 호출 한도는 관문이 함께 지킨다.
+        asyncio.create_task(deposit_worker_loop(
+            factory, deposit_client, get_deposit_queue(), settings=settings)),
     ]
     try:
         yield
@@ -134,6 +152,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 await task
         await listing_client.__aexit__(None, None, None)
         await crypto_client.__aexit__(None, None, None)
+        await deposit_client.__aexit__(None, None, None)
         await shutdown_engine()
 
 
@@ -233,6 +252,42 @@ def create_app() -> FastAPI:
             "status": "start_after_end", "message": str(exc),
             "lastDay": exc.last_day.isoformat()})
 
+    @app.exception_handler(UnknownInstitution)
+    async def _unknown_institution(_: Request, exc: UnknownInstitution) -> JSONResponse:
+        # 008 FR-003 — 고를 수 있는 투자처를 함께 싣는다.
+        return JSONResponse(status_code=400, content={
+            "status": "unknown_institution", "message": str(exc), "allowed": exc.allowed})
+
+    @app.exception_handler(CurrencyNotAllowed)
+    async def _currency_not_allowed(_: Request, exc: CurrencyNotAllowed) -> JSONResponse:
+        # 008 FR-004 — 예금 원금은 원화만이다. 조용히 원화로 읽지 않는다.
+        return JSONResponse(status_code=400, content={
+            "status": "currency_not_allowed", "message": str(exc), "allowed": exc.allowed})
+
+    @app.exception_handler(BeforeFirstMonth)
+    async def _before_first_month(_: Request, exc: BeforeFirstMonth) -> JSONResponse:
+        # 008 FR-006 — **조용히 첫 달로 옮기지 않는다.** 시작 가능 날짜를 싣고 화면이 옮기기 수단을
+        # 그린다.
+        first = exc.first_month
+        return JSONResponse(status_code=409, content={
+            "status": "before_first_month",
+            "message": f"이 투자처의 금리는 {first:%Y-%m}부터 있습니다. "
+                       f"시작일을 {first.isoformat()} 이후로 고르세요.",
+            "startableFrom": first.isoformat()})
+
+    @app.exception_handler(RateMissing)
+    async def _rate_missing(_: Request, exc: RateMissing) -> JSONResponse:
+        # 008 FR-007·FR-019 — 가입 달의 금리가 비었다. 보간하지 않는다(헌법 원칙 V).
+        return JSONResponse(status_code=409, content={
+            "status": "rate_missing",
+            "message": f"{exc.month:%Y-%m} 금리 통계가 비어 있어 가입할 수 없습니다.",
+            "month": f"{exc.month:%Y-%m}"})
+
+    @app.exception_handler(NoRateData)
+    async def _no_rate_data(_: Request, exc: NoRateData) -> JSONResponse:
+        # 빈 표를 보여주지 않는다 — 사용자는 수익이 0이라고 읽는다.
+        return _json(404, "no_rate_data", str(exc))
+
     @app.exception_handler(UnknownListing)
     async def _unknown_listing(_: Request, exc: UnknownListing) -> JSONResponse:
         return _json(404, "unknown_listing", str(exc))
@@ -282,6 +337,9 @@ def create_app() -> FastAPI:
     from src.api.routes import crypto_settings as crypto_settings_routes
     from src.api.routes import crypto_simulation as crypto_simulation_routes
     from src.api.routes import daily as daily_routes
+    from src.api.routes import deposit_institutions as deposit_institutions_routes
+    from src.api.routes import deposit_progress as deposit_progress_routes
+    from src.api.routes import deposit_simulation as deposit_simulation_routes
     from src.api.routes import jobs as job_routes
     from src.api.routes import latest as latest_routes
     from src.api.routes import rates as rates_routes
@@ -320,6 +378,10 @@ def create_app() -> FastAPI:
     app.include_router(crypto_series_routes.router)
     app.include_router(crypto_progress_routes.router)
     app.include_router(crypto_settings_routes.router)
+    # 008 — 예금 투자 시뮬레이션
+    app.include_router(deposit_institutions_routes.router)
+    app.include_router(deposit_simulation_routes.router)
+    app.include_router(deposit_progress_routes.router)
 
     return app
 

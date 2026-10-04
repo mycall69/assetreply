@@ -27,7 +27,8 @@ export const MENU: readonly MenuItem[] = [
   // 007 — 가상자산을 구현했다. 순서는 원칙 IX대로 외환 → 가상자산 → 주식이다(005가 주식을 먼저 만들며 앞에 두었다).
   { label: "가상자산", href: "/crypto" },
   { label: "주식", href: "/stocks" },
-  { label: "예금" },
+  // 008 — 예금을 구현했다. 경로는 단수 `deposit`이다(API도 `/api/deposit/*`).
+  { label: "예금", href: "/deposit" },
   { label: "부동산" },
   { label: "투자 비교" },
   { label: "설정", href: "/settings" },

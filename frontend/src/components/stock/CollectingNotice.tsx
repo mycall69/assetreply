@@ -11,19 +11,29 @@
  */
 
 import type { CryptoProgressSnapshot } from "@/lib/cryptoProgressStream";
+import type { DepositProgressSnapshot } from "@/lib/depositProgressStream";
 import type { StockProgressSnapshot } from "@/lib/stockProgressStream";
 import type {
   CryptoCollecting,
+  DepositCollecting,
   FxCollecting,
   FxNotAvailableBefore,
   SimulationCollecting,
 } from "@/lib/types";
 
-/** 수집 중 본문 — 주식(005·006)과 가상자산(007)의 202. 이 안내는 대상(종목·코인)의 식별을 쓰지 않는다. */
-export type CollectingLike = SimulationCollecting | CryptoCollecting;
+/** 수집 중 본문 — 주식(005·006)·가상자산(007)·예금(008)의 202. 이 안내는 대상(종목·코인·투자처)의 식별을 쓰지 않는다. */
+export type CollectingLike = SimulationCollecting | CryptoCollecting | DepositCollecting;
 
-/** 진행 — 받은 날 / 받을 날(006 FR-045a)만 쓴다. */
-export type ProgressLike = StockProgressSnapshot | CryptoProgressSnapshot;
+/** 진행 — 받은 날 / 받을 날(006 FR-045a). 예금(008)은 받은 달 / 받을 달이다 — 금리가 월별이다. */
+export type ProgressLike = StockProgressSnapshot | CryptoProgressSnapshot | DepositProgressSnapshot;
+
+/** 받은 양 / 받을 양. 예금은 달, 나머지는 날이다. */
+function amounts(progress: ProgressLike | null): { done: number; total: number } {
+  if (progress === null) return { done: 0, total: 0 };
+  return "monthsTotal" in progress
+    ? { done: progress.monthsDone, total: progress.monthsTotal }
+    : { done: progress.daysDone, total: progress.daysTotal };
+}
 
 /** 환율 줄 (W4). `waiting`은 다른 통화의 수집이 끝나야 시작한다 (FR-046). */
 function fxLine(fx: FxCollecting): string {
@@ -41,19 +51,24 @@ export function CollectingNotice({
   collecting,
   stockName,
   progress,
+  subject = "시세",
+  unit = "일",
 }: {
   collecting: CollectingLike;
-  /** 받고 있는 대상의 이름 — 종목명이나 코인 이름(007). */
+  /** 받고 있는 대상의 이름 — 종목명이나 코인 이름(007), 투자처 이름(008). */
   stockName: string;
   progress: ProgressLike | null;
+  /** 받고 있는 것 — 시세, 예금은 금리(008). */
+  subject?: string;
+  /** 진행의 단위 — 일, 예금은 개월(008). */
+  unit?: string;
 }) {
   // 006 FR-045a — 받은 날 / 받을 날(달력 일수). "3 / 4 구간"은 숫자가 작아 얼마나 남았는지
   // 가늠하기 어렵다. 출처에 2년치씩 요청하므로 숫자는 구간마다 늘어난다.
-  const total = progress?.daysTotal ?? 0;
-  const done = progress?.daysDone ?? 0;
+  const { done, total } = amounts(progress);
   const percent = total > 0 ? Math.round((done / total) * 100) : 0;
   const stockCollecting = collecting.jobId !== undefined;
-  const fx = collecting.fx;
+  const fx = "fx" in collecting ? collecting.fx : undefined;
 
   return (
     <section
@@ -62,7 +77,7 @@ export function CollectingNotice({
     >
       {stockCollecting && (
         <>
-          <p className="font-medium">{stockName}의 시세를 받고 있습니다</p>
+          <p className="font-medium">{stockName}의 {subject}를 받고 있습니다</p>
 
           {total > 0 ? (
             <div className="space-y-1">
@@ -77,7 +92,7 @@ export function CollectingNotice({
                 <div className="h-full bg-gray-700" style={{ width: `${percent}%` }} />
               </div>
               <p className="text-xs tabular-nums text-gray-500">
-                {done.toLocaleString("ko-KR")} / {total.toLocaleString("ko-KR")}일
+                {done.toLocaleString("ko-KR")} / {total.toLocaleString("ko-KR")}{unit}
               </p>
             </div>
           ) : (
