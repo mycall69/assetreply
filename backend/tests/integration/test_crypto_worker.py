@@ -31,12 +31,12 @@ D = dt.date.fromisoformat
 
 def test_lifespan이_가상자산_두_줄과_기동_정리를_등록한다() -> None:
     """등록을 빠뜨리면 요청이 큐에 쌓이기만 하고 실행되지 않는다. 태스크는
-    6개다(FX·정리·주식·목록·코인 목록·코인 시세)."""
+    7개다(FX·정리·주식·목록·코인 목록·코인 시세·예금 금리 — 008이 마지막을 더했다)."""
     body = inspect.getsource(main.lifespan)
     assert "crypto_worker_loop(" in body
     assert "crypto_list_worker_loop(" in body
     assert "crypto_startup(" in body
-    assert body.count("asyncio.create_task(") == 6
+    assert body.count("asyncio.create_task(") == 7
 
 
 async def test_기동_시_남은_가상자산_점유를_회수한다(session_factory) -> None:

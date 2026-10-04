@@ -33,7 +33,8 @@ describe("전역 내비게이션 사이드바", () => {
   it("준비되지 않은 자산군은 링크가 아니다", () => {
     render(<Sidebar current="/fx" />);
     // 2026-10-02: 005가 주식을 구현해 목록에서 뺐다. 2026-10-03: 007이 가상자산을 구현해 뺐다.
-    for (const label of ["예금", "부동산", "투자 비교", "대시보드"]) {
+    // 2026-10-04: 008이 예금을 구현해 뺐다.
+    for (const label of ["부동산", "투자 비교", "대시보드"]) {
       const item = screen.getByText(label).closest("li");
       expect(item).not.toBeNull();
       expect(within(item as HTMLElement).queryByRole("link")).toBeNull();
@@ -42,23 +43,23 @@ describe("전역 내비게이션 사이드바", () => {
 
   it("준비되지 않은 항목은 준비 중임을 표시한다", () => {
     render(<Sidebar current="/fx" />);
-    expect(screen.getAllByText("준비중").length).toBe(4);
+    expect(screen.getAllByText("준비중").length).toBe(3);
   });
 
   it("준비되지 않은 항목은 키보드 포커스 대상이 아니다", () => {
     render(<Sidebar current="/fx" />);
-    // 007이 가상자산을 구현해 준비되지 않은 항목의 예를 예금으로 바꿨다.
-    const item = screen.getByText("예금").closest("li") as HTMLElement;
+    // 007이 가상자산을 구현해 준비되지 않은 항목의 예를 예금으로 바꿨다. 008이 예금을 구현해 부동산으로 바꿨다.
+    const item = screen.getByText("부동산").closest("li") as HTMLElement;
     const focusable = item.querySelectorAll("a, button, [tabindex]:not([tabindex='-1'])");
     expect(focusable.length).toBe(0);
   });
 
   it("준비된 자산군만 이동 가능하다", () => {
-    // 2026-10-02: 005가 주식을 더했다. 2026-10-03: 007이 가상자산을 더했다.
+    // 2026-10-02: 005가 주식을 더했다. 2026-10-03: 007이 가상자산을 더했다. 2026-10-04: 008이 예금을 더했다.
     render(<Sidebar current="/fx" />);
     const links = screen.getAllByRole("link");
     expect(links.map((l) => l.getAttribute("href")).sort()).toEqual(
-      ["/crypto", "/fx", "/settings", "/stocks"],
+      ["/crypto", "/deposit", "/fx", "/settings", "/stocks"],
     );
   });
 
