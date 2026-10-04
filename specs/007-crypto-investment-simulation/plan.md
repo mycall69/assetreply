@@ -150,14 +150,16 @@ frontend/
 │   │   └── CryptoPerformanceTable.tsx    # 신규 — 수량·결측 표시·열별 통화·내용 폭 (C4)
 │   ├── components/stock/PerformanceBoard.tsx·PerformanceChart.tsx·ComparisonChart.tsx·StartDateInput.tsx·CollectingNotice.tsx
 │   │                                     # 그대로 쓴다(필요하면 대상 이름을 받게) (R7-12). 반복 2026-10-04 — PerformanceBoard는
-│   │                                     # 기호 앞(FR-042a, 006 FR-054 대체), PerformanceChart는 두 축 눈금 형식(FR-043a) (R7-14)
+│   │                                     # 기호 앞(FR-042a, 006 FR-054 대체), PerformanceChart는 두 축 눈금 형식(FR-043a) (R7-14).
+│   │                                     # 반복 #2 — ComparisonChart는 수익률 축 눈금 형식(FR-046a)
 │   ├── components/settings/CryptoSettingsForm.tsx  # 신규 — 거래 수수료율 (C6)
 │   ├── app/settings/page.tsx             # 변경 — 가상자산 칸 연결
 │   ├── components/shell/Sidebar.tsx      # 변경 — /crypto 경로, 헌법 순서(가상자산 → 주식) (C1)
 │   ├── lib/types.ts                      # 변경 — 가상자산 응답 형식
 │   ├── lib/format.ts                     # 변경 — formatPrice(유효 숫자), formatQuantity(8자리) (FR-040).
 │   │                                     # 반복 2026-10-04 — formatMoneyWithSymbol 기호 앞(FR-042a), formatAxisNumber(FR-043a)
-│   ├── lib/chartSeries.ts                # 변경 — source_missing도 끊는다 (C5)
+│   ├── lib/chartSeries.ts                # 변경 — source_missing도 끊는다 (C5). 반복 2026-10-04 #2 — axisPriceFormat
+│   │                                     # (두 차트의 공용 축 형식, FR-043a·FR-046a)
 │   ├── lib/cryptoHistory.ts              # 신규 — 이력(주식과 다른 저장 키) (FR-045)
 │   └── lib/cryptoProgressStream.ts       # 신규 — /api/crypto/progress 구독 (또는 stockProgressStream을 경로를 받게)
 └── tests/                                # 각 변경에 대응. noUnbuiltAssetRoutes.test.ts에서 crypto를 뺀다
@@ -195,9 +197,10 @@ frontend/
 | FR-037~FR-041, FR-037a (표·열별 통화) | C4, `CryptoPerformanceTable`, `format.formatPrice`·`formatQuantity`, tasks T028·T033 |
 | FR-042 (보드) | C3, `PerformanceBoard`(기호 위치만 FR-042a), tasks T028·T036 |
 | FR-042a, SC-014 (보드 기호 앞 — 반복 2026-10-04) | research R7-14, `format.ts` `formatMoneyWithSymbol`, `PerformanceBoard`, C3, tasks T049·T050·T053, quickstart 21 |
-| FR-043a, SC-015 (차트 축 쉼표 — 반복 2026-10-04) | research R7-14, `format.ts` `formatAxisNumber`, `PerformanceChart`(구간마다 시리즈 `priceFormat`), C5, tasks T051·T052·T053, quickstart 22 |
+| FR-043a, SC-015 (차트 축 쉼표 — 반복 2026-10-04) | research R7-14, `format.ts` `formatAxisNumber`, `chartSeries.ts` `axisPriceFormat`, `PerformanceChart`(구간마다 시리즈 `priceFormat`), C5, tasks T051·T052·T053, quickstart 22 |
 | FR-044 (차트 끝점) | `crypto_series.py` — 표와 같은 계산, tasks T039·T041 |
-| FR-045, FR-046 (이력·비교) | `cryptoHistory.ts`, `ComparisonChart`(그대로), tasks T043·T044·T045 |
+| FR-045, FR-046 (이력·비교) | `cryptoHistory.ts`, `ComparisonChart`(축 형식만 FR-046a), tasks T043·T044·T045 |
+| FR-046a, SC-016 (비교 차트 수익률 축 쉼표 — 반복 2026-10-04 #2) | research R7-14, `chartSeries.ts` `axisPriceFormat`, `ComparisonChart`(항목·구간마다 시리즈 `priceFormat`), C5, tasks T054·T055·T056, quickstart 23 |
 | FR-047 (기록 갱신) | README·CLAUDE.md — "가상자산은 007", tasks T046 |
 | SC-001, SC-003, SC-006 | quickstart 6·8, tasks T021·T024·T025·T034·T048 |
 | SC-002, SC-002a | quickstart 3·4, 검색 통합 테스트, tasks T015 |

@@ -335,7 +335,31 @@ description: "Task list for 007-crypto-investment-simulation"
 - [X] T053 브라우저(3030) 확인 — quickstart 21·22를 주식(SK하이닉스, 원화 1,000만, 2020-01-01)과 가상자산(비트코인, 달러 원금)으로 실행하고
   기록한다. 품질 게이트(`npm test`, `npx tsc --noEmit`, `npx eslint .`) (SC-014, SC-015)
 
-**Checkpoint**: 두 화면의 보드가 `₩…`·`$… (₩…)`로, 차트 두 축이 쉼표로 보인다. 이력 비교 차트 축과 수익률 표시는 그대로다(범위 밖, research R7-14)
+**Checkpoint**: 두 화면의 보드가 `₩…`·`$… (₩…)`로, 차트 두 축이 쉼표로 보인다. 수익률 표시(보드·표·툴팁)는 그대로다(범위 밖, research R7-14).
+이력 비교 차트 축은 Phase 10
+
+---
+
+## Phase 10: 이력 비교 차트 수익률 축 쉼표 (반복 2026-10-04 #2)
+
+**Goal**: 이력 비교 차트의 수익률 축 눈금에 천 단위 쉼표를 넣는다(`1,881.47`, `3,200.00`, `-400.00`). 성과 추이 차트와 같은 축 형식 함수를 쓴다.
+비교 차트는 주식 화면도 함께 쓴다 (FR-046a, SC-016)
+
+**순서**: 테스트(T054)를 먼저 커밋하고 최초 실패를 확인한 뒤 구현(T055), 마지막에 브라우저 확인(T056). 구현 뒤 테스트가 실패하면 멈추고 먼저
+보고한다(D2). 축 형식 함수를 옮기므로 Phase 9의 `PerformanceChartAxis.test.tsx`(T051)와 기존 `ComparisonChart.test.tsx`(005 T087)·
+`CryptoHistory.test.tsx`(T043)는 고치지 않고 통과해야 한다
+
+- [ ] T054 [P] `frontend/tests/ComparisonChartAxis.test.tsx`(신규) — 공용 함수 `axisPriceFormat`(`@/lib/chartSeries`): `(2)` → `type: "custom"`,
+  `minMove: 0.01`, formatter `(1881.47)` → `1,881.47`, `(3200)` → `3,200.00`, `(-400)` → `-400.00`; `(0)` → `minMove: 1`, formatter `(360000000)` →
+  `360,000,000`. 차트: 기존 `lightweight-charts` 모의로 두 이력 항목(그중 하나는 `source_missing` 결측으로 두 구간)을 그리면 시리즈 3개 **모두**의
+  `priceFormat`이 `custom`·`minMove 0.01`이고 formatter가 `1,881.47`을 내는지 (FR-046a, SC-016)
+- [ ] T055 `frontend/src/lib/chartSeries.ts` `axisPriceFormat(fractionDigits)` — `PerformanceChart.tsx`의 `axisFormat`을 옮긴다(`formatAxisNumber`를
+  쓴다). `frontend/src/components/stock/PerformanceChart.tsx`는 그것을 쓰고, `frontend/src/components/stock/ComparisonChart.tsx`는 항목·구간마다
+  시리즈에 `priceFormat: axisPriceFormat(2)`를 준다. 머리 주석에 FR-046a (FR-043a, FR-046a, SC-015, SC-016)
+- [ ] T056 브라우저(3030) 확인 — quickstart 23을 주식(이력 둘)과 가상자산(비트코인·솔라나 — 솔라나는 결측 1구간) 비교로 실행하고 기록한다.
+  품질 게이트(`npm test`, `npx tsc --noEmit`, `npx eslint .`) (SC-016)
+
+**Checkpoint**: 두 화면의 이력 비교 차트 수익률 축이 쉼표로 보이고, 성과 추이 차트의 수익률 축과 같은 형식이다
 
 ---
 
@@ -350,6 +374,7 @@ description: "Task list for 007-crypto-investment-simulation"
 - **US5 (Phase 7)**: US1 뒤 (US4의 시계열을 비교에 쓴다 — US4 뒤가 자연스럽다)
 - **Polish (Phase 8)**: 모든 스토리 뒤
 - **Phase 9 (반복 2026-10-04)**: Phase 8 뒤. 테스트(T049·T051)가 구현(T050·T052)보다 먼저, 브라우저 확인(T053)은 마지막
+- **Phase 10 (반복 2026-10-04 #2)**: Phase 9 뒤(T052가 만든 축 형식을 옮긴다). 테스트(T054)가 구현(T055)보다 먼저, 브라우저 확인(T056)은 마지막
 
 ### Within Each Phase
 
@@ -367,7 +392,9 @@ description: "Task list for 007-crypto-investment-simulation"
 | `frontend/tests/Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts` | T028 |
 | `frontend/src/stores/cryptoStore.ts` | T033, T037, T044 |
 | `frontend/src/app/crypto/page.tsx` | T033, T041, T044 |
-| `frontend/src/components/stock/PerformanceChart.tsx` | T041, T052 |
+| `frontend/src/components/stock/PerformanceChart.tsx` | T041, T052, T055 |
+| `frontend/src/lib/chartSeries.ts` | T041, T055 |
+| `frontend/src/components/stock/ComparisonChart.tsx` | T055 |
 | `frontend/src/lib/format.ts` | T033, T050, T052 |
 
 ### Parallel Opportunities
@@ -406,6 +433,7 @@ Task: "T007 test_crypto_schema.py"
 4. US5 — 이력·비교
 5. Polish — 기록 갱신, 게이트, quickstart 전체
 6. 반복 2026-10-04 — 보드 기호 위치, 차트 축 쉼표 (Phase 9)
+7. 반복 2026-10-04 #2 — 이력 비교 차트 수익률 축 쉼표 (Phase 10)
 
 ---
 
