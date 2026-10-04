@@ -356,7 +356,7 @@ description: "Task list for 007-crypto-investment-simulation"
 - [X] T055 `frontend/src/lib/chartSeries.ts` `axisPriceFormat(fractionDigits)` — `PerformanceChart.tsx`의 `axisFormat`을 옮긴다(`formatAxisNumber`를
   쓴다). `frontend/src/components/stock/PerformanceChart.tsx`는 그것을 쓰고, `frontend/src/components/stock/ComparisonChart.tsx`는 항목·구간마다
   시리즈에 `priceFormat: axisPriceFormat(2)`를 준다. 머리 주석에 FR-046a (FR-043a, FR-046a, SC-015, SC-016)
-- [ ] T056 브라우저(3030) 확인 — quickstart 23을 주식(이력 둘)과 가상자산(비트코인·솔라나 — 솔라나는 결측 1구간) 비교로 실행하고 기록한다.
+- [X] T056 브라우저(3030) 확인 — quickstart 23을 주식(이력 둘)과 가상자산(비트코인·솔라나 — 솔라나는 결측 1구간) 비교로 실행하고 기록한다.
   품질 게이트(`npm test`, `npx tsc --noEmit`, `npx eslint .`) (SC-016)
 
 **Checkpoint**: 두 화면의 이력 비교 차트 수익률 축이 쉼표로 보이고, 성과 추이 차트의 수익률 축과 같은 형식이다
