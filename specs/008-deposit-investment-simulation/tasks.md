@@ -264,7 +264,7 @@ description: "Task list for 008-deposit-investment-simulation"
 
 - [X] T032 [US4] `frontend/src/lib/depositHistory.ts`·`frontend/src/components/deposit/DepositHistory.tsx`·`frontend/src/stores/depositStore.ts`(이력·
   비교)·`frontend/src/app/deposit/page.tsx` — D6. 비교는 `ComparisonChart` 그대로(`label`에 잠정 표시) (FR-037, FR-038)
-- [ ] T033 [US4] 브라우저 확인 — quickstart 13~16(세율 0%·되돌리기, 이력 비교, 차트와 표·보드, 1440px 표)을 실행하고 기록한다 (FR-030~FR-038,
+- [X] T033 [US4] 브라우저 확인 — quickstart 13~16(세율 0%·되돌리기, 이력 비교, 차트와 표·보드, 1440px 표)을 실행하고 기록한다 (FR-030~FR-038,
   SC-008, SC-009, SC-010)
 
 **Checkpoint**: 이력·비교까지 동작한다
