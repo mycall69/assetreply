@@ -292,7 +292,7 @@ description: "Task list for 007-crypto-investment-simulation"
 
 - [X] T044 [US5] `frontend/src/lib/cryptoHistory.ts`·`frontend/src/components/crypto/CryptoHistory.tsx`(또는 006 `SimulationHistory`를 항목 표시를 받게
   일반화)·`frontend/src/stores/cryptoStore.ts`(이력·비교)·`frontend/src/app/crypto/page.tsx` — 비교는 `ComparisonChart` 그대로 (FR-045, FR-046)
-- [ ] T045 [US5] 실제 브라우저로 quickstart 15를 확인하고 기록한다 (FR-045, FR-046)
+- [X] T045 [US5] 실제 브라우저로 quickstart 15를 확인하고 기록한다 (FR-045, FR-046)
 
 **Checkpoint**: 모든 스토리 완료
 
