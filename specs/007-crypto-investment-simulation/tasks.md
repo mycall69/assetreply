@@ -219,7 +219,7 @@ description: "Task list for 007-crypto-investment-simulation"
   `frontend/src/components/crypto/CryptoSimulationForm.tsx`·`CryptoPerformanceTable.tsx`·`frontend/src/app/crypto/page.tsx`·
   `frontend/src/components/settings/CryptoSettingsForm.tsx`·`frontend/src/app/settings/page.tsx`·`frontend/src/components/shell/Sidebar.tsx` —
   보드는 `PerformanceBoard` 그대로, 수집 안내는 `CollectingNotice`(대상 이름을 받게) (FR-001, FR-009, FR-013, FR-032, FR-037~FR-042)
-- [ ] T034 [US1] 실제 브라우저(3030, 1440px)로 확인한다 — quickstart 1·2·3·6·7·8·10·12·13·14·16·17·18·20. 실제 출처로 받는다. 결과를 quickstart 실행
+- [X] T034 [US1] 실제 브라우저(3030, 1440px)로 확인한다 — quickstart 1·2·3·6·7·8·10·12·13·14·16·17·18·20. 실제 출처로 받는다. 결과를 quickstart 실행
   기록에 적는다 (SC-001, SC-003, SC-010, SC-011, SC-012)
 
 **Checkpoint**: MVP — 검색 → 실행 → 수집 진행 → 보드·표. 달러 원금, 수수료 설정
