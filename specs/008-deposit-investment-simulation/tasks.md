@@ -187,7 +187,7 @@ description: "Task list for 008-deposit-investment-simulation"
   `frontend/src/components/deposit/InstitutionPicker.tsx`·`DepositSimulationForm.tsx`·`DepositPerformanceTable.tsx`·`DepositNotice.tsx`·
   `frontend/src/app/deposit/page.tsx`·`frontend/src/components/shell/Sidebar.tsx`(`/deposit`) — D1~D4·D8. 보드는 `PerformanceBoard` 그대로(`notes`),
   수집 안내는 `CollectingNotice`(대상 이름·단위 "개월") (FR-001~FR-007, FR-032~FR-035)
-- [ ] T022 [US1] 브라우저(3030, 창 1440px) 확인 — quickstart 1~12를 실행하고 기록한다. 1(ECOS 화면의 상호금융 항목 계층), 4(202 → 결과, 진행
+- [X] T022 [US1] 브라우저(3030, 창 1440px) 확인 — quickstart 1~12를 실행하고 기록한다. 1(ECOS 화면의 상호금융 항목 계층), 4(202 → 결과, 진행
   2초 안), 5(참조값 1과 원 단위 일치 — 실행한 날 기준으로 진행 중 회차의 경과 일수가 다르면 그날 값으로 손계산), 6(같은 날 다시 실행 3초 안,
   출처 호출 없음), 7·8(잠정 — 그날의 마지막 발표 달을 적는다), 9(시작 가능 날짜), 10·11(다섯 투자처 × 시작 가능 날짜·중간 해 1월 15일·최근 발표
   달 15일 = 15회, 첫 달 전날 409), 12(2월 29일) (FR-001~FR-008,
