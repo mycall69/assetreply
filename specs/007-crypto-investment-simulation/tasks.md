@@ -332,7 +332,7 @@ description: "Task list for 007-crypto-investment-simulation"
 - [X] T052 `frontend/src/lib/format.ts` `formatAxisNumber(value: number, fractionDigits: number)` — 축 눈금 전용(그리기용 숫자를 받는다, 금액 문자열에
   쓰지 않는다). `frontend/src/components/stock/PerformanceChart.tsx` — 구간마다 잔고 시리즈에 `priceFormat: { type: "custom", minMove: 1, formatter }`
   (KRW·JPY 0자리, 그 밖 2자리 — `basisCurrency`로 고른다), 수익률 시리즈에 `minMove: 0.01`, 2자리 (FR-043a, SC-015)
-- [ ] T053 브라우저(3030) 확인 — quickstart 21·22를 주식(SK하이닉스, 원화 1,000만, 2020-01-01)과 가상자산(비트코인, 달러 원금)으로 실행하고
+- [X] T053 브라우저(3030) 확인 — quickstart 21·22를 주식(SK하이닉스, 원화 1,000만, 2020-01-01)과 가상자산(비트코인, 달러 원금)으로 실행하고
   기록한다. 품질 게이트(`npm test`, `npx tsc --noEmit`, `npx eslint .`) (SC-014, SC-015)
 
 **Checkpoint**: 두 화면의 보드가 `₩…`·`$… (₩…)`로, 차트 두 축이 쉼표로 보인다. 이력 비교 차트 축과 수익률 표시는 그대로다(범위 밖, research R7-14)
