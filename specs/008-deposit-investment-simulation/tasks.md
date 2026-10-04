@@ -302,7 +302,7 @@ description: "Task list for 008-deposit-investment-simulation"
   시중은행이라 구현이 받아 둔 투자처로 판정했다(D2, 사용자 승인 2026-10-04)
 - [X] T038 `frontend/src/stores/depositStore.ts` — `failed` 처리에서 받아 둔 투자처면 자동 다시 요청(한 실행에 한 번 — 자동 실행 표시를 두고
   사용자 실행에서 지운다). 받은 적 없으면 지금처럼 실패 문구. D8 주석 갱신 (FR-016a)
-- [ ] T039 브라우저 확인 — quickstart 17을 다시 실행하고 기록한다(틀린 키, 테스트 전용 DB의 임시 백엔드): 받아 둔 투자처는 한 번의 실행으로 결과와
+- [X] T039 브라우저 확인 — quickstart 17을 다시 실행하고 기록한다(틀린 키, 테스트 전용 DB의 임시 백엔드): 받아 둔 투자처는 한 번의 실행으로 결과와
   확인 실패 줄, 받은 적 없는 투자처는 실패 문구만이고 수집 로그의 그 투자처 실패 사건이 한 건. 품질 게이트(`npm test`, `npx tsc --noEmit`,
   `npx eslint .`) (FR-016a, SC-014)
 
