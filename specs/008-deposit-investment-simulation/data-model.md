@@ -20,7 +20,7 @@
 |----|------|------|
 | `institution` | VARCHAR(24) NOT NULL | 투자처 키 |
 | `month` | DATE NOT NULL | 그 달 1일(한국 시간 달력) |
-| `rate` | RATE_PCT NOT NULL | 연 %, 출처 값 그대로(`3.39`) |
+| `rate` | RATE_PCT NOT NULL | 연 %, 출처 값 그대로(`3.39`). 소수 4자리까지 — 넘는 값은 받지 않고 그 응답을 형식 오류로 실패시킨다(FR-017, 반복 #2) |
 | `source` | VARCHAR(16) NOT NULL | `ecos` |
 | `ingested_at` | TS NOT NULL | |
 
@@ -76,7 +76,7 @@
 | 열 | 형식 | 규칙 |
 |----|------|------|
 | `id` | SMALLINT PK default 1 | 전역 단일 행 |
-| `interest_tax_rate` | SPREAD NOT NULL | 기본 **0.154000**(15.4%). 0 ≤ 값 < 1 |
+| `interest_tax_rate` | SPREAD NOT NULL | 기본 **0.154000**(15.4%). 0 ≤ 값 < 1, 소수 6자리까지 — 넘으면 422(FR-030, 반복 #2) |
 | `updated_at` | TS | |
 
 행이 없으면 기본값을 쓴다(`isDefault: true`) — 006 `stock_setting`·007 `crypto_setting`과 같다. 주식의 배당 소득세율과 합치지 않는다(FR-030).

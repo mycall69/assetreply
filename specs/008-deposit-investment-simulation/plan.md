@@ -85,7 +85,7 @@ specs/008-deposit-investment-simulation/
 ├── plan.md              # 이 파일
 ├── research.md          # R8-1 ~ R8-12 (ECOS 실측 포함)
 ├── data-model.md        # 신규 테이블 6개
-├── quickstart.md        # 검증 시나리오 20개
+├── quickstart.md        # 검증 시나리오 21개(21은 반복 #2)
 ├── contracts/
 │   ├── rest-api.md      # /api/deposit/* + 출처(ECOS) 계약
 │   └── ui-wireframes.md # D1~D8
@@ -104,7 +104,7 @@ backend/
 │   │   ├── client.py                     # 변경 — _get이 EcosGate를 지난다(환율 동작 불변)
 │   │   ├── deposit_items.py              # 신규 — 투자처 → (통계표, 항목 코드, 이름 패턴), START_TIME (R8-1)
 │   │   ├── deposit_client.py             # 신규 — EcosDepositClient: 항목 확인, 월 시계열(원본 함께 반환) (R8-5)
-│   │   └── deposit_parse.py              # 신규 — StatisticSearch(M) → MonthlyRate, INFO-200 = 미발표, 잘림 검사 (FR-017)
+│   │   └── deposit_parse.py              # 신규 — StatisticSearch(M) → MonthlyRate, INFO-200 = 미발표, 잘림 검사, 소수 4자리 초과 = 형식 오류(반복 #2) (FR-017)
 │   ├── ingestion/protocols.py            # 변경 — MonthlyRate·MonthlyFetchResult, DepositSeries Protocol(항목 손잡이). 수집 출처 Protocol DepositSource는 worker/deposit_runner.py
 │   ├── db/models.py                      # 변경 — Deposit* 6개 (data-model)
 │   ├── db/migrations/versions/…_예금_스키마.py  # 신규
@@ -122,7 +122,7 @@ backend/
 │   │   ├── deposit_simulation.py         # 신규 — GET /api/deposit/simulation
 │   │   ├── deposit_series.py             # 신규 — GET /api/deposit/simulation/series
 │   │   ├── deposit_progress.py           # 신규 — GET /api/deposit/progress (SSE)
-│   │   └── deposit_settings.py           # 신규 — GET·PUT /api/deposit/settings
+│   │   └── deposit_settings.py           # 신규 — GET·PUT /api/deposit/settings, 세율 소수 6자리까지(반복 #2) (FR-030)
 │   ├── api/main.py                       # 변경 — 라우터, lifespan 태스크 1개(예금 수집), 기동 시 고아 점유 회수
 │   └── worker/
 │       ├── deposit_queue.py              # 신규 — 시작 큐 (007 crypto_queue와 같다)
