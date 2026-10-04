@@ -327,7 +327,7 @@ description: "Task list for 008-deposit-investment-simulation"
   = 422) (FR-017, FR-029, FR-030)
 - [X] T042 `frontend/src/components/settings/DepositSettingsForm.tsx`(백분율 소수 4자리 초과 거절 — 예금 폼만)·`frontend/src/components/deposit/DepositNotice.tsx`
   (확인 실패 줄의 할 일) (FR-016a, FR-030)
-- [ ] T043 브라우저 확인 — quickstart 21(설정에서 15.12345 거절·15.1234 저장 뒤 되돌리기, 틀린 키로 받아 둔 투자처의 확인 실패 줄에 "인증키 설정을
+- [X] T043 브라우저 확인 — quickstart 21(설정에서 15.12345 거절·15.1234 저장 뒤 되돌리기, 틀린 키로 받아 둔 투자처의 확인 실패 줄에 "인증키 설정을
   확인하세요")을 실행하고 기록한다. 품질 게이트(백엔드 전체·mypy·ruff, 프론트엔드 테스트·tsc·eslint) (FR-016a, FR-030)
 
 **Checkpoint**: 출처 금리와 세율이 조용히 반올림되지 않고, 확인 실패 줄이 할 일을 말한다
