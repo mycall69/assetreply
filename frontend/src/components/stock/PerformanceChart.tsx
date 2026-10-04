@@ -17,7 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
 import { splitSeriesAtGaps, toPerformanceData } from "@/lib/chartSeries";
 import { formatMoney, formatYield } from "@/lib/format";
-import type { SimulationCollecting, SimulationSeriesResponse } from "@/lib/types";
+import type { CryptoCollecting, SimulationCollecting, SimulationSeriesResponse } from "@/lib/types";
 
 /** 잔고는 왼쪽, 수익률은 오른쪽. 축을 섞지 않는 것이 이 컴포넌트의 존재 이유다. */
 const BALANCE_AXIS = "left";
@@ -35,7 +35,8 @@ export function PerformanceChart({
   loading,
 }: {
   series: SimulationSeriesResponse | null;
-  collecting: SimulationCollecting | null;
+  /** 수집 중이면 차트 대신 안내 — 주식(005·006)과 가상자산(007)의 202. */
+  collecting: SimulationCollecting | CryptoCollecting | null;
   loading: boolean;
 }) {
   const container = useRef<HTMLDivElement>(null);
@@ -120,6 +121,8 @@ export function PerformanceChart({
   // 휴장일 구간은 세지 않는다 — 이어 그리는 구간을 "없음"이라 부르면 화면과 말이
   // 어긋난다. 선은 이어져 있는데 범례만 비었다고 말하게 된다 (001 T124).
   const notCollected = series.gaps.filter((g) => g.reason === "not_collected").length;
+  // 007 FR-023 — 가상자산의 출처 결측. 선이 끊긴 이유를 범례가 말한다(ui-wireframes C5).
+  const missing = series.gaps.filter((g) => g.reason === "source_missing").length;
 
   return (
     <section className="rounded-lg border border-gray-200 p-4">
@@ -149,6 +152,7 @@ export function PerformanceChart({
         <span>─ 잔고 ({series.basisCurrency})</span>
         <span className="text-amber-700">╌ 수익률 (%)</span>
         {notCollected > 0 && <span>╌╌ 미수집 {notCollected}구간</span>}
+        {missing > 0 && <span>┆ 결측 {missing}구간</span>}
         <span className="ml-auto">
           {series.downsampled
             ? `원본 ${series.sourcePointCount.toLocaleString()}개 중 ${series.points.length.toLocaleString()}개 (${series.algorithm.toUpperCase()})`

@@ -28,6 +28,7 @@ import type {
   FxNotAvailableBefore,
   JobRow,
   PrincipalCurrency,
+  SimulationSeriesResponse,
 } from "@/lib/types";
 
 export interface CryptoInput {
@@ -47,6 +48,10 @@ interface CryptoState {
   exchange: ExchangeInfo | null;
   hasMore: boolean;
   oldestReturned: string | null;
+  /** 차트용 일봉 시계열(FR-043). 표와 **같은 조건**으로 따로 받는다. */
+  series: SimulationSeriesResponse | null;
+  /** 차트만 실패한 사유. **표를 지우지 않는다** — 차트가 비는 것과 결과가 없는 것은 다른 사건이다(005와 같다). */
+  seriesError: string | null;
   collecting: CryptoCollecting | null;
   /** 수집 진행. 스냅샷이 오기 전에는 `null`이다 — 0/0은 멈춘 것처럼 보인다. */
   progress: CryptoProgressSnapshot | null;
@@ -189,6 +194,8 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   exchange: null,
   hasMore: false,
   oldestReturned: null,
+  series: null,
+  seriesError: null,
   collecting: null,
   progress: null,
   fxBlocked: null,
@@ -222,7 +229,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
     stopWatching();
     set({
       rows: [], summary: null, condition: null, exchange: null, hasMore: false,
-      oldestReturned: null, collecting: null, progress: null, fxBlocked: null, startable: null,
+      oldestReturned: null, series: null, seriesError: null, collecting: null, progress: null, fxBlocked: null, startable: null,
       loading: true, error: null, loadMoreError: null,
     });
     try {
@@ -238,8 +245,16 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       set({
         rows: result.rows, summary: result.summary, condition: result.condition,
         exchange: result.exchange ?? null, hasMore: result.hasMore,
-        oldestReturned: result.oldestReturned, loading: false,
+        oldestReturned: result.oldestReturned,
       });
+      // **표가 수집 중이 아님을 확인한 뒤에 받는다** — 나란히 보내면 같은 구간에 수집 요청이 두 번 나간다(005와 같다).
+      try {
+        const series = await apiClient.get<SimulationSeriesResponse>(
+          `/api/crypto/simulation/series?${toQuery(input)}`);
+        set({ series, loading: false });
+      } catch (err) {
+        set({ seriesError: message(err, "차트를 불러오지 못했습니다."), loading: false });
+      }
     } catch (err) {
       if (err instanceof ApiError && err.code === "before_listing" && err.body) {
         const { startableFrom, basis, message: text } = err.body as unknown as BeforeListingBody;

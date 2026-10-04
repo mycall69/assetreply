@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal, localcontext
 
 from src.simulation.money import CALC_PRECISION, buy_fraction, quantize_rate
@@ -74,6 +74,8 @@ class HoldOutcome:
     rows: list[HoldRow]
     latest: HoldRow | None
     bought_on: dt.date | None
+    #: 일봉마다의 평가(오름차순). 차트가 쓴다(FR-043) — 표는 월 행이지만 차트의 점은 일봉마다다.
+    daily: list[HoldRow] = field(default_factory=list)
 
 
 def _row(bar: DayOpen, *, bought: Decimal, held: Decimal, cash: Decimal, condition: HoldCondition,
@@ -125,5 +127,6 @@ def simulate_hold(bars: Sequence[DayOpen], condition: HoldCondition) -> HoldOutc
              first_day_missing=_missing_first_day(bar.date, condition.first_available))
         for bar in month_firsts.values()]
     rows.sort(key=lambda r: r.date, reverse=True)
-    latest = _row(ordered[-1], bought=_ZERO, held=held, cash=cash, condition=condition)
-    return HoldOutcome(rows=rows, latest=latest, bought_on=buy_bar.date)
+    daily = [_row(bar, bought=held if bar is buy_bar else _ZERO, held=held, cash=cash,
+                  condition=condition) for bar in ordered]
+    return HoldOutcome(rows=rows, latest=daily[-1], bought_on=buy_bar.date, daily=daily)

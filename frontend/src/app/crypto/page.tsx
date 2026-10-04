@@ -14,6 +14,7 @@ import { CryptoPerformanceTable } from "@/components/crypto/CryptoPerformanceTab
 import { CryptoSimulationForm } from "@/components/crypto/CryptoSimulationForm";
 import { CollectingNotice, FxUnavailableNotice } from "@/components/stock/CollectingNotice";
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
+import { PerformanceChart } from "@/components/stock/PerformanceChart";
 import { formatPercent } from "@/lib/format";
 import { utcYesterday } from "@/lib/startDate";
 import { useCryptoStore } from "@/stores/cryptoStore";
@@ -24,7 +25,8 @@ const coinName = (coin: { name: string; nameKo: string | null } | null) =>
 
 export default function CryptoPage() {
   const {
-    input, rows, summary, condition, exchange, hasMore, collecting, progress, fxBlocked,
+    input, rows, summary, condition, exchange, hasMore, series, seriesError, collecting, progress,
+    fxBlocked,
     startable, loading, loadingMore, error, loadMoreError,
     setInput, selectCoin, run, loadMore, refreshIfRan, dispose,
   } = useCryptoStore();
@@ -88,6 +90,21 @@ export default function CryptoPage() {
       {summary !== null && (
         <PerformanceBoard summary={summary} currency={input.principalCurrency}
           exchange={exchange ?? undefined} notes={notes} />
+      )}
+
+      {summary !== null && (
+        <section>
+          <h3 className="mb-2 text-sm font-semibold">성과 추이</h3>
+          {seriesError !== null ? (
+            // 표는 그대로 둔다 — 차트가 빈 것과 결과가 없는 것은 다른 사건이다.
+            <p role="alert" className="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {seriesError}
+            </p>
+          ) : (
+            // 점은 일봉마다, 출처 결측에서 끊긴다(FR-023, FR-043).
+            <PerformanceChart series={series} collecting={collecting} loading={loading} />
+          )}
+        </section>
       )}
 
       {summary !== null && (

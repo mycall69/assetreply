@@ -104,6 +104,8 @@ class CryptoResult:
     principal_krw: Decimal | None = None
     #: 실제로 일봉이 있는 날 — 차트의 결측 판정에 쓴다.
     quote_dates: frozenset[dt.date] = frozenset()
+    #: 일봉마다의 평가(오름차순). 차트가 요청할 때만 만든다 — 표는 월 행만 쓴다.
+    daily: tuple[CryptoRowView, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,6 +151,7 @@ async def run_simulation(
     fee_rate: Decimal,
     lookup: RateLookup | None,
     spread: Decimal | None,
+    daily: bool = False,
 ) -> CryptoResult:
     """일봉을 읽어 순수 함수에 넘긴다. 일봉이 끊기면 **마지막 일봉까지만** 계산한다(FR-024) — 이어
     그리지 않는다."""
@@ -186,16 +189,19 @@ async def run_simulation(
                                  return_rate=row.return_rate)
         views = [plain(r) for r in outcome.rows]
         latest = plain(outcome.latest) if outcome.latest else None
+        per_day = [plain(r) for r in outcome.daily] if daily else []
     else:
         basis = principal_krw if principal_krw is not None else principal
         views = [_evaluate(r, lookup=lookup, principal=principal, basis=basis)
                  for r in outcome.rows]
         latest = (_evaluate(outcome.latest, lookup=lookup, principal=principal, basis=basis)
                   if outcome.latest else None)
+        per_day = ([_evaluate(r, lookup=lookup, principal=principal, basis=basis)
+                    for r in outcome.daily] if daily else [])
     return CryptoResult(
         rows=views, latest=latest, as_of=as_of, is_final=as_of >= end,
         bought_on=outcome.bought_on, exchange=exchange, principal_krw=principal_krw,
-        quote_dates=quote_dates)
+        quote_dates=quote_dates, daily=tuple(per_day))
 
 
 async def prepare(
@@ -206,8 +212,9 @@ async def prepare(
     end: dt.date,
     principal: Decimal,
     principal_currency: str,
+    daily: bool = False,
 ) -> Prepared:
-    """설정·환율을 읽어 시뮬레이션을 돌린다."""
+    """설정·환율을 읽어 시뮬레이션을 돌린다. `daily`면 일봉마다의 평가도 만든다(차트)."""
     # 계산하는 곳에서도 한 번 더 본다 — 라우트가 빠뜨려도 막힌 조합이 계산되지 않는다.
     check_principal_currency(principal_currency, coin.quote_currency)
     settings = await get_settings(session)
@@ -220,7 +227,7 @@ async def prepare(
             spread = await cash_buy_spread(session, currency)
     result = await run_simulation(
         session, coin, start=start, end=end, principal=principal,
-        fee_rate=settings.trade_fee_rate, lookup=lookup, spread=spread)
+        fee_rate=settings.trade_fee_rate, lookup=lookup, spread=spread, daily=daily)
     return Prepared(coin=coin, settings=settings, result=result)
 
 

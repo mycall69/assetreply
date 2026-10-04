@@ -278,6 +278,7 @@ def create_app() -> FastAPI:
     from src.api.routes import crypto_list_progress as crypto_list_progress_routes
     from src.api.routes import crypto_progress as crypto_progress_routes
     from src.api.routes import crypto_search as crypto_search_routes
+    from src.api.routes import crypto_series as crypto_series_routes
     from src.api.routes import crypto_settings as crypto_settings_routes
     from src.api.routes import crypto_simulation as crypto_simulation_routes
     from src.api.routes import daily as daily_routes
@@ -316,6 +317,7 @@ def create_app() -> FastAPI:
     app.include_router(crypto_search_routes.router)
     app.include_router(crypto_list_progress_routes.router)
     app.include_router(crypto_simulation_routes.router)
+    app.include_router(crypto_series_routes.router)
     app.include_router(crypto_progress_routes.router)
     app.include_router(crypto_settings_routes.router)
 

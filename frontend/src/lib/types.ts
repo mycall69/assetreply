@@ -89,7 +89,8 @@ export interface SeriesPoint {
 export interface SeriesGap {
   from: string;
   to: string;
-  reason: "no_quote" | "not_collected";
+  /** `source_missing` — 가상자산(007)의 받은 구간 안 출처 결측. 휴장이 없어 끊는다(FR-023). */
+  reason: "no_quote" | "not_collected" | "source_missing";
 }
 
 export interface SeriesResponse {

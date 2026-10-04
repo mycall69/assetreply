@@ -259,15 +259,15 @@ description: "Task list for 007-crypto-investment-simulation"
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T039 [P] [US4] `backend/tests/integration/test_crypto_series_api.py` — `GET /api/crypto/simulation/series`: 점은 일봉마다, 잔고 = `balanceKrw`,
+- [X] T039 [P] [US4] `backend/tests/integration/test_crypto_series_api.py` — `GET /api/crypto/simulation/series`: 점은 일봉마다, 잔고 = `balanceKrw`,
   수익률 KRW 기준, **표 최신 행과 같은 날짜·값**, `basisCurrency: "KRW"`, 커버리지 안 빈 날(픽스처에서 하루를 뺀 일봉) → `gaps.reason: source_missing`
   (`no_quote` 없음), 다운샘플링 표시, 202·오류는 표와 같다 (FR-023, FR-043, FR-044, SC-005, SC-007)
-- [ ] T040 [P] [US4] `frontend/tests/chartSeriesSourceMissing.test.ts`·`PerformanceChartMissing.test.tsx` — `source_missing`에서 선이 끊긴다,
+- [X] T040 [P] [US4] `frontend/tests/chartSeriesSourceMissing.test.ts`·`PerformanceChartMissing.test.tsx` — `source_missing`에서 선이 끊긴다,
   `no_quote`는 여전히 잇는다(외환·주식 불변), 범례 "결측 N구간" (FR-023, FR-043)
 
 ### Implementation for User Story 4
 
-- [ ] T041 [US4] `backend/src/api/services/crypto_series.py`·`backend/src/api/routes/crypto_series.py`(`compute_gaps(…, inside_reason="source_missing")`)·
+- [X] T041 [US4] `backend/src/api/services/crypto_series.py`·`backend/src/api/routes/crypto_series.py`(`compute_gaps(…, inside_reason="source_missing")`)·
   `frontend/src/lib/chartSeries.ts`·`frontend/src/components/stock/PerformanceChart.tsx`(범례)·`frontend/src/app/crypto/page.tsx`(차트 연결)
   (FR-023, FR-043, FR-044)
 - [ ] T042 [US4] 결측이 있는 실데이터를 찾으면 브라우저로 quickstart 19를 확인하고, 못 찾으면 T039·T040으로 대신했다고 기록한다 (FR-023)
