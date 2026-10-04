@@ -83,7 +83,9 @@ describe("수집 중", () => {
 
     progress.handlers?.onCompleted();
     await vi.waitFor(() => expect(useCryptoStore.getState().summary).not.toBeNull());
-    expect(get).toHaveBeenCalledTimes(2);
+    // 시뮬레이션을 다시 요청한 횟수만 센다 — 결과가 나오면 차트 시계열도 받는다(007 T041).
+    const simulations = get.mock.calls.filter(([p]) => String(p).startsWith("/api/crypto/simulation?"));
+    expect(simulations).toHaveLength(2);
     expect(useCryptoStore.getState().collecting).toBeNull();
   });
 
