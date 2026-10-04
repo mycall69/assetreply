@@ -872,3 +872,14 @@ export interface DepositSettings {
   interestTaxRate: DecimalString;
   isDefault: boolean;
 }
+
+/**
+ * 예금 이력 한 줄 (008 FR-037). **조건만** 담는다 — 결과는 금리·세율의 함수라 바뀐다(005 R5-9). 주식·가상자산 이력과 따로 둔다.
+ */
+export interface DepositHistoryEntry {
+  id: string;
+  institution: DepositInstitutionKey;
+  start: string;
+  principal: DecimalString;
+  savedAt: string;
+}

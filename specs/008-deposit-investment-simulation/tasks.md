@@ -255,14 +255,14 @@ description: "Task list for 008-deposit-investment-simulation"
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T031 [P] [US4] `frontend/tests/depositHistory.test.ts`·`DepositHistory.test.tsx`·`depositStoreCompare.test.ts` — 저장 키가 주식·가상자산과 다름
+- [X] T031 [P] [US4] `frontend/tests/depositHistory.test.ts`·`DepositHistory.test.tsx`·`depositStoreCompare.test.ts` — 저장 키가 주식·가상자산과 다름
   (`assetreplay.depositHistory.v1`), 조건만(투자처·시작일·원금 — 결과 수치 없음), 같은 조건은 맨 앞으로, 다시 실행 = 조건을 넣고 곧바로 실행,
   삭제, 둘 이상 골라 비교 → `ComparisonChart`, 범례에 투자처·시작일, 잠정 항목은 "(잠정)", 빠지는 항목은 "…의 시계열을 불러오지 못했습니다"와
   사유(받지 않은 구간 — "실행해서 받으세요", 모르는 투자처) (FR-037, FR-038, SC-005)
 
 ### Implementation for User Story 4
 
-- [ ] T032 [US4] `frontend/src/lib/depositHistory.ts`·`frontend/src/components/deposit/DepositHistory.tsx`·`frontend/src/stores/depositStore.ts`(이력·
+- [X] T032 [US4] `frontend/src/lib/depositHistory.ts`·`frontend/src/components/deposit/DepositHistory.tsx`·`frontend/src/stores/depositStore.ts`(이력·
   비교)·`frontend/src/app/deposit/page.tsx` — D6. 비교는 `ComparisonChart` 그대로(`label`에 잠정 표시) (FR-037, FR-038)
 - [ ] T033 [US4] 브라우저 확인 — quickstart 13~16(세율 0%·되돌리기, 이력 비교, 차트와 표·보드, 1440px 표)을 실행하고 기록한다 (FR-030~FR-038,
   SC-008, SC-009, SC-010)

@@ -9,11 +9,13 @@
  */
 
 import { useEffect, useMemo } from "react";
+import { DepositHistory } from "@/components/deposit/DepositHistory";
 import { DepositNotice } from "@/components/deposit/DepositNotice";
 import { DepositPerformanceTable, formatAnnualRate } from "@/components/deposit/DepositPerformanceTable";
 import { DepositSimulationForm } from "@/components/deposit/DepositSimulationForm";
 import { InstitutionPicker } from "@/components/deposit/InstitutionPicker";
 import { CollectingNotice } from "@/components/stock/CollectingNotice";
+import { ComparisonChart } from "@/components/stock/ComparisonChart";
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
 import { PerformanceChart } from "@/components/stock/PerformanceChart";
 import { shiftDecimal } from "@/lib/format";
@@ -32,6 +34,8 @@ export default function DepositPage() {
     input, institutions, rows, summary, condition, resultName, series, seriesError, collecting,
     progress, startable,
     loading, error, setInput, selectInstitution, loadInstitutions, run, refreshIfRan, dispose,
+    history, historySaveError, selectedHistory, comparison, comparing, comparisonError,
+    restoreHistory, toggleHistory, removeHistoryEntry, rerunHistory, compareSelected,
   } = useDepositStore();
 
   // FR-031 — 설정 화면에 다녀왔을 수 있다. 실행한 결과가 있으면 새 세율로 다시 받는다.
@@ -44,6 +48,10 @@ export default function DepositPage() {
   useEffect(() => {
     void loadInstitutions();
   }, [loadInstitutions]);
+  // FR-037 — 이력은 브라우저에 있다. 화면이 열릴 때 읽는다.
+  useEffect(() => {
+    restoreHistory();
+  }, [restoreHistory]);
 
   // 시작일의 마지막 날 — 오늘(한국 시간). 화면을 연 때로 정한다(서버도 계산 끝을 한국 시간 오늘로 잡는다).
   const limit = useMemo(() => kstToday(), []);
@@ -123,6 +131,22 @@ export default function DepositPage() {
           <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
           <DepositPerformanceTable rows={rows} />
         </section>
+      )}
+
+      <DepositHistory
+        entries={history}
+        selected={selectedHistory}
+        comparing={comparing}
+        saveError={historySaveError}
+        onToggle={toggleHistory}
+        onRemove={removeHistoryEntry}
+        onCompare={() => void compareSelected()}
+        onRerun={(id) => void rerunHistory(id)}
+      />
+
+      {(comparing || comparison.length > 0 || comparisonError !== null) && (
+        // FR-038 — 모두 KRW 기준 수익률로 겹친다. 주식·가상자산 이력과 섞이지 않는다.
+        <ComparisonChart items={comparison} loading={comparing} error={comparisonError} />
       )}
 
       <p className="text-xs text-gray-400">
