@@ -102,6 +102,8 @@
 ### 이력 항목 (FR-037, FR-038)
 
 브라우저 저장소. 주식·가상자산과 **다른 키**(`assetreplay.depositHistory.v1`). 항목: 투자처 키, 시작일, 원금. 결과 수치는 없다.
+기존 키(`assetreplay:stock-history:v1`·`assetreplay:crypto-history:v1`)와 형식이 다르지만 그대로 둔다 — 바꾸면 저장된 이력을 옮겨야 한다.
+다음 자산군은 기존 형식(`assetreplay:<자산군>-history:v1`)을 따른다.
 
 ---
 

@@ -320,6 +320,7 @@ description: "Task list for 008-deposit-investment-simulation"
 - **US2 (Phase 4)**, **US3 (Phase 5)**: US1 뒤. 서로 독립 — 같은 파일(`depositStore.ts`·`page.tsx`·`main.py`)을 만지면 순서대로
 - **US4 (Phase 6)**: US1 뒤(US3의 시계열을 비교에 쓴다 — US3 뒤가 자연스럽다)
 - **Polish (Phase 7)**: 모든 스토리 뒤
+- **반복 (Phase 8)**: US1 뒤(수집 실패 처리를 바꾼다). Polish 뒤에 했다
 
 ### Within Each Phase
 
@@ -333,7 +334,7 @@ description: "Task list for 008-deposit-investment-simulation"
 | `backend/src/api/main.py` | T019, T020, T025, T029 |
 | `backend/src/ingestion/ecos/client.py` | T010 |
 | `frontend/src/lib/types.ts` | T021, T030 |
-| `frontend/src/stores/depositStore.ts` | T021, T026, T030, T032 |
+| `frontend/src/stores/depositStore.ts` | T021, T026, T030, T032, T038 |
 | `frontend/src/app/deposit/page.tsx` | T021, T030, T032 |
 | `frontend/src/components/stock/PerformanceChart.tsx` | T030 |
 | `frontend/tests/Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts` | T016 |
@@ -374,6 +375,7 @@ Task: "T016 frontend 예금 화면·표·안내·스토어"
 3. US3 — 차트(잠정 구간)
 4. US4 — 이력·비교
 5. Polish — 기록 갱신, 게이트, quickstart 전체
+6. 반복 — 확인 실패 뒤 받아 둔 투자처 자동 다시 요청(Phase 8)
 
 ---
 

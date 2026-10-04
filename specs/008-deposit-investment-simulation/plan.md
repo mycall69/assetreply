@@ -73,7 +73,7 @@
 | 인증키 누출 | ✅ | 원본 테이블에 URL 열이 없다. 실패 사유·사건은 `mask_secrets`. 픽스처는 응답 본문만(quickstart 자동 검사) |
 | 001 경로 변경 | ✅(기록) | `EcosClient._get`이 관문을 지난다. 동시 수 기본값이 001과 같아 환율 수집의 출력·속도가 같다(오늘 환율 조회는 백필 중 빈자리를 기다릴 수 있다) — 001~004 테스트 전체가 회귀(Complexity Tracking) |
 | 잠정값 | ✅ | 잠정 금리는 계산 안에서만 대신 쓰고 저장하지 않는다. 결과는 보관하지 않아 발표와 함께 확정으로 바뀐다. 응답·화면의 모든 경로(보드·표·차트·비교)에 잠정이 드러난다(SC-005) |
-| 공유 부품 변경 | ✅(기록) | `PerformanceChart`의 `provisionalFrom`은 선택 속성(기본 `null`), 시계열 응답에 키 하나 추가 — 주식·가상자산 테스트가 회귀 |
+| 공유 부품 변경 | ✅(기록) | `PerformanceChart`의 `provisionalFrom`, `PerformanceBoard`의 `notFinalNotice`, `StartDateInput`의 `afterLimitText`, `CollectingNotice`의 `subject`·`unit` — 모두 선택 속성이고 기본값이 지금 동작이다. 시계열 응답에 키 하나 추가. 005~007 테스트는 바꾸지 않고 통과(T035) |
 
 ## Project Structure
 
@@ -90,7 +90,7 @@ specs/008-deposit-investment-simulation/
 │   ├── rest-api.md      # /api/deposit/* + 출처(ECOS) 계약
 │   └── ui-wireframes.md # D1~D8
 ├── checklists/requirements.md
-└── tasks.md             # /speckit-tasks — 36개, Phase 1~7
+└── tasks.md             # /speckit-tasks — 39개, Phase 1~8(Phase 8은 반복 2026-10-04)
 ```
 
 ### Source Code (repository root)
@@ -105,7 +105,7 @@ backend/
 │   │   ├── deposit_items.py              # 신규 — 투자처 → (통계표, 항목 코드, 이름 패턴), START_TIME (R8-1)
 │   │   ├── deposit_client.py             # 신규 — EcosDepositClient: 항목 확인, 월 시계열(원본 함께 반환) (R8-5)
 │   │   └── deposit_parse.py              # 신규 — StatisticSearch(M) → MonthlyRate, INFO-200 = 미발표, 잘림 검사 (FR-017)
-│   ├── ingestion/protocols.py            # 변경 — DepositRateSource Protocol, MonthlyRate
+│   ├── ingestion/protocols.py            # 변경 — MonthlyRate·MonthlyFetchResult, DepositSeries Protocol(항목 손잡이). 수집 출처 Protocol DepositSource는 worker/deposit_runner.py
 │   ├── db/models.py                      # 변경 — Deposit* 6개 (data-model)
 │   ├── db/migrations/versions/…_예금_스키마.py  # 신규
 │   ├── repository/
@@ -131,7 +131,7 @@ backend/
 └── tests/
     ├── contract/fixtures/deposit/        # 신규 — 실제 응답(항목 목록 2, 시계열 5, INFO-200·100·300)
     ├── contract/                         # test_ecos_deposit_parse.py, test_ecos_deposit_client.py, test_ecos_gate.py
-    ├── unit/                             # deposit_rollover(참조값 다섯), 202 판정, 잠정·결측
+    ├── unit/                             # deposit_rollover(참조값 여섯, 잠정·결측·경계). 202 판정은 통합 테스트(test_deposit_simulation_api)
     └── integration/                      # 수집·커버리지·확인한 날·겹침 사건, 202 게이트, 시뮬레이션·시계열, SSE, 설정, lifespan, 환율과 동시 수집
 
 frontend/
@@ -145,15 +145,21 @@ frontend/
 │   │   ├── DepositNotice.tsx             # 신규 — 보드 아래 잠정·멈춤 줄 (D3)
 │   │   └── DepositHistory.tsx            # 신규 — 이력·다시 실행·비교 (D6)
 │   ├── components/stock/PerformanceChart.tsx   # 변경 — 선택 속성 provisionalFrom(연한 색, 범례 "잠정") (D5)
-│   ├── components/stock/PerformanceBoard.tsx·ComparisonChart.tsx·StartDateInput.tsx·CollectingNotice.tsx  # 그대로
+│   ├── components/stock/PerformanceBoard.tsx  # 변경 — 선택 속성 notFinalNotice(기본 true). 예금은 멈춘 사유를 DepositNotice가 말한다
+│   ├── components/stock/StartDateInput.tsx    # 변경 — 선택 속성 afterLimitText, Startable.basis에 "rate_start"
+│   ├── components/stock/CollectingNotice.tsx  # 변경 — 선택 속성 subject("금리")·unit("개월"), 예금 202·진행 타입
+│   ├── components/stock/ComparisonChart.tsx   # 그대로
 │   ├── components/settings/DepositSettingsForm.tsx  # 신규 — 이자 소득세율 (D7)
 │   ├── app/settings/page.tsx             # 변경 — 예금 칸 연결
 │   ├── components/shell/Sidebar.tsx      # 변경 — 예금에 /deposit (D1)
 │   ├── lib/types.ts                      # 변경 — 예금 응답 형식, SimulationSeriesResponse.provisionalFrom?
+│   ├── lib/startDate.ts                  # 변경 — kstToday(시작일 상한 = 오늘, 한국 시간)
 │   ├── lib/depositHistory.ts             # 신규 — 이력(다른 저장 키)
 │   └── lib/depositProgressStream.ts      # 신규 — /api/deposit/progress 구독
 └── tests/                                # 각 변경에 대응. noUnbuiltAssetRoutes.test.ts에서 deposit을 뺀다
 ```
+
+`components/shell/TopBar.tsx`는 008 범위 밖의 결함 수정이다(제목 표에 가상자산·주식·예금 — 2026-10-04, 별도 커밋).
 
 **Structure Decision**: 기존 웹 애플리케이션 구조를 그대로 쓴다. 예금은 주식·가상자산과 **같은 층을 나란히** 둔다(파일 접두사 `deposit_`).
 출처 어댑터는 001과 같은 `ingestion/ecos/` 안에 두되 환율 모듈과 파일을 나눈다 — 같은 출처의 지식(응답 형식·오류 코드·관문)은 한 곳에,

@@ -24,7 +24,9 @@
 
 - 메뉴 순서는 그대로(외환 → 가상자산 → 주식 → **예금** → 부동산), 예금의 "준비중"이 사라진다(FR-001)
 - 투자처는 **라디오 버튼 다섯**, 기본 시중은행(FR-003). 고른 투자처 아래 한 줄: 통계 설명과 시작 가능 달(받아 두었으면 — `GET
-  /api/deposit/institutions`의 `firstMonth`, 모르면 줄의 앞부분만)
+  /api/deposit/institutions`의 `firstMonth`, 모르면 줄의 앞부분만). 이름 다섯은 고정이라 화면이 목록을 받기 전에도 그린다
+  (`depositStore.INSTITUTION_NAMES`). 설명·시작 가능 달만 `GET /api/deposit/institutions`가 준다 — 목록을 받지 못해도 고르고 실행할 수
+  있다. 이름을 바꿀 때는 서버(`deposit_simulation.INSTITUTIONS`)와 함께 바꾼다
 - 원금은 **원화만** — 통화 칸이 없고 단위 "원"을 글자로 둔다(FR-004). 3자리 쉼표(006과 같다)
 - 재투자(재예치) 선택 칸이 **없다** — 항상 재예치한다(FR-002)
 - 화면 아래 출처 줄(research R8-2, 헌법 원칙 II)
