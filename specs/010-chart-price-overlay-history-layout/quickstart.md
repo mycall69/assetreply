@@ -169,3 +169,16 @@ cd frontend && npm test && npx tsc --noEmit && npx eslint .
 - **실측이 찾은 다듬을 점(고침)**: 처음 측정에서 표 칸이 남는 폭을 가져가(`flex: 999 1 auto`) 1920px 창에서 표와 이력 사이에 약 180px
   빈 칸이 생기고 이력이 화면 끝에 붙었다. 표 칸 `flex: 0 1 auto`(늘지 않음), 이력 칸이 남는 폭을 가져가게 고쳤다(테스트 먼저). 줄을 나누는
   기본 크기는 같아 경계 폭은 고치기 전후 같다(다시 잼 — 위 표가 고친 뒤 값).
+
+### 2026-10-05 T039 — quickstart 10 (계산 불변)
+
+T001의 기준 응답(19:22 KST)과 구현 뒤 같은 조건의 응답(20:35 KST)을 대조했다.
+
+| 참조 실행 | 표(`/simulation`) `summary`·`rows` | 시계열 기존 키(`balance`·`returnRate`·`gaps`·`provisionalFrom`·`estimated`·`provisional`) | 더한 키 |
+|-----------|-------------------------------------|----------------------------------------------------------------------------------------|---------|
+| 주식 AAPL | 같음(112행) | 같음(112점) | `priceKind`·`priceCurrency`·`splits`, 점 `price` |
+| 가상자산 BTC | 같음(34행) | 같음(1,008점) | `priceKind`·`priceCurrency`, 점 `price` |
+| 예금 시중은행 | 같음(38행) | 같음(37점) | `priceKind`·`priceCurrency`, 점 `price`·`priceMissing` |
+| 부동산 헬리오시티·가락미륭 | 같음(68행·68행) | 같음(69점·65점) | `priceKind`·`priceCurrency`, 점 `price`·`priceMissing`·`profit` |
+
+계산 계층(`backend/src/simulation/`)·표 경로 라우트·이력 비교 차트(`ComparisonChart.tsx`)·외환 화면은 이 기능 전 커밋(`73077aa`)과 diff가 없다.

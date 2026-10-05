@@ -318,10 +318,10 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   금리, 부동산 그 달 실거래가 평균, 눈금 없는 겹침 축 / 커서 가까이 상자·값 없는 칸의 사유 / 표 옆 최근 시뮬레이션 — 경계는 표의 실제 폭 / 주식 이력
   다시 실행). CLAUDE.md에 **차트 모의 객체 주의**(기존 차트 테스트의 인라인 모의 객체에 없는 API·열거형을 실행 중에 쓰지 않는다)와 **가격 결측은
   `gaps`가 아니라 `priceMissing`**을 한 줄씩 (헌법 원칙 VIII — 문서화. 대응 FR 없음)
-- [ ] T038 품질 게이트 — 서버를 내리고 백엔드 전체 테스트·커버리지 80% 이상·`mypy src`(strict)·`ruff check --no-cache src tests`, 프론트엔드
+- [X] T038 품질 게이트 — 서버를 내리고 백엔드 전체 테스트·커버리지 80% 이상·`mypy src`(strict)·`ruff check --no-cache src tests`, 프론트엔드
   `npm test`·`npx tsc --noEmit`·`npx eslint .`. **기존 테스트 파일이 plan의 목록(T029의 둘) 밖에서 바뀌지 않았는지** `git diff --stat`(T002 기준
   커밋부터)으로 따로 확인하고, 통과 수를 T002와 견준다 (SC-006)
-- [ ] T039 quickstart 10을 실행하고 기록한다 — T001의 기준 응답과 같은 조건의 구현 뒤 응답을 대조한다: 표 경로의 `summary`·`rows`가 같고, 시계열
+- [X] T039 quickstart 10을 실행하고 기록한다 — T001의 기준 응답과 같은 조건의 구현 뒤 응답을 대조한다: 표 경로의 `summary`·`rows`가 같고, 시계열
   경로의 기존 키(`balance`·`returnRate`·`gaps`·`provisionalFrom`·`estimated`·`provisional`)가 같다(새 키만 늘었다). 이력 비교 차트·외환 화면이 그대로다.
   다른 것이 하나라도 있으면 멈추고 보고한다. 끝나면 서버를 내린다 (FR-021, SC-006)
 
@@ -415,3 +415,12 @@ Task: "T012 PerformanceChartPrice.test.tsx — 겹침 축·끊김·표식·범�
   30평대(complexId 4, 표 68행·점 69)·가락미륭 20평대(complexId 17, 점 65 — 시세 없음 구간). 가상자산의 "표와 대조"(T008·T018)는 표에 있는 날만 할 수
   있다 — 나머지 날은 받아 둔 일봉의 시가와 대조한다
 - **2026-10-05 T002 기준 게이트**: 백엔드 2,315 passed(커버리지 95.92%), mypy 195 파일 통과, ruff 통과 / 프론트엔드 114 파일·1,031 passed, tsc·eslint 통과
+- **2026-10-05 T038 품질 게이트**: 백엔드 2,356 passed(T002의 2,315 + 새 41), 커버리지 95.96%, mypy 195 파일·ruff(`--no-cache`) 통과 /
+  프론트엔드 123 파일·1,110 passed(1,031 + 새 79), tsc·eslint 통과. 이 기능 전 커밋(`73077aa`)과 견준 기존 테스트 파일의 변경은
+  plan 목록의 둘(`SimulationHistoryList`·`SimulationHistoryBlocked` — `onRerun` 속성만, T029 승인)뿐이다
+- **2026-10-05 실측이 바꾼 것**: T025 — 상자 자리를 `point`(그림 칸 기준) 대신 `sourceEvent` 화면 좌표로(가격 축 폭만큼 밀려 커서를
+  덮었다). T036 — 표 칸 `flex: 0 1 auto`·이력 칸이 남는 폭(표 칸이 늘어 1920px에서 표와 이력 사이에 빈 칸), 표 칸 `min-w-0`(좁은 창에서
+  표 안 가로 스크롤 — 처음 설계의 "넣지 않는다"는 틀린 전제). 상자의 수익률 형식은 표와 같은 `formatPercent`(처음 설계는
+  `formatYield`). 모두 테스트를 먼저 고치고 구현했다. 범위 밖 기존 한계 하나를 기록했다 — 그린 뒤 창을 줄이면 차트 캔버스가 처음 폭을
+  지킨다(005부터 `autoSize` 없음, quickstart T036)
+
