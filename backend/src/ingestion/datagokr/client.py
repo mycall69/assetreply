@@ -63,7 +63,10 @@ TIMEOUT: Final = aiohttp.ClientTimeout(total=60)
 _AUTH_REASONS: Final = frozenset({"20", "30", "31", "32"})
 _RATE_REASONS: Final = frozenset({"22"})
 _GONE_REASONS: Final = frozenset({"12"})
-_REASON = re.compile(r"<returnReasonCode>\s*(\d+)\s*</returnReasonCode>")
+#: 게이트웨이 사유 — XML 자료(실거래)는 `<returnReasonCode>30</returnReasonCode>`, JSON
+#: 자료(법정동코드·단지 목록· 기본 정보)는 `"returnReasonCode": "30"`이다(T054 실측).
+_REASON = re.compile(r"<returnReasonCode>\s*(\d+)\s*</returnReasonCode>"
+                     r'|"returnReasonCode"\s*:\s*"?(\d+)"?')
 _RESULT_CODE = re.compile(r'"resultCode"\s*:\s*"([^"]+)"|<resultCode>([^<]+)</resultCode>')
 
 @dataclass(frozen=True, slots=True)
@@ -83,7 +86,7 @@ def result_code(body: str) -> str | None:
     """원본 표에 남길 결과 코드 — 출처의 결과 코드 또는 게이트웨이 사유."""
     reason = _REASON.search(body)
     if reason:
-        return reason.group(1)
+        return reason.group(1) or reason.group(2)
     found = _RESULT_CODE.search(body)
     return (found.group(1) or found.group(2)) if found else None
 
@@ -149,7 +152,7 @@ class DataGoKrClient:
         """게이트웨이 오류·HTTP 오류를 실패 종류로 바꾼다. 통과하면 본문을 파서가 읽는다."""
         if "OpenAPI_ServiceResponse" in body:
             found = _REASON.search(body)
-            reason = found.group(1) if found else "?"
+            reason = (found.group(1) or found.group(2)) if found else "?"
             if reason in _AUTH_REASONS:
                 raise DataGoKrAuthError(
                     f"공공데이터포털 인증 실패(사유 {reason}) — 인증키와 활용신청을 확인하세요")
