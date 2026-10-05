@@ -62,7 +62,7 @@
 | 원칙 | 판정 | 근거 |
 |------|------|------|
 | I. 비동기 우선 | ✅ | 새 I/O가 없다. 예금 금리는 `prepare`가 이미 비동기로 읽은 값을 넘긴다. 주식 분할도 `run_simulation`이 이미 읽은 값 |
-| II. 데이터 소스 격리 | ✅ | 출처를 건드리지 않는다. 응답의 `priceKind`·`priceMissing`은 도메인 용어다(출처 필드명이 아니다). 반복 1의 외부 링크(네이버 증권·부동산)는 **데이터를 받지 않는다** — 이 앱이 네이버를 부르지 않고, 사용자가 새 탭에서 연다. 공개되지 않은 단지 API를 쓰지 않는다(사용자 결정) — 이탈 없음 |
+| II. 데이터 소스 격리 | ✅ | 출처를 건드리지 않는다. 응답의 `priceKind`·`priceMissing`은 도메인 용어다(출처 필드명이 아니다). 반복 1의 외부 링크(네이버 증권·부동산)는 **데이터를 받지 않는다** — 이 앱이 네이버를 부르지 않고, 사용자가 새 탭에서 연다. 공개되지 않은 단지 API를 쓰지 않는다(사용자 결정) — 이탈 없음. **반복 3: ⚠ 이탈(사용자 승인 2026-10-06)** — Npay 부동산 단지 자동완성(공개되지 않은 내부 API)으로 단지 번호를 찾는다(FR-029). 어댑터 `ingestion/naver_land/`로 격리하고(출처 키 이름이 밖으로 나가지 않음), 세마포어 1·요청 사이 최소 간격·지수 백오프 + 지터·사용자 에이전트를 설정(`NAVER_LAND_*`)으로 둔다. 단지 하나에 한 번 찾아 저장한다. Complexity Tracking |
 | III. TDD (NON-NEGOTIABLE) | ✅ | 시계열 4경로의 계약·통합 테스트(표와 가격 대조, 다운샘플, 사유), 순수 함수 단위 테스트(`priceSegments`·`splitMarks`(반복 1에서 제거)·`gapSlots`·`hoverView`·`placeHover`), 차트·배치·다시 실행 화면 테스트를 먼저 커밋하고 최초 실패를 확인한다. 구현 뒤 기존 테스트가 실패하면 멈추고 보고(006 D2). 실행 주체(다시 실행 버튼 → 스토어 → `run()`)는 버튼을 눌러야만 통과하는 테스트와 짝짓는다(006 D1) |
 | IV. 모듈화 | ✅ | 계산 계층(`simulation/`)은 바뀌지 않는다. 시계열 조립은 계산 결과를 옮길 뿐이다. 화면 쪽 규칙은 순수 함수(`lib/chartSeries.ts`·`lib/chartHover.ts`)로 두어 DOM 없이 검사한다 |
 | V. 정합성·재현성 | ✅ | 가격 결측을 지어내지 않는다 — 점이 없거나 `null` + 사유(`unpublished`·`missing`·`no_trades`). 직전 값 복사·앞뒤 잇기 없음(FR-003). 예금 잠정 달에 대신 쓴 금리를 그 달 금리로 내지 않는다. 결측 구간마다 시간 축에 자리 하나를 남겨 커서로 사유를 보인다(R10-8). 부동산 추정 표식은 평가액에만. 반복 1의 수정 종가는 **명시 규칙**(원주가 종가 ÷ 그 뒤 분할 비율)으로 계산하고 저장하지 않는다 — 원본은 원주가·분할 기록이고, 출처의 배당 소급 수정가(받은 시점마다 기준이 다름)는 쓰지 않는다. 상자가 "수정 종가"로 표의 원주가와 다른 값임을 밝힌다 |
@@ -70,7 +70,7 @@
 | VII. UI·진행 | ✅ | Zustand, Lightweight Charts. 다시 실행의 수집 진행은 기존 SSE 경로 그대로 |
 | VIII. 한국어 | ✅ | 문서·주석·커밋 한국어 |
 | IX. MVP·자산군 순서 | ✅ | 새 자산군이 아니다 — 기존 네 자산군 화면의 개선. 외환은 시뮬레이션이 없어 범위 밖 |
-| DB 운영 규약 | ✅ | DB 변경 없음 |
+| DB 운영 규약 | ✅ | DB 변경 없음. **반복 3**: 새 테이블 `apt_complex_naver` 하나 — Alembic 리비전으로만 만든다(수동 DDL 없음) |
 | 크로스 플랫폼 | ✅ | 새 플랫폼 의존 없음 |
 | 명세 작성 규약 | ✅ | 설계 중 바뀐 요구(FR-008 표식 자리, FR-003·FR-011·SC-002 예금 결측 달, FR-009 부동산 평가액)를 spec에 같은 작업 단위로 반영했다. 모든 FR·SC는 아래 추적성 표의 설계와 태스크에 연결된다 |
 
@@ -84,6 +84,7 @@
 | 배치의 경계 | ✅ | 상수 없음 — 표 고유 폭으로 줄바꿈. 측정 경계 모두 1920px 이하. 표의 열을 줄이지 않으므로 1440px 기준(006 FR-069·007 FR-041·008 FR-034·009 FR-028·SC-010)을 구조적으로 지킨다 |
 | 라이브러리 모의 객체 | ✅ | 기존 모의 객체가 지원하는 API(`addSeries`·`setData`·`subscribeCrosshairMove`·`timeScale`·`remove`)와 `createChart` 옵션만 쓴다. 라이브러리 열거형을 실행 중에 읽지 않는다 |
 | 바뀌는 기존 테스트 | ✅(승인 — T029) | `SimulationHistoryList.test.tsx`·`SimulationHistoryBlocked.test.tsx`의 렌더 10곳에 `onRerun` 속성만 더한다(검사 내용 그대로 — R10-12). 구현 단계에서 사용자 승인을 받는다(006 D2) |
+| 바뀌는 기존 테스트 (반복 3) | ✅(승인 — 2026-10-06) | 잔고 종가 평가(FR-028): 백엔드 단위 12개 파일의 `DayBar` 생성에 종가 인자(값은 시가와 같게 — 기대값 그대로), 의미가 바뀌는 곳은 `test_reinvest_balance`(잔고 = 보유 × **종가**) 하나. 프론트엔드 최대 7개 파일(`PerformanceTable`·`PerformanceTableCurrency`의 열 목록에 "종가", 행 픽스처에 `closePrice`). 통합 테스트는 바뀌지 않는다(R10-18 실측 — 임시 사본에서 2,361개 통과) |
 | 바뀌는 기존 테스트 (반복 1) | ✅(없음 — 실측) | 통화 전환은 `tableEpoch`를 올리지 않아 004 `fxWorkspaceScroll`·`PeriodSwitch`는 그대로다(R10-16). 외환 화면 배치를 검사하는 기존 테스트는 없다. 010 자체 테스트(`test_stock_series_price*`·`PerformanceChartPrice`·`chartSeriesPrice`·`chartHover`·`PerformanceChartHover`)는 이 기능 안의 반복 변경이다(T042·T043) |
 
 ## Project Structure
@@ -109,7 +110,8 @@ specs/010-chart-price-overlay-history-layout/
 ```text
 backend/
 ├── src/api/services/
-│   ├── stock_simulation.py     # SimulationResult.splits (기본값 ()), closes — 원주가 종가(반복 1)
+│   ├── stock_simulation.py     # SimulationResult.splits (기본값 ()), closes — 원주가 종가(반복 1), DayBar에 close_raw(반복 3)
+│   ├── apt_naver_link.py       # (반복 3 신규) pick_naver_complex(순수 함수)·단지 번호 찾기·저장·재사용
 │   ├── stock_series.py         # SeriesPoint.price — 반복 1: 분할만 반영한 수정 종가(StockSeries.splits는 응답에서 뺌)
 │   ├── crypto_series.py        # SeriesPoint.price
 │   ├── deposit_simulation.py   # Prepared.rates·latest_month
@@ -120,20 +122,32 @@ backend/
 │   ├── crypto_series.py        # priceKind·priceCurrency, 점 price
 │   ├── deposit_series.py       # priceKind·priceCurrency(null), 점 price·priceMissing
 │   └── realestate_series.py    # priceKind·priceCurrency, 점 price·priceMissing·profit
+├── src/api/routes/stock_simulation.py   # (반복 3) 행 closePrice
+├── src/api/routes/realestate_complexes.py  # (반복 3) GET /api/realestate/complexes/{id}/naver
+├── src/simulation/reinvest.py  # (반복 3) DayBar.close_price(필수), Row.close_price, 잔고 = 보유 × 종가
+├── src/ingestion/naver_land/   # (반복 3 신규) client.py·parse.py·errors.py — Npay 부동산 단지 자동완성(원칙 II 이탈)
+├── src/repository/apt_naver.py # (반복 3 신규) apt_complex_naver 읽기·쓰기
+├── src/db/models.py · src/db/migrations/versions/*_네이버_단지_번호.py  # (반복 3) AptComplexNaver
+├── src/config/settings.py · ../.env.example  # (반복 3) NAVER_LAND_* 설정
+├── src/api/main.py             # (반복 3) lifespan에 NaverLandClient 하나
 └── tests/
-    ├── unit/                   # 새 파일 — 조립 함수의 가격·분할·사유·다운샘플
-    └── integration/            # 새 파일 — 네 경로의 표 대조(SC-001)·사유·다운샘플
+    ├── unit/                   # 새 파일 — 조립 함수의 가격·분할·사유·다운샘플 (반복 3: 종가 평가, 단지 고르기)
+    ├── contract/               # (반복 3) Npay 부동산 자동완성 응답 픽스처로 파싱
+    └── integration/            # 새 파일 — 네 경로의 표 대조(SC-001)·사유·다운샘플 (반복 3: 주식 행 closePrice, 단지 번호 경로)
 
 frontend/
 ├── src/lib/
 │   ├── types.ts                # 선택 키: price·priceMissing·profit, priceKind·priceCurrency (반복 1: splits·SplitMark 제거)
 │   ├── chartSeries.ts          # priceSegments·gapSlots (반복 1: splitMarks 제거)
 │   ├── chartHover.ts           # (신규) hoverView·placeHover (반복 1: 주식 줄 "주가(수정 종가)", notes 제거)
-│   ├── externalLinks.ts        # (반복 1 신규) 네이버 증권·코인·부동산 검색 URL 만들기
+│   ├── externalLinks.ts        # (반복 1 신규) 네이버 증권·코인·부동산 검색 URL 만들기 (반복 3: naverComplexLink)
+│   ├── naverComplexLink.ts     # (반복 3 신규) 단지 번호 경로를 단지마다 한 번 묻고 기억 — useNaverComplexHref
 │   └── format.ts               # formatAnnualRate를 예금 표 부품에서 옮긴다(차트가 쓴다 — 부품 간 역참조를 피한다)
 ├── src/components/
 │   ├── TableWithHistory.tsx    # (신규) 줄바꿈 flex + sticky 이력 칸
 │   ├── stock/PerformanceChart.tsx   # 가격 선·값 없는 자리·커서 상자·범례, 아래 한 줄 제거 (반복 1: 분할 표식 제거)
+│   ├── stock/PerformanceTable.tsx   # (반복 3) "종가" 열(시작가 바로 뒤)
+│   ├── realestate/ComplexLink.tsx   # (반복 3 신규) 단지 이름 링크 — 검색 주소로 시작해 단지 번호가 오면 Npay 부동산 단지 화면
 │   ├── stock/StockSearch.tsx · crypto/CoinSearch.tsx · realestate/RealEstateBoard.tsx  # (반복 1) 고른 이름·단지 이름을 외부 링크로
 │   ├── stock/SimulationHistory.tsx  # onRerun(필수)·다시 실행 버튼, 행 줄바꿈 (반복 1: 이름 링크)
 │   ├── crypto/CryptoHistory.tsx · deposit/DepositHistory.tsx · realestate/RealEstateHistory.tsx  # 행 줄바꿈 (반복 1: 가상자산·부동산 이름 링크)
@@ -195,6 +209,8 @@ CLAUDE.md · README.md           # 현재 상태 표에 010 (반복 1 내용 더
 | FR-025 (코인 외부 링크 — 반복 1) | R10-14, data-model 7절, F5, quickstart 12, tasks T040·T044·T045·T049·T051 |
 | FR-026 (부동산 검색 링크 — 반복 1) | R10-15, data-model 7절, F5, quickstart 12, tasks T040·T044·T045·T049·T051 |
 | FR-027 (이력 행 버튼은 내용 바로 뒤 — 반복 2) | F3·F4, tasks T055·T056·T057 |
+| FR-028 (주식 종가 열·잔고 종가 평가 — 반복 3) | R10-18, data-model 8.1, rest-api 반복 3, F6, quickstart 14, tasks T058·T059·T060·T063·T064·T067 |
+| FR-029 (Npay 부동산 단지 화면 — 반복 3, FR-026 대체) | R10-19, data-model 8.2, rest-api 반복 3, F5, quickstart 15, tasks T061·T062·T065·T066·T067 |
 | FR-021 (계산·이력 형식 불변) | R10-1, data-model 5절, quickstart 10, tasks T001·T037·T039, 반복 1 — tasks T054 |
 | SC-001 | 네 경로 통합 테스트(표 대조), quickstart 1~4, tasks T007·T008·T009·T010·T018, 반복 1 — tasks T042·T051 |
 | SC-002 | 사유 테스트(예금 `unpublished`·`missing`, 부동산 `no_trades`), `priceSegments` 단위 테스트, quickstart 2~4, tasks T005·T008·T009·T010·T011·T018 |
@@ -204,8 +220,14 @@ CLAUDE.md · README.md           # 현재 상태 표에 010 (반복 1 내용 더
 | SC-006 | 기존 자동 검사 전체(바뀌는 것은 R10-12의 둘뿐), quickstart 10, tasks T001·T002·T038·T039, 반복 1 — tasks T053·T054 |
 | SC-007 (반복 1) | 링크 단위·화면 테스트, quickstart 12, tasks T044·T045·T051 |
 | SC-008 (반복 1) | 외환 화면 테스트, quickstart 13, tasks T046·T051 |
+| SC-009 (반복 3) | 주식 표 행 통합 테스트, quickstart 14, tasks T059·T067·T068 |
+| SC-010 (반복 3) | 단지 번호 경로 통합 테스트, quickstart 15, tasks T062·T067 |
 ## Complexity Tracking
 
-헌법 이탈이 없다. 기록할 만한 설계 선택은 두 가지이고, 둘 다 원칙을 지키는 쪽이다.
+| 이탈 | 이유 | 더 단순한 대안을 버린 이유 |
+|------|------|----------------------------|
+| **원칙 II — Npay 부동산의 공개되지 않은 내부 API**(단지 자동완성 `fin.land.naver.com/front-api/v1/search/autocomplete/complexes`, 반복 3, **사용자 승인 2026-10-06**) | 단지 이름에서 Npay 부동산의 그 단지 화면을 바로 열려면 네이버 단지 번호가 있어야 하는데, 공개 검색 결과 주소도 공개 API도 없다(R10-15·R10-19 실측). 자동완성은 법정동 코드를 함께 주어 같은 이름의 다른 지역 단지를 가를 수 있다. **개인 이용 전제의 잠정 결정**이다 — 005(Yahoo)·007(investing.com)과 같다. 도구를 공개하거나 여러 사용자에게 제공할 계획이 생기면 전제가 깨진다. 네이버 이용약관은 허가 없는 자동 수집을 제한한다 — 단지마다 한 번만 부르고 번호(와 원본)만 저장한다 | 네이버 통합검색(반복 1의 FR-026) — 사용자가 단지 화면을 바로 원했다(검색은 물러남 경로로 남긴다). 단지 주소 붙여 넣기 — 원칙을 지키지만 사용자가 고르지 않았다. 통합검색 HTML 읽기 — 역시 비공개이고 자주 바뀐다 |
+
+반복 2까지 기록할 만한 설계 선택은 두 가지이고, 둘 다 원칙을 지키는 쪽이다.
 - **값 없는 자리(R10-8)** — 결측 구간마다 시간 축에 자리가 하나 생긴다. 차트 모양이 바뀌는 유일한 곳이다.
 - **공유 차트의 조건부 시리즈(R10-7)** — 가격 시리즈는 점에 `price` 키가 있을 때만 만든다. 그래서 가격 없는 기존 응답은 지금과 같이 그린다.

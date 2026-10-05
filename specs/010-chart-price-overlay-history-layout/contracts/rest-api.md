@@ -2,8 +2,9 @@
 
 **Feature**: `010-chart-price-overlay-history-layout` | **Date**: 2026-10-05
 
-새 경로가 없다. 네 시계열 경로의 **200 응답에 키를 더할 뿐**이다. 질의 매개변수·202(수집 중)·오류(400·404·409)·`gaps`·다운샘플·기존 키는 그대로다
-(005~009 계약). 금액·가격·비율은 지금처럼 **문자열**이다(헌법 원칙 VI). 시뮬레이션(표) 경로는 바뀌지 않는다(FR-021).
+반복 2까지는 새 경로가 없다. 네 시계열 경로의 **200 응답에 키를 더할 뿐**이다. 질의 매개변수·202(수집 중)·오류(400·404·409)·`gaps`·다운샘플·기존 키는 그대로다
+(005~009 계약). 금액·가격·비율은 지금처럼 **문자열**이다(헌법 원칙 VI). 시뮬레이션(표) 경로는 바뀌지 않는다(FR-021) — **반복 3에서 둘이 바뀐다**: 주식 표 행에
+`closePrice`가 생기고 잔고가 종가 평가다(FR-028, 아래 "반복 3"), 부동산에 단지 번호 경로가 생긴다(FR-029).
 
 | 경로 | 더하는 키 |
 |------|-----------|
@@ -114,3 +115,33 @@
 - 예금 — `unpublished`(마지막 발표 달 뒤)·`missing`(발표 기간 안 빈 달) 각 하나.
 - 부동산 — `no_trades` 달의 `balance`·`returnRate`가 표와 같고 `price`가 `null`. `profit`이 표와 같다.
 - 기존 `gaps` 정확 비교 테스트는 바꾸지 않고 통과한다.
+
+## 반복 3 (2026-10-06)
+
+### `GET /api/stocks/simulation` — 행에 `closePrice`, 잔고는 종가 평가 (FR-028)
+
+```json
+{"rows": [{"date": "2026-10-01", "kind": "month_first", "openPrice": "330.000000", "closePrice": "330.320007",
+           "heldShares": 119, "balance": "39308.08…", "profit": "…", "returnRate": "…", "…": "…"}]}
+```
+
+- `closePrice` — 그 행 날짜의 **원주가 종가**(저장소 `close_raw`) 문자열. 늘 있다(종가가 없는 일봉은 쓰지 않는다 — 원칙 V).
+- `balance` = `heldShares` × `closePrice`(종목 통화). `profit`·`returnRate`와 원화 환산 값(`balanceKrw` 등)이 이 잔고를 따른다. 매수(`boughtShares`)·
+  수수료·`dividendYield`(÷ `openPrice`)는 그대로 시가다.
+- 시계열(`/series`)의 `balance`·`returnRate`도 같은 잔고다(표와 차트가 같은 계산 — FR-002). 점의 `price`(분할만 반영한 수정 종가)는 그대로다.
+
+### `GET /api/realestate/complexes/{complexId}/naver` — Npay 부동산 단지 화면 주소 (FR-029)
+
+```json
+{"complexId": 4, "status": "found", "url": "https://fin.land.naver.com/complexes/111515", "reason": null}
+{"complexId": 17, "status": "not_found", "url": null, "reason": null}
+{"complexId": 4, "status": "failed", "url": null, "reason": "rate_limited"}
+```
+
+- 200 — 세 상태. `found`는 저장한 번호(처음이면 출처에서 찾아 저장한 뒤). `not_found`는 같은 법정동에서 고를 후보가 없거나 여럿(저장 — 정해진 날 수 뒤 다시
+  찾는다). `failed`는 출처 실패(`reason`: `blocked`(403)·`rate_limited`(429가 재시도 끝까지)·`network`·`format`) — **저장하지 않는다**.
+- 404 — 모르는 단지(`{"detail": …}` — 다른 부동산 경로와 같은 꼴). 합쳐진 단지는 합쳐 받은 단지로 찾는다(응답의 `complexId`는 요청한 값).
+- 출처 응답 형식·검색어·원본은 응답에 싣지 않는다(어댑터 밖으로 나가지 않는다 — 원칙 II).
+- 계약 테스트: 저장된 응답 픽스처(헬리오시티·미륭·개포자이·리센츠)로 파싱과 고르기, 가짜 클라이언트로 저장·재사용(두 번째 요청에 출처 호출 0)·실패 미저장·
+  못 찾음 다시 찾기·404.
+

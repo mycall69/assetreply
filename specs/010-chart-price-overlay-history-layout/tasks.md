@@ -468,6 +468,51 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 ---
 
+## Phase 10: 반복 3 (2026-10-06) — 주식 종가 평가·Npay 부동산 단지 화면
+
+**Purpose**: 주식 표에 종가 열을 두고 잔고를 종가로 평가한다(FR-028). 부동산 단지 이름이 Npay 부동산의 그 단지 화면을 연다(FR-029 — 원칙 II 이탈, 사용자 승인).
+
+### Tests for 반복 3 ⚠️
+
+- [ ] T058 [US1] 백엔드 단위 — 승인된 기존 테스트 변경(2026-10-06): `backend/tests/unit/`의 `test_dividend_rows`·`test_dividend_tax`·`test_reinvest_amounts`·
+  `test_reinvest_lag`·`test_reinvest_off`·`test_reinvest_on`·`test_same_day_events`·`test_buy_quantity`·`test_no_interpolation`·`test_reinvest_core`·
+  `test_reference_parity`의 `DayBar` 생성에 종가 인자(값 = 시가 — 기대값 그대로), `test_reinvest_balance`는 종가가 다른 시세로 "잔고 = 보유 × 종가". 새 파일
+  `test_reinvest_close_valuation.py` — 잔고·수익·수익률이 종가 평가, 매수 수량·금액·수수료·배당율은 시가, `Row.close_price` (FR-028)
+- [ ] T059 [P] [US1] `backend/tests/integration/test_stock_simulation_close_api.py` — 시가와 종가가 다른 시드로 표 행 `closePrice` = 그 날 `close_raw`, `balance` =
+  `heldShares` × `closePrice`, 원화 원금 해외 종목의 `balanceKrw`가 그 잔고의 환산, 시계열 `balance`가 표와 같다 (FR-028, SC-009)
+- [ ] T060 [P] [US1] 프론트엔드 — 새 파일 `frontend/tests/PerformanceTableClose.test.tsx`(시작가 바로 뒤 "종가" 열, `formatRate`, 종목 통화 머리말). 승인된 기존
+  변경: `PerformanceTable`·`PerformanceTableCurrency`의 열 목록에 "종가", 행 픽스처(`PerformanceTable*`·`PerformanceBoard*`)에 `closePrice` (FR-028)
+- [ ] T061 [P] [US5] 백엔드 계약·단위 — `backend/tests/contract/test_naver_land_contract.py`(저장된 응답 본문 픽스처 `tests/contract/fixtures/naver_land/` 헬리오시티·
+  미륭·개포자이·리센츠 → 후보, 403 → 차단(재시도 없음), 429·5xx → 백오프 재시도 뒤 실패, 깨진 본문 → 형식 오류, 요청에 사용자 에이전트·Referer·최소 간격),
+  `backend/tests/unit/test_naver_pick.py`(R10-19 표의 여섯 사례, 다른 법정동의 같은 이름, 품는 후보가 여럿이면 못 찾음) (FR-029)
+- [ ] T062 [P] [US5] `backend/tests/integration/test_realestate_naver_link_api.py` — 가짜 클라이언트로: 찾음 → 저장·두 번째 요청에 출처 호출 0, 못 찾음 저장 →
+  `NAVER_LAND_RECHECK_DAYS` 안에는 다시 부르지 않고 지나면 다시 찾음, 실패 → `failed`·저장 안 함, 같은 법정동 후보 없으면 단지명만으로 한 번 더, 합쳐진 단지,
+  모르는 단지 404 (FR-029, SC-010)
+- [ ] T063 [P] [US5] 프론트엔드 — `frontend/tests/ComplexLink.test.tsx`(처음 검색 주소 → `found`면 Npay 부동산 단지 화면·접근 이름 바뀜, 못 찾음·실패는 검색 그대로,
+  같은 단지는 한 번만 묻는다, 새 탭·`noopener`), 010 자체 `ExternalLinks.test.tsx`의 부동산 기대를 맞춘다 (FR-029)
+
+### Implementation for 반복 3
+
+- [ ] T064 [US1] 백엔드 주식 — `backend/src/simulation/reinvest.py`(`DayBar.close_price` 필수, `Row.close_price`, 잔고 = 보유 × 종가),
+  `backend/src/api/services/stock_simulation.py`(`close_raw`를 넘김), `backend/src/api/routes/stock_simulation.py`(행 `closePrice`) (FR-028)
+- [ ] T065 [US5] 백엔드 단지 번호 — `backend/src/config/settings.py`·`.env.example`(`NAVER_LAND_*`), `backend/src/ingestion/naver_land/`(client·parse·errors),
+  `backend/src/db/models.py`·마이그레이션(`apt_complex_naver`), `backend/src/repository/apt_naver.py`, `backend/src/api/services/apt_naver_link.py`(고르기·찾기·저장),
+  `backend/src/api/routes/realestate_complexes.py`(`GET …/{id}/naver`), `backend/src/api/main.py`(lifespan 클라이언트) (FR-029)
+- [ ] T066 [US1·US5] 프론트엔드 — `src/lib/types.ts`(`SimulationRow.closePrice`), `src/components/stock/PerformanceTable.tsx`("종가" 열), `src/lib/externalLinks.ts`
+  (`naverComplexLink`), `src/lib/naverComplexLink.ts`(신규 — 단지마다 한 번 묻기), `src/components/realestate/ComplexLink.tsx`(신규), `RealEstateBoard`·
+  `RealEstateHistory`가 쓴다 (FR-028, FR-029)
+
+### 반복 3 마무리
+
+- [ ] T067 개발 DB에 마이그레이션 적용(`alembic upgrade head`), quickstart 14·15를 실행하고 기록한다 — AAPL·삼성전자 표의 종가·잔고 대조, 1440px 표 가로 스크롤,
+  참조 단지 셋이 Npay 부동산 단지 화면으로 열림·두 번째는 출처 요청 0·출처를 막으면 검색 (FR-028, FR-029, SC-009, SC-010)
+- [ ] T068 `README.md`·`CLAUDE.md`(010 행, 원칙 II 이탈 목록에 Npay 부동산, 출처 표), 품질 게이트, 계산 불변 대조(가상자산·예금·부동산 표 응답이 `010-iter1`과
+  같다, 주식은 새 정의로) (FR-021, SC-009)
+
+**Checkpoint**: 주식 표가 종가와 종가 평가 잔고를 보이고, 부동산 단지 이름이 Npay 부동산 단지 화면을 연다(못 찾으면 검색)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
