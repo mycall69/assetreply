@@ -98,12 +98,12 @@ description: "Task list for 009-real-estate-investment-simulation"
   README에 적는다. 필드가 research R9-1·R9-3과 다르면 research를 고친다. 사용자 스프레드시트(45행 × 평형 5구분의
   건수·평균, 날짜 열 없음 — 2020-01부터 맞춤, R9-2)를 `helio_sheet_2020_2023.csv`로 옮겨 적는다. 스크립트는 저장소에 넣지 않는다(일회성)
   (FR-008, FR-009, FR-013, FR-019, SC-003, research R9-1~R9-3·R9-9)
-- [ ] T002 [P] `.env.example`에 설정 자리를 더한다 — `DATA_API_KEY`(빈 값 — 공공데이터포털 인증키, 활용신청 네 자료를 같은 키로), 
+- [X] T002 [P] `.env.example`에 설정 자리를 더한다 — `DATA_API_KEY`(빈 값 — 공공데이터포털 인증키, 활용신청 네 자료를 같은 키로), 
   `DATA_API_MAX_CONCURRENT`(3), `DATA_API_DAILY_LIMIT_TRADE`(9000)·`DATA_API_DAILY_LIMIT_KAPT`(4500)·`DATA_API_DAILY_LIMIT_REGION`(9000),
   `DATA_API_RETRY_MAX_ATTEMPTS`(4)·`DATA_API_RETRY_BASE_DELAY_MS`(1000), `APT_TRADE_PROBE_START`(`2005-01`), `APT_TRADE_PROVISIONAL_MONTHS`(12),
   `APT_TRADE_DAILY_RECHECK_MONTHS`(3), `APT_LIST_REFRESH_DAYS`(30 — 행정구역·동의 단지 목록). 값의 의미를 주석으로(포털 한도 10,000·5,000에서 여유를
   둔 값, 잠정 12개월은 늦은 해제의 98.8% — research R9-5) (FR-010, FR-012, FR-013, 헌법 원칙 II, research R9-5)
-- [ ] T003 [P] 세법 연혁을 조사해 `specs/009-real-estate-investment-simulation/research.md`에 **R9-7a 세법 표 값** 절을 쓴다 — 취득세(주택 유상, 지방교육세,
+- [X] T003 [P] 세법 연혁을 조사해 `specs/009-real-estate-investment-simulation/research.md`에 **R9-7a 세법 표 값** 절을 쓴다 — 취득세(주택 유상, 지방교육세,
   농어촌특별세)·중개 보수 상한(매매)·재산세(주택 — 공정시장가액비율, 세율 구간, 1세대 1주택 특례, 지방교육세, 도시지역분, 7월 일괄 기준액)·
   종부세(주택 — 1인 공제, 공정시장가액비율, 세율 구간, 재산세 중복분 산식, 농어촌특별세)의 **시행일별 값**을 2006-01-01부터 오늘까지 빈틈없이.
   행마다 근거(법령명·조문·부칙·시행일)와 출처(국가법령정보센터 연혁 등)를 적는다. 2006~2008 종부세는 위헌 결정 뒤의 인별 기준으로 적는다(R9-7).
