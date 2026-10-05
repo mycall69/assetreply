@@ -73,7 +73,8 @@ description: "Task list for 009-real-estate-investment-simulation"
   한다**
 - **바꿔도 되는 기존 테스트는 plan의 목록뿐이다**: `test_crypto_worker.py`·`test_deposit_worker.py`(lifespan 태스크 7 → 8),
   `test_progress_sse.py`(SSE 목록에 `realestate_progress.py`), `Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts`(부동산이 준비된 메뉴),
-  `TopBarTitle.test.ts`(제목 한 줄 더함). 테스트 커밋에서 바꾸고 사유를 적는다. **이 밖의 기존 테스트를 바꿔야 하면 멈추고 보고한다**
+  `TopBarTitle.test.ts`(제목 한 줄 더함), `test_no_hardcoded_dates.py`(세법 표 `apt_tax_rules.py`의 법령 시행일을 예외로 —
+  2026-10-05 D2 승인). 테스트 커밋에서 바꾸고 사유를 적는다. **이 밖의 기존 테스트를 바꿔야 하면 멈추고 보고한다**
 - **실행 주체에는 그 주체를 거쳐야만 통과하는 테스트를 짝짓는다**(006 D1): `lifespan`의 부동산 수집 태스크, 동 선택·시뮬레이션 요청이 수집을
   시작하는 경로, 기동 시 고아 점유 회수
 - **테스트는 네트워크 없이**(헌법 원칙 III, 소켓 차단 `conftest.py`). 출처를 부르는 것은 T001의 픽스처 저장 스크립트뿐이다
@@ -191,7 +192,7 @@ description: "Task list for 009-real-estate-investment-simulation"
 
 ### Tests for User Story 1 (1/2) ⚠️
 
-- [ ] T013 [P] [US1] `backend/tests/unit/test_apt_area.py` — 순수 함수: 일곱 구분의 키·이름·경계(10평대 50㎡ 미만, 20평대 50~70㎡ 미만, 30평대(국평)
+- [X] T013 [P] [US1] `backend/tests/unit/test_apt_area.py` — 순수 함수: 일곱 구분의 키·이름·경계(10평대 50㎡ 미만, 20평대 50~70㎡ 미만, 30평대(국평)
   70~85㎡ **이하**, 30평대(대형) 85㎡ 초과~105㎡ 미만, 40평대 105~135㎡ 미만, 50평대 135~165㎡ 미만, 60평대 이상 165㎡ 이상), 경계 값(49.99·50·
   69.99·70·84.99·85·85.01·104.99·105·134.99·135·164.99·165)이 `Decimal`로 정확히 갈림, 헬리오시티의 실제 면적(39.1~39.86·49.19~49.32 → 10평대,
   59.96 → 20평대, 84.94~84.99 → 30평대(국평), 99.6 → 30평대(대형), 110.44·110.66·130.06 → 40평대, 150.07·150.09 → 50평대), 경계표가 화면용 형태
@@ -254,7 +255,7 @@ description: "Task list for 009-real-estate-investment-simulation"
 
 ### Implementation for User Story 1 (1/2)
 
-- [ ] T021 [US1] `backend/src/simulation/apt_area.py` — 경계표(데이터)와 `area_bucket(excl_area: Decimal) -> AreaBucket` (FR-004)
+- [X] T021 [US1] `backend/src/simulation/apt_area.py` — 경계표(데이터)와 `area_bucket(excl_area: Decimal) -> AreaBucket` (FR-004)
 - [ ] T022 [US1] `backend/src/repository/apt_region.py`(행정구역 upsert·조회 — 현존 코드만, `seen_at`·`retired_at`, 목록 상태)·`apt_complex.py`(단지
   upsert — `apt_seq`·`kapt_code` 짝, 합칠 때 `merged_into`, id 해석이 `merged_into`를 따라감, 새 코드로 단지 행 코드 갱신, 세대수·입주년도·
   `move_in_source`)·`apt_trade.py`(거래 upsert — 바뀌는 필드만, 사라진 행·사라진 코드 표시와 `missing_reason`, 커버리지·`checked_on`·받아 둔 시·군·구 판정, 원본 — 같은 본문이면 새 행 없음, 단지·구분별 거래
@@ -295,7 +296,7 @@ description: "Task list for 009-real-estate-investment-simulation"
 
 ### Tests for User Story 1 (2/2) ⚠️
 
-- [ ] T028 [P] [US1] `backend/tests/unit/test_apt_price.py` — 순수 함수: 그 달 평균 = 해제·사라짐이 아닌 거래 합 ÷ 건수, 원 미만 **반올림**
+- [X] T028 [P] [US1] `backend/tests/unit/test_apt_price.py` — 순수 함수: 그 달 평균 = 해제·사라짐이 아닌 거래 합 ÷ 건수, 원 미만 **반올림**
   (`…0.5` → 올림, `…0.49` → 버림), 창 [1, 3, 6, 12, 24, 36]개월 중 거래가 있는 가장 짧은 창(창 안 **모든 거래의 평균** — 달별 평균의 평균이
   아니다), 기준 달 포함·**기준 달 뒤 거래는 쓰지 않음**, 1개월 = 실측(`estimated: false`), 넓은 창 = 추정, 36개월 안에 없으면 시세 없음(`None`),
   창 안에 잠정 달(오늘 기준 최근 12개월 — 설정)이 있으면 `provisional`, 해제 거래만 있는 달은 거래 없음. 손계산 참조 사례: 1·3·6·12·24·36개월 창,
@@ -304,15 +305,15 @@ description: "Task list for 009-real-estate-investment-simulation"
   (`aptSeq`)만 고르고 평형 경계(T013)로 나눠, **해제를 넣은 계산**의 월별 평형별 건수·그 달 평균(반올림)이 `helio_sheet_2020_2023.csv`와
   **225칸 모두 같다**(SC-003). 같은 원본에서 **해제를 뺀 계산**은 그 기간 해제 27건만큼 다르고, 그 기대값(달·구분·건수·평균)을 손계산으로
   고정한다 — 화면 경로(`apt_price`)가 해제를 뺀 값을 낸다(SC-006) (FR-004, FR-008, FR-016, SC-003, SC-006, research R9-2)
-- [ ] T030 [P] [US1] `backend/tests/unit/test_apt_tax_rules.py` — 세법 표(데이터): 세목마다 규칙의 시행일 구간이 **2006-01-01부터 비거나 겹치지
+- [X] T030 [P] [US1] `backend/tests/unit/test_apt_tax_rules.py` — 세법 표(데이터): 세목마다 규칙의 시행일 구간이 **2006-01-01부터 비거나 겹치지
   않고** 마지막 규칙의 끝이 없음(현행), 규칙마다 근거(법령·조문·시행일)가 비어 있지 않음, T003의 R9-7a 표와 값이 같음(대표 시행일 몇 곳),
   2005-12-31 → `RuleNotCovered(세목, 날짜)`, 비율·금액이 `Decimal` (FR-023, research R9-7)
-- [ ] T031 [P] [US1] `backend/tests/unit/test_apt_tax.py` — 순수 함수, T003의 참조 사례 모두 **10원 단위까지**: 취득세(85㎡ 이하·초과, 가액 구간,
+- [X] T031 [P] [US1] `backend/tests/unit/test_apt_tax.py` — 순수 함수, T003의 참조 사례 모두 **10원 단위까지**: 취득세(85㎡ 이하·초과, 가액 구간,
   2013-08-28 전·후, 2020-01 6~9억 누진 — 지방교육세·농특세 포함), 중개 보수(2015-04·2021-10-19 전·후 구간, 한도액, 부가세 없음), 재산세(과세표준 =
   기준 금액 × 그해 공정시장가액비율, 누진·특례 세율, 지방교육세·도시지역분, **기준액 이하 7월 일괄 / 초과 7·9월 반씩**, 공동 소유여도 주택 하나의
   세액), 종부세(부부 5:5 — 1인 기준 금액 = 기준 금액 ÷ 2, 1인 공제, 공정시장가액비율, 누진, 재산세 중복분, 농특세, 두 사람 합, **1인 기준 금액이 공제
   이하면 0원**), 세목마다 10원 미만 버림 (FR-020~FR-024, SC-005)
-- [ ] T032 [P] [US1] `backend/tests/unit/test_apt_holding.py` — 순수 함수: 행 = 매입 달 ~ 이번 달 한 달에 한 줄(최신순), 매입 행에만 취득 비용,
+- [X] T032 [P] [US1] `backend/tests/unit/test_apt_holding.py` — 순수 함수: 행 = 매입 달 ~ 이번 달 한 달에 한 줄(최신순), 매입 행에만 취득 비용,
   평가액 = 그 달 적용 시세, 누적 비용 = 취득 비용 + 그 달까지 낸 보유세, 투자 수익 = 평가액 − 매입가 − 누적 비용, 수익률 = 투자 수익 ÷ (매입가 +
   취득 비용)(`quantize_rate`), **보유세 기준 금액 = 그해 6월 적용 시세 × 비율(기본 0.6)**, 매입일 ≤ 6월 1일이면 그해 7·9월 재산세·12월 종부세,
   6월 2일 이후 매입이면 그해 없음, 이번 달까지 납부 달이 오지 않은 세금 없음, **6월 시세가 없는 해 → 그해 세금 `None`과 `taxGaps`(0이 아님)**,
@@ -350,11 +351,11 @@ description: "Task list for 009-real-estate-investment-simulation"
 
 ### Implementation for User Story 1 (2/2)
 
-- [ ] T035 [US1] `backend/src/simulation/apt_price.py` — 그 달 평균(반올림), 시세 창, 추정·잠정, 참조값 비교용 해제 포함 집계(테스트 전용 경로가 아니라
+- [X] T035 [US1] `backend/src/simulation/apt_price.py` — 그 달 평균(반올림), 시세 창, 추정·잠정, 참조값 비교용 해제 포함 집계(테스트 전용 경로가 아니라
   인자로 고르는 같은 함수) (FR-016~FR-018, research R9-6)
-- [ ] T036 [US1] `backend/src/simulation/apt_tax_rules.py`(T003의 R9-7a 표 — 규칙마다 `effective_from`·`effective_to`·근거)·`apt_tax.py`(취득세·
+- [X] T036 [US1] `backend/src/simulation/apt_tax_rules.py`(T003의 R9-7a 표 — 규칙마다 `effective_from`·`effective_to`·근거)·`apt_tax.py`(취득세·
   중개 보수·재산세(분납)·종부세(부부 5:5), 10원 미만 버림, `RuleNotCovered`) (FR-020~FR-024, research R9-7)
-- [ ] T037 [US1] `backend/src/simulation/apt_holding.py` — 매달 행·납부 달·세금의 기준 시세 `basis`·`taxGaps`·시작 가능 날짜(첫 거래 달과 세법 표 시작
+- [X] T037 [US1] `backend/src/simulation/apt_holding.py` — 매달 행·납부 달·세금의 기준 시세 `basis`·`taxGaps`·시작 가능 날짜(첫 거래 달과 세법 표 시작
   중 늦은 날)·요약(`quantize_rate`) (FR-005, FR-006, FR-021, FR-022, FR-025~FR-027, research R9-7·R9-8)
 - [ ] T038 [US1] `backend/src/repository/apt_setting.py`(읽기 — 행 없으면 0.600000)·`backend/src/api/services/realestate_collect.py`(202 판정 — 받지 않은
   달, 최근 3개월 오늘 확인 여부, 4~12개월 이번 달 확인 여부, 진행 중 작업의 `jobId`, **받아 둔 시·군·구에서만** 오늘 실패 작업 → 200 + `recheckFailed` —
@@ -559,3 +560,6 @@ Task: "T034 frontend 폼·보드·안내·표·스토어"
 - 픽스처를 새로 받아야 하면(형식 변경 등) T001과 같은 방식으로 받고 받은 날짜를 `fixtures/apt/README.md`에 적는다. 인증키가 들어가지 않았는지
   저장할 때마다 검사한다
 - 세법이 바뀌면(새 시행일) `apt_tax_rules.py`에 규칙을 더하고 현행 규칙의 끝을 닫는다. 근거와 참조 사례를 함께 더한다(T030·T031)
+- **2026-10-05 순서 변경(사용자 요청)**: T001이 활용신청 대기라, 출처와 무관한 계산(T013·T021·T028·T030~T032·T035~T037)을
+  먼저 구현했다(커밋 `test(009): 계산`·`feat(009): 계산`). 헬리오시티 참조값 T029는 픽스처가 있어야 해 T001 뒤에 한다. D2 승인 2건 —
+  `test_apt_price.py`의 잠정 시작 상수(테스트 실수: 2000-01이면 모든 달이 잠정), `test_no_hardcoded_dates.py`의 세법 표 예외

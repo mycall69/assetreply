@@ -31,7 +31,9 @@ from src.simulation.apt_price import (
 
 D = dt.date.fromisoformat
 EOK = 100_000_000
-OLD = D("2000-01-01")  # 잠정 시작을 아주 옛날로 — 잠정 판정을 따로 본다
+#: 잠정 시작을 먼 미래로 — 이 장면에서는 잠정인 달이 없다. 잠정 판정은 TestProvisional이 따로 본다.
+#: (2026-10-05 D2 승인: 처음에 2000-01로 두어 모든 달이 잠정이 되는 테스트 실수를 고쳤다)
+NOTHING_PROVISIONAL = D("2100-01-01")
 
 
 def trades(*rows: tuple[str, int]) -> list[Trade]:
@@ -104,7 +106,8 @@ class TestMarketPrice:
     BASE = D("2024-06-01")
 
     def price(self, *rows: tuple[str, int]) -> MarketPrice | None:
-        return market_price(aggregate(trades(*rows)), self.BASE, provisional_from=OLD)
+        return market_price(aggregate(trades(*rows)), self.BASE,
+                            provisional_from=NOTHING_PROVISIONAL)
 
     def test_1개월은_실측(self) -> None:
         p = self.price(("2024-06-10", 10 * EOK), ("2024-06-20", 12 * EOK))

@@ -26,9 +26,17 @@ _YEAR_MIN, _YEAR_MAX = 1000, 2999
 _ISO_DATE = re.compile(r"\b[12]\d{3}-\d{2}-\d{2}\b")
 
 
+#: 법령 시행일을 담은 데이터 모듈 — 축적 시작일이 아니다(2026-10-05 D2 승인, 009 research R9-7a).
+#: 세법 표의 시행일(2006-01-01, 2013-08-28 …)은 출처가 언제부터 값을 주는지가 아니라 **법령 연혁의
+#: 사실**이다. 출처의 시작일은 여전히 상수가 아니라 발견한다(부동산은 설정
+#: `APT_TRADE_PROBE_START`부터 탐색). 이 파일에 출처의 시작일을 넣지 않는다 — 넣으면 이 예외가
+#: 사고를 가린다.
+_LEGAL_DATE_MODULES = frozenset({"simulation/apt_tax_rules.py"})
+
+
 def _python_files() -> list[pathlib.Path]:
     """마이그레이션도 포함한다 — 헌법이 금지하는 대상은 '코드나 **스키마**'다."""
-    return sorted(SRC.rglob("*.py"))
+    return sorted(p for p in SRC.rglob("*.py") if _rel(p) not in _LEGAL_DATE_MODULES)
 
 
 def _rel(path: pathlib.Path) -> str:

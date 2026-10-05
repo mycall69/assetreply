@@ -85,7 +85,7 @@
 | 단지 id 안정성 | ✅ | 단지 행을 지우지 않고 합칠 때 `merged_into`를 남긴다 — 이력의 옛 id도 같은 단지로 열린다(data-model 2절) |
 | 세법 표 범위 | ✅ | 시작 가능 날짜는 첫 거래 달과 표의 첫 날(2006-01-01) 중 늦은 날(`before_first_trade` + 근거). 보유 중의 날짜를 표가 덮지 않으면 409 `tax_rule_not_covered` — 가까운 해로 대신하지 않는다(FR-023). 표의 구간이 겹치거나 비지 않음을 단위 테스트가 검사한다 |
 | 공유 부품 변경 | ✅(기록) | 차트의 결측 사유 `no_price`(끊는다), 시계열 점의 선택 키 `estimated`(표식) — 둘 다 선택이고 기본이 지금 동작이다. 005~008 차트 테스트는 바꾸지 않고 통과해야 한다 |
-| 바뀌는 기존 테스트 | ⚠(승인 필요) | lifespan 태스크 수(7 → 8, `test_crypto_worker.py`·`test_deposit_worker.py`), 사이드바·미구현 가드(`Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts` — `realestate`를 준비된 메뉴로). 008과 같은 종류의 변경이다 — 구현 단계에서 사용자 승인을 받는다(006 D2) |
+| 바뀌는 기존 테스트 | ⚠(승인 필요) | lifespan 태스크 수(7 → 8, `test_crypto_worker.py`·`test_deposit_worker.py`), 사이드바·미구현 가드(`Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts` — `realestate`를 준비된 메뉴로), 날짜 하드코딩 가드(`test_no_hardcoded_dates.py` — 세법 표의 법령 시행일은 축적 시작일이 아니므로 `apt_tax_rules.py`만 예외, 2026-10-05 승인). 008과 같은 종류의 변경이다 — 구현 단계에서 사용자 승인을 받는다(006 D2) |
 
 ## Project Structure
 
