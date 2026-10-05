@@ -234,7 +234,7 @@ description: "Task list template for feature implementation"
 
 - [X] T084 [P] [US5] `frontend/tests/simulationHistory.test.ts` — 이력에 **종목·시작일·원금·재투자 여부**가 모두 남는지(FR-036, SC-014), 같은 종목의 다른 조건이 구별되는지, 브라우저를 닫았다 열어도 남는지 검증한다 (FR-037)
 - [X] T085 [P] [US5] `frontend/tests/simulationHistory.test.ts`에 **저장 실패 처리**를 더한다 — 보관 한계에 닿으면 조용히 실패하지 않고 알리는지 (research R5-10)
-- [X] T086 [P] [US5] `frontend/tests/SimulationHistory.test.tsx` — **이 브라우저에만 저장된다는 안내**가 보이는지(FR-037a, SC-018), 항목을 지울 수 있는지(FR-037b) 검증한다
+- [X] T086 [P] [US5] `frontend/tests/SimulationHistory.test.tsx`(2026-10-05 이름 변경 → `SimulationHistoryList.test.tsx` — 대소문자만 다른 `.ts`와 겹쳐 tsc가 빼던 것, 009 tasks 메모) — **이 브라우저에만 저장된다는 안내**가 보이는지(FR-037a, SC-018), 항목을 지울 수 있는지(FR-037b) 검증한다
 - [X] T087 [P] [US5] `frontend/tests/ComparisonChart.test.tsx` — 고른 항목들의 수익률이 한 차트에 겹치는지(FR-038), **비교 기준이 드러나는지**(FR-039, SC-015), 시작일이 다르면 각 시작 시점이 드러나는지(FR-040) 검증한다
 
 ### Implementation for User Story 5

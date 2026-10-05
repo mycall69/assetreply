@@ -585,8 +585,8 @@ Task: "T034 frontend 폼·보드·안내·표·스토어"
   중 결정, contracts/rest-api). T029(헬리오시티 참조값)는 계산 모듈(T035)이 이미 있어 첫 실행부터 통과한다
 - **2026-10-05 Phase 7 테스트 메모**: 화면 테스트 이름을 `RealEstateHistoryList.test.tsx`로 했다 — 이 Mac의 파일 시스템은 대소문자를
   가리지 않아 `tsc`가 `realEstateHistory.test.ts`와 대소문자만 다른 `.tsx`를 검사에서 뺀다(`--listFiles`로 확인). 기존
-  `CryptoHistory.test.tsx`·`DepositHistory.test.tsx`·`SimulationHistory.test.tsx`도 같은 이유로 타입 검사를 받지 않았다 — 이름 바꾸기는
-  기존 테스트 변경이라 사용자에게 알리고 그대로 둔다. 이력 항목에 법정동 코드·평형 이름을 더했다(data-model 이력)
+  `CryptoHistory.test.tsx`·`DepositHistory.test.tsx`·`SimulationHistory.test.tsx`도 같은 이유로 타입 검사를 받지 않았다 — 사용자 요청(2026-10-05)으로
+  `…HistoryList.test.tsx`로 이름만 바꿨다(내용 그대로 — 처음 받은 tsc 검사도 오류 없이 통과). 이력 항목에 법정동 코드·평형 이름을 더했다(data-model 이력)
 - **2026-10-05 T053 품질 게이트**: 백엔드 pytest 2,315 통과(커버리지 96%)·mypy strict·`ruff check --no-cache` 통과, 프론트엔드 vitest
   114파일 1,031 통과·tsc·eslint 통과. 001~008 테스트 중 바뀐 것(`git diff 68baa42..HEAD`) 9개는 모두 plan 목록이거나 D2 승인이다 —
   `test_crypto_worker`·`test_deposit_worker`(태스크 수 7 → 8), `test_progress_sse`(부동산 진행 머리글·SSE 파일 목록), `Sidebar`·

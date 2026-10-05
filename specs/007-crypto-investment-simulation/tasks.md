@@ -284,7 +284,7 @@ description: "Task list for 007-crypto-investment-simulation"
 
 ### Tests for User Story 5 ⚠️
 
-- [X] T043 [P] [US5] `frontend/tests/cryptoHistory.test.ts`·`CryptoHistory.test.tsx` — 실행하면 이력이 남고(코인 id·심볼·이름·slug·시작일·원금·통화),
+- [X] T043 [P] [US5] `frontend/tests/cryptoHistory.test.ts`·`CryptoHistory.test.tsx`(2026-10-05 이름 변경 → `CryptoHistoryList.test.tsx` — 대소문자만 다른 `.ts`와 겹쳐 tsc가 빼던 것, 009 tasks 메모) — 실행하면 이력이 남고(코인 id·심볼·이름·slug·시작일·원금·통화),
   **주식 이력과 다른 저장 키**(서로 보이지 않음), 결과 수치를 저장하지 않음, 다시 실행해 `unknown_coin`이면 "검색에서 다시 고르세요", 막힌 원금 통화
   조합이면 사유, 둘 이상 고르면 비교 — 기준 문구 "모두 KRW 기준", 시작일이 다르면 범례에 각 시작일 (FR-045, FR-046)
 

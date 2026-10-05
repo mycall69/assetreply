@@ -255,7 +255,7 @@ description: "Task list for 008-deposit-investment-simulation"
 
 ### Tests for User Story 4 ⚠️
 
-- [X] T031 [P] [US4] `frontend/tests/depositHistory.test.ts`·`DepositHistory.test.tsx`·`depositStoreCompare.test.ts` — 저장 키가 주식·가상자산과 다름
+- [X] T031 [P] [US4] `frontend/tests/depositHistory.test.ts`·`DepositHistory.test.tsx`(2026-10-05 이름 변경 → `DepositHistoryList.test.tsx` — 대소문자만 다른 `.ts`와 겹쳐 tsc가 빼던 것, 009 tasks 메모)·`depositStoreCompare.test.ts` — 저장 키가 주식·가상자산과 다름
   (`assetreplay.depositHistory.v1`), 조건만(투자처·시작일·원금 — 결과 수치 없음), 같은 조건은 맨 앞으로, 다시 실행 = 조건을 넣고 곧바로 실행,
   삭제, 둘 이상 골라 비교 → `ComparisonChart`, 범례에 투자처·시작일, 잠정 항목은 "(잠정)", 빠지는 항목은 "…의 시계열을 불러오지 못했습니다"와
   사유(받지 않은 구간 — "실행해서 받으세요", 모르는 투자처) (FR-037, FR-038, SC-005)
