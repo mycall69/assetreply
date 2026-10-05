@@ -72,11 +72,11 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 **Purpose**: 구현 전의 기준 — 계산 불변(SC-006)을 나중에 대조할 응답과 기존 검사의 통과 상태
 
-- [ ] T001 구현 전 기준 응답을 남긴다 — 서버를 띄우고(`./start.sh`) quickstart "참조 실행" 다섯(주식 AAPL·가상자산 BTC·예금 시중은행·부동산 헬리오시티
+- [X] T001 구현 전 기준 응답을 남긴다 — 서버를 띄우고(`./start.sh`) quickstart "참조 실행" 다섯(주식 AAPL·가상자산 BTC·예금 시중은행·부동산 헬리오시티
   30평대·가락미륭 20평대)의 **표 경로**(`/api/{stocks,crypto,deposit,realestate}/simulation`)와 **시계열 경로**(`…/simulation/series`) 응답을
   저장소 밖 작업용 임시 폴더에 JSON으로 저장한다(저장소에 넣지 않는다). 받은 시각과 조건을 함께 적는다. 202면 수집이 끝난 뒤 다시 받는다
   (FR-021, SC-006, quickstart 10)
-- [ ] T002 구현 전 기존 검사의 통과 상태를 기록한다 — 서버를 내리고(`./stop.sh`) 백엔드 `pytest -q`·`mypy src`·`ruff check --no-cache src tests`,
+- [X] T002 구현 전 기존 검사의 통과 상태를 기록한다 — 서버를 내리고(`./stop.sh`) 백엔드 `pytest -q`·`mypy src`·`ruff check --no-cache src tests`,
   프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .`를 돌려 통과 수를 이 파일 Notes에 적는다. 실패가 있으면 이 기능 전의 실패로 기록하고
   멈추고 보고한다 (SC-006)
 
@@ -89,7 +89,7 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 **⚠️ CRITICAL**: 이 페이즈가 끝나기 전에는 US1·US2의 화면 태스크(T011·T012·T017·T020·T021·T024)를 시작하지 않는다(백엔드 태스크와 US3·US4는
 막지 않는다)
 
-- [ ] T003 `frontend/src/lib/types.ts` — `PriceKind = "stock_open" | "crypto_open" | "deposit_rate" | "apt_average"`, `PriceMissing = "unpublished" |
+- [X] T003 `frontend/src/lib/types.ts` — `PriceKind = "stock_open" | "crypto_open" | "deposit_rate" | "apt_average"`, `PriceMissing = "unpublished" |
   "missing" | "no_trades"`, `SplitMark = { date: string; numerator: number; denominator: number }`. `SimulationPoint`에 `price?: DecimalString | null`
   ("가격이 있는 응답(010)에만 키가 있다"), `priceMissing?: PriceMissing`("price가 null일 때만"), `profit?: DecimalString`("부동산만 — 투자 수익(원)"),
   `SimulationSeriesResponse`에 `priceKind?: PriceKind`, `priceCurrency?: string | null`("예금은 null"), `splits?: SplitMark[]`("주식만"). **모두
@@ -408,3 +408,8 @@ Task: "T012 PerformanceChartPrice.test.tsx — 겹침 축·끊김·표식·범�
 - **구현 뒤 테스트가 실패하면 멈추고 먼저 보고한다** — 원인이 테스트 쪽으로 보여도, 이전에 통과하던 테스트여도 같다(006 D2)
 - 각 체크포인트에서 멈추고 그 스토리를 독립적으로 검증한다
 - 설계 중 spec이 바뀌면(FR·SC) plan의 추적성 표와 이 파일의 참조를 같은 작업 단위에서 고친다(헌법 명세 작성 규약)
+- **2026-10-05 T001 기준 응답**: 저장소 밖 작업용 임시 폴더(`010-baseline/`)에 다섯 참조 실행의 표·시계열 응답을 저장했다 — 주식 AAPL(NASDAQ,
+  표 112행·점 112), 가상자산 BTC(coinId 1, 표 34행 — **표는 달마다, 시계열은 날마다 1,008점**), 예금 시중은행(표 38행·점 37), 부동산 헬리오시티
+  30평대(complexId 4, 표 68행·점 69)·가락미륭 20평대(complexId 17, 점 65 — 시세 없음 구간). 가상자산의 "표와 대조"(T008·T018)는 표에 있는 날만 할 수
+  있다 — 나머지 날은 받아 둔 일봉의 시가와 대조한다
+- **2026-10-05 T002 기준 게이트**: 백엔드 2,315 passed(커버리지 95.92%), mypy 195 파일 통과, ruff 통과 / 프론트엔드 114 파일·1,031 passed, tsc·eslint 통과

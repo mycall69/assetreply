@@ -565,6 +565,31 @@ export interface SimulationPoint {
   estimated?: boolean;
   /** 부동산(009)만 — 잠정 달의 거래가 들어간 점(FR-018). 차트의 연한 색은 응답의 `provisionalFrom`이 정한다. */
   provisional?: boolean;
+  /**
+   * 그 점 날짜(부동산은 그 달)의 자산 가격(010 FR-001) — 주식 원주가 시가·가상자산 시가(자산 자신의 통화)·예금 그 달 발표 금리(연 %)·부동산
+   * 그 달 실거래가 평균. 가격이 있는 응답(010)에만 키가 있다 — 없으면 차트는 가격 선을 그리지 않는다(기존 응답과 같다). `null`이면 `priceMissing`이 사유다.
+   */
+  price?: DecimalString | null;
+  /** `price`가 `null`일 때만 — 지어내지 않은 이유(010 FR-011, 헌법 원칙 V). */
+  priceMissing?: PriceMissing;
+  /** 부동산만 — 투자 수익(원). 표의 `profit`, 끝점은 `summary.profit`(010 FR-009). */
+  profit?: DecimalString;
+}
+
+/** 가격 선의 종류(010) — 화면이 범례 이름과 값 형식을 고른다. 서버는 한국어 표시 문구를 만들지 않는다. */
+export type PriceKind = "stock_open" | "crypto_open" | "deposit_rate" | "apt_average";
+
+/**
+ * 가격이 없는 사유(010 FR-011) — `unpublished`(예금 — 아직 발표되지 않은 달), `missing`(예금 — 발표 기간 안인데 통계가 빈 달), `no_trades`(부동산 —
+ * 그 평형의 그 달 거래 없음). 가격만 없는 점이라 `gaps`(잔고 선이 끊기는 자리)와 다르다.
+ */
+export type PriceMissing = "unpublished" | "missing" | "no_trades";
+
+/** 주식 분할 기록(010 FR-008) — 효력일과 비율. 표식 자리는 화면이 그린 점에서 정한다(`splitMarks`). */
+export interface SplitMark {
+  date: string;
+  numerator: number;
+  denominator: number;
 }
 
 export interface SimulationSeriesResponse {
@@ -584,6 +609,12 @@ export interface SimulationSeriesResponse {
    * 화면은 없는 것을 `null`로 읽는다.
    */
   provisionalFrom?: string | null;
+  /** 가격 선의 종류(010). 가격이 있는 응답에만 있다. */
+  priceKind?: PriceKind;
+  /** 가격의 통화(010) — 원금 통화와 관계없이 자산 자신의 통화. 예금은 `null`(단위 연 %). */
+  priceCurrency?: string | null;
+  /** 주식만 — 구간 안의 분할 기록, 효력일 오름차순(010 FR-008). */
+  splits?: SplitMark[];
 }
 
 /** 수수료·세율 (FR-015, FR-016). 배당 소득세는 국내·해외 두 값이다(006 FR-055). */
