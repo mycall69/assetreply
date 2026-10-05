@@ -225,7 +225,7 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   `frontend/src/components/stock/PerformanceChart.tsx`(차트 칸을 `relative`로 감싸고 상자를 `absolute`로, `subscribeCrosshairMove`의 `time`·`point`로
   상자를 열고 닫는다 — 값은 지금처럼 `lookup`의 **원본 문자열**, 가격이 있을 때만 값 없는 자리 시리즈(겹침 축, `{ time }`만, 구간마다 하나), **차트 아래 한 줄
   `performance-tooltip`을 없앤다**, 터치는 라이브러리 기본 추적 모드 그대로 — 새 API·열거형 읽기 없음). ui-wireframes F2 (FR-009~FR-014)
-- [ ] T025 [US2] quickstart 6·7을 실행하고 기록한다 — 네 화면 × 10곳의 상자 값과 표 대조(다른 값 0건), 마우스 이동부터 상자 표시까지의 시간(0.2초 안),
+- [X] T025 [US2] quickstart 6·7을 실행하고 기록한다 — 네 화면 × 10곳의 상자 값과 표 대조(다른 값 0건), 마우스 이동부터 상자 표시까지의 시간(0.2초 안),
   오른쪽·아래 끝의 잘림 0건, 벗어난 뒤 남는 상자 0건, 터치 흉내(길게 누름 → 상자, 따라감, 다음 탭에 사라짐). 끝나면 서버를 내린다 (SC-003, FR-012,
   FR-014)
 

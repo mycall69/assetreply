@@ -119,10 +119,14 @@ function splitByTone(
   return parts.filter((part) => part.points.length > 0);
 }
 
-/** 상자 — 내용과 커서 자리(차트 칸 기준 px). */
+/**
+ * 상자 — 내용과 커서 자리. `point`는 라이브러리가 주는 **그림 칸 기준**(왼쪽 가격 축을 뺀) 좌표라 그대로 쓰면 상자가 가격 축 폭만큼
+ * 밀린다(010 T025 실측 — 오른쪽 끝에서 커서를 덮었다). 화면 좌표(`client`)가 있으면 그것에서 차트 칸 위치를 빼 쓴다.
+ */
 interface Hover {
   view: HoverView;
   point: { x: number; y: number };
+  client: { x: number; y: number } | null;
 }
 
 export function PerformanceChart({
@@ -149,7 +153,10 @@ export function PerformanceChart({
     }
     const chart = area.current.getBoundingClientRect();
     const size = box.current.getBoundingClientRect();
-    setPlace(placeHover(hover.point, { width: size.width, height: size.height },
+    const cursor = hover.client === null
+      ? hover.point
+      : { x: hover.client.x - chart.left, y: hover.client.y - chart.top };
+    setPlace(placeHover(cursor, { width: size.width, height: size.height },
       { width: chart.width, height: chart.height }));
   }, [hover]);
 
@@ -284,7 +291,12 @@ export function PerformanceChart({
       // 상자는 **원본 문자열**을 보여준다. 렌더링용 변환값이 값의 진실이 되면 정밀도가 손실된 값을 사용자가 보게 된다.
       // 커서가 차트를 벗어나면 `time`·`point`가 없다 — 상자를 지운다.
       const view = time !== undefined && point !== undefined ? hoverView(series, time) : null;
-      setHover(view === null || point === undefined ? null : { view, point: { x: point.x, y: point.y } });
+      const source = param.sourceEvent;
+      setHover(view === null || point === undefined ? null : {
+        view,
+        point: { x: point.x, y: point.y },
+        client: source === undefined ? null : { x: source.clientX, y: source.clientY },
+      });
     });
 
     instance.timeScale().fitContent();
