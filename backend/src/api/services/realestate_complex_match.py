@@ -24,18 +24,22 @@ from dataclasses import dataclass
 from typing import Protocol
 
 _DROP = re.compile(r"\([^)]*\)|\s")
+#: 사용승인 연도와 건축년도가 이보다 크게 다르면 재건축 전후다 — 재건축은 준공 30년이 지나야 해
+#: 차이가 수십 년이다. 같은 단지의 두 자료 차이는 가락동 실측 0~3년이다(T027).
+MAX_YEAR_GAP = 10
 _APT = "아파트"
 _JIBUN = re.compile(r"(\d+)(?:-(\d*))?")
 
 
 @dataclass(frozen=True, slots=True)
 class KaptSide:
-    """단지 목록 쪽 — 지번은 기본 정보를 받아야 안다(모르면 None)."""
+    """단지 목록 쪽 — 지번·사용승인 연도는 기본 정보를 받아야 안다(모르면 None)."""
 
     kapt_code: str
     name: str
     umd_code: str
     jibun: str | None
+    move_in_year: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,6 +97,14 @@ def jibun_key(jibun: str | None) -> tuple[int, int] | None:
     return int(found.group(1)), int(found.group(2) or 0)
 
 
+def years_agree(kapt: KaptSide, trade: TradeSide) -> bool:
+    """재건축 전후가 아니다 — 둘 다 알고 10년 넘게 다르면 False. 한쪽을 모르면 판정하지
+    않는다(True)."""
+    if kapt.move_in_year is None or trade.build_year is None:
+        return True
+    return abs(kapt.move_in_year - trade.build_year) <= MAX_YEAR_GAP
+
+
 def trade_sides(trades: Iterable[TradeLike]) -> tuple[TradeSide, ...]:
     """거래들을 `aptSeq`마다 하나로 — 이름·지번·법정동은 가장 최근 거래의 것(이름이 바뀐 단지)."""
     latest: dict[str, TradeLike] = {}
@@ -121,7 +133,8 @@ def match_complexes(kapt: Sequence[KaptSide], trade: Sequence[TradeSide], *,
         if side.kapt_code in pairs or key is None:
             continue
         found = [t for t in open_trades()
-                 if t.umd_code == side.umd_code and jibun_key(t.jibun) == key]
+                 if t.umd_code == side.umd_code and jibun_key(t.jibun) == key
+                 and years_agree(side, t)]
         if len(found) == 1:
             pairs[side.kapt_code] = found[0].apt_seq
             taken.add(found[0].apt_seq)
@@ -133,7 +146,8 @@ def match_complexes(kapt: Sequence[KaptSide], trade: Sequence[TradeSide], *,
         name = (side.umd_code, normalize_name(side.name))
         if side.kapt_code in pairs or kapt_names[name] != 1 or trade_names[name] != 1:
             continue
-        found = [t for t in open_trades() if (t.umd_code, normalize_name(t.name)) == name]
+        found = [t for t in open_trades()
+                 if (t.umd_code, normalize_name(t.name)) == name and years_agree(side, t)]
         if len(found) == 1:
             pairs[side.kapt_code] = found[0].apt_seq
             taken.add(found[0].apt_seq)

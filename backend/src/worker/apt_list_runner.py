@@ -158,6 +158,14 @@ def _apply_trade(row: AptComplex, trade: LatestTrade) -> None:
         row.move_in_year, row.move_in_source = trade.build_year, apt_complex.TRADE
 
 
+def _stored_year(row: AptComplex | None) -> int | None:
+    """실거래 단지 행에 남긴 건축년도 — 그 실행이 그 단지의 거래를 받지 않았을 때 재건축 판정에
+    쓴다."""
+    if row is None or row.kapt_code is not None or row.move_in_source != apt_complex.TRADE:
+        return None
+    return row.move_in_year
+
+
 def _new_row(umd_code: str, name: str) -> AptComplex:
     return AptComplex(umd_code=umd_code, lawd_cd=umd_code[:5], name=name)
 
@@ -181,11 +189,14 @@ async def sync_umd(session: AsyncSession, umd_code: str, *,
             row.name = listing.name
     await session.flush()
 
-    kapt_sides = [KaptSide(r.kapt_code, r.name, r.umd_code, r.jibun if r.apt_seq is None else None)
+    kapt_sides = [KaptSide(r.kapt_code, r.name, r.umd_code, r.jibun if r.apt_seq is None else None,
+                           r.move_in_year if r.move_in_source == apt_complex.KAPT else None)
                   for r in rows if r.kapt_code is not None and r.umd_code == umd_code]
     kapt_sides += [KaptSide(code, name, umd_code, None) for code, name in names.items()
                    if code not in by_kapt]
-    trade_sides = [TradeSide(t.apt_seq, t.apt_name, t.umd_code, t.jibun, t.build_year)
+    trade_sides = [TradeSide(t.apt_seq, t.apt_name, t.umd_code, t.jibun,
+                             t.build_year if t.build_year is not None else _stored_year(
+                                 by_seq.get(t.apt_seq)))
                    for t in trades]
     fixed = [(r.kapt_code, r.apt_seq) for r in rows
              if r.kapt_code is not None and r.apt_seq is not None]
