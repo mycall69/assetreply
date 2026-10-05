@@ -1,14 +1,15 @@
-"""주식 시계열의 주가 (010 T007) — FR-001, FR-002, FR-007, FR-008, SC-001, contracts/rest-api `GET
-/api/stocks/simulation/series`.
+"""주식 시계열의 주가 — 분할만 반영한 수정 종가 (010 반복 1, T042) — FR-001, FR-002, FR-008, SC-001,
+contracts/rest-api `GET /api/stocks/simulation/series`.
 
-- `priceKind "stock_open"`, `priceCurrency` = **종목 통화** — 원화 원금으로 미국 종목을 실행해도
-  `USD`다(Clarifications). 잔고·수익률의
-  기준(`basisCurrency` KRW)과 다르다
-- 점의 `price` = 같은 조건 표(`/simulation`)의 그 날 행 `openPrice`(원주가 시가 — 문자열 그대로).
-  점의 날짜는 **표의 행 날짜뿐**이다(일별 주가가
-  아니다 — spec FR-001)
-- `splits` = 구간 안의 분할 기록. 효력일(2021-08-31)은 점의 날짜가 아니다 — 원주가가 효력일 뒤 첫
-  점에서 분할 비율만큼 꺾인다
+반복 전(T007 — 이 파일의 처음 이름 `test_stock_series_price_api.py`)에는 점의 `price`가 표의
+시작가(원주가 시가)였고 응답에 `splits`가 있었다. 이제:
+
+- `priceKind "stock_adjusted_close"`, `priceCurrency` = 종목 통화(원화 원금으로 미국 종목을 실행해도
+  `USD`)
+- 점의 `price` = 그 날 원주가 종가 ÷ 그 날 뒤 분할 비율(research R10-13). 분할(2021-08-31, 4:1) 앞뒤
+  점이 이어진다 — 4배 꺾임이 없다
+- `splits` 키가 없다(분할 표식 없음 — FR-008). 점의 날짜는 지금처럼 표의 행 날짜뿐이다(일별 아님)
+- 표(`/simulation`)의 시작가·잔고는 그대로다 — 수정 종가는 차트에만 있다
 """
 from __future__ import annotations
 
@@ -115,36 +116,50 @@ def rows_by_date(table: dict) -> dict[str, list[dict]]:  # type: ignore[type-arg
     return out
 
 
+def close_raw(params: dict[str, str], day: str) -> Decimal:
+    """준비한 원주가 종가 — 시가와 같게 넣었다."""
+    if params["symbol"] == "AAPL":
+        return aapl_open(day)
+    return Decimal(40000 + 1000 * DAYS.index(day))
+
+
+def expected(params: dict[str, str], day: str) -> Decimal:
+    """그 날 원주가 종가 ÷ 그 날 뒤 분할 비율 — AAPL은 2021-08-31(4:1) 앞이면 ÷ 4."""
+    ratio = Decimal(4) if params["symbol"] == "AAPL" and day < SPLIT_DAY else Decimal(1)
+    return close_raw(params, day) / ratio
+
+
 @pytest.mark.parametrize("params", [KRX, AAPL], ids=["KRX", "AAPL-원화원금"])
-async def test_점마다_가격이_표의_그_날_시작가와_같다(
+async def test_점의_가격은_그_날_수정_종가다(
         client: AsyncClient, params: dict[str, str]) -> None:
     table, series = await both(client, params)
     by_date = rows_by_date(table)
     # 점의 날짜 = 표의 날짜(일별 아님 — spec FR-001)
     assert sorted(by_date) == [p["date"] for p in series["points"]]
     for point in series["points"]:
-        assert all(point["price"] == r["openPrice"] for r in by_date[point["date"]]), point["date"]
+        assert Decimal(point["price"]) == expected(params, point["date"]), point["date"]
         assert "priceMissing" not in point
 
 
 async def test_가격의_종류와_통화는_종목의_것이다(client: AsyncClient) -> None:
     _, krx = await both(client, KRX)
     _, aapl = await both(client, AAPL)
-    assert (krx["priceKind"], krx["priceCurrency"]) == ("stock_open", "KRW")
-    assert (aapl["priceKind"], aapl["priceCurrency"]) == ("stock_open", "USD")
+    assert (krx["priceKind"], krx["priceCurrency"]) == ("stock_adjusted_close", "KRW")
+    assert (aapl["priceKind"], aapl["priceCurrency"]) == ("stock_adjusted_close", "USD")
     assert (aapl["principalCurrency"], aapl["basisCurrency"]) == ("KRW", "KRW")
 
 
-async def test_분할은_구간_안의_기록이고_원주가가_효력일_뒤_첫_점에서_꺾인다(
-        client: AsyncClient) -> None:
-    _, aapl = await both(client, AAPL)
-    assert aapl["splits"] == [{"date": SPLIT_DAY, "numerator": 4, "denominator": 1}]
+async def test_분할_앞뒤가_이어지고_분할_기록을_싣지_않는다(client: AsyncClient) -> None:
+    table, aapl = await both(client, AAPL)
+    assert "splits" not in aapl
     prices = {p["date"]: Decimal(p["price"]) for p in aapl["points"]}
     assert SPLIT_DAY not in prices
     before, after = prices["2021-08-02"], prices["2021-09-01"]
-    assert Decimal("3.5") < before / after < Decimal("4.5")
-    _, krx = await both(client, KRX)
-    assert krx["splits"] == []
+    # 원주가는 400 → 100.75(분할 4배) — 수정 종가는 100 → 100.75로 이어진다
+    assert Decimal("0.9") < before / after < Decimal("1.1")
+    # 표의 시작가는 그대로 원주가다 — 수정 종가는 차트에만 있다
+    rows = rows_by_date(table)
+    assert Decimal(rows["2021-08-02"][0]["openPrice"]) == aapl_open("2021-08-02")
 
 
 async def test_줄인_점의_가격은_그_날짜의_원래_값이다(client: AsyncClient) -> None:
@@ -161,3 +176,4 @@ async def test_기존_키는_그대로다(client: AsyncClient) -> None:
     assert {"from", "to", "principalCurrency", "basisCurrency", "downsampled", "algorithm",
             "sourcePointCount", "points", "gaps"} <= set(series)
     assert {"date", "balance", "returnRate", "price"} == set(series["points"][0])
+    assert "splits" not in series

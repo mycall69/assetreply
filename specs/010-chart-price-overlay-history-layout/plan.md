@@ -31,7 +31,7 @@
 | 표 고유 폭(1440·1920px 창) | 주식 1,071 · 가상자산 842 · 예금 659 · 부동산 836px. 본문 = 창 − 306px | 경계 폭 = 표 폭 + 726px(이력 400 + 간격 20 포함) → 모두 1920px 이하. 상수 없이 줄바꿈 flex(R10-10) |
 | 출처 수정 종가 (반복 1) | `stock_price.close_adjusted`는 Yahoo `adjclose` 그대로 — 배당까지 소급하고 받은 시점마다 기준이 다르다(`models.py` 주석) | 쓰지 않는다. 분할만 반영한 수정 종가를 `close_raw`·`stock_split`에서 계산(R10-13) |
 | 외환 정렬 (반복 1) | 외환 화면만 본문이 `mx-auto max-w-5xl` — 넓은 창에서 가운데에 뜬다 | 가운데 정렬을 없앤다(R10-17) |
-| 외환 통화 전환 (반복 1) | `DailyTable`이 표가 바뀔 때(`resetKey`) `scrollIntoView` — 표가 자체 스크롤 칸이 아니라 **창 전체**를 움직인다 | 통화 전환에서만 신호를 내지 않는다(R10-16, 004 FR-005b는 다른 경우에 그대로) |
+| 외환 통화 전환 (반복 1 — 구현 중 실측) | 통화를 바꾸면 표·차트가 "불러오는 중"으로 바뀌어 문서가 2,186 → 900px로 줄고 스크롤이 0이 된다. 개발 모드에서는 StrictMode가 `DailyTable`의 첫 렌더 장치를 무력화해 다시 붙은 표가 창을 표로 옮긴다(912px) | 바꾸기 직전 높이를 붙잡고, `DailyTable`은 `resetKey` 변화로만 처음으로 돌린다(R10-16). 004 테스트 변경 없음 |
 
 **반복 1(2026-10-05)**: 주식 주가 선을 **분할만 반영한 수정 종가**로 바꾸고 분할 표식을 없앤다(표의 시작가는 그대로). 주식·가상자산·부동산 이름에서
 네이버 증권·네이버 부동산(검색)을 새 탭으로 연다 — 외부를 부르지 않는다. 외환 화면을 왼쪽에 붙이고 통화를 바꿔도 스크롤 위치를 그대로 둔다. 사용자
@@ -84,7 +84,7 @@
 | 배치의 경계 | ✅ | 상수 없음 — 표 고유 폭으로 줄바꿈. 측정 경계 모두 1920px 이하. 표의 열을 줄이지 않으므로 1440px 기준(006 FR-069·007 FR-041·008 FR-034·009 FR-028·SC-010)을 구조적으로 지킨다 |
 | 라이브러리 모의 객체 | ✅ | 기존 모의 객체가 지원하는 API(`addSeries`·`setData`·`subscribeCrosshairMove`·`timeScale`·`remove`)와 `createChart` 옵션만 쓴다. 라이브러리 열거형을 실행 중에 읽지 않는다 |
 | 바뀌는 기존 테스트 | ✅(승인 — T029) | `SimulationHistoryList.test.tsx`·`SimulationHistoryBlocked.test.tsx`의 렌더 10곳에 `onRerun` 속성만 더한다(검사 내용 그대로 — R10-12). 구현 단계에서 사용자 승인을 받는다(006 D2) |
-| 바뀌는 기존 테스트 (반복 1) | ⚠(T040·T046에서 확정, 승인 필요) | 후보: 004 `fxWorkspaceScroll.test.ts`의 "표를 새로 받으면 스크롤을 처음으로 되돌릴 신호를 낸다"(통화 전환이 그 신호를 내는 경우라면), 외환 화면 배치를 검사하는 테스트(있으면). 010 자체 테스트(`test_stock_series_price*`·`PerformanceChartPrice`·`chartSeriesPrice`·`chartHover`·`PerformanceChartHover`)는 이 기능 안의 반복 변경이다(T042·T043) |
+| 바뀌는 기존 테스트 (반복 1) | ✅(없음 — 실측) | 통화 전환은 `tableEpoch`를 올리지 않아 004 `fxWorkspaceScroll`·`PeriodSwitch`는 그대로다(R10-16). 외환 화면 배치를 검사하는 기존 테스트는 없다. 010 자체 테스트(`test_stock_series_price*`·`PerformanceChartPrice`·`chartSeriesPrice`·`chartHover`·`PerformanceChartHover`)는 이 기능 안의 반복 변경이다(T042·T043) |
 
 ## Project Structure
 

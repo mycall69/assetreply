@@ -3,8 +3,8 @@
  *
  * - `hoverView(series, time)` — 커서가 붙은 시각의 **그 점**의 원본 문자열을 **표와 같은 형식 함수**로 보인다(FR-010). 주식 가격은
  *   `formatRate`(표의 시작가), 가상자산은 `formatPrice`(표의 시가), 예금 금리는 `formatAnnualRate`, 금액은 기호를 앞에
- *   (`formatMoneyWithSymbol`), 수익률은 표와 같은 `formatPercent`. 값이 없는 칸은 0이 아니라 "—"와 사유(FR-011). 주식 분할 표식 점은
- *   비율·효력일을 밝힌다(FR-008). 값 없는 자리(구간마다 하나)는 구간과 사유
+ *   (`formatMoneyWithSymbol`), 수익률은 표와 같은 `formatPercent`. 값이 없는 칸은 0이 아니라 "—"와 사유(FR-011). 주식 주가는 분할만 반영한
+ *   수정 종가라 줄 이름이 `주가(수정 종가)`다(반복 1 — 분할 문구·`notes` 없음). 값 없는 자리(구간마다 하나)는 구간과 사유
  * - `gapSlots(points, gaps)` — 점 범위 안의 출처 결측·시세 없음 **구간마다 자리 하나**(`from`). 날마다 두면 줄인 차트에서 구간이
  *   과장된다(R10-8)
  * - `placeHover(point, box, area)` — 커서 오른쪽 아래 12px, 넘치면 반대쪽. 차트 칸 밖으로 나가지 않는다(FR-012)
@@ -23,10 +23,10 @@ const series = (points: SimulationPoint[], over: Partial<SimulationSeriesRespons
 const STOCK = series([
   { date: "2020-08-03", balance: "14210345", returnRate: "0.4210", price: "432.800000" },
   { date: "2020-09-01", balance: "15342210", returnRate: "0.534221", price: "132.759995" },
-], { priceKind: "stock_open", priceCurrency: "USD", splits: [{ date: "2020-08-31", numerator: 4, denominator: 1 }] });
+], { priceKind: "stock_adjusted_close", priceCurrency: "USD" });
 
 const KRX = series([{ date: "2021-08-02", balance: "86997", returnRate: "-0.0123", price: "70000.000000" }],
-  { priceKind: "stock_open", priceCurrency: "KRW" });
+  { priceKind: "stock_adjusted_close", priceCurrency: "KRW" });
 
 const CRYPTO = series([
   { date: "2024-03-01", balance: "1000000", returnRate: "0", price: "0.00000530" },
@@ -47,19 +47,18 @@ const APT = series([
 ], { priceKind: "apt_average", priceCurrency: "KRW", gaps: [{ from: "2023-01-01", to: "2023-05-01", reason: "no_price" }] });
 
 describe("hoverView — 자산군별 줄과 형식", () => {
-  it("주식 — 주가(표의 시작가 형식)·잔고·수익률, 분할 표식 점은 비율과 효력일", () => {
+  it("주식 — 주가(수정 종가 — 소수 2자리 형식)·잔고·수익률, 분할 문구 없음", () => {
     expect(hoverView(STOCK, "2020-09-01")).toEqual({
       title: "2020-09-01",
-      lines: [{ label: "주가", value: "$132.75" }, { label: "잔고", value: "₩15,342,210" }, { label: "수익률", value: "+53.42%" }],
-      notes: ["분할 1→4 (2020-08-31 효력)"],
+      lines: [{ label: "주가(수정 종가)", value: "$132.75" }, { label: "잔고", value: "₩15,342,210" },
+        { label: "수익률", value: "+53.42%" }],
       reason: null,
     });
-    expect(hoverView(STOCK, "2020-08-03")?.notes).toEqual([]);
   });
 
   it("국내 주식 — 원화 기호, 표와 같은 소수 2자리", () => {
     expect(hoverView(KRX, "2021-08-02")?.lines).toEqual([
-      { label: "주가", value: "₩70,000.00" }, { label: "잔고", value: "₩86,997" }, { label: "수익률", value: "-1.23%" }]);
+      { label: "주가(수정 종가)", value: "₩70,000.00" }, { label: "잔고", value: "₩86,997" }, { label: "수익률", value: "-1.23%" }]);
   });
 
   it("가상자산 — 시세(표의 시가 형식 — 작은 값을 0.00으로 깎지 않는다)", () => {
@@ -80,7 +79,6 @@ describe("hoverView — 자산군별 줄과 형식", () => {
         { label: "평가액", value: "₩2,200,000,000" }, { label: "투자 수익", value: "₩105,000,000" },
         { label: "수익률", value: "+5.00%" }, { label: "실거래가 평균", value: "₩2,210,000,000" },
       ],
-      notes: [],
       reason: null,
     });
     expect(hoverView(APT, "2021-03-15")?.title).toBe("2021-03-15");
@@ -98,7 +96,6 @@ describe("hoverView — 자산군별 줄과 형식", () => {
     expect(hoverView(CRYPTO, "2024-03-02")).toEqual({
       title: "2024-03-02 ~ 2024-03-03",
       lines: [{ label: "시세", value: "—" }, { label: "잔고", value: "—" }, { label: "수익률", value: "—" }],
-      notes: [],
       reason: "출처 결측",
     });
     expect(hoverView(APT, "2023-01-01")).toEqual({
@@ -107,7 +104,6 @@ describe("hoverView — 자산군별 줄과 형식", () => {
         { label: "평가액", value: "—" }, { label: "투자 수익", value: "—" }, { label: "수익률", value: "—" },
         { label: "실거래가 평균", value: "—" },
       ],
-      notes: [],
       reason: "시세 없음",
     });
   });

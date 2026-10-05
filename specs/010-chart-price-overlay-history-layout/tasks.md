@@ -398,9 +398,9 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   - (FR-024~FR-026, SC-007)
 - [ ] T046 [P] [US6] `frontend/tests/FxPageLayout.test.tsx` — 외환 화면:
   - 본문에 `mx-auto`가 없다(왼쪽 정렬)
-  - 통화를 바꾸면 `scrollIntoView`가 불리지 않는다
-  - 기간 단위 전환·먼 날짜 고르기는 지금처럼 불린다(004 FR-005b 유지)
-  - **004 기존 테스트 변경(D2 — 승인 뒤)**: `fxWorkspaceScroll.test.ts`의 통화 전환 신호 단언이 바뀌어야 하면 멈추고 승인을 받는다
+  - 통화를 바꾸는 동안 본문이 바꾸기 직전 높이를 최소 높이로 붙잡고, 새 통화가 오면 놓는다(구현 중 실측 — 원인은 높이 무너짐, research R10-16)
+  - `DailyTable`(StrictMode 아래)이 다시 붙어도 `resetKey`가 같으면 `scrollIntoView`를 부르지 않고, `resetKey`가 바뀌면 부른다(004 FR-005b 유지)
+  - 004 기존 테스트는 바뀌지 않는다 — 통화 전환은 `tableEpoch`를 올리지 않는다(실측)
   - (FR-022, FR-023, SC-008)
 
 ### Implementation for 반복 1
@@ -427,7 +427,8 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   - (FR-024~FR-026)
 - [ ] T050 [US6] 외환:
   - `frontend/src/app/fx/page.tsx` — 가운데 정렬 제거
-  - 통화 전환이 스크롤 신호를 내지 않게 — 외환 스토어(`resetKey`를 통화 전환에서 올리지 않음) 또는 `frontend/src/components/fx/DailyTable.tsx`(R10-16)
+  - 통화를 바꾸는 동안 본문 최소 높이를 붙잡는다(`app/fx/page.tsx`), `frontend/src/components/fx/DailyTable.tsx`는 `resetKey`의 직전 값과 비교해
+    처음으로 돌린다(R10-16 — 구현 중 실측으로 고침)
   - (FR-022, FR-023)
 
 ### 반복 1 마무리

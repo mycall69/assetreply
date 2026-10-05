@@ -52,7 +52,7 @@ const STOCK = series([
   { date: "2020-08-03", balance: "14210345", returnRate: "0.4210", price: "432.800000" },
   { date: "2020-09-01", balance: "15342210", returnRate: "0.534221", price: "132.759995" },
   { date: "2020-10-01", balance: "15100000", returnRate: "0.510000", price: "116.790000" },
-], { priceKind: "stock_open", priceCurrency: "USD", splits: [{ date: "2020-08-31", numerator: 4, denominator: 1 }] });
+], { priceKind: "stock_adjusted_close", priceCurrency: "USD" });
 
 const CRYPTO = series([
   { date: "2024-03-01", balance: "1000000", returnRate: "0", price: "62000.10000000" },
@@ -88,7 +88,6 @@ const strip = (s: SimulationSeriesResponse): SimulationSeriesResponse => {
   const out = { ...s, points };
   delete out.priceKind;
   delete out.priceCurrency;
-  delete out.splits;
   return out;
 };
 
@@ -121,11 +120,12 @@ describe("상자를 열고 닫는다", () => {
     hoverAt("2020-09-01", { x: 100, y: 50 });
     const tip = screen.getByRole("tooltip");
     expect(tip).toBe(box());
-    for (const text of ["2020-09-01", "주가", "$132.75", "잔고", "₩15,342,210", "수익률", "+53.42%", "분할 1→4 (2020-08-31 효력)"]) {
+    for (const text of ["2020-09-01", "주가(수정 종가)", "$132.75", "잔고", "₩15,342,210", "수익률", "+53.42%"]) {
       expect(tip.textContent).toContain(text);
     }
     expect(tip.style.left).toBe("112px");
     expect(tip.style.top).toBe("62px");
+    expect(tip.textContent).not.toContain("분할");
   });
 
   it("오른쪽 아래 끝이면 커서 반대쪽으로 비켜 칸 안에 뜬다", () => {

@@ -6,7 +6,7 @@
  * - 가격이 `null`인 점에서 **가격 선만** 끊긴다 — 잔고·수익률 선은 그 달에도 값이 있어 끊기지 않는다(FR-003)
  * - 점 하나뿐인 가격 구간은 점으로 그린다(선은 두 점이 있어야 보인다). 부동산(`apt_average`)은 달마다 거래가 드물어 모든 구간에 점 표식
  * - 잠정 구간(`provisionalFrom` 뒤)은 가격 선도 연한 색이다(FR-006). 부동산 추정 표식은 평가액 축에만 있다
- * - 분할 표식은 가격 축 위에 점만 그리는 시리즈다 — 그린 점 중 효력일 이상인 첫 점(FR-008)
+ * - (반복 1) 분할 표식은 없다 — 주가 선이 분할만 반영한 수정 종가라 분할 날 꺾이지 않는다(FR-008)
  * - 범례가 이름과 단위를 밝힌다(FR-005)
  * - **점에 `price` 키가 없으면 지금과 같은 시리즈다** — 005~009의 차트 테스트가 그대로 통과해야 한다
  *
@@ -55,7 +55,7 @@ const series = (points: SimulationPoint[], over: Partial<SimulationSeriesRespons
 
 const STOCK = series([
   pt("2020-08-03", "432.80"), pt("2020-09-01", "132.76"), pt("2020-10-01", "116.79"), pt("2020-11-02", "109.11"),
-], { priceKind: "stock_open", priceCurrency: "USD", splits: [{ date: "2020-08-31", numerator: 4, denominator: 1 }] });
+], { priceKind: "stock_adjusted_close", priceCurrency: "USD" });
 
 const CRYPTO = series([pt("2024-01-15", "42511.10"), pt("2024-01-16", "42800.00"), pt("2024-01-17", "43100.50")],
   { priceKind: "crypto_open", priceCurrency: "USD" });
@@ -92,7 +92,6 @@ const strip = (s: SimulationSeriesResponse): SimulationSeriesResponse => {
   const out = { ...s, points };
   delete out.priceKind;
   delete out.priceCurrency;
-  delete out.splits;
   return out;
 };
 
@@ -156,19 +155,9 @@ describe("가격 선 — 겹침 축", () => {
   });
 });
 
-describe("분할 표식", () => {
-  it("효력일 뒤 첫 점에 가격 축의 점으로 단다", () => {
+describe("분할 표식 — 반복 1에서 없앰", () => {
+  it("주식 차트에 가격 축의 점 시리즈(분할 표식)가 없다", () => {
     draw(STOCK);
-    const markers = splitMarkers();
-    expect(markers.length).toBeGreaterThan(0);
-    for (const marker of markers) {
-      expect(marker.options.pointMarkersVisible).toBe(true);
-      expect(marker.data).toEqual([{ time: "2020-09-01", value: 132.76 }]);
-    }
-  });
-
-  it("분할이 없으면 표식 시리즈가 없다", () => {
-    draw({ ...STOCK, splits: [] });
     expect(splitMarkers()).toEqual([]);
   });
 });
@@ -181,13 +170,8 @@ describe("범례", () => {
     expect(legend()).toContain(text);
   });
 
-  it("분할이 있으면 ● 분할", () => {
-    draw(STOCK);
-    expect(legend()).toContain("● 분할");
-  });
-
-  it("분할이 없으면 분할 범례가 없다", () => {
-    draw(CRYPTO);
+  it.each([STOCK, CRYPTO].map((s) => [s.priceKind, s] as const))("%s — 분할 범례가 없다", (_kind, s) => {
+    draw(s);
     expect(legend()).not.toContain("분할");
   });
 });
