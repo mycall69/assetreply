@@ -178,7 +178,7 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   `price` 키가 있을 때만: 가격 시리즈 — 겹침 축 `"price"`, 파랑 실선·잠정 연한 파랑, 점 하나 구간과 부동산은 점 표식, 분할 표식 시리즈(점만, 가격 축),
   `createChart` 옵션 `overlayPriceScales.scaleMargins`, 범례 이름·단위·`● 분할`. 머리 주석에 010 규칙을 더한다). 화면 파일(`app/*/page.tsx`)·스토어는
   바꾸지 않는다 — 시계열 응답의 새 키가 그대로 흐른다. ui-wireframes F1 (FR-001, FR-003~FR-006, FR-008)
-- [ ] T018 [US1] quickstart 1~5를 실행하고 `specs/010-chart-price-overlay-history-layout/quickstart.md`에 실행 기록을 더한다 — 네 화면의 표 대조
+- [X] T018 [US1] quickstart 1~5를 실행하고 `specs/010-chart-price-overlay-history-layout/quickstart.md`에 실행 기록을 더한다 — 네 화면의 표 대조
   불일치 수(0이어야 한다), 주식 주가 점 수 = 표의 날짜 수, AAPL `splits`와 표식 위치·꺾임, 예금 미발표 점, 부동산 거래 없는 달·가락미륭 시세 없음 끊김, 다운샘플 대조, 화면 캡처
   (1440px). 가상자산 출처 결측이 개발 DB에 없으면 그 사실과 T008로 갈음함을 적는다. 끝나면 서버를 내린다 (SC-001, SC-002, FR-007)
 
