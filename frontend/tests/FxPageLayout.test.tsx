@@ -6,6 +6,9 @@
  *   짧아지고 브라우저가 스크롤을 끌어내린다. 그래서 바꾸기 **직전** 본문 높이를 최소 높이로 붙잡고, 새 통화가 다 오면 놓는다
  * - 개발 모드에서는 StrictMode가 효과를 두 번 실행해 `DailyTable`의 "첫 렌더에서는 움직이지 않음" 장치가 무력해졌다 — 다시 붙은 표가 창을 표로
  *   옮겼다. `DailyTable`은 `resetKey`가 정말 바뀌었을 때만 표의 처음으로 간다(004 FR-005b — 기간 단위 전환·먼 날짜 고르기는 그대로)
+ * - **기간 단위를 바꾸면 표가 떨어졌다 새로 붙는다**(T051 실측 — 창이 맨 위로 끌려가고 표의 처음으로 가지 않았다). 새로 붙은 표는 직전 `resetKey`를
+ *   모르므로 화면이 마지막으로 그린 표의 차례를 기억해 표의 처음으로 옮긴다(FR-023 — 기간 단위 전환은 004 FR-005b 그대로). 바꾸는 동안 높이도 붙잡는다 —
+ *   무너진 문서에 창이 맨 위로 튀었다 내려오지 않게
  */
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -53,7 +56,11 @@ function answer(path: string): unknown {
   const currency = /currency=([A-Z]+)/.exec(path)?.[1] ?? "USD";
   if (path.startsWith("/api/fx/coverage")) return { coverage: COVERAGE };
   if (path.startsWith("/api/fx/latest")) return latest(currency);
-  if (path.startsWith("/api/fx/daily")) return { ...DAILY, currency };
+  if (path.startsWith("/api/fx/daily")) {
+    // 스토어는 도착한 응답의 단위를 지금 선택과 대조한다(004 FR-011) — 요청한 단위로 답한다.
+    const period = (/period=([a-z]+)/.exec(path)?.[1] ?? "daily") as DailyResponse["period"];
+    return { ...DAILY, currency, period };
+  }
   if (path.startsWith("/api/fx/series")) return series(currency);
   throw new Error(`처리기가 없는 경로: ${path}`);
 }
@@ -97,6 +104,56 @@ describe("외환 화면 배치", () => {
     await userEvent.click(screen.getByRole("tab", { name: /JPY/ }));
     expect(workspace().style.minHeight).toBe("2186px");
     expect(screen.queryByRole("table")).toBeNull();  // 표는 비워진다 — 이전 통화의 값이 남지 않는다
+    await act(async () => { release(); });
+    await screen.findByRole("table");
+    await waitFor(() => expect(workspace().style.minHeight).toBe(""));
+  });
+});
+
+describe("기간 단위 전환은 표의 처음으로 (004 FR-005b 그대로)", () => {
+  const gated = () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    vi.mocked(apiClient.get).mockImplementation(async (path: string) => {
+      await gate;
+      return answer(path) as never;
+    });
+    return () => release();
+  };
+
+  it("StrictMode — 통화 전환은 창을 옮기지 않고, 기간 단위 전환은 새 표가 붙은 뒤 표의 처음으로 옮긴다", async () => {
+    vi.spyOn(apiClient, "get").mockImplementation(async (path: string) => answer(path) as never);
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    render(<StrictMode><FxPage /></StrictMode>);
+    await screen.findByRole("table");
+    await userEvent.click(screen.getByRole("tab", { name: /JPY/ }));
+    await screen.findByRole("table");
+    expect(scroll).not.toHaveBeenCalled();
+
+    const release = gated();
+    await userEvent.click(screen.getByRole("tab", { name: "주" }));
+    expect(screen.queryByRole("table")).toBeNull();
+    expect(scroll).not.toHaveBeenCalled();  // 새 표가 오기 전에는 옮기지 않는다 — 옮길 표가 없다
+    await act(async () => { release(); });
+    await screen.findByRole("table");
+    await waitFor(() => expect(scroll).toHaveBeenCalled());
+    const target = scroll.mock.contexts.at(-1) as Element;
+    expect(target.contains(screen.getByRole("table"))).toBe(true);  // 표의 처음 — 표를 품은 자리
+  });
+
+  it("기간 단위를 바꾸는 동안 바꾸기 직전 높이를 붙잡고, 새 표가 오면 놓는다", async () => {
+    vi.spyOn(apiClient, "get").mockImplementation(async (path: string) => answer(path) as never);
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      const height = this.querySelector?.("h2")?.textContent === "외환 데이터 분석" ? 2186 : 0;
+      return { width: 1000, height, top: 0, left: 0, right: 1000, bottom: height, x: 0, y: 0, toJSON: () => ({}) } as DOMRect;
+    });
+    Element.prototype.scrollIntoView = vi.fn();
+    render(<FxPage />);
+    await screen.findByRole("table");
+    const release = gated();
+    await userEvent.click(screen.getByRole("tab", { name: "월" }));
+    expect(workspace().style.minHeight).toBe("2186px");
     await act(async () => { release(); });
     await screen.findByRole("table");
     await waitFor(() => expect(workspace().style.minHeight).toBe(""));
