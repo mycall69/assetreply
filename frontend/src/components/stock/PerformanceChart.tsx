@@ -32,16 +32,23 @@
  * 선도 연한 색이다. 주식 분할은 그린 점 중 효력일 이상인 첫 점에 표식을 단다(`splitMarks` — 원주가가 꺾이는 까닭, FR-008).
  * **점에 `price` 키가 없으면 가격 시리즈를 만들지 않는다** — 005~009의 응답·테스트는 지금과 같다. 기존 테스트 모의 객체에 없는
  * API(`createSeriesMarkers`·`subscribeClick`·`priceScale()`)를 부르지 않는다 — 겹침 축 여백은 `createChart` 옵션으로 준다.
+ *
+ * **마우스를 올린 날의 값은 커서 가까이 상자다**(010 FR-009~FR-014, research R10-9). `subscribeCrosshairMove`의 `time`으로 그 점을 찾아
+ * `hoverView`(표와 같은 형식 함수 — 원본 문자열)로 줄을 만들고, 그린 뒤 크기를 재서 `placeHover`로 칸 안에 둔다. 커서가 벗어나면 지운다 —
+ * 마지막 값이 남으면 지금 값처럼 읽힌다. 차트 아래 한 줄 표시는 없앴다(같은 값을 두 곳에 보이지 않는다). 점이 없는 출처 결측·시세 없음
+ * 구간에는 커서가 놓일 자리가 없어, 구간마다 값 없는 자리(whitespace) 하나를 두고 그 자리의 상자가 구간과 사유를 보인다(`gapSlots`).
+ * 터치는 라이브러리 기본 추적 모드(길게 누르면 따라가고 다음 탭에 풀린다)가 같은 콜백을 부른다 — 새 API를 부르지 않는다.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
-import { axisPriceFormat, priceSegments, splitMarks, splitSeriesAtGaps, toPerformanceData } from "@/lib/chartSeries";
-import { formatMoney, formatYield } from "@/lib/format";
+import { hoverView, placeHover, PRICE_NAME, type HoverView } from "@/lib/chartHover";
+import {
+  axisPriceFormat, gapSlots, priceSegments, splitMarks, splitSeriesAtGaps, toPerformanceData,
+} from "@/lib/chartSeries";
 import type {
   CryptoCollecting,
   DepositCollecting,
-  PriceKind,
   RealEstateTradeCollecting,
   SimulationCollecting,
   SimulationPoint,
@@ -62,14 +69,6 @@ const COLORS = {
   confirmed: { balance: "#1f2937", returnRate: "#b45309", price: "#2563eb" },
   provisional: { balance: "#9ca3af", returnRate: "#fcd34d", price: "#93c5fd" },
 } as const;
-
-/** 가격 선의 범례 이름(010 FR-005). 단위는 응답의 `priceCurrency`, 예금은 연 %다. */
-const PRICE_LABEL: Record<PriceKind, string> = {
-  stock_open: "주가",
-  crypto_open: "시세",
-  deposit_rate: "금리",
-  apt_average: "실거래가 평균",
-};
 
 /** 분할 표식 — 가격 선 위의 채운 원. */
 const SPLIT_MARKER = { color: "#7c3aed", radius: 5 } as const;
@@ -120,10 +119,10 @@ function splitByTone(
   return parts.filter((part) => part.points.length > 0);
 }
 
+/** 상자 — 내용과 커서 자리(차트 칸 기준 px). */
 interface Hover {
-  date: string;
-  balance: string;
-  returnRate: string;
+  view: HoverView;
+  point: { x: number; y: number };
 }
 
 export function PerformanceChart({
@@ -137,7 +136,22 @@ export function PerformanceChart({
   loading: boolean;
 }) {
   const container = useRef<HTMLDivElement>(null);
+  const area = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<Hover | null>(null);
+  const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
+
+  // 상자를 그린 뒤 크기를 재서 칸 안에 둔다 — 크기를 모르고 자리를 정하면 오른쪽·아래 끝에서 잘린다(FR-012).
+  useLayoutEffect(() => {
+    if (hover === null || area.current === null || box.current === null) {
+      setPlace(null);
+      return;
+    }
+    const chart = area.current.getBoundingClientRect();
+    const size = box.current.getBoundingClientRect();
+    setPlace(placeHover(hover.point, { width: size.width, height: size.height },
+      { width: chart.width, height: chart.height }));
+  }, [hover]);
 
   useEffect(() => {
     if (!container.current || series === null || series.points.length === 0) return;
@@ -157,13 +171,6 @@ export function PerformanceChart({
     const balanceFormat = axisPriceFormat(NO_DECIMAL_CURRENCIES.has(series.basisCurrency) ? 0 : 2);
     // 이력 비교 차트의 수익률 축과 같은 형식이다(FR-046a) — 같은 화면에서 두 수익률 축이 갈리지 않는다.
     const returnFormat = axisPriceFormat(2);
-
-    const lookup = new Map<string, Hover>();
-    for (const p of series.points) {
-      lookup.set(p.date, {
-        date: p.date, balance: p.balance, returnRate: p.returnRate,
-      });
-    }
 
     // 구간마다 두 시리즈 — **잔고와 수익률이 같은 자리에서 함께 끊겨야 한다.**
     // 한쪽만 끊기면 두 선이 다른 구간을 말하게 되고 어느 쪽이 맞는지 알 수 없다.
@@ -255,18 +262,36 @@ export function PerformanceChart({
         });
         marker.setData(marks.map((m) => ({ time: m.date, value: Number(priced.get(m.date)) })));
       }
+
+      // FR-011 — 점이 없는 출처 결측·시세 없음 구간마다 값 없는 자리 하나. 그리는 것이 없고 커서가 놓일 자리만 생긴다.
+      const slots = gapSlots(series.points, series.gaps);
+      if (slots.length > 0) {
+        const slot = instance.addSeries(LineSeries, {
+          priceScaleId: PRICE_AXIS,
+          lineVisible: false,
+          pointMarkersVisible: false,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        slot.setData(slots.map((s) => ({ time: s.time })));
+      }
     }
 
     instance.subscribeCrosshairMove((param) => {
       const time = param.time as string | undefined;
-      // 툴팁은 **원본 문자열**을 보여준다. 렌더링용 변환값이 값의 진실이 되면
-      // 정밀도가 손실된 값을 사용자가 보게 된다.
-      setHover(time ? (lookup.get(time) ?? null) : null);
+      const point = param.point;
+      // 상자는 **원본 문자열**을 보여준다. 렌더링용 변환값이 값의 진실이 되면 정밀도가 손실된 값을 사용자가 보게 된다.
+      // 커서가 차트를 벗어나면 `time`·`point`가 없다 — 상자를 지운다.
+      const view = time !== undefined && point !== undefined ? hoverView(series, time) : null;
+      setHover(view === null || point === undefined ? null : { view, point: { x: point.x, y: point.y } });
     });
 
     instance.timeScale().fitContent();
     return () => {
       instance.remove();
+      // 다른 실행의 상자가 남으면 새 차트의 값처럼 읽힌다.
+      setHover(null);
     };
   }, [series]);
 
@@ -294,29 +319,45 @@ export function PerformanceChart({
   const hasEstimated = series.points.some((p) => p.estimated === true);
   // 010 — 가격 선의 이름과 단위(FR-005). 단위가 없으면 USD 시세를 KRW 잔고와 같은 통화로 읽는다.
   const priceLegend = series.priceKind !== undefined && series.points.some((p) => p.price !== undefined)
-    ? `${PRICE_LABEL[series.priceKind]} (${series.priceKind === "deposit_rate" ? "연 %" : (series.priceCurrency ?? "")})`
+    ? `${PRICE_NAME[series.priceKind]} (${series.priceKind === "deposit_rate" ? "연 %" : (series.priceCurrency ?? "")})`
     : null;
   const hasSplitMark = priceLegend !== null && splitMarks(series.points, series.splits ?? []).length > 0;
 
   return (
     <section className="rounded-lg border border-gray-200 p-4">
-      <div ref={container} data-testid="performance-canvas" />
+      <div ref={area} className="relative">
+        <div ref={container} data-testid="performance-canvas" />
 
-      {hover && (
-        <div
-          data-testid="performance-tooltip"
-          className="mt-3 inline-flex items-center gap-4 rounded border border-gray-200 px-3 py-2 text-sm"
-        >
-          <span className="text-gray-500">{hover.date}</span>
-          <span className="tabular-nums font-medium">
-            {formatMoney(hover.balance, series.basisCurrency)}{" "}
-            {series.basisCurrency}
-          </span>
-          <span className="tabular-nums text-amber-700">
-            {formatYield(hover.returnRate)}
-          </span>
-        </div>
-      )}
+        {hover && (
+          <div
+            ref={box}
+            role="tooltip"
+            data-testid="performance-hover"
+            className="pointer-events-none absolute z-10 rounded border border-gray-200 bg-white/95 px-3 py-2 text-xs shadow-md"
+            // 크기를 재기 전에는 숨긴다 — 칸 밖으로 잘린 상자가 한 번 깜박이지 않게.
+            style={place === null ? { left: 0, top: 0, visibility: "hidden" } : { left: place.left, top: place.top }}
+          >
+            <p className="mb-1 whitespace-nowrap font-medium text-gray-700">{hover.view.title}</p>
+            <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-0.5 whitespace-nowrap">
+              {hover.view.lines.map((line) => (
+                <Fragment key={line.label}>
+                  <dt className="text-gray-500">{line.label}</dt>
+                  <dd className="text-right tabular-nums text-gray-900">
+                    {line.value}
+                    {line.missing !== undefined && <span className="ml-1 text-gray-500">{line.missing}</span>}
+                  </dd>
+                </Fragment>
+              ))}
+            </dl>
+            {hover.view.notes.map((note) => (
+              <p key={note} className="mt-1 whitespace-nowrap text-violet-700">{note}</p>
+            ))}
+            {hover.view.reason !== null && (
+              <p className="mt-1 whitespace-nowrap text-amber-700">{hover.view.reason}</p>
+            )}
+          </div>
+        )}
+      </div>
 
       <footer
         data-testid="chart-legend"

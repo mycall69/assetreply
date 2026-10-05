@@ -174,3 +174,32 @@ export function splitMarks(points: { date: string }[], splits: SplitMark[]): Spl
   }
   return marks;
 }
+
+/** 값 없는 자리 하나 — 결측 구간과 그 사유. */
+export interface GapSlot {
+  time: string;
+  from: string;
+  to: string;
+  reason: "source_missing" | "no_price";
+}
+
+/**
+ * 값 없는 자리 (010 FR-011, research R10-8).
+ *
+ * 라이브러리의 시간 축은 어느 시리즈에든 있는 시각만 자리로 둔다 — 점이 없는 출처 결측 날·시세 없음 달에는 커서가 놓일 수 없어 그
+ * 사유를 보일 곳이 없다. 점 범위(첫 점 ~ 끝 점) 안의 출처 결측·시세 없음 **구간마다 자리 하나**(`from`)를 둔다. 날마다 두면 안 된다 —
+ * 시간 축은 자리마다 같은 폭을 주므로 줄인(다운샘플) 차트에서 결측 하루가 줄인 점 하나(며칠 치)와 같은 폭이 되어 구간이 과장되고,
+ * 자리 수가 줄이기 밖에서 늘어난다(헌법 원칙 VII). 휴장(잇는다)·미수집(200에 섞이지 않는다)에는 두지 않는다.
+ */
+export function gapSlots(points: { date: string }[], gaps: SeriesGap[]): GapSlot[] {
+  if (points.length === 0) return [];
+  const first = points[0].date;
+  const last = points[points.length - 1].date;
+  const slots: GapSlot[] = [];
+  for (const gap of [...gaps].sort((a, b) => a.from.localeCompare(b.from))) {
+    if (gap.reason !== "source_missing" && gap.reason !== "no_price") continue;
+    if (gap.from <= first || gap.to >= last) continue;
+    slots.push({ time: gap.from, from: gap.from, to: gap.to, reason: gap.reason });
+  }
+  return slots;
+}

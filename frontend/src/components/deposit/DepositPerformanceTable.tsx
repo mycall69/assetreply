@@ -12,7 +12,7 @@
  * 손익은 부호와 함께 쓴다(접근성).
  */
 
-import { formatMoney, formatPercent, formatRate } from "@/lib/format";
+import { formatAnnualRate, formatMoney, formatPercent } from "@/lib/format";
 import type { DepositRow, DepositRowKind } from "@/lib/types";
 
 const KIND_TEXT: Record<DepositRowKind, string> = {
@@ -38,11 +38,6 @@ const CELL = "whitespace-nowrap px-1.5 py-2 text-right tabular-nums";
 
 /** `2026-01` → `26-01`. */
 const shortMonth = (month: string) => month.slice(2);
-
-/** 연 금리(%) — 출처 문자열(`"3.2"`)을 두 자리로(`3.20%`). */
-export function formatAnnualRate(rate: string): string {
-  return `${formatRate(rate)}%`;
-}
 
 function rateCell(row: DepositRow): string {
   const month = shortMonth(row.rateMonth);

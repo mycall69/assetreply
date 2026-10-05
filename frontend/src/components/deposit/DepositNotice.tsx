@@ -11,7 +11,7 @@
  * 알림 역할(`role="status"`)이다 — 005~007의 보드 아래 줄과 같다.
  */
 
-import { formatAnnualRate } from "@/components/deposit/DepositPerformanceTable";
+import { formatAnnualRate } from "@/lib/format";
 import type { DepositFailureKind, DepositSummary } from "@/lib/types";
 
 const LINE = "rounded border px-4 py-2 text-xs";

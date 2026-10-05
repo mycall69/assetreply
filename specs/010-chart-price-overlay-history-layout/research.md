@@ -169,7 +169,7 @@ R10-1의 이유로 기각.
 - 값은 `time`으로 찾은 **그 점의 원본 문자열**(지금처럼 `lookup`) — 다운샘플된 점이면 그 점의 날짜와 값이다(FR-010). 자리(whitespace)면 R10-8의 사유.
 - 형식은 **표와 같은 함수**: 주식 가격 `currencySymbol + formatRate`(표의 시작가), 가상자산 `currencySymbol + formatPrice`(표의 시가), 예금 금리
   `formatAnnualRate`, 부동산 실거래가 평균·평가액·투자 수익 `formatMoneyWithSymbol(…, "KRW")`, 잔고 `formatMoneyWithSymbol(…, basisCurrency)`, 수익률
-  `formatYield`. 날짜는 일(`YYYY-MM-DD`), 부동산은 달(`YYYY-MM`) — 첫 점·끝 점만 날짜(매입일·계산 끝).
+  `formatPercent`(표와 같은 부호 붙은 형식 — 구현 중 고침, 처음 설계는 `formatYield`였다). 날짜는 일(`YYYY-MM-DD`), 부동산은 달(`YYYY-MM`) — 첫 점·끝 점만 날짜(매입일·계산 끝).
 - `time`·`point`가 없으면 상자를 지운다. 지금의 차트 아래 한 줄(`performance-tooltip`)은 없앤다(FR-013 — 참조하는 테스트 없음, 확인함).
 - 터치는 기본 추적 모드 그대로 — 새 API 호출·옵션이 없다(`subscribeClick`은 기존 모의 객체에 없어, 부르면 기존 테스트 전부가 깨진다). 라이브러리 열거형
   (`TrackingModeExitMode` 등)을 실행 중에 읽지 않는다 — 모의 모듈에 없는 내보내기를 읽으면 vitest가 오류를 낸다.

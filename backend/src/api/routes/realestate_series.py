@@ -32,7 +32,7 @@ def point_json(p: SeriesPoint) -> Json:
     않는다."""
     body: Json = {"date": p.date.isoformat(), "balance": str(p.balance),
                   "returnRate": format(p.return_rate, ".6f"), "estimated": p.estimated,
-                  "provisional": p.provisional,
+                  "provisional": p.provisional, "profit": str(p.profit),
                   "price": None if p.price is None else str(p.price)}
     if p.price_missing is not None:
         body["priceMissing"] = p.price_missing

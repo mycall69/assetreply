@@ -11,14 +11,14 @@
 import { useEffect, useMemo } from "react";
 import { DepositHistory } from "@/components/deposit/DepositHistory";
 import { DepositNotice } from "@/components/deposit/DepositNotice";
-import { DepositPerformanceTable, formatAnnualRate } from "@/components/deposit/DepositPerformanceTable";
+import { DepositPerformanceTable } from "@/components/deposit/DepositPerformanceTable";
 import { DepositSimulationForm } from "@/components/deposit/DepositSimulationForm";
 import { InstitutionPicker } from "@/components/deposit/InstitutionPicker";
 import { CollectingNotice } from "@/components/stock/CollectingNotice";
 import { ComparisonChart } from "@/components/stock/ComparisonChart";
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
 import { PerformanceChart } from "@/components/stock/PerformanceChart";
-import { shiftDecimal } from "@/lib/format";
+import { formatAnnualRate, shiftDecimal } from "@/lib/format";
 import { kstToday } from "@/lib/startDate";
 import { INSTITUTION_NAMES, useDepositStore } from "@/stores/depositStore";
 

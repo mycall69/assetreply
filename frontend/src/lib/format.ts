@@ -17,6 +17,14 @@ export function formatRate(value: DecimalString): string {
   return `${sign}${grouped}.${frac}`;
 }
 
+/**
+ * 연 금리(%) — 출처 문자열(`"3.2"`)을 두 자리로(`3.20%`). 예금 표(008)와 성과 차트의 상자(010)가 함께 쓴다 — 공유 차트가 예금 표 부품을
+ * 거꾸로 가져오지 않게 여기에 둔다. 두 곳의 금리가 같은 형식이어야 상자와 표의 값이 같다(010 FR-010).
+ */
+export function formatAnnualRate(rate: DecimalString): string {
+  return `${formatRate(rate)}%`;
+}
+
 /** 고시 단위 표기. JPY는 100엔당이므로 단위를 함께 보여준다 (FR-007). */
 export function unitLabel(quoteUnit: number): string {
   return quoteUnit === 100 ? "원 / 100엔" : "원";

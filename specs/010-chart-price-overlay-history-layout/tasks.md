@@ -41,7 +41,7 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   `build_series`의 `rates`·`latest_month`는 **기본값 없는 필수 키워드 인자**다 — 기본값이 있으면 경로가 넘기기를 잊어도 모든 점이 조용히 "미발표"가 된다
 - **서식은 표와 같은 함수다**: 백엔드 — 주식 `str()`, 가상자산 `format(…, "f")`, 예금 `rate_text`(`repository/deposit_rate.py`), 부동산 원 정수
   `str()`. 화면 — 주식 `currencySymbol + formatRate`, 가상자산 `currencySymbol + formatPrice`, 예금 `formatAnnualRate`, 금액 `formatMoneyWithSymbol`,
-  수익률 `formatYield`. 다른 함수를 쓰면 반올림·자릿수가 갈라져 표와 상자가 조용히 어긋난다(FR-002, FR-010)
+  수익률 `formatPercent`(표와 같은 부호 붙은 형식). 다른 함수를 쓰면 반올림·자릿수가 갈라져 표와 상자가 조용히 어긋난다(FR-002, FR-010)
 - **가격의 통화는 자산 자신의 것이다**(Clarifications): 원화 원금으로 미국 종목을 실행해도 `priceCurrency`는 `USD`, 가격은 표의 시작가(종목 통화)다.
   KRW로 환산하지 않는다
 - **공유 차트는 조건부로 바꾼다**(R10-7): 가격·분할·값 없는 자리 시리즈는 점에 `price` **키가 있을 때만** 만든다. **005~009의
@@ -195,18 +195,18 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T019 [P] [US2] `backend/tests/integration/test_realestate_series_profit_api.py` — 기존 `test_realestate_series_api.py`와 같은 준비로 `GET
+- [X] T019 [P] [US2] `backend/tests/integration/test_realestate_series_profit_api.py` — 기존 `test_realestate_series_api.py`와 같은 준비로 `GET
   /api/realestate/simulation/series`: 점마다 `profit` = 표의 그 달 `profit`(원 정수 문자열), 끝점은 `summary.profit`, 거래 없는 달(`no_trades`) 점에도
   `profit`이 있다 (FR-009, SC-003)
-- [ ] T020 [P] [US2] `frontend/tests/chartHover.test.ts` — 순수 함수: `hoverView(series, time)` — 주식 `날짜 · 주가 $132.76 · 잔고 ₩… · 수익률`(국내
+- [X] T020 [P] [US2] `frontend/tests/chartHover.test.ts` — 순수 함수: `hoverView(series, time)` — 주식 `날짜 · 주가 $132.76 · 잔고 ₩… · 수익률`(국내
   종목 `₩70,000.00` — 표의 시작가와 같은 `formatRate`), 가상자산 `시세 $0.0000053`(표의 시가와 같은 `formatPrice`), 예금 `잔고 · 수익률 · 금리 연 3.71%`
   (`formatAnnualRate`), 부동산 `2023-06 · 평가액 · 투자 수익 · 수익률 · 실거래가 평균`(금액은 `formatMoneyWithSymbol(…, "KRW")`, **첫 점·끝 점은 날짜**),
-  잔고는 `formatMoneyWithSymbol(…, basisCurrency)`, 수익률 `formatYield`. 값 없는 칸 — 예금 `— 미발표`·`— 결측`, 부동산 `— 거래 없음`(평가액·투자
+  잔고는 `formatMoneyWithSymbol(…, basisCurrency)`, 수익률 `formatPercent`(표와 같은 부호 붙은 형식). 값 없는 칸 — 예금 `— 미발표`·`— 결측`, 부동산 `— 거래 없음`(평가액·투자
   수익·수익률은 그대로). 분할 표식 점 — `분할 1→4 (2020-08-31 효력)`(분모→분자). 자리(값 없는 시각) — 구간 `from ~ to` · 가상자산 모든 값 `—` +
   `출처 결측`, 부동산 모든 값 `—` + `시세 없음`. `gapSlots(points, gaps)` — 첫 점 ~ 끝 점 안의 `source_missing`·`no_price` **구간마다 `from` 하나**(날마다
   두지 않는다 — 여러 날 구간도 자리 하나), `no_quote`·`not_collected`는 자리 없음, 점 범위 밖 구간은 없음. `placeHover(point, box, area)` — 기본 커서 오른쪽 아래 12px, 오른쪽이 넘치면 커서 왼쪽, 아래가 넘치면 위,
   늘 `0 ≤ left ≤ area.width − box.width`·`0 ≤ top ≤ area.height − box.height` (FR-009~FR-012, SC-003)
-- [ ] T021 [P] [US2] `frontend/tests/PerformanceChartHover.test.tsx` — 파일 안의 인라인 모의 객체(`subscribeCrosshairMove` 콜백을 잡는다)로
+- [X] T021 [P] [US2] `frontend/tests/PerformanceChartHover.test.tsx` — 파일 안의 인라인 모의 객체(`subscribeCrosshairMove` 콜백을 잡는다)로
   `PerformanceChart`: 콜백에 `{ time, point }`를 주면 `role="tooltip"`·`data-testid="performance-hover"` 상자가 `hoverView`의 줄을 보이고 위치가
   `placeHover`의 결과(차트 칸 크기는 `getBoundingClientRect` 흉내로), `{}`(벗어남)를 주면 상자가 없다, `performance-tooltip`(차트 아래 한 줄)이
   어떤 경우에도 없다, 다운샘플된 점의 시각이면 그 점의 날짜·값, 가격이 있고 점 범위 안에 `source_missing`·`no_price` 구간이 있으면 값 없는 자리
@@ -215,13 +215,13 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] 부동산 투자 수익 — `backend/src/api/services/realestate_series.py`(`SeriesPoint.profit: int` = 행의 `profit`, 끝점은 `summary.profit` —
+- [X] T022 [US2] 부동산 투자 수익 — `backend/src/api/services/realestate_series.py`(`SeriesPoint.profit: int` = 행의 `profit`, 끝점은 `summary.profit` —
   점이 있는 행은 `profit`이 `None`이 아니다)·`backend/src/api/routes/realestate_series.py`(점 `profit` = `str(p.profit)`) (FR-009)
-- [ ] T023 [P] [US2] `frontend/src/lib/format.ts` — `formatAnnualRate`를 `components/deposit/DepositPerformanceTable.tsx`에서 옮긴다(동작 그대로).
+- [X] T023 [P] [US2] `frontend/src/lib/format.ts` — `formatAnnualRate`를 `components/deposit/DepositPerformanceTable.tsx`에서 옮긴다(동작 그대로).
   가져오는 곳 `components/deposit/DepositPerformanceTable.tsx`·`components/deposit/DepositNotice.tsx`·`app/deposit/page.tsx`를 고친다 — 차트(공유 부품)가
   예금 표 부품을 거꾸로 가져오지 않게 한다. 동작이 바뀌지 않는 이동이라 먼저 실패하는 새 테스트가 없다 — 기존 예금 화면·표 테스트가 회귀 검사이고,
   커밋에 그 사유를 적는다(헌법 원칙 III) (FR-009)
-- [ ] T024 [US2] 화면 — `frontend/src/lib/chartHover.ts`(신규 — `hoverView`·`placeHover`)·`frontend/src/lib/chartSeries.ts`(`gapSlots`)·
+- [X] T024 [US2] 화면 — `frontend/src/lib/chartHover.ts`(신규 — `hoverView`·`placeHover`)·`frontend/src/lib/chartSeries.ts`(`gapSlots`)·
   `frontend/src/components/stock/PerformanceChart.tsx`(차트 칸을 `relative`로 감싸고 상자를 `absolute`로, `subscribeCrosshairMove`의 `time`·`point`로
   상자를 열고 닫는다 — 값은 지금처럼 `lookup`의 **원본 문자열**, 가격이 있을 때만 값 없는 자리 시리즈(겹침 축, `{ time }`만, 구간마다 하나), **차트 아래 한 줄
   `performance-tooltip`을 없앤다**, 터치는 라이브러리 기본 추적 모드 그대로 — 새 API·열거형 읽기 없음). ui-wireframes F2 (FR-009~FR-014)
