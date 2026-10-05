@@ -29,6 +29,7 @@ const base = {
   onToggle: vi.fn(),
   onRemove: vi.fn(),
   onCompare: vi.fn(),
+  onRerun: vi.fn(),
 };
 
 describe("최근 시뮬레이션", () => {

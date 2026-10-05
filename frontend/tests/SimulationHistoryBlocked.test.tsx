@@ -53,7 +53,7 @@ describe("막힌 조합 이력", () => {
   it("목록에서 사유와 함께 보인다", () => {
     render(<SimulationHistory entries={[APPLE_EUR, SAMSUNG_KRW]} selected={[]}
       comparing={false} saveError={null} onToggle={vi.fn()} onRemove={vi.fn()}
-      onCompare={vi.fn()} />);
+      onCompare={vi.fn()} onRerun={vi.fn()} />);
     const rows = screen.getAllByTestId("history-row");
     expect(within(rows[0]).getByText(/KRW 또는 USD 원금만/)).toBeInTheDocument();
     expect(within(rows[1]).queryByText(/원금만/)).toBeNull();
