@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import pathlib
+import re
 
 SRC = pathlib.Path(__file__).resolve().parents[2] / "src"
 
@@ -183,7 +184,8 @@ def test_키움_필드명이_어댑터_밖에_없다() -> None:
             continue
         body = path.read_text(encoding="utf-8")
         for token in KIWOOM_TOKENS:
-            if token in body:
+            # 낱말 단위 — 009 응답 키 `lastPricedMonth`가 `lastPrice`를 품는다(2026-10-05 D2 승인)
+            if re.search(rf"\b{re.escape(token)}\b", body):
                 offenders.append(f"{path.relative_to(SRC)}: {token}")
     assert offenders == [], f"키움 고유 개념 노출: {offenders}"
 

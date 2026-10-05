@@ -121,7 +121,7 @@
     "value": "2450000000", "valueMonth": "2026-10", "valueWindow": { "months": 3, "trades": 41 },
     "estimated": true, "provisional": true,
     "profit": "309431933", "returnRate": "0.146780", "asOf": "2026-10-05",
-    "taxGaps": []
+    "taxGaps": [], "lastPricedMonth": null, "provisionalFrom": "2025-11-01"
   },
   "rows": [
     { "month": "2026-10", "trades": 0, "monthAverage": null,
@@ -150,6 +150,8 @@
   칸에 그 사실을 보인다(FR-021). 종부세도 같은 `basis`를 가진다.
 - `summary.taxGaps`: 6월 시세가 없어 보유세를 계산하지 못한 해들(예: `[2019]`) — 화면이 경고한다(research R9-7).
 - 계산 끝(이번 달)의 시세가 없으면 `summary.value`가 `null`이고 `summary.lastPricedMonth`가 마지막으로 시세가 있던 달이다.
+- `summary.provisionalFrom`은 잠정 기간(최근 12개월 — 설정 `APT_TRADE_PROVISIONAL_MONTHS`)의 첫 달 1일이다(시계열의 `provisionalFrom`과 같다) —
+  화면의 잠정 안내 줄이 이 값으로 기간을 적는다(설정을 바꿔도 화면이 따라간다, 2026-10-05 T034 작성 중 더함).
 - 금액은 원 단위 정수 문자열, 수익률은 소수 6자리.
 
 ### 202 — 수집 중 (FR-011)
