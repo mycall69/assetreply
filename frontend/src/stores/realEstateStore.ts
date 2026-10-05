@@ -334,32 +334,39 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
   }
 
   /** 단지 목록 응답이 가리키는 작업(실거래·기본 정보)을 구독한다. 끝나면 단지 목록을 다시 요청한다. */
+  /**
+   * 그 시·군·구의 실거래 작업을 구독한다 — 진행 줄(단지 풀다운 아래)이 이 하나로 보인다. 끝나면 단지 목록을 다시 받고(실거래에만 있던
+   * 단지가 더해진다), 같은 작업을 기다리던 평형도 다시 받는다. 실패하면 **그 작업의** 종류와 사유를 단지 목록의 실거래 상태에 둔다.
+   */
+  function watchTrade(jobId: number, umd: string): void {
+    watch("trade", jobId, {
+      onSnapshot: (tradeProgress) => set({ tradeProgress }),
+      onCompleted: () => {
+        stopWatching("trade");
+        set({ tradeProgress: null });
+        void fetchComplexes(umd);
+        const { complexId } = get().selection;
+        if (complexId !== null && get().areasCollecting !== null) void fetchAreas(complexId);
+      },
+      onFailed: (kind, reason) => {
+        stopWatching("trade");
+        const current = get().complexes;
+        set({ tradeProgress: null, areasCollecting: null });
+        if (kind === null || current === null) {
+          // 종류를 모르면 서버의 기록(`trades.failure`)으로 보인다.
+          void fetchComplexes(umd);
+          return;
+        }
+        set({ complexes: { ...current,
+          trades: { ...current.trades, state: "failed", jobId: null, failure: { kind, reason } } } });
+      },
+    });
+  }
+
   function watchComplexJobs(body: RealEstateComplexesResponse, umd: string): void {
     const { trades } = body;
     if (trades.state === "collecting" && trades.jobId !== null) {
-      watch("trade", trades.jobId, {
-        onSnapshot: (tradeProgress) => set({ tradeProgress }),
-        onCompleted: () => {
-          stopWatching("trade");
-          set({ tradeProgress: null });
-          // 실거래에만 있던 단지가 더해진다. 같은 작업을 기다리던 평형도 이제 받을 수 있다.
-          void fetchComplexes(umd);
-          const { complexId } = get().selection;
-          if (complexId !== null && get().areasCollecting !== null) void fetchAreas(complexId);
-        },
-        onFailed: (kind, reason) => {
-          stopWatching("trade");
-          const current = get().complexes;
-          set({ tradeProgress: null, areasCollecting: null });
-          if (kind === null || current === null) {
-            // 종류를 모르면 서버의 기록(`trades.failure`)으로 보인다.
-            void fetchComplexes(umd);
-            return;
-          }
-          set({ complexes: { ...current,
-            trades: { ...current.trades, state: "failed", jobId: null, failure: { kind, reason } } } });
-        },
-      });
+      watchTrade(trades.jobId, umd);
     } else {
       stopWatching("trade");
       set({ tradeProgress: null });
@@ -399,7 +406,7 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
     }
   }
 
-  /** 평형 202의 작업을 구독한다. 실거래 구독이 같은 작업이면 그쪽 완료가 평형을 다시 요청한다. */
+  /** 평형 202의 작업을 구독한다. 실거래 구독이 같은 작업이면(대개 그렇다) 그쪽 완료가 평형을 다시 요청한다 — 두 번 구독하지 않는다. */
   function watchAreas(jobId: number, complexId: number): void {
     if (watchers.trade?.jobId === jobId) return;
     watch("areas", jobId, {
@@ -422,6 +429,17 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
       if (get().selection.complexId !== complexId) return;
       if (isCollecting<RealEstateTradeCollecting>(body)) {
         set({ areas: null, areasCollecting: body });
+        // 평형 202는 그 시·군·구의 실거래를 받는 중이라는 뜻이다 — 마지막 작업이 실패했던 곳이면 서버가 새 작업을 시작했다.
+        // 단지 목록의 실거래 상태를 그 작업의 수집 중으로 바꿔 진행 줄 하나로 보이고 지난 실패 경고를 지운다(T054 실측 —
+        // 고치기 전에는 진행이 보이지 않고 지난 한도 초과 경고가 남아 막힌 것처럼 보였다).
+        const { complexes, selection } = get();
+        if (complexes !== null && selection.umd !== null && complexes.umd.code === selection.umd) {
+          set({ complexes: { ...complexes, trades: {
+            state: "collecting", jobId: body.jobId, monthsDone: body.monthsDone, monthsTotal: body.monthsTotal,
+            progressUrl: body.progressUrl, failure: null,
+          } } });
+          watchTrade(body.jobId, selection.umd);
+        }
         watchAreas(body.jobId, complexId);
         return;
       }
