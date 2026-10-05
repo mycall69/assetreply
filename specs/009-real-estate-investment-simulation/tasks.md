@@ -124,7 +124,7 @@ description: "Task list for 009-real-estate-investment-simulation"
 
 ### Tests for Phase 2 ⚠️
 
-- [ ] T004 [P] `backend/tests/contract/test_datagokr_trade_parse.py` — T001 픽스처로 상세 실거래 XML → `AptTrade`: 금액 `"120,000"` → 원
+- [X] T004 [P] `backend/tests/contract/test_datagokr_trade_parse.py` — T001 픽스처로 상세 실거래 XML → `AptTrade`: 금액 `"120,000"` → 원
   `1200000000`(쉼표 제거, 만원 × 10,000, 정수), 전용면적 `Decimal("84.99")`(문자열 그대로), 계약일 = `dealYear`·`dealMonth`·`dealDay`(한국 시간
   달력), 단지 일련번호·법정동 코드(`sggCd + umdCd` 10자리)·지번(본번-부번)·동(없으면 빈 문자열)·층(지하 음수), `cdealType = O` → 해제·해제
   신고일(`YY.MM.DD` → 날짜), 거래 유형(2021-11 이전 빈 값 → `None`), 건축년도(`buildYear` → 정수, 빈 값이면 `None` — 입주년도의 대체값), **같은 응답 안에서 모든 키 필드가 같은 행의 `occurrence` 0·1·…**(같은 달을
@@ -170,10 +170,10 @@ description: "Task list for 009-real-estate-investment-simulation"
   최소 1, 잠정 개월 이하), `apt_list_refresh_days`(30, 최소 1), `load_settings`에 연결 (FR-010, FR-012, FR-013, 헌법 원칙 II)
 - [X] T010 `backend/src/db/models.py`·`backend/src/db/migrations/versions/…_부동산_스키마.py` — Apt* 9개(data-model 1~9절). 형식 이름 `AREA`
   (`DECIMAL(9,4)` — 2026-10-05 T001 실측으로 `DECIMAL(7,2)`에서 바꿈, research R9-2)·`WON`(`DECIMAL(15,0)`), 비율은 기존 `SPREAD`. 이전 head `c4d8e2f91b07` (FR-009, FR-034)
-- [ ] T011 (2026-10-05 진행 중 — 실거래 파서 `trade_parse.py`만 남음: 상세 자료 등록 대기) `backend/src/ingestion/protocols.py`(`AptTrade`·`Region`·`ComplexListing`·`ComplexBasis`·결과·원본 타입, 출처 Protocol)·
+- [X] T011 `backend/src/ingestion/protocols.py`(`AptTrade`·`Region`·`ComplexListing`·`ComplexBasis`·결과·원본 타입, 출처 Protocol)·
   `backend/src/ingestion/datagokr/errors.py`(인증·한도·형식·연결)·`trade_parse.py`·`region_parse.py`·`kapt_parse.py` (FR-002, FR-003, FR-008,
   FR-014, FR-019, research R9-1·R9-3·R9-4)
-- [ ] T012 (2026-10-05 진행 중 — `fetch_trades`만 남음: 상세 자료 등록 대기) `backend/src/ingestion/datagokr/gate.py`(`DataGoKrGate` — 이벤트 루프마다 하나, 동시 수 + 자료별 하루 계수(주입한 `UsageCounter`
+- [X] T012 `backend/src/ingestion/datagokr/gate.py`(`DataGoKrGate` — 이벤트 루프마다 하나, 동시 수 + 자료별 하루 계수(주입한 `UsageCounter`
   Protocol) + 사유 22 막힘)·`backend/src/ingestion/datagokr/client.py`(`DataGoKrClient(settings, gate, *, session=None)` — `fetch_trades(lawd_cd,
   ym, page)`·`fetch_regions(page)`·`fetch_complex_list(bjd_code)`·`fetch_complex_basis(kapt_code)` → (결과, 원본 본문), 키 한 번 인코딩, 오류 문구에서
   키를 직접 지운 뒤 `mask_secrets`, 재시도 설정으로 백오프+지터)·`backend/src/repository/apt_usage.py`(하루 호출 수 — 한국 시간 날짜, `UsageCounter` 구현)
@@ -569,3 +569,5 @@ Task: "T034 frontend 폼·보드·안내·표·스토어"
   `DECIMAL(9,4)`로 바꿨다 — 마이그레이션 `a9d3e5c71f20`이 아직 푸시 전이라 같은 리비전을 고쳤다(개발 DB는 내렸다 올린다). 이 기능의
   스키마 테스트 `test_apt_schema.py::test_거래`의 기대 자릿수를 함께 고쳤다(요구사항 변경 — data-model 갱신에 따른 것, 테스트 커밋에서).
   순번(`occurrence`)은 계약 월의 모든 쪽을 이어 매긴다(2020-06 실측 — 같은 키가 1쪽·2쪽에 나뉘어 온다, R9-4)
+  D2 승인 1건(구현 뒤) — `test_datagokr_trade_parse.py::test_해제와_해제_신고일`의 선택자: 헬리오시티 2020-06-29 16층 거래가 키가
+  같은 정상·해제 두 행이라 첫 행(정상)을 골랐다. 해제 행을 명시해 고르고 순번 0(정상)·1(해제) 단언을 더했다

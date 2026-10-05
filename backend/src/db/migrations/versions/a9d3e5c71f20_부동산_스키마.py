@@ -1,9 +1,9 @@
 """부동산 스키마 (009)
 
 테이블 10개를 더한다(data-model 1~9절 — 작업·점유가 둘). 기존 테이블은 바꾸지 않는다. 면적은
-`DECIMAL(7,2)`, 금액은 원 단위 `DECIMAL(15,0)`, 비율은 기존 `SPREAD`. 거래의 유니크 키는 (자산
-식별자, 날짜)를 거래 사건에 맞춘 것이다(응답 안 순번까지 — research R9-4). 원본에는 URL 열이 없다 —
-인증키가 질의 문자열에 있다(FR-013).
+`DECIMAL(9,4)`(출처가 소수 4자리까지 준다 — T001 실측), 금액은 원 단위 `DECIMAL(15,0)`, 비율은 기존
+`SPREAD`. 거래의 유니크 키는 (자산 식별자, 날짜)를 거래 사건에 맞춘 것이다(응답 안 순번까지 —
+research R9-4). 원본에는 URL 열이 없다 — 인증키가 질의 문자열에 있다(FR-013).
 
 Revision ID: a9d3e5c71f20
 Revises: c4d8e2f91b07
@@ -23,7 +23,7 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 TS = sa.DateTime(timezone=False)
-AREA = sa.Numeric(7, 2)
+AREA = sa.Numeric(9, 4)
 WON = sa.Numeric(15, 0)
 SPREAD = sa.Numeric(9, 6)
 JOB_STATUS = sa.Enum(

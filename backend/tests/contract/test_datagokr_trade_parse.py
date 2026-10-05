@@ -100,9 +100,13 @@ class Test한_쪽:
             ("11710-89", "1171010800", "150", 1988)]
 
     def test_해제와_해제_신고일(self) -> None:
-        """헬리오시티 2020-06-29 16층 84.99㎡ 17억 8천 — 2020-09-28 해제 신고."""
+        """헬리오시티 2020-06-29 16층 84.99㎡ 17억 8천 — 키가 같은 정상·해제 두 행이고, 해제는
+        2020-09-28 신고."""
         june = month("trade_11710_202006_p1.xml.gz", "trade_11710_202006_p2.xml.gz")
-        trade = first(june, apt_seq="11710-8865", deal_date=dt.date(2020, 6, 29), floor=16)
+        same = [t for t in june if (t.apt_seq, t.deal_date, t.floor) == (
+            "11710-8865", dt.date(2020, 6, 29), 16)]
+        assert [(t.occurrence, t.cancelled) for t in same] == [(0, False), (1, True)]
+        trade = same[1]
         assert (trade.cancelled, trade.cancelled_on) == (True, dt.date(2020, 9, 28))
         assert (trade.excl_area, trade.amount) == (Decimal("84.99"), 1_780_000_000)
         assert sum(t.cancelled for t in june if t.apt_seq == "11710-8865") == 2

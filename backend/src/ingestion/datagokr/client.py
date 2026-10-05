@@ -46,10 +46,12 @@ from src.ingestion.datagokr.kapt_parse import (
     parse_complex_list,
 )
 from src.ingestion.datagokr.region_parse import RegionPage, parse_regions
+from src.ingestion.datagokr.trade_parse import TradePage, parse_trades
 from src.ingestion.protocols import ComplexBasis
 from src.observability.events import mask_secrets
 
 BASE_URL: Final = "https://apis.data.go.kr"
+TRADE_PATH: Final = "/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev"
 REGION_PATH: Final = "/1741000/StanReginCd/getStanReginCdList"
 COMPLEX_LIST_PATH: Final = "/1613000/AptListService4/getLegaldongAptList4"
 COMPLEX_BASIS_PATH: Final = "/1613000/AptBasisInfoServiceV5/getAphusBassInfoV5"
@@ -194,6 +196,17 @@ class DataGoKrClient:
         return Fetched(result, endpoint, ref, body, status, result_code(body))
 
     # ── 공개 ────────────────────────────────────────────────────────
+
+    async def fetch_trades(self, lawd_cd: str, ym: str, page: int) -> Fetched[TradePage]:
+        """시·군·구(5자리)의 계약 월(`YYYYMM`) 한 쪽(1,000행). 순번은 그 달의 쪽을 모두 받은 뒤
+        `trade_parse.number_trades`로 매긴다 — 같은 키의 행이 쪽을 건너 온다(R9-4)."""
+        params = {"LAWD_CD": lawd_cd, "DEAL_YMD": ym, "pageNo": str(page), "numOfRows": str(ROWS)}
+
+        def read(body: str) -> TradePage:
+            return parse_trades(body, lawd_cd=lawd_cd, ym=ym)
+
+        return await self._fetch("trade", "trade", f"{lawd_cd}/{ym}/p{page}", TRADE_PATH, params,
+                                 read)
 
     async def fetch_regions(self, page: int) -> Fetched[RegionPage]:
         """법정동코드 전국 목록의 한 쪽(1,000행). 전국은 약 21쪽이다."""

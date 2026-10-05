@@ -872,8 +872,9 @@ class DepositSetting(Base):
 
 # ── 009 부동산 — 아파트 매매 실거래 ───────────────────────────────────────────────────────────
 
-#: 전용면적(㎡) — 출처는 소수 2자리까지 준다. 경계 비교는 Decimal로 한다(research R9-2).
-AREA = Numeric(7, 2, asdecimal=True)
+#: 전용면적(㎡) — 출처는 소수 4자리까지 준다(`84.9725` — T001 실측). 반올림하면 85㎡ 경계와
+#: 거래 키가 흔들리므로 받은 자릿수 그대로 둔다. 경계 비교는 Decimal로 한다(research R9-1·R9-2).
+AREA = Numeric(9, 4, asdecimal=True)
 #: 원 단위 금액 — 최고가 수백억도 담는다.
 WON = Numeric(15, 0, asdecimal=True)
 
