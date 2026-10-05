@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime as dt
+import gzip
 
 import aiohttp
 import pytest
@@ -33,7 +34,7 @@ from src.ingestion.datagokr.errors import (
 )
 from src.ingestion.datagokr.gate import DataGoKrGate
 
-from .conftest import StubResponse, StubSession, load
+from .conftest import FIXTURES, StubResponse, StubSession, load
 
 #: 64자 영숫자 — 지금 형식의 키.
 PLAIN_KEY = "abcdefABCDEF0123456789abcdefABCDEF0123456789abcdefABCDEF01234567"
@@ -113,6 +114,19 @@ class Test요청_모양:
             "https://apis.data.go.kr/1613000/AptBasisInfoServiceV5/getAphusBassInfoV5"
             f"?serviceKey={PLAIN_KEY}&kaptCode=A10025850"]
         assert fetched.result is not None and fetched.result.households == 9510
+
+    async def test_실거래(self) -> None:
+        """상세 자료, 계약 월의 한 쪽. 원본 참조는 `시군구/년월/p쪽`."""
+        body = gzip.decompress((FIXTURES / "apt/trade_11710_202006_p2.xml.gz").read_bytes())
+        session = StubSession(StubResponse(body.decode("utf-8")))
+        api, _ = client(session)
+        fetched = await api.fetch_trades("11710", "202006", 2)
+        assert [str(u) for u in session.calls] == [
+            "https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev"
+            f"?serviceKey={PLAIN_KEY}&LAWD_CD=11710&DEAL_YMD=202006&pageNo=2&numOfRows=1000"]
+        assert (fetched.endpoint, fetched.request_ref, fetched.result_code) == (
+            "trade", "11710/202006/p2", "000")
+        assert (fetched.result.total_count, len(fetched.result.rows)) == (1173, 173)
 
     async def test_키는_한_번만_인코딩한다(self) -> None:
         session = StubSession(StubResponse(load("apt/kapt_basis_A10025850.json")))

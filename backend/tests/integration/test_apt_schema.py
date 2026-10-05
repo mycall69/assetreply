@@ -93,7 +93,9 @@ async def test_단지(engine: AsyncEngine) -> None:
 async def test_거래(engine: AsyncEngine) -> None:
     cols = await columns(engine, "apt_trade")
     area, amount = cols["excl_area"], cols["amount"]
-    assert (area["type"], area["precision"], area["scale"]) == ("decimal", 7, 2)
+    # 출처가 소수 4자리까지 준다(T001 실측 — `84.9725`). 2자리면 반올림이 85㎡ 경계와 거래 키를
+    # 흔든다
+    assert (area["type"], area["precision"], area["scale"]) == ("decimal", 9, 4)
     assert (amount["type"], amount["precision"], amount["scale"]) == ("decimal", 15, 0)
     assert area["nullable"] is False and amount["nullable"] is False
     assert shape(cols["lawd_cd"]) == ("char", 5, False)
