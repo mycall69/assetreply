@@ -19,7 +19,11 @@ interface Added {
   data: { time: string; value?: number }[];
 }
 
-type Move = (param: { time?: string; point?: { x: number; y: number } }) => void;
+type Move = (param: {
+  time?: string;
+  point?: { x: number; y: number };
+  sourceEvent?: { clientX: number; clientY: number };
+}) => void;
 
 const added: Added[] = [];
 let move: Move = () => undefined;
@@ -127,6 +131,15 @@ describe("상자를 열고 닫는다", () => {
   it("오른쪽 아래 끝이면 커서 반대쪽으로 비켜 칸 안에 뜬다", () => {
     draw(STOCK);
     hoverAt("2020-10-01", { x: 700, y: 300 });
+    expect(box()?.style.left).toBe("488px");
+    expect(box()?.style.top).toBe("188px");
+  });
+
+  it("커서 자리는 화면 좌표(sourceEvent)로 잰다 — point는 왼쪽 가격 축을 뺀 그림 칸 기준이다", () => {
+    // T025 실측 — point로 자리를 정하면 상자가 가격 축 폭만큼 왼쪽으로 밀려 커서를 덮었다(오른쪽 끝에서 뒤집힐 때).
+    // 차트 칸의 왼쪽은 0(흉내), 커서의 화면 x는 700, 그림 칸 기준 x는 620(가격 축 80px).
+    draw(STOCK);
+    act(() => move({ time: "2020-10-01", point: { x: 620, y: 300 }, sourceEvent: { clientX: 700, clientY: 300 } }));
     expect(box()?.style.left).toBe("488px");
     expect(box()?.style.top).toBe("188px");
   });
