@@ -33,8 +33,8 @@ describe("전역 내비게이션 사이드바", () => {
   it("준비되지 않은 자산군은 링크가 아니다", () => {
     render(<Sidebar current="/fx" />);
     // 2026-10-02: 005가 주식을 구현해 목록에서 뺐다. 2026-10-03: 007이 가상자산을 구현해 뺐다.
-    // 2026-10-04: 008이 예금을 구현해 뺐다.
-    for (const label of ["부동산", "투자 비교", "대시보드"]) {
+    // 2026-10-04: 008이 예금을 구현해 뺐다. 2026-10-05: 009가 부동산을 구현해 뺐다.
+    for (const label of ["투자 비교", "대시보드"]) {
       const item = screen.getByText(label).closest("li");
       expect(item).not.toBeNull();
       expect(within(item as HTMLElement).queryByRole("link")).toBeNull();
@@ -43,24 +43,35 @@ describe("전역 내비게이션 사이드바", () => {
 
   it("준비되지 않은 항목은 준비 중임을 표시한다", () => {
     render(<Sidebar current="/fx" />);
-    expect(screen.getAllByText("준비중").length).toBe(3);
+    // 2026-10-05: 009가 부동산을 구현해 3 → 2(대시보드·투자 비교).
+    expect(screen.getAllByText("준비중").length).toBe(2);
   });
 
   it("준비되지 않은 항목은 키보드 포커스 대상이 아니다", () => {
     render(<Sidebar current="/fx" />);
     // 007이 가상자산을 구현해 준비되지 않은 항목의 예를 예금으로 바꿨다. 008이 예금을 구현해 부동산으로 바꿨다.
-    const item = screen.getByText("부동산").closest("li") as HTMLElement;
+    // 009가 부동산을 구현해 투자 비교로 바꿨다.
+    const item = screen.getByText("투자 비교").closest("li") as HTMLElement;
     const focusable = item.querySelectorAll("a, button, [tabindex]:not([tabindex='-1'])");
     expect(focusable.length).toBe(0);
   });
 
   it("준비된 자산군만 이동 가능하다", () => {
     // 2026-10-02: 005가 주식을 더했다. 2026-10-03: 007이 가상자산을 더했다. 2026-10-04: 008이 예금을 더했다.
+    // 2026-10-05: 009가 부동산을 더했다.
     render(<Sidebar current="/fx" />);
     const links = screen.getAllByRole("link");
     expect(links.map((l) => l.getAttribute("href")).sort()).toEqual(
-      ["/crypto", "/deposit", "/fx", "/settings", "/stocks"],
+      ["/crypto", "/deposit", "/fx", "/realestate", "/settings", "/stocks"],
     );
+  });
+
+  it("부동산은 /realestate로 가는 링크이고 준비중이 아니다", () => {
+    // 009 FR-001, ui-wireframes E1 — 부동산의 "준비중"이 사라진다.
+    render(<Sidebar current="/fx" />);
+    const item = screen.getByText("부동산").closest("li") as HTMLElement;
+    expect(within(item).getByRole("link")).toHaveAttribute("href", "/realestate");
+    expect(within(item).queryByText("준비중")).toBeNull();
   });
 
   it("현재 위치를 색이 아닌 표식으로도 구별한다", () => {

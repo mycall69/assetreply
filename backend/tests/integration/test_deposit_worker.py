@@ -32,12 +32,12 @@ D = dt.date.fromisoformat
 
 
 def test_lifespan이_예금_수집_줄과_기동_정리를_등록한다() -> None:
-    """등록을 빠뜨리면 요청이 큐에 쌓이기만 하고 실행되지 않는다. 태스크는 7개다(FX·정리·주식·목록·
-    코인 목록·코인 시세·예금 금리)."""
+    """등록을 빠뜨리면 요청이 큐에 쌓이기만 하고 실행되지 않는다. 태스크는 8개다(FX·정리·주식·목록·
+    코인 목록·코인 시세·예금 금리·부동산 — 009가 마지막을 더했다)."""
     body = inspect.getsource(main.lifespan)
     assert "deposit_worker_loop(" in body
     assert "deposit_startup(" in body
-    assert body.count("asyncio.create_task(") == 7
+    assert body.count("asyncio.create_task(") == 8
 
 
 async def test_기동_시_남은_예금_점유를_회수한다(session_factory) -> None:  # type: ignore[no-untyped-def]

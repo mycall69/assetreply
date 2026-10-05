@@ -16,6 +16,7 @@ describe("상단 바 제목", () => {
     ["/crypto", "가상자산"],
     ["/stocks", "주식"],
     ["/deposit", "예금"],
+    ["/realestate", "부동산"],
     ["/settings", "설정"],
     ["/", "대시보드"],
   ])("%s → %s", (path, title) => {

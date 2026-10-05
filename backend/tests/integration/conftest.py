@@ -64,6 +64,16 @@ def _reset_deposit_queue():
     reset_deposit_queue()
 
 
+@pytest.fixture(autouse=True)
+def _reset_apt_queues():
+    """009 부동산 수집 큐 둘(실거래·목록)을 테스트 사이에 비운다 — 다른 큐와 같은 이유다."""
+    from src.worker.apt_queue import reset_apt_queues
+
+    reset_apt_queues()
+    yield
+    reset_apt_queues()
+
+
 @pytest.fixture
 def settings() -> Settings:
     return load_settings()

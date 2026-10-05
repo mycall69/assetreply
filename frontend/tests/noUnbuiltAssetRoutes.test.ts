@@ -19,6 +19,10 @@ const APP = join(process.cwd(), "src", "app");
 /**
  * 아직 오지 않은 자산군.
  *
+ * **2026-10-05: `realestate`를 뺐다.** 009가 부동산 시뮬레이션을 구현했다(T026). 경로는 `realestate`(`/realestate`,
+ * `/api/realestate/*`)로 이 목록의 이름과 같다 — 지우지 않으면 라우트 디렉토리 검사가 실패한다. 사이드바 경로 검사에도
+ * `/realestate`를 더했다. 이제 남은 것은 자산군이 아닌 두 화면(투자 비교·대시보드)이다.
+ *
  * **2026-10-04: `deposits`를 뺐다.** 008이 예금 시뮬레이션을 구현했다(T021). 경로는 단수 `deposit`(`/deposit`,
  * `/api/deposit/*`)이다 — 이 목록의 복수 이름과 달라 지우지 않아도 가드가 통과한다. 그래서 목록에서 지우고 사이드바 경로
  * 검사에 `/deposit`을 더해 이름이 어긋나도 드러나게 했다.
@@ -29,7 +33,7 @@ const APP = join(process.cwd(), "src", "app");
  * 않은" 상태가 아니다. 자산군 순서(원칙 IX)에서 가상자산을 건너뛴 이탈은 005 plan의
  * Complexity Tracking에 기록돼 있으며, 가상자산은 006으로 수행한다.
  */
-const UNBUILT = ["realestate", "compare", "dashboard"];
+const UNBUILT = ["compare", "dashboard"];
 
 describe("미구현 자산군", () => {
   it("라우트 디렉토리가 존재하지 않는다", () => {
@@ -40,10 +44,13 @@ describe("미구현 자산군", () => {
   it("사이드바가 준비되지 않은 항목에 경로를 주지 않는다", () => {
     const src = readFileSync(join(process.cwd(), "src/components/shell/Sidebar.tsx"), "utf-8");
     const hrefs = [...src.matchAll(/href:\s*"([^"]+)"/g)].map((m) => m[1]).sort();
-    expect(hrefs).toEqual(["/crypto", "/deposit", "/fx", "/settings", "/stocks"]);
+    expect(hrefs).toEqual(["/crypto", "/deposit", "/fx", "/realestate", "/settings", "/stocks"]);
   });
 
   /**
+   * **2026-10-05: API 호출 검사에서 `realestate`를 빼고 남은 두 화면(`compare`·`dashboard`)을 넣었다** — 009가
+   * `/api/realestate/*`를 부른다. 검사 대상이 비면 가드가 아무것도 막지 않은 채 늘 통과한다.
+   *
    * **2026-10-04: API 호출 검사에서 `deposits`를 뺐다** — 008이 `/api/deposit/*`를 부른다.
    *
    * **2026-10-03: API 호출 검사에서 `crypto`를 뺐다**(007 T028을 T020으로 앞당김). 007의 코인 검색 칸(T020)이
@@ -56,7 +63,7 @@ describe("미구현 자산군", () => {
         return statSync(full).isDirectory() ? walk(full) : [full];
       });
     const offenders = walk(join(process.cwd(), "src"))
-      .filter((f) => /\/api\/realestate/.test(readFileSync(f, "utf-8")));
+      .filter((f) => /\/api\/(compare|dashboard)\b/.test(readFileSync(f, "utf-8")));
     expect(offenders).toEqual([]);
   });
 });
