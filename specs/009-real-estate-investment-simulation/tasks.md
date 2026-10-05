@@ -451,7 +451,7 @@ description: "Task list for 009-real-estate-investment-simulation"
 
 - [X] T050 [US4] `frontend/src/lib/realEstateHistory.ts`·`frontend/src/components/realestate/RealEstateHistory.tsx`·`frontend/src/stores/realEstateStore.ts`
   (이력·비교)·`frontend/src/app/realestate/page.tsx` — E7. 비교는 `ComparisonChart` 그대로 (FR-032, FR-033)
-- [ ] T051 [US4] 브라우저 확인 — quickstart 17·18·20(비율 70% → 되돌리기, 차트와 표·보드, 이력 비교)을 실행하고 기록한다 (FR-031~FR-034,
+- [X] T051 [US4] 브라우저 확인 — quickstart 17·18·20(비율 70% → 되돌리기, 차트와 표·보드, 이력 비교)을 실행하고 기록한다 (FR-031~FR-034,
   SC-009)
 
 **Checkpoint**: 이력·비교까지 동작한다
