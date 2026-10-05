@@ -58,6 +58,16 @@ def _text(row: dict[str, object], key: str, length: int | None = None) -> str:
     return value
 
 
+def _high_code(row: dict[str, object]) -> str:
+    """상위 코드. **비어 올 수 있다** — 2026-10-05 전국 15쪽의 리 행 둘이 공백 한 칸이었다(T027
+    실측). 비면 빈 문자열이고, 쓰는 쪽(`build_regions`)이 코드에서 정한다. 값이 있는데 10자리 숫자가
+    아니면 형식 오류다."""
+    value = row.get("locathigh_cd")
+    if isinstance(value, str) and not value.strip():
+        return ""
+    return _text(row, "locathigh_cd", 10)
+
+
 def parse_regions(body: str) -> RegionPage:
     """법정동코드 한 쪽. JSON이 아니면 연결 오류(점검 안내 등), 모르는 결과 코드는 형식 오류."""
     try:
@@ -82,7 +92,7 @@ def parse_regions(body: str) -> RegionPage:
             code=_text(row, "region_cd", 10), sido_cd=_text(row, "sido_cd", 2),
             sgg_cd=_text(row, "sgg_cd", 3), umd_cd=_text(row, "umd_cd", 3),
             ri_cd=_text(row, "ri_cd", 2),
-            full_name=_text(row, "locatadd_nm").strip(), high_code=_text(row, "locathigh_cd", 10),
+            full_name=_text(row, "locatadd_nm").strip(), high_code=_high_code(row),
             low_name=_text(row, "locallow_nm").strip(),
         )
         for row in body_part
@@ -108,6 +118,7 @@ def build_regions(rows: Iterable[RegionRow]) -> tuple[Region, ...]:
             regions.append(Region(row.code, "sgg", row.sido_cd + "00000000", row.code[:5], name,
                                   row.full_name))
         else:
-            regions.append(Region(row.code, "umd", row.high_code, row.code[:5], row.low_name,
+            parent = row.high_code or row.code[:5] + "00000"  # 비어 오면 그 시·군·구
+            regions.append(Region(row.code, "umd", parent, row.code[:5], row.low_name,
                                   row.full_name))
     return tuple(regions)
