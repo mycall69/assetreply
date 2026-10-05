@@ -6,6 +6,11 @@
 
 결측 구간 판정은 001의 `compute_gaps`를 그대로 쓴다 — 휴장일과 미수집을 나누는
 기준(커버리지)이 자산군마다 달라지면 같은 화면 규칙이 자산군마다 다른 뜻이 된다.
+
+010 — 점에 그 날의 **원주가 시가**(`price`, 종목 통화 — 표의 "시작가")를 싣는다. 잔고와 **같은
+행**에서 꺼내므로 한 점의 값은 모두 같은 날의 것이다(FR-007). 점은 표의 행 날짜뿐이다 — 일별 주가가
+아니다(spec FR-001). 구간 안의 분할 기록을 함께 싣는다 — 표식 자리(효력일 뒤 첫 점)는 그린 점을 아는
+화면이 정한다(research R10-4).
 """
 
 from __future__ import annotations
@@ -17,6 +22,7 @@ from decimal import Decimal
 from src.api.services.series_query import DEFAULT_MAX_POINTS, Gap, compute_gaps
 from src.api.services.stock_simulation import SimulationResult
 from src.simulation.downsample import Point, lttb
+from src.simulation.reinvest import SplitOn
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +35,9 @@ class SeriesPoint:
     date: dt.date
     balance: Decimal
     return_rate: Decimal
+    #: 그 날의 원주가 시가 — 종목 통화(원금 통화와 관계없다, 010 Clarifications). 표의 `openPrice`와
+    #: 같은 값이다.
+    price: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +48,8 @@ class StockSeries:
     gaps: tuple[Gap, ...]
     downsampled: bool
     source_point_count: int
+    #: 구간 안의 분할 기록, 효력일 오름차순(010 FR-008).
+    splits: tuple[SplitOn, ...] = ()
 
 
 def _one_per_day(result: SimulationResult) -> list[SeriesPoint]:
@@ -59,7 +70,7 @@ def _one_per_day(result: SimulationResult) -> list[SeriesPoint]:
     for converted in sorted(result.rows, key=lambda c: c.row.date):
         row = converted.row
         balance = converted.balance_krw if converted.balance_krw is not None else row.balance
-        latest[row.date] = SeriesPoint(row.date, balance, row.return_rate)
+        latest[row.date] = SeriesPoint(row.date, balance, row.return_rate, row.open_price)
     return [latest[day] for day in sorted(latest)]
 
 
@@ -104,4 +115,6 @@ def build_series(
         gaps=tuple(gaps),
         downsampled=len(reduced) < len(points),
         source_point_count=len(points),
+        splits=tuple(sorted((s for s in result.splits if start <= s.date <= end),
+                            key=lambda s: s.date)),
     )

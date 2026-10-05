@@ -23,7 +23,7 @@
  */
 
 import { formatAxisNumber, shiftDecimal } from "./format";
-import type { SeriesGap, SeriesPoint, SimulationPoint } from "./types";
+import type { SeriesGap, SeriesPoint, SimulationPoint, SplitMark } from "./types";
 
 /**
  * 축 눈금 형식 — 시리즈의 `priceFormat`에 넘긴다 (007 FR-043a·FR-046a, research R7-14).
@@ -120,4 +120,57 @@ export function toPerformanceData(
       };
     })
     .sort((a, b) => a.time.localeCompare(b.time));
+}
+
+/**
+ * 가격 선의 구간 (010 FR-003, research R10-7).
+ *
+ * 잔고와 **같은 자리**(`splitSeriesAtGaps` — 미수집·출처 결측·시세 없음)에서 끊고, **가격이 없는 점에서 다시 끊는다** — 예금
+ * 미발표·결측 달, 부동산 거래 없는 달. 잔고·수익률은 그 달에도 값이 있으므로 가격 선만 끊긴다. 가격이 없는 점은 어느 구간에도
+ * 넣지 않는다 — 앞뒤를 잇거나 직전 값을 끌어오면 없는 가격이 있는 것처럼 보인다(헌법 원칙 V). 점 하나뿐인 구간도 남긴다 —
+ * 선은 두 점이 있어야 보이므로 화면이 점으로 그린다. 가격 키가 없는 점(가격 없는 응답)은 그리지 않는다.
+ */
+export function priceSegments<T extends { date: string; price?: string | null }>(
+  points: T[],
+  gaps: SeriesGap[],
+): T[][] {
+  const segments: T[][] = [];
+  for (const segment of splitSeriesAtGaps(points, gaps)) {
+    let current: T[] = [];
+    for (const point of segment) {
+      if (point.price === null || point.price === undefined) {
+        if (current.length > 0) segments.push(current);
+        current = [];
+      } else {
+        current.push(point);
+      }
+    }
+    if (current.length > 0) segments.push(current);
+  }
+  return segments;
+}
+
+/** 분할 표식 하나 — 그 점에 걸린 분할 기록들. */
+export interface SplitMarkAt {
+  date: string;
+  splits: SplitMark[];
+}
+
+/**
+ * 분할 표식의 자리 (010 FR-008, research R10-4).
+ *
+ * **그린 점**(다운샘플 뒤) 중 효력일 이상인 첫 점이다 — 원주가가 그 점에서 처음 분할을 반영해 꺾인다. 서버가 자리를 정하면
+ * 그 점이 줄이기에서 빠졌을 때 표식이 허공을 가리킨다. 효력일 뒤에 점이 없으면(꺾임도 없다) 표식이 없다. 같은 점에 분할이
+ * 둘이면 표식 하나에 둘 다 싣는다. 점은 날짜 오름차순이다.
+ */
+export function splitMarks(points: { date: string }[], splits: SplitMark[]): SplitMarkAt[] {
+  const marks: SplitMarkAt[] = [];
+  for (const split of [...splits].sort((a, b) => a.date.localeCompare(b.date))) {
+    const at = points.find((point) => point.date >= split.date);
+    if (at === undefined) continue;
+    const last = marks[marks.length - 1];
+    if (last !== undefined && last.date === at.date) last.splits.push(split);
+    else marks.push({ date: at.date, splits: [split] });
+  }
+  return marks;
 }

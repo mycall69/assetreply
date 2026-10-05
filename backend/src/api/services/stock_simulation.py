@@ -93,6 +93,10 @@ class SimulationResult:
     #: 원금의 KRW 값 — 원금 통화가 KRW가 아닐 때만 있다. **첫 매수일의 매매기준율**로 정한다(006
     #: FR-068, research R6-25). 행마다 바꾸면 원금이 움직여 수익률이 환율만으로 움직인다.
     principal_krw: Decimal | None = None
+    #: 구간 안의 분할 기록(010 FR-008) — 시뮬레이터가 주식 수를 조정한 효력일과 비율. 차트가 원주가
+    #: 선이 꺾이는 까닭을 표식으로 밝힌다. 기본값이 빈 묶음인 이유: 결과를 직접 만드는 곳(단위
+    #: 테스트)이 있다.
+    splits: tuple[SplitOn, ...] = ()
 
 
 #: 원금으로 고를 수 있는 통화 (005 FR-003). 006 FR-050d — **EUR을 뺀다.** 지원 시장(국내·미국·
@@ -201,6 +205,9 @@ async def run_simulation(
 
     dividend_rows = await price_repo.dividends(session, stock_id, start, end)
     split_rows = await price_repo.splits(session, stock_id, start, end)
+    # 시뮬레이터가 주식 수를 조정한 기록 그대로 결과에도 싣는다 — 차트의 분할 표식(010 FR-008)이
+    # 같은 기록을 본다.
+    splits = tuple(SplitOn(s.effective_date, s.numerator, s.denominator) for s in split_rows)
 
     # **환전은 실제로 매수가 일어나는 첫 거래일에 한다.** 투자 시작 날짜가 아니다 —
     # 돈은 살 때 바꾸며, 시작 날짜가 휴일이면 그날의 환율도 없다. 006 FR-068 — 외화 원금의 KRW
@@ -222,7 +229,7 @@ async def run_simulation(
     outcome = simulate_detailed(
         [DayBar(r.quote_date, r.open_raw) for r in bars_rows],
         [DividendOn(d.ex_date, d.amount_per_share) for d in dividend_rows],
-        [SplitOn(s.effective_date, s.numerator, s.denominator) for s in split_rows],
+        list(splits),
         Condition(
             start=start, principal=working_principal, currency=currency,
             reinvest=reinvest, fee_rate=fee_rate, tax_rate=tax_rate,
@@ -241,7 +248,7 @@ async def run_simulation(
         return SimulationResult(
             rows=[ConvertedRow(r) for r in rows],
             latest=ConvertedRow(outcome.latest) if outcome.latest else None,
-            as_of=as_of, is_final=is_final, quote_dates=quote_dates)
+            as_of=as_of, is_final=is_final, quote_dates=quote_dates, splits=splits)
 
     evaluate = partial(_evaluate, lookup=lookup, principal=principal,
                        basis=principal_krw if principal_krw is not None else principal)
@@ -249,7 +256,7 @@ async def run_simulation(
         rows=[evaluate(r) for r in rows],
         latest=evaluate(outcome.latest) if outcome.latest else None,
         as_of=as_of, is_final=is_final, exchange=exchange, quote_dates=quote_dates,
-        principal_krw=principal_krw)
+        principal_krw=principal_krw, splits=splits)
 
 
 def _krw_principal(

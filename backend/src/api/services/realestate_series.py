@@ -11,6 +11,11 @@
   첫 달·마지막
   달의 점 날짜다
 - 평가액 축으로 줄이고 그 날짜의 점을 통째로 가져온다(008과 같다)
+- 010 — 점에 그 달 **실거래가 평균**(`price` — 같은 단지·같은 평형, 해제 제외. 표의 "그 달 평균")을
+  싣는다. 첫 점(매입일)은
+  매입 달 행, 끝점(계산 끝)은 그 달 행이다. 거래 없는 달은 `None` + `no_trades` — 평가액은 지금처럼
+  적용 시세(추정 포함)지만 그 값을 실거래가 자리에 넣지 않는다(FR-011). 가격만 없는 점이라 `gaps`에
+  넣지 않는다
 """
 
 from __future__ import annotations
@@ -18,6 +23,7 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass
 from decimal import Decimal
+from typing import Literal
 
 from src.api.services.series_query import DEFAULT_MAX_POINTS, Gap
 from src.simulation.apt_holding import HoldingResult
@@ -33,6 +39,10 @@ class SeriesPoint:
     return_rate: Decimal
     estimated: bool
     provisional: bool
+    #: 그 달 실거래가 평균(원). 없으면 `None`이고 `price_missing`이 사유다 — 실측만이다(추정 표식은
+    #: 평가액에만 붙는다).
+    price: int | None
+    price_missing: Literal["no_trades"] | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,14 +70,18 @@ def build_series(result: HoldingResult, *,
             gaps.append(Gap(missing[0], missing[-1], NO_PRICE))
             missing = []
         by_date[day] = SeriesPoint(day, row.value, row.return_rate, row.price.estimated,
-                                   row.price.provisional)
+                                   row.price.provisional, row.month_average,
+                                   None if row.month_average is not None else "no_trades")
     if missing:
         gaps.append(Gap(missing[0], missing[-1], NO_PRICE))
     summary = result.summary
     if (summary.value is not None and summary.return_rate is not None
             and summary.value_price is not None and summary.as_of not in by_date):
+        # 끝점의 실거래가 평균은 계산 끝이 든 달의 행이다(행은 내림차순 — `rows[0]`).
+        average = result.rows[0].month_average if result.rows else None
         by_date[summary.as_of] = SeriesPoint(summary.as_of, summary.value, summary.return_rate,
-                                             summary.estimated, summary.provisional)
+                                             summary.estimated, summary.provisional, average,
+                                             None if average is not None else "no_trades")
     points = [by_date[d] for d in sorted(by_date)]
     source_count = len(points)
     downsampled = source_count > max_points

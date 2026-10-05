@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import datetime as dt
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Final
@@ -99,6 +100,11 @@ def calculation_end(start: dt.date, end: dt.date | None) -> dt.date:
 class Prepared:
     outcome: DepositOutcome
     settings: DepositSettings
+    #: 계산에 넘긴 그 투자처의 월별 금리(달 1일 → 연 %)와 마지막 발표 달(010 research R10-5). 차트의
+    #: 그 달 금리가 **같은 값**을 본다 — 시계열 경로에서 다시 읽으면 그 사이 수집이 끝나 두 읽기가
+    #: 다를 수 있다.
+    rates: Mapping[dt.date, Decimal]
+    latest_month: dt.date
     #: 오늘 금리 확인이 실패했으면 그 종류와 사유(FR-016).
     recheck_failed: tuple[str, str] | None = None
 
@@ -134,7 +140,8 @@ async def simulate_or_collect(
         return judgment.collecting
     prepared = await prepare(session, request.institution.key, start=request.start,
                              end=request.end, principal=request.principal)
-    return Prepared(prepared.outcome, prepared.settings, judgment.recheck_failed)
+    return Prepared(prepared.outcome, prepared.settings, prepared.rates, prepared.latest_month,
+                    judgment.recheck_failed)
 
 
 async def prepare(session: AsyncSession, institution: str, *, start: dt.date, end: dt.date,
@@ -150,4 +157,4 @@ async def prepare(session: AsyncSession, institution: str, *, start: dt.date, en
         principal=principal, start=start, end=end, rates=rates,
         first_month=coverage.first_month, latest_month=coverage.latest_month,
         tax_rate=settings.interest_tax_rate)
-    return Prepared(outcome, settings)
+    return Prepared(outcome, settings, rates, coverage.latest_month)

@@ -110,45 +110,45 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T004 [P] [US1] `backend/tests/unit/test_stock_series_price.py` — `stock_series.build_series`에 `Row`·`SimulationResult`를 직접 만들어 넣는다
+- [X] T004 [P] [US1] `backend/tests/unit/test_stock_series_price.py` — `stock_series.build_series`에 `Row`·`SimulationResult`를 직접 만들어 넣는다
   (기존 `test_stock_series_build.py`와 같은 방식): 점의 `price` = **그 날 마지막 행**의 `open_price`(같은 날 배당락 행·달 첫 행), `price`는 늘
   `None`이 아니다, `max_points`를 작게 해 줄인 점마다 `price`가 그 날짜 원래 점의 값(FR-007), `SimulationResult(splits=…)`의 분할 중 `start ≤ date
   ≤ end`인 것만 효력일 오름차순으로 `StockSeries.splits`에, **`splits`를 넘기지 않은 `SimulationResult`도 만들어진다**(기본값 `()` — 기존 테스트를
   위해) (FR-001, FR-007, FR-008)
-- [ ] T005 [P] [US1] `backend/tests/unit/test_deposit_series_price.py` — `simulate_deposit`(순수 함수)로 만든 `DepositOutcome`과 같은 `rates`·
+- [X] T005 [P] [US1] `backend/tests/unit/test_deposit_series_price.py` — `simulate_deposit`(순수 함수)로 만든 `DepositOutcome`과 같은 `rates`·
   `latest_month`를 `deposit_series.build_series(outcome, start=…, rates=…, latest_month=…)`에 넣는다: 점 날짜의 달 `m`이 `m > latest_month` →
   `price None` + `price_missing "unpublished"`, `m`이 `rates`에 없음(만기 사이의 빈 달 — 계산이 멈추지 않는 경우) → `None` + `"missing"`, 아니면
   `rates[m]`. **가입·재예치 행(잠정이 아닌 행)의 적용 금리 `Row.rate` = 그 날 점의 `price`**(FR-002). 잠정 행의 대신 쓴 금리가 `price`에 들어가지
   않는다. 계산 끝 점의 달이 미발표면 `unpublished`. 줄인 점의 `price`가 그 날짜 원래 값 (FR-001~FR-003, FR-007, SC-002)
-- [ ] T006 [P] [US1] `backend/tests/unit/test_realestate_series_price.py` — `HoldingResult`를 직접 만들어 `realestate_series.build_series`에 넣는다:
+- [X] T006 [P] [US1] `backend/tests/unit/test_realestate_series_price.py` — `HoldingResult`를 직접 만들어 `realestate_series.build_series`에 넣는다:
   점의 `price` = 그 점이 나온 행의 `month_average`, **첫 점(매입일)은 매입 달 행**, **끝점(계산 끝)은 그 달 행(`rows[0]`)**, `month_average None` →
   `price None` + `price_missing "no_trades"`이고 그 점의 `balance`·`return_rate`·`estimated`는 지금과 같다(적용 시세), 시세 없음 달은 점이 없고
   `gaps`는 지금과 같다(`no_price`), 줄인 점의 `price`가 그 날짜 원래 값 (FR-001, FR-003, FR-006, FR-007, FR-011)
-- [ ] T007 [P] [US1] `backend/tests/integration/test_stock_series_price_api.py` — 기존 `test_stock_series_api.py`와 같은 준비로 `GET
+- [X] T007 [P] [US1] `backend/tests/integration/test_stock_series_price_api.py` — 기존 `test_stock_series_api.py`와 같은 준비로 `GET
   /api/stocks/simulation/series`: `priceKind "stock_open"`, `priceCurrency` = 종목 통화(**원화 원금으로 미국 종목을 실행해도 `USD`**), 점마다 `price`
   = 같은 조건 표(`/simulation`)의 그 날 마지막 행 `openPrice`(문자열 그대로), **점의 날짜 집합 = 표의 날짜 집합**(일별 점이 없다 — spec FR-001), 분할을 넣은 종목(효력일이 점의 날짜가 아닌 날)의 `splits`
   `[{date, numerator, denominator}]`와 효력일 앞 점·뒤 첫 점의 `price` 비율, 분할 없는 종목은 `splits: []`, `maxPoints`를 작게 한 응답의 점마다
   `price`가 전체 응답의 같은 날짜 값, `priceMissing` 키가 없다, 기존 키(`balance`·`returnRate`·`gaps`)가 그대로 (FR-001, FR-002, FR-007, FR-008,
   SC-001)
-- [ ] T008 [P] [US1] `backend/tests/integration/test_crypto_series_price_api.py` — 기존 `test_crypto_series_api.py`와 같은 준비로 `GET
+- [X] T008 [P] [US1] `backend/tests/integration/test_crypto_series_price_api.py` — 기존 `test_crypto_series_api.py`와 같은 준비로 `GET
   /api/crypto/simulation/series`: `priceKind "crypto_open"`, `priceCurrency` = 코인의 시세 통화(원화 원금이어도), 점마다 `price` = 표의 그 날
   `openPrice`, 출처 결측 날은 점이 없고 `gaps`(`source_missing`)는 지금과 같다, 다운샘플 점의 `price`가 그 날짜 값 (FR-001~FR-003, FR-007, SC-001,
   SC-002)
-- [ ] T009 [P] [US1] `backend/tests/integration/test_deposit_series_price_api.py` — 기존 `test_deposit_series_api.py`와 같은 준비로 `GET
+- [X] T009 [P] [US1] `backend/tests/integration/test_deposit_series_price_api.py` — 기존 `test_deposit_series_api.py`와 같은 준비로 `GET
   /api/deposit/simulation/series`: `priceKind "deposit_rate"`, `priceCurrency null`, 가입·재예치 점의 `price` = 표의 그 행 `rate`(잠정이 아닌 행),
   마지막 발표 달 뒤 점은 `price null` + `priceMissing "unpublished"`, 발표 기간 안에 빈 달을 하나 둔 금리로(만기 사이 달) 그 달 점이 `price null` +
   `priceMissing "missing"`이고 계산은 멈추지 않는다, 값이 있으면 `priceMissing` 키가 없다, `gaps == []`·`provisionalFrom`이 그대로 (FR-001~FR-003,
   FR-011, SC-001, SC-002)
-- [ ] T010 [P] [US1] `backend/tests/integration/test_realestate_series_price_api.py` — 기존 `test_realestate_series_api.py`와 같은 준비(헬리오시티 30평대,
+- [X] T010 [P] [US1] `backend/tests/integration/test_realestate_series_price_api.py` — 기존 `test_realestate_series_api.py`와 같은 준비(헬리오시티 30평대,
   드문단지)로 `GET /api/realestate/simulation/series`: `priceKind "apt_average"`, `priceCurrency "KRW"`, 점마다 `price` = 표의 그 달 `monthAverage`(첫
   점은 매입 달, 끝점은 그 달), 표의 `monthAverage`가 빈 달은 `price null` + `priceMissing "no_trades"`이고 `balance`·`returnRate`는 표와 같다, 시세
   없음 달은 점이 없고 `gaps`가 지금과 같다 (FR-001~FR-003, FR-006, SC-001, SC-002)
-- [ ] T011 [P] [US1] `frontend/tests/chartSeriesPrice.test.ts` — 순수 함수(`lib/chartSeries.ts`): `priceSegments(points, gaps)` — 잔고와 같은 자리
+- [X] T011 [P] [US1] `frontend/tests/chartSeriesPrice.test.ts` — 순수 함수(`lib/chartSeries.ts`): `priceSegments(points, gaps)` — 잔고와 같은 자리
   (`splitSeriesAtGaps` — `not_collected`·`source_missing`·`no_price`)에서 끊고 **`price === null`인 점에서 다시 끊는다**, `no_quote`(휴장)는 잇는다,
   점 하나뿐인 구간도 남긴다, `null` 점을 앞뒤 구간에 넣지 않는다(직전 값 복사 없음). `splitMarks(points, splits)` — 그린 점 중 `date ≥ split.date`인
   첫 점, 효력일 뒤에 점이 없으면 표식 없음, 효력일이 점의 날짜와 같으면 그 점, 같은 점에 분할 둘이면 표식 하나에 둘 다, 다운샘플로 효력일 직후 점이
   빠진 점 목록에서는 그 다음 점 (FR-003, FR-008, SC-002)
-- [ ] T012 [P] [US1] `frontend/tests/PerformanceChartPrice.test.tsx` — 파일 안의 인라인 모의 객체(`createChart` 옵션, `addSeries` 옵션, `setData` 값을
+- [X] T012 [P] [US1] `frontend/tests/PerformanceChartPrice.test.tsx` — 파일 안의 인라인 모의 객체(`createChart` 옵션, `addSeries` 옵션, `setData` 값을
   기록)로 `PerformanceChart`: 점에 `price`가 있으면 가격 시리즈가 `priceScaleId "price"`·`priceLineVisible false`·`lastValueVisible false`이고 값이
   `Number(price)`·날짜가 점과 같다, `createChart` 옵션에 `overlayPriceScales`, `price null` 점에서 가격 시리즈가 둘로 나뉘고 잔고·수익률 시리즈는
   나뉘지 않는다, 점 하나뿐인 가격 구간은 `pointMarkersVisible true`, `priceKind "apt_average"`면 모든 가격 구간에 점 표식, `provisionalFrom` 뒤 가격
@@ -159,22 +159,22 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] 주식 — `backend/src/api/services/stock_simulation.py`(`SimulationResult.splits: tuple[SplitOn, ...] = ()`, `run_simulation`의 두
+- [X] T013 [P] [US1] 주식 — `backend/src/api/services/stock_simulation.py`(`SimulationResult.splits: tuple[SplitOn, ...] = ()`, `run_simulation`의 두
   반환 경로 모두 `split_rows`로 채운다)·`backend/src/api/services/stock_series.py`(`SeriesPoint.price: Decimal` = 그 날 마지막 행 `row.open_price`,
   `StockSeries.splits` — 구간 안·오름차순)·`backend/src/api/routes/stock_series.py`(`priceKind "stock_open"`, `priceCurrency` = `stock.currency`, 점
   `price` = `str(p.price)`, `splits`). 시뮬레이터(`simulation/reinvest.py`)는 바꾸지 않는다 (FR-001, FR-002, FR-007, FR-008)
-- [ ] T014 [P] [US1] 가상자산 — `backend/src/api/services/crypto_series.py`(`SeriesPoint.price: Decimal` = `v.row.open_price`)·
+- [X] T014 [P] [US1] 가상자산 — `backend/src/api/services/crypto_series.py`(`SeriesPoint.price: Decimal` = `v.row.open_price`)·
   `backend/src/api/routes/crypto_series.py`(`priceKind "crypto_open"`, `priceCurrency` = `coin.quote_currency`, 점 `price` = `format(p.price, "f")`)
   (FR-001, FR-002)
-- [ ] T015 [P] [US1] 예금 — `backend/src/api/services/deposit_simulation.py`(`Prepared`에 `rates: Mapping[date, Decimal]`·`latest_month: date`를 더하고
+- [X] T015 [P] [US1] 예금 — `backend/src/api/services/deposit_simulation.py`(`Prepared`에 `rates: Mapping[date, Decimal]`·`latest_month: date`를 더하고
   `prepare`·`simulate_or_collect` 두 곳에서 넘긴다 — `prepare`가 읽은 값 그대로)·`backend/src/api/services/deposit_series.py`(`build_series(outcome, *,
   start, rates, latest_month, max_points=…)` — `rates`·`latest_month`는 **기본값 없는 필수 인자**, `SeriesPoint.price: Decimal | None`·`price_missing:
   Literal["unpublished", "missing"] | None`, 불변식 "`price is None` ⇔ `price_missing is not None`")·`backend/src/api/routes/deposit_series.py`(`priceKind
   "deposit_rate"`, `priceCurrency None`, 점 `price` = `rate_text(p.price)` 또는 `None`, `price`가 `None`일 때만 `priceMissing`) (FR-001~FR-003, FR-011)
-- [ ] T016 [P] [US1] 부동산 — `backend/src/api/services/realestate_series.py`(`SeriesPoint.price: int | None` = 행의 `month_average`, 끝점은
+- [X] T016 [P] [US1] 부동산 — `backend/src/api/services/realestate_series.py`(`SeriesPoint.price: int | None` = 행의 `month_average`, 끝점은
   `result.rows[0].month_average`, `price_missing: Literal["no_trades"] | None`)·`backend/src/api/routes/realestate_series.py`(`priceKind "apt_average"`,
   `priceCurrency "KRW"`, 점 `price` = `str(p.price)` 또는 `None`, `None`일 때만 `priceMissing`) (FR-001~FR-003, FR-006)
-- [ ] T017 [US1] 화면 — `frontend/src/lib/chartSeries.ts`(`priceSegments`·`splitMarks`)·`frontend/src/components/stock/PerformanceChart.tsx`(점에
+- [X] T017 [US1] 화면 — `frontend/src/lib/chartSeries.ts`(`priceSegments`·`splitMarks`)·`frontend/src/components/stock/PerformanceChart.tsx`(점에
   `price` 키가 있을 때만: 가격 시리즈 — 겹침 축 `"price"`, 파랑 실선·잠정 연한 파랑, 점 하나 구간과 부동산은 점 표식, 분할 표식 시리즈(점만, 가격 축),
   `createChart` 옵션 `overlayPriceScales.scaleMargins`, 범례 이름·단위·`● 분할`. 머리 주석에 010 규칙을 더한다). 화면 파일(`app/*/page.tsx`)·스토어는
   바꾸지 않는다 — 시계열 응답의 새 키가 그대로 흐른다. ui-wireframes F1 (FR-001, FR-003~FR-006, FR-008)

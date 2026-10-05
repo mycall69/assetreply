@@ -11,6 +11,9 @@
   없다(FR-023)
 - 잔고 축으로 줄이고 그 날짜의 점을 통째로 가져온다 — 두 값을 따로 줄이면 한 점 안의 값이 서로 다른
   날의 것이 된다(005와 같다)
+- 010 — 점에 그 일봉의 **시가**(`price`, 시세 통화 — 표의 "시가")를 싣는다. 원금이 KRW여도 환산하지
+  않는다
+  (Clarifications). 점은 일봉이 있는 날만이라 가격이 비지 않는다 — 출처 결측 날은 점도 없다
 """
 
 from __future__ import annotations
@@ -29,6 +32,8 @@ class SeriesPoint:
     date: dt.date
     balance: Decimal
     return_rate: Decimal
+    #: 그 일봉의 시가 — 시세 통화(010 FR-001).
+    price: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,7 +65,7 @@ def build_series(
     """일봉마다의 평가를 차트용 시계열로. 결측은 시작 월 1일(매수일이 속한 달)부터 본다."""
     points = [SeriesPoint(v.row.date,
                           v.balance_krw if v.balance_krw is not None else v.row.balance,
-                          v.return_rate)
+                          v.return_rate, v.row.open_price)
               for v in result.daily]
     gaps = compute_gaps(
         start.replace(day=1), end, set(result.quote_dates),

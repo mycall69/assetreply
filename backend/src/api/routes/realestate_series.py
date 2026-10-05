@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.services.realestate_lists import get_realestate_now, get_realestate_settings
-from src.api.services.realestate_series import build_series
+from src.api.services.realestate_series import SeriesPoint, build_series
 from src.api.services.realestate_simulation import Prepared, parse_query, prepare
 from src.api.services.series_query import DEFAULT_MAX_POINTS
 from src.config.settings import Settings
@@ -24,6 +24,19 @@ from src.worker.apt_trade_runner import kst_date
 router = APIRouter(prefix="/api/realestate", tags=["realestate"])
 
 Json = dict[str, object]
+
+
+def point_json(p: SeriesPoint) -> Json:
+    """금액·비율은 문자열이다(헌법 원칙 VI). 표의 `value`·`returnRate`·`monthAverage`와 같은
+    서식이다. 실거래가 평균이 없는 달은 `null`과 사유(010 FR-011) — 값이 있으면 사유 키를 두지
+    않는다."""
+    body: Json = {"date": p.date.isoformat(), "balance": str(p.balance),
+                  "returnRate": format(p.return_rate, ".6f"), "estimated": p.estimated,
+                  "provisional": p.provisional,
+                  "price": None if p.price is None else str(p.price)}
+    if p.price_missing is not None:
+        body["priceMissing"] = p.price_missing
+    return body
 
 
 @router.get("/simulation/series", response_model=None)
@@ -47,12 +60,11 @@ async def get_simulation_series(
     return {
         "from": series.start.isoformat(), "to": series.end.isoformat(),
         "principalCurrency": "KRW", "basisCurrency": "KRW",
+        # 010 — 가격은 그 달 실거래가 평균(원).
+        "priceKind": "apt_average", "priceCurrency": "KRW",
         "downsampled": series.downsampled, "algorithm": "lttb",
         "sourcePointCount": series.source_point_count,
-        # 금액·비율은 문자열이다(헌법 원칙 VI). 표의 `value`·`returnRate`와 같은 서식이다.
-        "points": [{"date": p.date.isoformat(), "balance": str(p.balance),
-                    "returnRate": format(p.return_rate, ".6f"), "estimated": p.estimated,
-                    "provisional": p.provisional} for p in series.points],
+        "points": [point_json(p) for p in series.points],
         "gaps": [{"from": g.start.isoformat(), "to": g.end.isoformat(), "reason": g.reason}
                  for g in series.gaps],
         "provisionalFrom": prepared.provisional_from.isoformat(),

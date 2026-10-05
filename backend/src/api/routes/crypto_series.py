@@ -71,12 +71,18 @@ async def get_simulation_series(
         # 원금 통화는 입력 그대로, 기준은 KRW다(FR-044, 006 FR-068).
         "principalCurrency": principal_currency,
         "basisCurrency": "KRW",
+        # 010 — 가격은 그 일봉의 시가, 통화는 코인의 **시세 통화**다(원금이 KRW여도 환산하지
+        # 않는다).
+        "priceKind": "crypto_open",
+        "priceCurrency": coin.quote_currency,
         "downsampled": series.downsampled,
         "algorithm": "lttb",
         "sourcePointCount": series.source_point_count,
-        # 금액·비율은 문자열이다(헌법 원칙 VI). 표의 `balanceKrw`·`returnRate`와 같은 서식이다.
+        # 금액·비율은 문자열이다(헌법 원칙 VI). 표의 `balanceKrw`·`returnRate`·`openPrice`와 같은
+        # 서식이다.
         "points": [{"date": p.date.isoformat(), "balance": format(p.balance, "f"),
-                    "returnRate": format(p.return_rate, "f")} for p in series.points],
+                    "returnRate": format(p.return_rate, "f"), "price": format(p.price, "f")}
+                   for p in series.points],
         # `source_missing` — 받은 구간 안의 출처 결측. 끊어 그린다(FR-023)
         "gaps": [{"from": g.start.isoformat(), "to": g.end.isoformat(), "reason": g.reason}
                  for g in series.gaps],
