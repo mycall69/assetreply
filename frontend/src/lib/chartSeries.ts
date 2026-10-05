@@ -12,6 +12,8 @@
  *   헌법 원칙 V가 막으려는 것이 이쪽이다.
  * - `source_missing`(출처 결측, 007) — **끊는다.** 가상자산은 24시간 거래라 휴장이 없다. 받은 구간 안의 빈 날은
  *   값이 있어야 하는데 출처에 없는 날이다 — 이으면 없는 값을 있는 것처럼 그린다(007 FR-023).
+ * - `no_price`(시세 없음, 009) — **끊는다.** 36개월 안에 거래가 없어 그 달의 시세가 없다. 이으면 그 사이에 시세가 있었던 것처럼
+ *   그려진다(009 FR-026).
  *
  * Lightweight Charts는 포인트 사이를 기본적으로 직선 연결하므로, **끊으려면** 시리즈를
  * 나눠야 한다. 잇는 쪽은 아무것도 하지 않으면 된다.
@@ -56,8 +58,9 @@ export function splitSeriesAtGaps<T extends { date: string }>(
 ): T[][] {
   if (points.length === 0) return [];
 
-  // 휴장일은 걸러낸다. 여기서 거르지 않으면 주말마다 시리즈가 쪼개진다.
-  const breaks = gaps.filter((g) => g.reason === "not_collected" || g.reason === "source_missing");
+  // 휴장일은 걸러낸다. 여기서 거르지 않으면 주말마다 시리즈가 쪼개진다. 잇는 것은 휴장뿐이다 — 나머지(미수집·출처 결측·
+  // 시세 없음)는 모두 끊는다. 새 사유도 끊는 쪽이 기본이다 — 이으면 없는 값을 만들어낸다.
+  const breaks = gaps.filter((g) => g.reason !== "no_quote");
   if (breaks.length === 0) return [points];
 
   const boundaries = [...breaks].sort((a, b) => a.from.localeCompare(b.from));

@@ -197,19 +197,41 @@ def render(result: HoldingResult, *, row: AptComplex, umd_name: str, area: AreaB
     }
 
 
-async def simulation_response(session: AsyncSession, query: SimulationQuery, *,
-                              settings: Settings, now: dt.datetime) -> tuple[int, Json]:
+@dataclass(frozen=True, slots=True)
+class Prepared:
+    """계산한 결과와 응답에 쓰는 조건 — 표와 차트가 같은 계산을 쓴다(어긋나지 않게)."""
+
+    row: AptComplex
+    result: HoldingResult
+    ratio: Decimal
+    gate: Gate
+    provisional_from: dt.date
+
+
+async def prepare(session: AsyncSession, query: SimulationQuery, *, settings: Settings,
+                  now: dt.datetime) -> Prepared | Json:
+    """받아 둔 시·군·구면 계산한 결과, 아니면 202 본문."""
     row = await resolve_complex(session, query.complex_id)
     gate = await judge(session, row.lawd_cd, settings=settings, now=now)
     if gate.collecting is not None:
-        return 202, gate.collecting
+        return gate.collecting
     ratio = (await apt_setting.get_settings(session)).holding_tax_base_ratio
+    today = kst_date(now)
     result = simulate_holding(
         await _monthly(session, row, query.area), buy_date=query.buy_date,
-        buy_price=query.buy_price, area=query.area, today=kst_date(now),
+        buy_price=query.buy_price, area=query.area, today=today,
         holding_tax_base_ratio=ratio, provisional_months=settings.apt_trade_provisional_months)
-    umd = await apt_region.current(session, row.umd_code)
-    return 200, render(result, row=row, umd_name=umd.name if umd is not None else "",
-                       area=query.area, ratio=ratio, recheck_failed=gate.recheck_failed,
-                       provisional_from=provisional_start(kst_date(now),
-                                                          settings.apt_trade_provisional_months))
+    return Prepared(row, result, ratio, gate,
+                    provisional_start(today, settings.apt_trade_provisional_months))
+
+
+async def simulation_response(session: AsyncSession, query: SimulationQuery, *,
+                              settings: Settings, now: dt.datetime) -> tuple[int, Json]:
+    prepared = await prepare(session, query, settings=settings, now=now)
+    if not isinstance(prepared, Prepared):
+        return 202, prepared
+    umd = await apt_region.current(session, prepared.row.umd_code)
+    return 200, render(prepared.result, row=prepared.row,
+                       umd_name=umd.name if umd is not None else "", area=query.area,
+                       ratio=prepared.ratio, recheck_failed=prepared.gate.recheck_failed,
+                       provisional_from=prepared.provisional_from)

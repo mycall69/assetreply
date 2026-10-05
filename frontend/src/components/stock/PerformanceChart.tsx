@@ -18,6 +18,11 @@
  * **잠정 구간은 연한 색이다**(008 FR-036, research R8-10). 응답의 `provisionalFrom`부터 같은 두 선을 같은 축·같은 축 형식에
  * 연한 색으로 이어 그리고 범례가 "잠정(날짜부터)"을 말한다 — 같은 색이면 잠정 값을 확정 값으로 읽는다(헌법 원칙 V). 경계
  * 점은 양쪽에 넣는다 — 빼면 선이 끊겨 결측처럼 보인다. 주식·가상자산은 이 키가 없어 지금과 같다.
+ *
+ * **부동산의 추정 시세 점은 표식(속이 빈 원)이다**(009 FR-017, ui-wireframes E6). 점의 선택 키 `estimated`가 참인 점에만, 평가액 선
+ * 위에 점만 그리는 시리즈 둘(테두리 색 원 위에 배경색 작은 원)을 겹친다 — 표식이 없으면 넓힌 창의 추정이 그 달의 실거래처럼
+ * 보인다. 시세 없음(`no_price`)은 선을 끊고 범례가 그 뜻을 말한다(009 FR-026). 추정 점이 없으면 시리즈를 더 만들지 않는다 —
+ * 주식·가상자산·예금은 지금과 같다.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -27,6 +32,7 @@ import { formatMoney, formatYield } from "@/lib/format";
 import type {
   CryptoCollecting,
   DepositCollecting,
+  RealEstateTradeCollecting,
   SimulationCollecting,
   SimulationPoint,
   SimulationSeriesResponse,
@@ -45,6 +51,9 @@ const COLORS = {
   provisional: { balance: "#9ca3af", returnRate: "#fcd34d" },
 } as const;
 
+/** 추정 표식 — 테두리 원과 그 위의 배경색 작은 원. 둘을 겹쳐 속이 빈 원으로 보인다(라이브러리에 빈 원 모양이 없다). */
+const ESTIMATED_MARKER = { ring: 4, hole: 2, holeColor: "#ffffff" } as const;
+
 /**
  * 구간을 확정·잠정으로 나눈다. 경계 점(잠정 시작일)은 양쪽에 둔다 — 선이 이어진다. 확정 쪽이 점 하나뿐이면(처음부터 잠정)
  * 그리지 않는다.
@@ -61,6 +70,17 @@ function splitAtProvisional(
   return parts;
 }
 
+/** 점을 확정·잠정으로 나눈다 — 표식용이라 경계 점을 겹치지 않는다. 빈 쪽은 뺀다. */
+function splitByTone(
+  points: SimulationPoint[], from: string | null,
+): { points: SimulationPoint[]; tone: keyof typeof COLORS }[] {
+  const parts: { points: SimulationPoint[]; tone: keyof typeof COLORS }[] = [
+    { points: from === null ? points : points.filter((p) => p.date < from), tone: "confirmed" },
+    { points: from === null ? [] : points.filter((p) => p.date >= from), tone: "provisional" },
+  ];
+  return parts.filter((part) => part.points.length > 0);
+}
+
 interface Hover {
   date: string;
   balance: string;
@@ -73,8 +93,8 @@ export function PerformanceChart({
   loading,
 }: {
   series: SimulationSeriesResponse | null;
-  /** 수집 중이면 차트 대신 안내 — 주식(005·006)·가상자산(007)·예금(008)의 202. */
-  collecting: SimulationCollecting | CryptoCollecting | DepositCollecting | null;
+  /** 수집 중이면 차트 대신 안내 — 주식(005·006)·가상자산(007)·예금(008)·부동산(009)의 202. */
+  collecting: SimulationCollecting | CryptoCollecting | DepositCollecting | RealEstateTradeCollecting | null;
   loading: boolean;
 }) {
   const container = useRef<HTMLDivElement>(null);
@@ -138,6 +158,27 @@ export function PerformanceChart({
       );
     }
 
+    // 009 — 추정 시세 점에만 표식. 평가액 축 위에 점만 그리고, 확정·잠정 구간의 선 색을 따른다. 추정 점이 없으면 만들지 않는다.
+    const estimated = series.points.filter((p) => p.estimated === true);
+    for (const { points: marked, tone } of splitByTone(estimated, provisionalFrom)) {
+      for (const [color, radius] of [
+        [COLORS[tone].balance, ESTIMATED_MARKER.ring], [ESTIMATED_MARKER.holeColor, ESTIMATED_MARKER.hole],
+      ] as const) {
+        const marker = instance.addSeries(LineSeries, {
+          color,
+          lineVisible: false,
+          pointMarkersVisible: true,
+          pointMarkersRadius: radius,
+          priceScaleId: BALANCE_AXIS,
+          priceFormat: balanceFormat,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        });
+        marker.setData(toPerformanceData(marked, "balance").map((d) => ({ time: d.time, value: d.value })));
+      }
+    }
+
     instance.subscribeCrosshairMove((param) => {
       const time = param.time as string | undefined;
       // 툴팁은 **원본 문자열**을 보여준다. 렌더링용 변환값이 값의 진실이 되면
@@ -170,6 +211,9 @@ export function PerformanceChart({
   const notCollected = series.gaps.filter((g) => g.reason === "not_collected").length;
   // 007 FR-023 — 가상자산의 출처 결측. 선이 끊긴 이유를 범례가 말한다(ui-wireframes C5).
   const missing = series.gaps.filter((g) => g.reason === "source_missing").length;
+  // 009 — 부동산의 시세 없음(끊음)과 추정 시세 표식.
+  const noPrice = series.gaps.some((g) => g.reason === "no_price");
+  const hasEstimated = series.points.some((p) => p.estimated === true);
 
   return (
     <section className="rounded-lg border border-gray-200 p-4">
@@ -200,6 +244,8 @@ export function PerformanceChart({
         <span className="text-amber-700">╌ 수익률 (%)</span>
         {notCollected > 0 && <span>╌╌ 미수집 {notCollected}구간</span>}
         {missing > 0 && <span>┆ 결측 {missing}구간</span>}
+        {hasEstimated && <span>○ 추정 시세(1개월 밖의 창)</span>}
+        {noPrice && <span>⋯ 시세 없음(끊음)</span>}
         {/* 008 — 잠정 금리로 계산한 구간. 연한 색 선이 무엇인지 범례가 말한다. */}
         {series.provisionalFrom != null && (
           <span className="text-gray-400">┄ 잠정({series.provisionalFrom}부터)</span>

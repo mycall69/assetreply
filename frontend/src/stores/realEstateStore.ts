@@ -44,6 +44,7 @@ import type {
   RealEstateSimulationResponse,
   RealEstateSummary,
   RealEstateTradeCollecting,
+  SimulationSeriesResponse,
 } from "@/lib/types";
 
 /** 단계별 목록. 받기 전에는 `null`이다 — 빈 목록(`[]`)과 가른다. */
@@ -106,6 +107,10 @@ interface RealEstateState {
   acquisition: RealEstateAcquisition | null;
   /** 결과의 단지·평형 — 입력이 바뀌어도 결과가 어느 단지·평형의 것인지 남긴다. */
   resultTarget: Pick<RealEstateSimulationResponse, "complex" | "area"> | null;
+  /** 차트용 시계열(FR-031). 표와 **같은 조건**으로 따로 받는다. */
+  series: SimulationSeriesResponse | null;
+  /** 차트만 실패한 사유. **표를 지우지 않는다** — 차트가 비는 것과 결과가 없는 것은 다른 사건이다(005~008과 같다). */
+  seriesError: string | null;
   /** 실행이 그 시·군·구의 실거래를 기다린다(202). */
   collecting: RealEstateTradeCollecting | null;
   /** 그 수집의 진행. 스냅샷이 오기 전에는 `null`이다. */
@@ -186,7 +191,7 @@ function watch(key: Watch, jobId: number, handlers: RealEstateProgressHandlers):
 }
 
 const NO_RESULT = {
-  summary: null, rows: [], condition: null, acquisition: null, resultTarget: null,
+  summary: null, rows: [], condition: null, acquisition: null, resultTarget: null, series: null, seriesError: null,
   collecting: null, progress: null, startable: null, rejection: null, loading: false,
 } satisfies Partial<RealEstateState>;
 
@@ -236,6 +241,26 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
   function belowComplex(): Partial<RealEstateState> {
     stopWatching("areas");
     return { areas: null, areasCollecting: null, ...clearResult(), error: null };
+  }
+
+  /**
+   * 차트용 시계열 — **표가 수집 중이 아님을 확인한 뒤에 받는다.** 나란히 보내면 같은 구간에 수집 요청이 두 번 나간다(005와 같다).
+   * 그래도 202면(그 사이 잠정 확인이 시작됐다) 차트만 비우고 사유를 말한다 — 표는 지우지 않는다.
+   */
+  async function loadSeries(query: string, seq: number): Promise<void> {
+    try {
+      const body = await apiClient.get<SimulationSeriesResponse | RealEstateTradeCollecting>(
+        `/api/realestate/simulation/series?${query}`);
+      if (seq !== runSeq) return;
+      if (isCollecting<RealEstateTradeCollecting>(body)) {
+        set({ seriesError: "차트에 쓸 거래를 다시 확인하는 중입니다. 다시 실행하면 차트가 보입니다.", loading: false });
+        return;
+      }
+      set({ series: body, loading: false });
+    } catch (err) {
+      if (seq !== runSeq) return;
+      set({ seriesError: message(err, "차트를 불러오지 못했습니다."), loading: false });
+    }
   }
 
   function rerunAutomatically(): void {
@@ -480,9 +505,10 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
       }
       set({ ...clearResult(), loading: true, error: null });
       const seq = runSeq;
+      const query = simulationQuery(selection.complexId, selection.area, input);
       try {
         const body = await apiClient.get<RealEstateSimulationResponse | RealEstateTradeCollecting>(
-          `/api/realestate/simulation?${simulationQuery(selection.complexId, selection.area, input)}`);
+          `/api/realestate/simulation?${query}`);
         if (seq !== runSeq) return;
         if (isCollecting<RealEstateTradeCollecting>(body)) {
           set({ collecting: body, progress: null, loading: false });
@@ -491,8 +517,9 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
         }
         set({
           summary: body.summary, rows: body.rows, condition: body.condition, acquisition: body.acquisition,
-          resultTarget: { complex: body.complex, area: body.area }, loading: false,
+          resultTarget: { complex: body.complex, area: body.area },
         });
+        await loadSeries(query, seq);
       } catch (err) {
         if (seq !== runSeq) return;
         if (err instanceof ApiError && err.httpStatus === 409 && err.body !== null) {

@@ -89,8 +89,11 @@ export interface SeriesPoint {
 export interface SeriesGap {
   from: string;
   to: string;
-  /** `source_missing` — 가상자산(007)의 받은 구간 안 출처 결측. 휴장이 없어 끊는다(FR-023). */
-  reason: "no_quote" | "not_collected" | "source_missing";
+  /**
+   * `source_missing` — 가상자산(007)의 받은 구간 안 출처 결측. 휴장이 없어 끊는다(FR-023). `no_price` — 부동산(009)의 시세 없음 달
+   * (36개월 안에 거래 없음). 끊는다(FR-026).
+   */
+  reason: "no_quote" | "not_collected" | "source_missing" | "no_price";
 }
 
 export interface SeriesResponse {
@@ -558,6 +561,10 @@ export interface SimulationPoint {
   date: string;
   balance: DecimalString;
   returnRate: DecimalString;
+  /** 부동산(009)만 — 1개월보다 넓은 창의 추정 시세로 정한 점(FR-017). 차트가 표식을 단다. 다른 자산군에는 이 키가 없다. */
+  estimated?: boolean;
+  /** 부동산(009)만 — 잠정 달의 거래가 들어간 점(FR-018). 차트의 연한 색은 응답의 `provisionalFrom`이 정한다. */
+  provisional?: boolean;
 }
 
 export interface SimulationSeriesResponse {

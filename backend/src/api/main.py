@@ -421,6 +421,7 @@ def create_app() -> FastAPI:
     from src.api.routes import realestate_complexes as realestate_complexes_routes
     from src.api.routes import realestate_progress as realestate_progress_routes
     from src.api.routes import realestate_regions as realestate_regions_routes
+    from src.api.routes import realestate_series as realestate_series_routes
     from src.api.routes import realestate_settings as realestate_settings_routes
     from src.api.routes import realestate_simulation as realestate_simulation_routes
     from src.api.routes import series as series_routes
@@ -468,6 +469,7 @@ def create_app() -> FastAPI:
     app.include_router(realestate_complexes_routes.router)
     app.include_router(realestate_progress_routes.router)
     app.include_router(realestate_simulation_routes.router)
+    app.include_router(realestate_series_routes.router)
     app.include_router(realestate_settings_routes.router)
 
     return app

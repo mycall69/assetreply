@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * 부동산 투자 시뮬레이션 (T026·T039) — 009 FR-001~FR-007, FR-011, FR-014, FR-015, FR-028~FR-030, FR-036,
- * ui-wireframes E1~E5·E9.
+ * 부동산 투자 시뮬레이션 (T026·T039·T048) — 009 FR-001~FR-007, FR-011, FR-014, FR-015, FR-028~FR-031, FR-036,
+ * ui-wireframes E1~E6·E9.
  *
  * 주식·가상자산·예금 화면과 같은 구성이되 **종목 검색 대신 지역 풀다운 셋 → 단지 풀다운 → 평형 라디오 일곱**이고, 그 아래에 매입일·
- * 매입가(선택)를 넣어 실행한다. 원금은 원화만이라 통화 칸이 없다(FR-007). 결과는 보드 → 안내 줄 → 월별 표 순이다. 받지 않은 구간이면
- * 진행만 보이고 **부분 결과를 보여주지 않는다**(FR-011). 화면 아래에 출처를 밝힌다(FR-036, 헌법 원칙 II).
+ * 매입가(선택)를 넣어 실행한다. 원금은 원화만이라 통화 칸이 없다(FR-007). 결과는 보드 → 안내 줄 → 차트 → 월별 표 순이다. 받지 않은
+ * 구간이면 진행만 보이고 **부분 결과를 보여주지 않는다**(FR-011). 화면 아래에 출처를 밝힌다(FR-036, 헌법 원칙 II).
  * 경로 이름(`realestate`)은 미구현 자산군 가드(`noUnbuiltAssetRoutes.test.ts`)와 사이드바가 함께 전제한다.
  */
 
@@ -19,6 +19,7 @@ import { RealEstatePerformanceTable } from "@/components/realestate/RealEstatePe
 import { RealEstateSimulationForm, startBoundFor } from "@/components/realestate/RealEstateSimulationForm";
 import { RegionPicker } from "@/components/realestate/RegionPicker";
 import { TradeCollectingNotice } from "@/components/realestate/TradeCollectingNotice";
+import { PerformanceChart } from "@/components/stock/PerformanceChart";
 import { kstToday } from "@/lib/startDate";
 import type { RealEstateRegionLevel } from "@/lib/types";
 import { useRealEstateStore } from "@/stores/realEstateStore";
@@ -27,8 +28,8 @@ export default function RealEstatePage() {
   const {
     regions, selection, regionCollecting, regionProgress, regionFailure, complexes, tradeProgress,
     detailsProgress, areas, areasCollecting, error,
-    input, summary, rows, condition, acquisition, resultTarget, collecting, progress, startable, rejection,
-    loading,
+    input, summary, rows, condition, acquisition, resultTarget, series, seriesError, collecting, progress, startable,
+    rejection, loading,
     loadSidos, selectSido, selectSgg, selectUmd, selectComplex, selectArea, setInput, run, refreshIfRan,
     resumeWatching, dispose,
   } = useRealEstateStore();
@@ -107,6 +108,21 @@ export default function RealEstatePage() {
           <RealEstateBoard result={{ ...resultTarget, condition, acquisition, summary }} />
           <RealEstateNotice summary={summary} />
         </div>
+      )}
+
+      {summary !== null && (
+        <section>
+          <h3 className="mb-2 text-sm font-semibold">성과 추이</h3>
+          {seriesError !== null ? (
+            // 표는 그대로 둔다 — 차트가 빈 것과 결과가 없는 것은 다른 사건이다.
+            <p role="alert" className="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {seriesError}
+            </p>
+          ) : (
+            // 점은 매달 — 첫 점은 매입일, 끝점은 보드. 추정 점은 표식, 시세 없음은 끊고, 잠정은 연한 색이다(E6).
+            <PerformanceChart series={series} collecting={collecting} loading={loading} />
+          )}
+        </section>
       )}
 
       {summary !== null && (

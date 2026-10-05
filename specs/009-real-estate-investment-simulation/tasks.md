@@ -413,18 +413,18 @@ description: "Task list for 009-real-estate-investment-simulation"
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T045 [P] [US3] `backend/tests/integration/test_realestate_series_api.py` — `GET /api/realestate/simulation/series`: 점 = **첫 점 매입일** + 그 뒤
+- [X] T045 [P] [US3] `backend/tests/integration/test_realestate_series_api.py` — `GET /api/realestate/simulation/series`: 점 = **첫 점 매입일** + 그 뒤
   매달 1일 + 끝점(매입일보다 이른 점 없음), **점마다 표의 그 달 `value`·`returnRate`와 같고 끝점은 `summary`와 같다**(SC-009), 시세 없음 달은 점 없음 + `gaps`(`no_price`), 점마다
   `estimated`·`provisional`, `provisionalFrom`(잠정 12개월의 첫 달), `basisCurrency` KRW, 202·오류는 표와 같다 (FR-031, SC-006, SC-009)
-- [ ] T046 [P] [US3] `frontend/tests/PerformanceChartEstimated.test.tsx`·`chartSeriesNoPrice.test.ts` — `estimated`가 참인 점에만 표식(속이 빈 원)과 범례
+- [X] T046 [P] [US3] `frontend/tests/PerformanceChartEstimated.test.tsx`·`chartSeriesNoPrice.test.ts` — `estimated`가 참인 점에만 표식(속이 빈 원)과 범례
   "○ 추정 시세(1개월 밖의 창)", `no_price` 사유에서 선이 끊김(앞뒤를 잇지 않음)과 범례 "시세 없음", 잠정은 기존 `provisionalFrom` 그대로, 키가 없으면
   지금과 같은 시리즈(**005~008의 `PerformanceChart*.test.tsx`·`chartSeries` 테스트는 그대로 통과**) (FR-031, SC-006)
 
 ### Implementation for User Story 3
 
-- [ ] T047 [US3] `backend/src/api/services/realestate_series.py`·`backend/src/api/routes/realestate_series.py`·`backend/src/api/main.py`(라우터) —
+- [X] T047 [US3] `backend/src/api/services/realestate_series.py`·`backend/src/api/routes/realestate_series.py`·`backend/src/api/main.py`(라우터) —
   시뮬레이션과 같은 계산의 점(첫 점 매입일, 그 뒤 매달 1일), `gaps`, `estimated`·`provisional`, `provisionalFrom` (FR-031)
-- [ ] T048 [US3] `frontend/src/lib/chartSeries.ts`(`no_price`를 끊는다)·`frontend/src/components/stock/PerformanceChart.tsx`(`estimated` 표식·범례,
+- [X] T048 [US3] `frontend/src/lib/chartSeries.ts`(`no_price`를 끊는다)·`frontend/src/components/stock/PerformanceChart.tsx`(`estimated` 표식·범례,
   `collecting` 타입에 부동산 수집)·
   `frontend/src/lib/types.ts`(결측 사유 `no_price`, 점의 선택 키 `estimated`)·`frontend/src/stores/realEstateStore.ts`(시계열)·
   `frontend/src/app/realestate/page.tsx`(차트 연결) — E6 (FR-031)
