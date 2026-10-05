@@ -194,6 +194,7 @@ CLAUDE.md · README.md           # 현재 상태 표에 010 (반복 1 내용 더
 | FR-024 (주식 외부 링크 — 반복 1) | R10-14, data-model 7절, F5, quickstart 12, tasks T040·T044·T045·T049·T051 |
 | FR-025 (코인 외부 링크 — 반복 1) | R10-14, data-model 7절, F5, quickstart 12, tasks T040·T044·T045·T049·T051 |
 | FR-026 (부동산 검색 링크 — 반복 1) | R10-15, data-model 7절, F5, quickstart 12, tasks T040·T044·T045·T049·T051 |
+| FR-027 (이력 행 버튼은 내용 바로 뒤 — 반복 2) | F3·F4, tasks T055·T056·T057 |
 | FR-021 (계산·이력 형식 불변) | R10-1, data-model 5절, quickstart 10, tasks T001·T037·T039, 반복 1 — tasks T054 |
 | SC-001 | 네 경로 통합 테스트(표 대조), quickstart 1~4, tasks T007·T008·T009·T010·T018, 반복 1 — tasks T042·T051 |
 | SC-002 | 사유 테스트(예금 `unpublished`·`missing`, 부동산 `no_trades`), `priceSegments` 단위 테스트, quickstart 2~4, tasks T005·T008·T009·T010·T011·T018 |

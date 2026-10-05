@@ -10,6 +10,9 @@
  *
  * 네 이력 부품의 행은 줄바꿈한다 — 400px 칸에서 버튼 묶음이 다음 줄로 내려가고 칸 안 가로 넘침이 없다.
  *
+ * **버튼은 행 내용 바로 뒤에 붙는다**(2026-10-05 사용자 요청 — "너무 멀리 떨어져 있으니 왼쪽에 바짝"). 이력 칸이 남는 폭을 가져가므로(T036)
+ * 넓은 창에서 `ml-auto`로 행 끝에 밀린 버튼은 내용과 수백 px 떨어졌다. 다시 실행 → 삭제(×) 순서는 그대로다.
+ *
  * 실제 경계 폭·잘림은 jsdom에 배치가 없어 브라우저 확인(T036)이 잰다.
  */
 import { render, screen } from "@testing-library/react";
@@ -63,11 +66,9 @@ describe("TableWithHistory", () => {
   });
 });
 
-describe("네 이력 부품의 행은 줄바꿈한다", () => {
-  const handlers = { onToggle: vi.fn(), onRemove: vi.fn(), onCompare: vi.fn(), onRerun: vi.fn() };
-  const common = { selected: [] as string[], comparing: false, saveError: null, ...handlers };
-
-  it.each([
+const handlers = { onToggle: vi.fn(), onRemove: vi.fn(), onCompare: vi.fn(), onRerun: vi.fn() };
+const common = { selected: [] as string[], comparing: false, saveError: null, ...handlers };
+const HISTORIES: [string, () => void][] = [
     ["주식", () => render(<SimulationHistory {...common} entries={[{ id: "s", stock: { market: "KRX", symbol: "005930.KS",
       name: "삼성전자", currency: "KRW" }, start: "2021-08-01", principal: "86997", principalCurrency: "KRW", reinvest: false,
       savedAt: "2026-10-05T00:00:00Z" }]} />)],
@@ -79,8 +80,23 @@ describe("네 이력 부품의 행은 줄바꿈한다", () => {
     ["부동산", () => render(<RealEstateHistory {...common} entries={[{ id: "r", complexId: 12, complexName: "헬리오시티",
       umd: "1171010700", area: "30k", areaLabel: "30평대(국평)", buyDate: "2021-03-15", buyPrice: null,
       savedAt: "2026-10-05T00:00:00Z" }]} />)],
-  ])("%s", (_name, draw) => {
+];
+
+describe("네 이력 부품의 행은 줄바꿈한다", () => {
+  it.each(HISTORIES)("%s", (_name, draw) => {
     draw();
     expect(screen.getByTestId("history-row")).toHaveClass("flex-wrap");
+  });
+});
+
+describe("네 이력 부품의 버튼은 행 내용 바로 뒤에 붙는다", () => {
+  it.each(HISTORIES)("%s — 행 끝으로 미는 여백이 없고, 다시 실행 바로 뒤가 삭제다", (_name, draw) => {
+    draw();
+    const row = screen.getByTestId("history-row");
+    expect([...row.querySelectorAll("*")].filter((el) => /(^|\s)(ml|ms|mx)-auto(\s|$)/.test(el.getAttribute("class") ?? "")))
+      .toEqual([]);
+    expect(row).not.toHaveClass("justify-between");
+    const rerun = screen.getByRole("button", { name: /다시 실행/ });
+    expect(rerun.nextElementSibling).toBe(screen.getByRole("button", { name: /이력 삭제/ }));
   });
 });
