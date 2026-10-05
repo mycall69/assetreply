@@ -1088,3 +1088,9 @@ export interface RealEstateSimulationResponse {
   summary: RealEstateSummary;
   rows: RealEstateRow[];
 }
+
+/** 부동산 보유세 기준 비율(FR-034) — 시세에 곱해 공시가격을 대신한다. 0 초과 1 이하, 소수 6자리. 다른 자산군 설정과 따로다. */
+export interface RealEstateSettings {
+  holdingTaxBaseRatio: DecimalString;
+  isDefault: boolean;
+}

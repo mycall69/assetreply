@@ -126,6 +126,11 @@ interface RealEstateState {
   setInput: (next: Partial<RealEstateInput>) => void;
   /** 고른 단지·평형과 입력으로 실행한다. 실행 즉시 이전 결과를 비운다. */
   run: () => Promise<void>;
+  /**
+   * 설정이 바뀐 뒤 결과를 다시 받는다(FR-034). 결과가 있을 때만 — 실행한 적이 없거나 거절됐으면 요청하지 않고, 수집 중이면 진행이
+   * 끝날 때 어차피 다시 요청한다.
+   */
+  refreshIfRan: () => Promise<void>;
   /** 화면에 돌아왔을 때 받는 중이던 작업을 다시 구독한다 — 떠날 때 끊었다. 수집은 서버에서 이어졌다. */
   resumeWatching: () => void;
   /** 화면을 떠날 때 진행 구독을 모두 끊는다. */
@@ -454,6 +459,11 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
     selectArea: (key) => set({ selection: { ...get().selection, area: key }, ...clearResult(), error: null }),
 
     setInput: (next) => set({ input: { ...get().input, ...next } }),
+
+    refreshIfRan: async () => {
+      if (get().summary === null) return;
+      await get().run();
+    },
 
     run: async () => {
       if (!automaticRun) retriedAfterFailure = false;

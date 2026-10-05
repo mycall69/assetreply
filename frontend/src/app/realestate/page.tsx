@@ -29,8 +29,8 @@ export default function RealEstatePage() {
     detailsProgress, areas, areasCollecting, error,
     input, summary, rows, condition, acquisition, resultTarget, collecting, progress, startable, rejection,
     loading,
-    loadSidos, selectSido, selectSgg, selectUmd, selectComplex, selectArea, setInput, run, resumeWatching,
-    dispose,
+    loadSidos, selectSido, selectSgg, selectUmd, selectComplex, selectArea, setInput, run, refreshIfRan,
+    resumeWatching, dispose,
   } = useRealEstateStore();
 
   // 화면을 열면 받는 중이던 작업을 다시 구독하고 시·도를 요청한다. 떠나면 진행 구독을 끊는다 — 수집은 서버에서 이어진다.
@@ -39,6 +39,10 @@ export default function RealEstatePage() {
     void loadSidos();
     return dispose;
   }, [resumeWatching, loadSidos, dispose]);
+  // FR-034 — 설정 화면에 다녀왔을 수 있다. 실행한 결과가 있으면 새 보유세 기준 비율로 다시 받는다(008과 같다).
+  useEffect(() => {
+    void refreshIfRan();
+  }, [refreshIfRan]);
 
   // 매입일의 마지막 날 — 오늘(한국 시간). 화면을 연 때로 정한다(서버도 계산 끝을 한국 시간 오늘로 잡는다).
   const limit = useMemo(() => kstToday(), []);

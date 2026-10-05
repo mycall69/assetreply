@@ -387,18 +387,18 @@ description: "Task list for 009-real-estate-investment-simulation"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T041 [P] [US2] `backend/tests/integration/test_realestate_settings_api.py` — `GET` 기본 `{"holdingTaxBaseRatio": "0.600000", "isDefault": true}`,
+- [X] T041 [P] [US2] `backend/tests/integration/test_realestate_settings_api.py` — `GET` 기본 `{"holdingTaxBaseRatio": "0.600000", "isDefault": true}`,
   `PUT "0.7"` 뒤 시뮬레이션이 그 비율로 계산(`condition.holdingTaxBaseRatio`, 보유세 증가), 0·음수·1 초과·숫자 아님·**소수 6자리 초과**
   (`"0.6000001"`) → `422 invalid_setting`, `"1"`은 저장(100%), 다른 자산군 설정 불변 (FR-034, US2)
-- [ ] T042 [P] [US2] `frontend/tests/RealEstateSettingsForm.test.tsx`·`realEstateStoreSettings.test.ts` — 60 % 표시·저장, `0`·`101`·`abc`·
+- [X] T042 [P] [US2] `frontend/tests/RealEstateSettingsForm.test.tsx`·`realEstateStoreSettings.test.ts` — 60 % 표시·저장, `0`·`101`·`abc`·
   `60.12345`(백분율 소수 4자리 초과) 거절과 사유, `60.1234` → `"0.601234"` 저장, 기본값으로, 설정 화면에 다른 자산군 칸과 따로, 설정을 바꾸고 부동산
   화면에 돌아오면 다시 요청(008과 같다) (FR-034, US2)
 
 ### Implementation for User Story 2
 
-- [ ] T043 [US2] `backend/src/repository/apt_setting.py`(쓰기)·`backend/src/api/routes/realestate_settings.py`·`backend/src/api/main.py`(라우터) —
+- [X] T043 [US2] `backend/src/repository/apt_setting.py`(쓰기)·`backend/src/api/routes/realestate_settings.py`·`backend/src/api/main.py`(라우터) —
   `GET`·`PUT /api/realestate/settings` (FR-034)
-- [ ] T044 [US2] `frontend/src/components/settings/RealEstateSettingsForm.tsx`·`frontend/src/app/settings/page.tsx`·`frontend/src/stores/realEstateStore.ts`
+- [X] T044 [US2] `frontend/src/components/settings/RealEstateSettingsForm.tsx`·`frontend/src/app/settings/page.tsx`·`frontend/src/stores/realEstateStore.ts`
   (설정 변경 뒤 다시 요청) — E8 (FR-034)
 
 **Checkpoint**: 비율을 바꾸면 부동산 결과가 새 비율로 다시 나온다

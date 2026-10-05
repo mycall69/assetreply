@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import { CryptoSettingsForm } from "@/components/settings/CryptoSettingsForm";
 import { DepositSettingsForm } from "@/components/settings/DepositSettingsForm";
+import { RealEstateSettingsForm } from "@/components/settings/RealEstateSettingsForm";
 import { RestoreDefaultsDialog } from "@/components/settings/RestoreDefaultsDialog";
 import { SpreadForm } from "@/components/settings/SpreadForm";
 import {
@@ -21,6 +22,7 @@ import type {
   CryptoSettings,
   DepositSettings,
   DerivedRates,
+  RealEstateSettings,
   SpreadRow,
   StockSettings,
 } from "@/lib/types";
@@ -93,6 +95,9 @@ export default function SettingsPage() {
 
       {/* 008 — 예금 이자 소득세. 주식·가상자산 설정과 따로 저장한다(FR-030). */}
       <DepositSettingsSection />
+
+      {/* 009 — 부동산 보유세 기준 비율. 다른 자산군 설정과 따로 저장한다(FR-034). */}
+      <RealEstateSettingsSection />
 
       {pending !== null && (
         <RestoreDefaultsDialog
@@ -254,6 +259,55 @@ function DepositSettingsSection() {
       {value !== null && (
         // 저장 뒤 값이 바뀌면 폼을 새로 그린다 — 칸에 이전 값이 남지 않게 한다.
         <DepositSettingsForm key={value.interestTaxRate} value={value} onSave={(r) => void save(r)} />
+      )}
+    </div>
+  );
+}
+
+
+/**
+ * 부동산 설정 구역 (T044) — 009 FR-034, ui-wireframes E8.
+ *
+ * 다른 자산군 설정과 **상태를 공유하지 않는다** — 한쪽의 실패가 다른 쪽을 가리면 무엇이 저장됐는지 알 수 없다(005·007·008과 같은
+ * 이유).
+ */
+function RealEstateSettingsSection() {
+  const [value, setValue] = useState<RealEstateSettings | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        setValue(await apiClient.get<RealEstateSettings>("/api/realestate/settings"));
+      } catch (err) {
+        setFailure(err instanceof ApiError ? err.message : "부동산 설정을 불러오지 못했습니다.");
+      }
+    })();
+  }, []);
+
+  const save = async (holdingTaxBaseRatio: string) => {
+    try {
+      setValue(await apiClient.put<RealEstateSettings>("/api/realestate/settings", { holdingTaxBaseRatio }));
+      setNotice("저장했습니다. 부동산 화면으로 돌아가면 새 값으로 다시 계산합니다.");
+      setFailure(null);
+    } catch (err) {
+      setFailure(err instanceof ApiError ? err.message : "부동산 설정을 저장하지 못했습니다.");
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <h2 className="text-xl font-bold tracking-tight">부동산 보유세 기준 비율</h2>
+      {failure !== null && (
+        <p role="alert" className="rounded border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {failure}
+        </p>
+      )}
+      {notice !== null && <p className="text-sm text-gray-600">{notice}</p>}
+      {value !== null && (
+        // 저장 뒤 값이 바뀌면 폼을 새로 그린다 — 칸에 이전 값이 남지 않게 한다.
+        <RealEstateSettingsForm key={value.holdingTaxBaseRatio} value={value} onSave={(r) => void save(r)} />
       )}
     </div>
   );
