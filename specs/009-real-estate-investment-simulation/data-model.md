@@ -4,7 +4,7 @@
 
 신규 테이블 10개(아래 9절 — 6절이 작업·점유 둘), Alembic 마이그레이션 하나(head `c4d8e2f91b07` 다음). 기존 테이블은 바꾸지 않는다. 접두사 `apt_`(대상이 아파트 매매다).
 
-형식 이름: `AREA` = `DECIMAL(7, 2)`(전용㎡), `WON` = `DECIMAL(15, 0)`(원 단위 금액 — 최고가 수백억도 담는다), `SPREAD` = `DECIMAL(9, 6)`(기존 —
+형식 이름: `AREA` = `DECIMAL(9, 4)`(전용㎡ — 출처가 소수 4자리까지 준다, research R9-1·R9-2), `WON` = `DECIMAL(15, 0)`(원 단위 금액 — 최고가 수백억도 담는다), `SPREAD` = `DECIMAL(9, 6)`(기존 —
 비율), `TS` = `DATETIME`(UTC). 시뮬레이션 결과는 저장하지 않는다(거래·세법·설정의 함수).
 
 ---
@@ -76,7 +76,7 @@
 | `floor` | SMALLINT | 층(지하는 음수) |
 | `excl_area` | AREA | 전용㎡ |
 | `amount` | WON | 원 단위 정수(만원 × 10,000) |
-| `occurrence` | SMALLINT | 같은 응답 안에서 위 필드가 모두 같은 행의 순번(0부터) |
+| `occurrence` | SMALLINT | 같은 계약 월의 응답(모든 쪽을 차례로 이은 것) 안에서 위 필드가 모두 같은 행의 순번(0부터) |
 | `dealing_type` | VARCHAR(8) NULL | `중개거래`·`직거래`, 2021-11 이전은 NULL |
 | `cancelled` | BOOLEAN | 해제(`cdealType = O`) |
 | `cancelled_on` | DATE NULL | 해제 신고일 |

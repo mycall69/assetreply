@@ -85,7 +85,7 @@ description: "Task list for 009-real-estate-investment-simulation"
 
 **Purpose**: 활용신청 확인, 실제 응답 픽스처, 설정 자리, 세법 표의 값
 
-- [ ] T001 공공데이터포털의 **실제 응답**을 받아 `backend/tests/contract/fixtures/apt/`에 저장한다. `.env`의 `DATA_API_KEY`를 파일에서 읽고(셸
+- [X] T001 공공데이터포털의 **실제 응답**을 받아 `backend/tests/contract/fixtures/apt/`에 저장한다. `.env`의 `DATA_API_KEY`를 파일에서 읽고(셸
   인자로 넘기지 않는다), 요청 사이 0.5초. **먼저 네 자료를 1회씩 불러 등록을 확인하고 하나라도 403(사유 30)이면 멈추고 보고한다**(quickstart
   준비). 받는 것: ① 상세 실거래(`RTMSDataSvcAptTradeDev`) 송파구 `11710`의 **2020-01~2023-09 전체 쪽**(헬리오시티 참조값 — 45개월)을
   `trade_11710_YYYYMM_pN.xml.gz`(gzip — 한 달 수백 KB라 그대로 넣지 않는다), 그 범위에 2쪽 이상인 달이 없으면 송파구에서 한 달 거래가 가장 많은 달
@@ -148,7 +148,7 @@ description: "Task list for 009-real-estate-investment-simulation"
   VARCHAR(8)`, `parent_code CHAR(10) NULL`, `lawd_cd CHAR(5) NULL`, `name VARCHAR(40)`, `full_name VARCHAR(80)`, `source VARCHAR(16)`, `ingested_at`,
   `seen_at`, `retired_at NULL`), `apt_complex`(`apt_seq VARCHAR(20) NULL UNIQUE`, `kapt_code VARCHAR(20) NULL UNIQUE`, `name VARCHAR(80)`, `jibun
   VARCHAR(20) NULL`, `move_in_year SMALLINT NULL`, `move_in_source VARCHAR(8) NULL`, `households INT NULL`, `details_checked_at NULL`, `merged_into
-  BIGINT NULL`), `apt_trade`(`excl_area DECIMAL(7,2)`, `amount DECIMAL(15,0)`,
+  BIGINT NULL`), `apt_trade`(`excl_area DECIMAL(9,4)`, `amount DECIMAL(15,0)`,
   `occurrence SMALLINT`, `dealing_type VARCHAR(8) NULL`, `cancelled BOOLEAN`, `cancelled_on DATE NULL`, `missing_since NULL`, `missing_reason VARCHAR(16) NULL`(`absent`·`region_retired`), `source VARCHAR(16)`,
   `ingested_at`, **유니크 (`lawd_cd`, `deal_date`, `apt_seq`, `apt_dong`, `floor`, `excl_area`, `amount`, `occurrence`)**, 인덱스 (`apt_seq`,
   `deal_date`)), `apt_raw_response`(`endpoint VARCHAR(24)`, `request_ref VARCHAR(40)`, `result_code VARCHAR(16) NULL`, `body LONGTEXT`,
@@ -169,7 +169,7 @@ description: "Task list for 009-real-estate-investment-simulation"
   (1000, 최소 0), `apt_trade_probe_start`(**코드 기본값 없음** — 없으면 None, `YYYY-MM` 검사. 헌법 — 시작일을 코드에 두지 않는다, 001 `ECOS_PROBE_FLOOR`와 같은 취지. 없으면 실거래 수집이 사유와 함께 멈춘다), `apt_trade_provisional_months`(12, 최소 1), `apt_trade_daily_recheck_months`(3,
   최소 1, 잠정 개월 이하), `apt_list_refresh_days`(30, 최소 1), `load_settings`에 연결 (FR-010, FR-012, FR-013, 헌법 원칙 II)
 - [X] T010 `backend/src/db/models.py`·`backend/src/db/migrations/versions/…_부동산_스키마.py` — Apt* 9개(data-model 1~9절). 형식 이름 `AREA`
-  (`DECIMAL(7,2)`)·`WON`(`DECIMAL(15,0)`), 비율은 기존 `SPREAD`. 이전 head `c4d8e2f91b07` (FR-009, FR-034)
+  (`DECIMAL(9,4)` — 2026-10-05 T001 실측으로 `DECIMAL(7,2)`에서 바꿈, research R9-2)·`WON`(`DECIMAL(15,0)`), 비율은 기존 `SPREAD`. 이전 head `c4d8e2f91b07` (FR-009, FR-034)
 - [ ] T011 (2026-10-05 진행 중 — 실거래 파서 `trade_parse.py`만 남음: 상세 자료 등록 대기) `backend/src/ingestion/protocols.py`(`AptTrade`·`Region`·`ComplexListing`·`ComplexBasis`·결과·원본 타입, 출처 Protocol)·
   `backend/src/ingestion/datagokr/errors.py`(인증·한도·형식·연결)·`trade_parse.py`·`region_parse.py`·`kapt_parse.py` (FR-002, FR-003, FR-008,
   FR-014, FR-019, research R9-1·R9-3·R9-4)
@@ -565,3 +565,7 @@ Task: "T034 frontend 폼·보드·안내·표·스토어"
 - **2026-10-05 순서 변경(사용자 요청)**: T001이 활용신청 대기라, 출처와 무관한 계산(T013·T021·T028·T030~T032·T035~T037)을
   먼저 구현했다(커밋 `test(009): 계산`·`feat(009): 계산`). 헬리오시티 참조값 T029는 픽스처가 있어야 해 T001 뒤에 한다. D2 승인 2건 —
   `test_apt_price.py`의 잠정 시작 상수(테스트 실수: 2000-01이면 모든 달이 잠정), `test_no_hardcoded_dates.py`의 세법 표 예외
+- **2026-10-05 T001 실측이 바꾼 것**: 전용면적이 소수 4자리까지 온다(`84.9725` — research R9-1). `AREA`를 `DECIMAL(7,2)`에서
+  `DECIMAL(9,4)`로 바꿨다 — 마이그레이션 `a9d3e5c71f20`이 아직 푸시 전이라 같은 리비전을 고쳤다(개발 DB는 내렸다 올린다). 이 기능의
+  스키마 테스트 `test_apt_schema.py::test_거래`의 기대 자릿수를 함께 고쳤다(요구사항 변경 — data-model 갱신에 따른 것, 테스트 커밋에서).
+  순번(`occurrence`)은 계약 월의 모든 쪽을 이어 매긴다(2020-06 실측 — 같은 키가 1쪽·2쪽에 나뉘어 온다, R9-4)

@@ -53,8 +53,32 @@
 |------|-----------|------|
 | `gateway_30.xml` | 가짜 키(`TESTKEY1234567890abcd`)로 상세 실거래 1회 | HTTP 403, `OpenAPI_ServiceResponse` — `returnReasonCode 30`, `SERVICE_KEY_IS_NOT_REGISTERED_ERROR` |
 
-## 아직 받지 못한 것
+## 아파트 매매 실거래가 상세 자료 — 국토교통부 `RTMSDataSvcAptTradeDev` (2026-10-05, 활용신청 반영 뒤)
 
-- **상세 실거래(`RTMSDataSvcAptTradeDev`)** — 2026-10-05 현재 이 키에 등록되지 않았다(실제 키로도 403, 사유 30). 등록이 반영되면
-  송파구 2020-01~2023-09 전체 쪽(gzip), 2쪽 이상인 달, 첫 달 탐색(2005-11·12), 미래 달, 춘천 새·옛 코드(51110·42110)를 받는다
-- 한도 초과(사유 22)는 실제로 받을 수 없다 — `gateway_30.xml`의 코드·문구만 바꾼 합성 픽스처로 둔다(받을 때 함께 만든다)
+요청: `https://apis.data.go.kr/1613000/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev?serviceKey={key}&LAWD_CD=<시·군·구 5자리>&DEAL_YMD=<YYYYMM>&pageNo=<쪽>&numOfRows=1000`
+
+| 파일 | 범위 | `totalCount` | 비고 |
+|------|------|--------------|------|
+| `trade_11710_YYYYMM_pN.xml.gz` | 송파구 2020-01 ~ 2023-09(45개월, 46쪽) | 달마다(42 ~ 1,173) | gzip — 한 달 수백 KB라 그대로 넣지 않는다. 헬리오시티 참조값(SC-003) |
+| `trade_11710_202006_p1.xml.gz`·`_p2.xml.gz` | 2020-06 | 1,173 | **2쪽짜리 달** — 1쪽 1,000행, 2쪽 173행 |
+| `trade_11710_200511_p1.xml` | 2005-11 | 0 | 첫 달 탐색 — 거래 없음(정상 `000`, `items` 비어 있음) |
+| `trade_11710_200512_p1.xml` | 2005-12 | 3 | 첫 달 탐색 — 처음으로 거래가 있는 달 |
+| `trade_11710_202701_p1.xml` | 2027-01(미래) | 0 | 입력 오류도 정상 `000` + 0건이다(R9-1) |
+| `trade_51110_202001_p1.xml.gz` | 춘천(새 코드) 2020-01 | 308 | 개편 뒤 코드로 과거 거래가 온다 |
+| `trade_42110_202001_p1.xml` | 춘천(옛 코드) 2020-01 | 0 | 사라진 코드는 0건(research R9-3) |
+
+- 형식: XML, `response/header/resultCode`(정상 `000`), `body/items/item[]`, `body/totalCount`. 빈 값은 공백 한 칸(`<aptDong> </aptDong>`)이다
+- 필드: `aptSeq`(단지 일련번호 — **`11710-8865`처럼 시·군·구 코드가 들어간다** — 개편하면 바뀐다), `sggCd`·`umdCd`(5자리 —
+  법정동 코드 = 둘을 붙인 10자리), `bonbun`·`bubun`(4자리 0 채움 — `0574`·`0000`), `jibun`, `aptNm`, `aptDong`, `floor`,
+  `excluUseAr`(전용㎡, 소수 2자리까지), `dealAmount`(만원, 쉼표 — `"75,000"`), `dealYear`·`dealMonth`·`dealDay`, `cdealType`(해제면
+  `O`), `cdealDay`(해제 신고일 `YY.MM.DD`), `dealingGbn`(중개거래·직거래, 2021-11 이전은 공백), `buildYear`, `umdNm` 등
+- **헬리오시티** = `aptSeq 11710-8865`, 지번 913, 법정동 1171010700. 2020-01 ~ 2023-09 558건, 해제 27건. 이 픽스처를 이 도구의 평형
+  경계·그 달 평균(반올림)으로 계산하면 사용자 스프레드시트(`helio_sheet_2020_2023.csv`)와 **해제를 넣은 계산에서 225칸 모두**
+  같다(해제를 빼면 200칸 — 2026-10-05 확인, research R9-2)
+
+## 참조값·합성 픽스처
+
+| 파일 | 내용 |
+|------|------|
+| `helio_sheet_2020_2023.csv` | 사용자 스프레드시트(헬리오시티 평형별 월 거래 수·평균, 날짜 열 없음 — 2020-01부터 맞춘 45행)를 옮겨 적은 것. 열은 10평대·20평대·30평대(국평)·30평대(대형)·40평대 |
+| `gateway_22.xml` | **합성** — 한도 초과(사유 22)는 실제로 받을 수 없어 `gateway_30.xml`의 코드·문구만 바꿨다(`LIMITED_NUMBER_OF_SERVICE_REQUESTS_EXCEEDS_ERROR`) |
