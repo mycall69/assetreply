@@ -279,7 +279,7 @@ description: "Task list for 009-real-estate-investment-simulation"
   `frontend/src/app/realestate/page.tsx`·`frontend/src/components/shell/Sidebar.tsx`(`/realestate`)·`TopBar.tsx`(제목 "부동산")·
   `frontend/src/components/stock/CollectingNotice.tsx`(부동산 202·진행 타입 — 주어·단위는 008의 선택 속성) — E1·E2·E9(같은 이름 단지의 지번,
   행정구역·실거래 실패 경고, 처음 시·군·구 안내) (FR-001~FR-004, FR-007, FR-011, FR-014, FR-015, FR-036)
-- [ ] T027 [US1] 브라우저(3030, 창 1440px) 확인 — quickstart 1~6을 실행하고 `quickstart.md` 실행 기록에 적는다: 1(네 자료 정상 — T001 결과를
+- [X] T027 [US1] 브라우저(3030, 창 1440px) 확인 — quickstart 1~6을 실행하고 `quickstart.md` 실행 기록에 적는다: 1(네 자료 정상 — T001 결과를
   옮겨 적어도 된다), 2(메뉴·제목·출처 줄), 3(처음 행정구역 받기 → 네 번의 선택), 4(상위 바꾸면 하위 비움), 5(가락동 단지 목록 → 세대수 채움 →
   송파구 실거래 진행(2초 안에 보임) → 실거래 단지 더해짐, 같은 단지 두 번 없음), 6(평형 일곱·거래 수·비활성·경계표) (FR-001~FR-004, FR-011,
   FR-036, SC-002, SC-007)
