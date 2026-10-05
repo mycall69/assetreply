@@ -1,8 +1,9 @@
 /**
  * 표와 최근 시뮬레이션 배치 (010 T032) — FR-015~FR-017, SC-004(구조), research R10-10, data-model 6절, ui-wireframes F3.
  *
- * **경계 폭을 상수로 두지 않는다** — 줄바꿈 flex의 기본 크기로 정해진다. 표 칸은 `flex: 999 1 auto`(기본 크기 = 표 고유 폭), 이력 칸은
- * `flex: 1 1 400px`. 두 칸의 기본 크기 합이 본문 폭을 넘으면 이력이 다음 줄(전체 폭)로 내려간다 — 줄을 나누는 것은 기본 크기라 나란히 둔
+ * **경계 폭을 상수로 두지 않는다** — 줄바꿈 flex의 기본 크기로 정해진다. 표 칸은 `flex: 0 1 auto`(기본 크기 = 표 고유 폭, 늘지 않는다),
+ * 이력 칸은 `flex: 1 1 400px`(남는 폭을 가져간다 — 표 바로 오른쪽에 붙고, 아래로 내려가면 전체 폭이다. T036 실측 — 표 칸이 늘면 표와
+ * 이력 사이에 빈 칸이 생겨 이력이 화면 끝에 붙었다). 두 칸의 기본 크기 합이 본문 폭을 넘으면 이력이 다음 줄(전체 폭)로 내려간다 — 줄을 나누는 것은 기본 크기라 나란히 둔
  * 표는 줄지 않는다. 표 칸의 `min-w-0`는 창이 표 하나도 담지 못할 때(1440px 미만) 지금처럼 **표 안에서** 가로 스크롤하게 둔다 — 없으면 표
  * 칸이 줄지 않아 화면 전체가 가로로 넘친다(구현 중 확인 — 표 부품이 `overflow-x-auto` 안에 있다). 고정 폭·미디어 쿼리는 없다.
  * 이력 칸은 sticky(표를 내려도 남는다)이고 안에서 세로 스크롤한다. 결과가 없으면 이력 칸만이다.
@@ -33,10 +34,10 @@ describe("TableWithHistory", () => {
     expect(screen.getByTestId("table-with-history")).toHaveClass("flex", "flex-wrap", "items-start", "gap-5");
   });
 
-  it("표 칸은 기본 크기가 표 고유 폭이고 고정 폭이 없다", () => {
+  it("표 칸은 기본 크기가 표 고유 폭이고 늘지 않으며 고정 폭이 없다", () => {
     draw();
     const table = slotOf("the-table");
-    expect(table).toHaveClass("flex-[999_1_auto]", "min-w-0");
+    expect(table).toHaveClass("flex-[0_1_auto]", "min-w-0");
     expect([...table.classList].filter((c) => /^(max-)?w-/.test(c))).toEqual([]);
   });
 
