@@ -114,13 +114,22 @@ async def collect_details(factory: async_sessionmaker[AsyncSession], source: Bas
             await apt_job.set_progress(session, job_id, done=done)
             await session.commit()
     async with factory() as session:
-        latest = await apt_trade.latest_by_complex(session, umd_code[:5], umd_code=umd_code)
-        await sync_umd(session, umd_code, latest=latest)
+        await sync_umd(session, umd_code, latest=await latest_for_umd(session, umd_code))
         await session.commit()
     return len(pending)
 
 
 # ── 짝짓기 ────────────────────────────────────────────────────────
+
+
+async def latest_for_umd(session: AsyncSession, umd_code: str) -> list[LatestTrade]:
+    """목록 쪽(단지 목록·기본 정보)이 짝지을 실거래 단지. **그 시·군·구 실거래를 받는 중이면 없다**
+    — 그때까지 받은 거래만으로 짝지으면 그 실행의 건축년도를 몰라 재건축 판정을 건너뛴다(T027 실측 —
+    개포동). 그 실행의 마지막 맞추기(`sync_lawd`)가 건축년도를 다 알고 짝짓는다."""
+    lawd_cd = umd_code[:5]
+    if await apt_job.running_job_id(session, "trade", lawd_cd) is not None:
+        return []
+    return await apt_trade.latest_by_complex(session, lawd_cd, umd_code=umd_code)
 
 
 def _kapt_wins(keep: AptComplex, drop: AptComplex) -> AptComplex:

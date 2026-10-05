@@ -33,7 +33,7 @@ from src.repository import apt_complex, apt_job, apt_region, apt_trade
 from src.simulation.apt_area import AREA_BUCKETS, area_bucket
 from src.simulation.apt_tax_rules import TAX_RULES_FROM
 from src.worker import apt_worker
-from src.worker.apt_list_runner import ComplexListSource, sync_umd
+from src.worker.apt_list_runner import ComplexListSource, latest_for_umd, sync_umd
 from src.worker.apt_queue import AptWork, get_apt_list_queue
 
 Json = dict[str, object]
@@ -121,7 +121,7 @@ async def load_complex_list(session: AsyncSession, source: ComplexListSource, um
     await apt_trade.store_raw(session, endpoint=fetched.endpoint, request_ref=fetched.request_ref,
                               status=fetched.raw_status, result_code=fetched.result_code,
                               body=fetched.raw_body, now=now)
-    latest = await apt_trade.latest_by_complex(session, umd_code[:5], umd_code=umd_code)
+    latest = await latest_for_umd(session, umd_code)
     await sync_umd(session, umd_code, listings=fetched.result.complexes, latest=latest)
     await apt_region.mark_refreshed(session, apt_region.umd_scope(umd_code), now=now)
     return ListOutcome(None, True)
