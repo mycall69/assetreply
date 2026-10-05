@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useMemo } from "react";
+import { TableWithHistory } from "@/components/TableWithHistory";
 import { DepositHistory } from "@/components/deposit/DepositHistory";
 import { DepositNotice } from "@/components/deposit/DepositNotice";
 import { DepositPerformanceTable } from "@/components/deposit/DepositPerformanceTable";
@@ -126,22 +127,26 @@ export default function DepositPage() {
         </section>
       )}
 
-      {summary !== null && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
-          <DepositPerformanceTable rows={rows} />
-        </section>
-      )}
-
-      <DepositHistory
-        entries={history}
-        selected={selectedHistory}
-        comparing={comparing}
-        saveError={historySaveError}
-        onToggle={toggleHistory}
-        onRemove={removeHistoryEntry}
-        onCompare={() => void compareSelected()}
-        onRerun={(id) => void rerunHistory(id)}
+      {/* 010 FR-015~FR-017 — 넓은 창이면 성과 표 오른쪽(sticky), 좁으면 지금처럼 표 아래. 경계는 표의 실제 폭이다. */}
+      <TableWithHistory
+        table={summary !== null ? (
+          <section>
+            <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
+            <DepositPerformanceTable rows={rows} />
+          </section>
+        ) : null}
+        history={(
+          <DepositHistory
+            entries={history}
+            selected={selectedHistory}
+            comparing={comparing}
+            saveError={historySaveError}
+            onToggle={toggleHistory}
+            onRemove={removeHistoryEntry}
+            onCompare={() => void compareSelected()}
+            onRerun={(id) => void rerunHistory(id)}
+          />
+        )}
       />
 
       {(comparing || comparison.length > 0 || comparisonError !== null) && (

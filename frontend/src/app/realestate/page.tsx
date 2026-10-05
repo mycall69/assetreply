@@ -5,13 +5,14 @@
  * ui-wireframes E1~E7·E9.
  *
  * 주식·가상자산·예금 화면과 같은 구성이되 **종목 검색 대신 지역 풀다운 셋 → 단지 풀다운 → 평형 라디오 일곱**이고, 그 아래에 매입일·
- * 매입가(선택)를 넣어 실행한다. 원금은 원화만이라 통화 칸이 없다(FR-007). 결과는 보드 → 안내 줄 → 차트 → 월별 표 순이고, 그 아래
- * 이력과 비교다. 받지 않은 구간이면 진행만 보이고 **부분 결과를 보여주지 않는다**(FR-011). 화면 아래에 출처를 밝힌다(FR-036, 헌법
+ * 매입가(선택)를 넣어 실행한다. 원금은 원화만이라 통화 칸이 없다(FR-007). 결과는 보드 → 안내 줄 → 차트 → 월별 표·이력 순이고(넓은 창이면
+ * 표 오른쪽에 이력 — 010 `TableWithHistory`), 그 아래 비교다. 받지 않은 구간이면 진행만 보이고 **부분 결과를 보여주지 않는다**(FR-011). 화면 아래에 출처를 밝힌다(FR-036, 헌법
  * 원칙 II).
  * 경로 이름(`realestate`)은 미구현 자산군 가드(`noUnbuiltAssetRoutes.test.ts`)와 사이드바가 함께 전제한다.
  */
 
 import { useEffect, useMemo } from "react";
+import { TableWithHistory } from "@/components/TableWithHistory";
 import { AreaBucketPicker } from "@/components/realestate/AreaBucketPicker";
 import { ComplexPicker } from "@/components/realestate/ComplexPicker";
 import { RealEstateBoard } from "@/components/realestate/RealEstateBoard";
@@ -134,22 +135,26 @@ export default function RealEstatePage() {
         </section>
       )}
 
-      {summary !== null && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold">월별 투자 성과</h3>
-          <RealEstatePerformanceTable rows={rows} taxGaps={summary.taxGaps} />
-        </section>
-      )}
-
-      <RealEstateHistory
-        entries={history}
-        selected={selectedHistory}
-        comparing={comparing}
-        saveError={historySaveError}
-        onToggle={toggleHistory}
-        onRemove={removeHistoryEntry}
-        onCompare={() => void compareSelected()}
-        onRerun={(id) => void rerunHistory(id)}
+      {/* 010 FR-015~FR-017 — 넓은 창이면 성과 표 오른쪽(sticky), 좁으면 지금처럼 표 아래. 경계는 표의 실제 폭이다. */}
+      <TableWithHistory
+        table={summary !== null ? (
+          <section>
+            <h3 className="mb-2 text-sm font-semibold">월별 투자 성과</h3>
+            <RealEstatePerformanceTable rows={rows} taxGaps={summary.taxGaps} />
+          </section>
+        ) : null}
+        history={(
+          <RealEstateHistory
+            entries={history}
+            selected={selectedHistory}
+            comparing={comparing}
+            saveError={historySaveError}
+            onToggle={toggleHistory}
+            onRemove={removeHistoryEntry}
+            onCompare={() => void compareSelected()}
+            onRerun={(id) => void rerunHistory(id)}
+          />
+        )}
       />
 
       {(comparing || comparison.length > 0 || comparisonError !== null) && (

@@ -285,22 +285,22 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T032 [P] [US4] `frontend/tests/TableWithHistory.test.tsx` — `<TableWithHistory table={…} history={…}>`: 바깥(`data-testid="table-with-history"`)이
+- [X] T032 [P] [US4] `frontend/tests/TableWithHistory.test.tsx` — `<TableWithHistory table={…} history={…}>`: 바깥(`data-testid="table-with-history"`)이
   `flex flex-wrap items-start gap-5`, 표 칸이 `flex: 999 1 auto`(기본 크기 = 표 고유 폭)·`min-w-0`(좁은 창에서 표 안 가로 스크롤 — 없으면 화면이 넘친다)·고정 폭 없음, 이력 칸이 `flex: 1 1
   400px`·`sticky top-4 self-start`·`max-height: calc(100vh − 2rem)`·세로 스크롤, DOM 순서 표 → 이력, `table`이 없으면(실행 전) 이력 칸만.
   네 이력 부품(`SimulationHistory`·`CryptoHistory`·`DepositHistory`·`RealEstateHistory`)의 행(`history-row`)이 `flex-wrap`(칸 안 가로 넘침 없음)
   (FR-015~FR-017, SC-004 — 구조, data-model 6절)
-- [ ] T033 [P] [US4] `frontend/tests/TableWithHistoryPages.test.tsx` — 기존 화면 테스트(`CryptoPage`·`DepositPage`·`RealEstatePage.test.tsx`)와 같은
+- [X] T033 [P] [US4] `frontend/tests/TableWithHistoryPages.test.tsx` — 기존 화면 테스트(`CryptoPage`·`DepositPage`·`RealEstatePage.test.tsx`)와 같은
   흉내로 네 화면(주식·가상자산·예금·부동산)을 결과가 있는 상태(스토어 `setState`)로 렌더한다: 성과 표 `section`과 최근 시뮬레이션이 **같은
   `table-with-history` 안**에 표 → 이력 순서, 이력 비교 차트(와 출처 줄이 있는 화면 — 예금·부동산 — 의 출처 줄)는 그 밖·뒤, 결과가 없으면 이력만 그 안 (FR-015, FR-017 — 006 D1)
 
 ### Implementation for User Story 4
 
-- [ ] T034 [US4] `frontend/src/components/TableWithHistory.tsx`(신규 — data-model 6절의 규칙, 경계 폭 상수·미디어 쿼리 없음, 머리 주석에 research
+- [X] T034 [US4] `frontend/src/components/TableWithHistory.tsx`(신규 — data-model 6절의 규칙, 경계 폭 상수·미디어 쿼리 없음, 머리 주석에 research
   R10-10의 이유)·이력 행 줄바꿈 `frontend/src/components/stock/SimulationHistory.tsx`·`frontend/src/components/crypto/CryptoHistory.tsx`·
   `frontend/src/components/deposit/DepositHistory.tsx`·`frontend/src/components/realestate/RealEstateHistory.tsx`(행 `flex-wrap`, 버튼 묶음은 줄의 끝)
   (FR-015, FR-016)
-- [ ] T035 [US4] 네 화면 `frontend/src/app/stocks/page.tsx`·`frontend/src/app/crypto/page.tsx`·`frontend/src/app/deposit/page.tsx`·
+- [X] T035 [US4] 네 화면 `frontend/src/app/stocks/page.tsx`·`frontend/src/app/crypto/page.tsx`·`frontend/src/app/deposit/page.tsx`·
   `frontend/src/app/realestate/page.tsx` — 성과 표 `section`과 이력 부품을 `TableWithHistory`로 감싼다. 차트는 그 위, 이력 비교 차트·출처 줄은 그
   아래 그대로. 머리 주석의 화면 순서 설명을 고친다. ui-wireframes F3 (FR-015~FR-017)
 - [ ] T036 [US4] quickstart 8을 실행하고 기록한다 — 네 화면(주식은 원화 원금 해외 종목)에서 1440px 창의 표 가로 스크롤 없음, 1280~1920px을 10px씩(예금의 계산 경계 약 1,390px)

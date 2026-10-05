@@ -57,7 +57,7 @@ export function RealEstateHistory({
             // 같은 단지·평형을 다른 날 산 줄을 가른다.
             const label = `${name} ${entry.buyDate}`;
             return (
-              <li key={entry.id} data-testid="history-row" className="flex items-center gap-3 py-2 text-sm">
+              <li key={entry.id} data-testid="history-row" className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
                 <input type="checkbox" checked={selected.includes(entry.id)}
                   onChange={() => onToggle(entry.id)} aria-label={`${label} 비교 대상으로 선택`} />
                 <span className="min-w-48 font-medium">{name}</span>

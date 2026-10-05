@@ -8,6 +8,7 @@
  * 아니라 **통과**한다 — false pass는 실패보다 나쁘다.
  */
 
+import { TableWithHistory } from "@/components/TableWithHistory";
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
 import { PerformanceChart } from "@/components/stock/PerformanceChart";
 import { PerformanceTable } from "@/components/stock/PerformanceTable";
@@ -148,31 +149,35 @@ export default function StocksPage() {
         </section>
       )}
 
-      {summary !== null && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
-          <PerformanceTable
-            rows={rows}
-            currency={input.principalCurrency}
-            stockCurrency={currency}
-            summary={summary}
-            hasMore={hasMore}
-            loadingMore={loadingMore}
-            loadError={loadMoreError}
-            onLoadMore={() => void loadMore()}
+      {/* 010 FR-015~FR-017 — 넓은 창이면 성과 표 오른쪽(sticky), 좁으면 지금처럼 표 아래. 경계는 표의 실제 폭이다. */}
+      <TableWithHistory
+        table={summary !== null ? (
+          <section>
+            <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
+            <PerformanceTable
+              rows={rows}
+              currency={input.principalCurrency}
+              stockCurrency={currency}
+              summary={summary}
+              hasMore={hasMore}
+              loadingMore={loadingMore}
+              loadError={loadMoreError}
+              onLoadMore={() => void loadMore()}
+            />
+          </section>
+        ) : null}
+        history={(
+          <SimulationHistory
+            entries={history}
+            selected={selectedHistory}
+            comparing={comparing}
+            saveError={historySaveError}
+            onToggle={toggleHistory}
+            onRemove={removeHistoryEntry}
+            onCompare={() => void compareSelected()}
+            onRerun={(id) => void rerunHistory(id)}
           />
-        </section>
-      )}
-
-      <SimulationHistory
-        entries={history}
-        selected={selectedHistory}
-        comparing={comparing}
-        saveError={historySaveError}
-        onToggle={toggleHistory}
-        onRemove={removeHistoryEntry}
-        onCompare={() => void compareSelected()}
-        onRerun={(id) => void rerunHistory(id)}
+        )}
       />
 
       {(comparing || comparison.length > 0) && (

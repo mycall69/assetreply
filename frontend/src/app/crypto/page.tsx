@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useMemo } from "react";
+import { TableWithHistory } from "@/components/TableWithHistory";
 import { CoinSearch } from "@/components/crypto/CoinSearch";
 import { CryptoHistory } from "@/components/crypto/CryptoHistory";
 import { CryptoPerformanceTable } from "@/components/crypto/CryptoPerformanceTable";
@@ -115,31 +116,35 @@ export default function CryptoPage() {
         </section>
       )}
 
-      {summary !== null && (
-        <section>
-          <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
-          <CryptoPerformanceTable
-            rows={rows}
-            currency={input.principalCurrency}
-            quoteCurrency={quote ?? "USD"}
-            summary={summary}
-            hasMore={hasMore}
-            loadingMore={loadingMore}
-            loadError={loadMoreError}
-            onLoadMore={() => void loadMore()}
+      {/* 010 FR-015~FR-017 — 넓은 창이면 성과 표 오른쪽(sticky), 좁으면 지금처럼 표 아래. 경계는 표의 실제 폭이다. */}
+      <TableWithHistory
+        table={summary !== null ? (
+          <section>
+            <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
+            <CryptoPerformanceTable
+              rows={rows}
+              currency={input.principalCurrency}
+              quoteCurrency={quote ?? "USD"}
+              summary={summary}
+              hasMore={hasMore}
+              loadingMore={loadingMore}
+              loadError={loadMoreError}
+              onLoadMore={() => void loadMore()}
+            />
+          </section>
+        ) : null}
+        history={(
+          <CryptoHistory
+            entries={history}
+            selected={selectedHistory}
+            comparing={comparing}
+            saveError={historySaveError}
+            onToggle={toggleHistory}
+            onRemove={removeHistoryEntry}
+            onCompare={() => void compareSelected()}
+            onRerun={(id) => void rerunHistory(id)}
           />
-        </section>
-      )}
-
-      <CryptoHistory
-        entries={history}
-        selected={selectedHistory}
-        comparing={comparing}
-        saveError={historySaveError}
-        onToggle={toggleHistory}
-        onRemove={removeHistoryEntry}
-        onCompare={() => void compareSelected()}
-        onRerun={(id) => void rerunHistory(id)}
+        )}
       />
 
       {(comparing || comparison.length > 0 || comparisonError !== null) && (
