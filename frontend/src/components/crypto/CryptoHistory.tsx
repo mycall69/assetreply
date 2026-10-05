@@ -76,7 +76,7 @@ export function CryptoHistory({
                 )}
                 <button type="button" onClick={() => onRerun(entry.id)}
                   aria-label={`${label} 다시 실행`}
-                  className="ml-auto rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-50">
+                  className="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-50">
                   다시 실행
                 </button>
                 <button type="button" onClick={() => onRemove(entry.id)} aria-label={`${label} 이력 삭제`}

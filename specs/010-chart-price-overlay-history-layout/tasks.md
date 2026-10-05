@@ -461,9 +461,9 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 - [X] T055 [US4] `frontend/tests/TableWithHistory.test.tsx`(010 자체 테스트) — 네 이력 부품(주식·가상자산·예금·부동산)의 행 안에 행 끝으로 미는 여백
   (`ml-auto`·`ms-auto`·`mx-auto`)이 없고 행이 `justify-between`이 아니며, 다시 실행 바로 뒤가 삭제(×)다 (FR-027)
-- [ ] T056 [US4] `frontend/src/components/stock/SimulationHistory.tsx`·`crypto/CryptoHistory.tsx`·`deposit/DepositHistory.tsx`·
+- [X] T056 [US4] `frontend/src/components/stock/SimulationHistory.tsx`·`crypto/CryptoHistory.tsx`·`deposit/DepositHistory.tsx`·
   `realestate/RealEstateHistory.tsx` — 다시 실행 버튼의 `ml-auto` 제거 (FR-027)
-- [ ] T057 브라우저 확인(1920px) — 네 화면에서 버튼이 행의 마지막 내용 바로 뒤(간격 12px)에 있고 칸 안 가로 넘침이 없다. 프론트엔드 전체 검사
+- [X] T057 브라우저 확인(1920px) — 네 화면에서 버튼이 행의 마지막 내용 바로 뒤(간격 12px)에 있고 칸 안 가로 넘침이 없다. 프론트엔드 전체 검사
   (`npm test`·`tsc`·`eslint`) (FR-027)
 
 ---

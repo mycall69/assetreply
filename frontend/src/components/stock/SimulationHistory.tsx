@@ -96,12 +96,12 @@ export function SimulationHistory({
                   막힌 조합 — {principalRule(entry.stock.currency)}
                 </span>
               )}
-              {/* 010 FR-018 — 가상자산·예금·부동산과 같은 문구·자리. 막힌 조합 행에도 둔다(지금 규칙의 사유가 보인다). */}
+              {/* 010 FR-018 — 가상자산·예금·부동산과 같은 문구·자리(FR-027 — 행 내용 바로 뒤, 행 끝으로 밀지 않는다). 막힌 조합 행에도 둔다. */}
               <button
                 type="button"
                 onClick={() => onRerun(entry.id)}
                 aria-label={`${entry.stock.name} 다시 실행`}
-                className="ml-auto rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-50"
+                className="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-50"
               >
                 다시 실행
               </button>
