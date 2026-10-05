@@ -303,7 +303,7 @@ description: "Task list for 009-real-estate-investment-simulation"
   아니다), 기준 달 포함·**기준 달 뒤 거래는 쓰지 않음**, 1개월 = 실측(`estimated: false`), 넓은 창 = 추정, 36개월 안에 없으면 시세 없음(`None`),
   창 안에 잠정 달(오늘 기준 최근 12개월 — 설정)이 있으면 `provisional`, 해제 거래만 있는 달은 거래 없음. 손계산 참조 사례: 1·3·6·12·24·36개월 창,
   시세 없음, 잠정 달 포함 — 각각 시세·창·건수 (FR-008, FR-016~FR-018, SC-004, research R9-6)
-- [ ] T029 [P] [US1] `backend/tests/unit/test_apt_helio_reference.py` — T001의 송파구 2020-01~2023-09 응답(gzip)을 **실제 파서**로 읽어 헬리오시티
+- [X] T029 [P] [US1] `backend/tests/unit/test_apt_helio_reference.py` — T001의 송파구 2020-01~2023-09 응답(gzip)을 **실제 파서**로 읽어 헬리오시티
   (`aptSeq`)만 고르고 평형 경계(T013)로 나눠, **해제를 넣은 계산**의 월별 평형별 건수·그 달 평균(반올림)이 `helio_sheet_2020_2023.csv`와
   **225칸 모두 같다**(SC-003). 같은 원본에서 **해제를 뺀 계산**은 그 기간 해제 27건만큼 다르고, 그 기대값(달·구분·건수·평균)을 손계산으로
   고정한다 — 화면 경로(`apt_price`)가 해제를 뺀 값을 낸다(SC-006) (FR-004, FR-008, FR-016, SC-003, SC-006, research R9-2)
@@ -324,7 +324,7 @@ description: "Task list for 009-real-estate-investment-simulation"
   시세 없음 달은 평가액·수익·수익률 `None`, 계산 끝 시세가 없으면 `lastPricedMonth`, 매입가 직접 입력이면 매입가·취득 비용이 그 금액, 매입 달
   시세 없음 + 매입가 없음 → `no_price_at_purchase`, 같은 입력 두 번 같은 결과(SC-008), 계산 끝 = 주입한 오늘(한국 시간) (FR-005, FR-006, FR-021,
   FR-022, FR-023, FR-025~FR-027, SC-006, SC-008, research R9-7·R9-8)
-- [ ] T033 [P] [US1] `backend/tests/integration/test_realestate_simulation_api.py` — `GET /api/realestate/simulation`: 송파구 실거래를 받은 적 없음 →
+- [X] T033 [P] [US1] `backend/tests/integration/test_realestate_simulation_api.py` — `GET /api/realestate/simulation`: 송파구 실거래를 받은 적 없음 →
   202(`kind: trade`, `monthsDone`·`monthsTotal`, `progressUrl`)와 수집 요청, 진행 중에 다시 요청 → 같은 `jobId`(새 작업 없음), 받지 않은 달이 있음
   → 202, 최근 3개월 달을 오늘 확인 전 → 202, **4~12개월 전 달을 이번 달 확인 전 → 202(이번 달 확인했으면 오늘 다시 202가 아님)**, **받아 둔
   시·군·구에서 오늘 잠정 확인 작업이 실패 → 200 + `summary.recheckFailed`(같은 날 202 되풀이 없음)**, **확정 달 일부를 받지 못한 채 오늘 한도로
@@ -337,7 +337,7 @@ description: "Task list for 009-real-estate-investment-simulation"
   이어진다 — `areas`·`series`도 같은 409), `before_first_trade`의 `basis`(`first_trade` · 2005-12 첫 거래면 `tax_rules`와 `startableFrom: 2006-01-01`), 세금의 `basis`(6월
   시세가 추정이면 `estimated: true`), 보유세 기준 비율은 `apt_setting` 기본 0.600000, 같은 요청 두 번 같은 응답(SC-008) (FR-002, FR-005~FR-007,
   FR-010, FR-011, FR-014, FR-018, FR-023, FR-025~FR-030, SC-006, SC-008)
-- [ ] T034 [P] [US1] `frontend/tests/` — `RealEstateSimulationForm.test.tsx`(매입일 달력·월·년 이동·상한 오늘·하한 `startableFrom`, 매입가 선택 칸
+- [X] T034 [P] [US1] `frontend/tests/` — `RealEstateSimulationForm.test.tsx`(매입일 달력·월·년 이동·상한 오늘·하한 `startableFrom`, 매입가 선택 칸
   3자리 쉼표·단위 "원"·0 이하 거절, 409 안내 — `before_first_trade` 옮기기 수단(근거 `first_trade`면 첫 거래 달, `tax_rules`면 "세법 표는
   2006-01-01부터"), `no_price_at_purchase` 매입가 칸 초점, `tax_rule_not_covered` 세목·날짜, `region_retired` — 개편 사실과 "지역에서 다시 골라
   실행"), `RealEstateBoard.test.tsx`(칸 여섯, 기호가 숫자 앞
@@ -359,12 +359,12 @@ description: "Task list for 009-real-estate-investment-simulation"
   중개 보수·재산세(분납)·종부세(부부 5:5), 10원 미만 버림, `RuleNotCovered`) (FR-020~FR-024, research R9-7)
 - [X] T037 [US1] `backend/src/simulation/apt_holding.py` — 매달 행·납부 달·세금의 기준 시세 `basis`·`taxGaps`·시작 가능 날짜(첫 거래 달과 세법 표 시작
   중 늦은 날)·요약(`quantize_rate`) (FR-005, FR-006, FR-021, FR-022, FR-025~FR-027, research R9-7·R9-8)
-- [ ] T038 [US1] `backend/src/repository/apt_setting.py`(읽기 — 행 없으면 0.600000)·`backend/src/api/services/realestate_collect.py`(202 판정 — 받지 않은
+- [X] T038 [US1] `backend/src/repository/apt_setting.py`(읽기 — 행 없으면 0.600000)·`backend/src/api/services/realestate_collect.py`(202 판정 — 받지 않은
   달, 최근 3개월 오늘 확인 여부, 4~12개월 이번 달 확인 여부, 진행 중 작업의 `jobId`, **받아 둔 시·군·구에서만** 오늘 실패 작업 → 200 + `recheckFailed` —
   모두 **단지의 현재 `lawd_cd`**로 판정하고 그 코드가 사라졌으면 409 `region_retired`)·`realestate_simulation.py`(입력 검증, 시작 가능 날짜, 매입가, 계산 끝 오늘
   한국 시간, 응답)·`backend/src/api/routes/realestate_simulation.py`·`backend/src/api/main.py`(라우터) — contracts/rest-api (FR-002, FR-005~FR-007,
   FR-010, FR-011, FR-014, FR-023, FR-025~FR-030)
-- [ ] T039 [US1] `frontend/src/lib/types.ts`(시뮬레이션 응답)·`frontend/src/stores/realEstateStore.ts`(실행·202 대기·확인 실패 뒤 한 번 다시 요청)·
+- [X] T039 [US1] `frontend/src/lib/types.ts`(시뮬레이션 응답)·`frontend/src/stores/realEstateStore.ts`(실행·202 대기·확인 실패 뒤 한 번 다시 요청)·
   `frontend/src/components/realestate/RealEstateSimulationForm.tsx`·`RealEstateBoard.tsx`·`RealEstateNotice.tsx`·`RealEstatePerformanceTable.tsx`·
   `frontend/src/app/realestate/page.tsx` — E1·E3·E4·E5·E9. 금액 형식은 `PerformanceBoard`와 같은 함수 (FR-005, FR-006, FR-014, FR-017, FR-018,
   FR-026, FR-028~FR-030)

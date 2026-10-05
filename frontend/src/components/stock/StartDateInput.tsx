@@ -16,10 +16,11 @@ import type { BeforeListingBody } from "@/lib/types";
 
 /**
  * 실행 뒤 서버가 알려 준 시작 가능 날짜 (006 contracts 2절 `before_listing`). 008 — 예금의 `before_first_month`(투자처의 금리
- * 통계가 시작하는 달, 근거 `rate_start`)도 같은 안내를 쓴다.
+ * 통계가 시작하는 달, 근거 `rate_start`)도 같은 안내를 쓴다. 009 — 부동산의 `before_first_trade`(근거 `first_trade` 첫 거래 달 ·
+ * `tax_rules` 세법 표의 첫 날)도 같다.
  */
 export type Startable = Pick<BeforeListingBody, "startableFrom" | "message"> & {
-  basis: BeforeListingBody["basis"] | "rate_start";
+  basis: BeforeListingBody["basis"] | "rate_start" | "first_trade" | "tax_rules";
 };
 
 interface Bound {
@@ -61,6 +62,8 @@ export function StartDateInput({
   listedOn,
   startable,
   afterLimitText,
+  label = "시작일",
+  min,
   onChange,
 }: {
   value: string;
@@ -70,6 +73,10 @@ export function StartDateInput({
   startable: Startable | null;
   /** 마지막 날보다 뒤를 골랐을 때의 사유. 없으면 시세 기준(어제)의 문구다. */
   afterLimitText?: string;
+  /** 칸의 이름 — 부동산(009)은 "매입일"이다. */
+  label?: string;
+  /** 달력의 하한 — 부동산(009)은 고른 평형의 시작 가능 날짜다. 이보다 이른 직접 입력은 위의 안내가 막는다. */
+  min?: string;
   onChange: (start: string) => void;
 }) {
   const valid = isValidDate(value);
@@ -91,7 +98,7 @@ export function StartDateInput({
 
   return (
     <div className="text-sm">
-      <label htmlFor="start-date" className="mb-1 block text-gray-500">시작일</label>
+      <label htmlFor="start-date" className="mb-1 block text-gray-500">{label}</label>
       <div className="flex items-center gap-1">
         {MOVES.slice(0, 2).map(button)}
         <input
@@ -99,6 +106,7 @@ export function StartDateInput({
           type="date"
           value={value}
           max={limit}
+          min={min}
           onChange={(e) => onChange(e.target.value)}
           className="rounded border border-gray-300 px-2 py-1.5"
         />

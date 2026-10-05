@@ -990,3 +990,101 @@ export interface RealEstateTradeCollecting {
   monthsTotal: number;
   progressUrl: string;
 }
+
+/** 취득 비용(FR-020). 취득세·지방교육세·농어촌특별세·중개 보수. `rules`는 적용한 세법 표의 시행일이다. */
+export interface RealEstateAcquisition {
+  acquisitionTax: DecimalString;
+  educationTax: DecimalString;
+  ruralTax: DecimalString;
+  brokerageFee: DecimalString;
+  total: DecimalString;
+  rules: { acquisition: string; brokerage: string };
+}
+
+/** 실행 조건(FR-030). 매입가를 직접 넣었으면 `buyPriceSource: "input"`이고 창이 없다. */
+export interface RealEstateCondition {
+  buyDate: string;
+  buyPrice: DecimalString;
+  buyPriceSource: "market" | "input";
+  buyPriceWindow: { months: number; trades: number; estimated: boolean } | null;
+  /** 보유세 기준 비율 — 시세에 곱해 공시가격을 대신한다(FR-034). 소수 6자리. */
+  holdingTaxBaseRatio: DecimalString;
+  /** 서버가 적용한 가정 — "부부 5:5 공동 소유" 같은 글자 그대로 보인다. */
+  assumptions: string[];
+}
+
+/**
+ * 보드 요약(FR-029). 계산 끝(이번 달)의 시세가 없으면 `value`가 `null`이고 `lastPricedMonth`가 마지막 시세 달이다 — 그때
+ * `profit`·`returnRate`는 그 달까지의 결과다. `provisionalFrom`은 잠정 기간의 첫 달 1일(`"2025-11-01"`)이다.
+ */
+export interface RealEstateSummary {
+  buyPrice: DecimalString;
+  invested: DecimalString;
+  propertyTaxTotal: DecimalString;
+  comprehensiveTaxTotal: DecimalString;
+  holdingTaxTotal: DecimalString;
+  value: DecimalString | null;
+  valueMonth: string | null;
+  valueWindow: { months: number; trades: number } | null;
+  estimated: boolean;
+  provisional: boolean;
+  profit: DecimalString | null;
+  returnRate: DecimalString | null;
+  asOf: string;
+  /** 6월 시세가 없어 보유세를 계산하지 못한 해들(FR-021). */
+  taxGaps: number[];
+  lastPricedMonth: string | null;
+  provisionalFrom: string;
+  /** 받아 둔 시·군·구의 오늘 확인이 실패했을 때만(FR-014). */
+  recheckFailed?: { kind: RealEstateFailureKind; reason: string };
+}
+
+/** 보유세의 기준 시세 — 그해 6월의 적용 시세(FR-021). */
+export interface RealEstateTaxBasis {
+  month: string;
+  price: DecimalString;
+  window: number;
+  windowTrades: number;
+  estimated: boolean;
+  provisional: boolean;
+}
+
+/** 낸 보유세 한 번. `installment`는 분납 차례 — 일괄이면 `"1/1"`. */
+export interface RealEstateTax {
+  amount: DecimalString;
+  rule: string;
+  installment: "1/1" | "1/2" | "2/2";
+  basis: RealEstateTaxBasis;
+}
+
+/**
+ * 표의 한 달(FR-028). 시세 없음 달은 `price`·`value`·`profit`·`returnRate`가 `null`이다(0이 아니다). 세금은 낸 달에만 있다 —
+ * 다른 달은 `null`(0과 구별).
+ */
+export interface RealEstateRow {
+  month: string;
+  trades: number;
+  monthAverage: DecimalString | null;
+  price: DecimalString | null;
+  window: number | null;
+  windowTrades: number | null;
+  estimated: boolean;
+  provisional: boolean;
+  acquisition: RealEstateAcquisition | null;
+  propertyTax: RealEstateTax | null;
+  comprehensiveTax: RealEstateTax | null;
+  cumulativeCost: DecimalString;
+  value: DecimalString | null;
+  profit: DecimalString | null;
+  returnRate: DecimalString | null;
+}
+
+/** 시뮬레이션 결과(FR-005~FR-030). 행은 최신순이다. */
+export interface RealEstateSimulationResponse {
+  complex: { complexId: number; name: string; umdName: string };
+  area: { key: RealEstateAreaKey; label: string };
+  condition: RealEstateCondition;
+  acquisition: RealEstateAcquisition;
+  summary: RealEstateSummary;
+  rows: RealEstateRow[];
+}

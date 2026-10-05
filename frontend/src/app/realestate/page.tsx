@@ -1,17 +1,25 @@
 "use client";
 
 /**
- * 부동산 투자 시뮬레이션 (T026) — 009 FR-001~FR-004, FR-007, FR-011, FR-014, FR-015, FR-036, ui-wireframes E1·E2·E9.
+ * 부동산 투자 시뮬레이션 (T026·T039) — 009 FR-001~FR-007, FR-011, FR-014, FR-015, FR-028~FR-030, FR-036,
+ * ui-wireframes E1~E5·E9.
  *
- * 주식·가상자산·예금 화면과 같은 구성이되 **종목 검색 대신 지역 풀다운 셋 → 단지 풀다운 → 평형 라디오 일곱**이다. 원금은 원화만이라
- * 통화 칸이 없다(FR-007). 화면 아래에 출처를 밝힌다(FR-036, 헌법 원칙 II). 매입일·매입가·결과는 Phase 4(T039)가 더한다.
+ * 주식·가상자산·예금 화면과 같은 구성이되 **종목 검색 대신 지역 풀다운 셋 → 단지 풀다운 → 평형 라디오 일곱**이고, 그 아래에 매입일·
+ * 매입가(선택)를 넣어 실행한다. 원금은 원화만이라 통화 칸이 없다(FR-007). 결과는 보드 → 안내 줄 → 월별 표 순이다. 받지 않은 구간이면
+ * 진행만 보이고 **부분 결과를 보여주지 않는다**(FR-011). 화면 아래에 출처를 밝힌다(FR-036, 헌법 원칙 II).
  * 경로 이름(`realestate`)은 미구현 자산군 가드(`noUnbuiltAssetRoutes.test.ts`)와 사이드바가 함께 전제한다.
  */
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { AreaBucketPicker } from "@/components/realestate/AreaBucketPicker";
 import { ComplexPicker } from "@/components/realestate/ComplexPicker";
+import { RealEstateBoard } from "@/components/realestate/RealEstateBoard";
+import { RealEstateNotice } from "@/components/realestate/RealEstateNotice";
+import { RealEstatePerformanceTable } from "@/components/realestate/RealEstatePerformanceTable";
+import { RealEstateSimulationForm, startBoundFor } from "@/components/realestate/RealEstateSimulationForm";
 import { RegionPicker } from "@/components/realestate/RegionPicker";
+import { TradeCollectingNotice } from "@/components/realestate/TradeCollectingNotice";
+import { kstToday } from "@/lib/startDate";
 import type { RealEstateRegionLevel } from "@/lib/types";
 import { useRealEstateStore } from "@/stores/realEstateStore";
 
@@ -19,7 +27,10 @@ export default function RealEstatePage() {
   const {
     regions, selection, regionCollecting, regionProgress, regionFailure, complexes, tradeProgress,
     detailsProgress, areas, areasCollecting, error,
-    loadSidos, selectSido, selectSgg, selectUmd, selectComplex, selectArea, resumeWatching, dispose,
+    input, summary, rows, condition, acquisition, resultTarget, collecting, progress, startable, rejection,
+    loading,
+    loadSidos, selectSido, selectSgg, selectUmd, selectComplex, selectArea, setInput, run, resumeWatching,
+    dispose,
   } = useRealEstateStore();
 
   // 화면을 열면 받는 중이던 작업을 다시 구독하고 시·도를 요청한다. 떠나면 진행 구독을 끊는다 — 수집은 서버에서 이어진다.
@@ -28,6 +39,9 @@ export default function RealEstatePage() {
     void loadSidos();
     return dispose;
   }, [resumeWatching, loadSidos, dispose]);
+
+  // 매입일의 마지막 날 — 오늘(한국 시간). 화면을 연 때로 정한다(서버도 계산 끝을 한국 시간 오늘로 잡는다).
+  const limit = useMemo(() => kstToday(), []);
 
   function selectRegion(level: RealEstateRegionLevel, code: string): void {
     if (level === "sido") void selectSido(code);
@@ -40,6 +54,7 @@ export default function RealEstatePage() {
   // 그 시·군·구의 실거래를 다 받기 전에는 평형의 거래 수를 모른다(E2).
   const waitingForTrades = areas === null
     && (areasCollecting !== null || (complexes !== null && complexes.trades.state !== "collected"));
+  const bucket = areas?.buckets.find((b) => b.key === selection.area) ?? null;
 
   return (
     <div className="space-y-5">
@@ -58,12 +73,43 @@ export default function RealEstatePage() {
           tradeProgress={tradeProgress} detailsProgress={detailsProgress} />
         <AreaBucketPicker areas={areas} value={selection.area} onChange={selectArea}
           waitingForTrades={waitingForTrades} />
+        <RealEstateSimulationForm
+          values={input}
+          disabled={loading || bucket === null}
+          limit={limit}
+          areaLabel={bucket?.label ?? null}
+          startBound={startBoundFor(bucket, startable)}
+          rejection={rejection}
+          onChange={setInput}
+          onSubmit={() => void run()}
+        />
       </section>
 
       {error !== null && (
         <p role="alert" className="rounded border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
           {error}
         </p>
+      )}
+
+      {collecting !== null && (
+        // FR-011 — 진행을 보이되 부분 결과를 보여주지 않는다.
+        <TradeCollectingNotice collecting={collecting} sggName={sggName} progress={progress} />
+      )}
+
+      {loading && <p className="py-8 text-center text-sm text-gray-500">계산하는 중…</p>}
+
+      {summary !== null && condition !== null && acquisition !== null && resultTarget !== null && (
+        <div className="space-y-2">
+          <RealEstateBoard result={{ ...resultTarget, condition, acquisition, summary }} />
+          <RealEstateNotice summary={summary} />
+        </div>
+      )}
+
+      {summary !== null && (
+        <section>
+          <h3 className="mb-2 text-sm font-semibold">월별 투자 성과</h3>
+          <RealEstatePerformanceTable rows={rows} taxGaps={summary.taxGaps} />
+        </section>
       )}
 
       <p className="text-xs text-gray-400">

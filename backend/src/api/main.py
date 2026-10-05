@@ -46,6 +46,8 @@ from src.ingestion.yahoo.errors import (
     StockSourceUnavailable,
     StockSymbolNotFound,
 )
+from src.simulation.apt_holding import BeforeStartable, NoPriceAtPurchase, NoTradesInArea
+from src.simulation.apt_tax_rules import RuleNotCovered
 from src.simulation.deposit_rollover import BeforeFirstMonth, RateMissing
 
 
@@ -297,6 +299,32 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=400, content={
             "status": "unknown_complex", "message": str(exc)})
 
+    @app.exception_handler(BeforeStartable)
+    async def _before_startable(_: Request, exc: BeforeStartable) -> JSONResponse:
+        # 009 FR-005 — 시작 가능 날짜와 그 근거(첫 거래 달·세법 표 시작). 조용히 옮기지 않는다.
+        return JSONResponse(status_code=409, content={
+            "status": "before_first_trade", "message": str(exc),
+            "startableFrom": exc.startable_from.isoformat(), "basis": exc.basis})
+
+    @app.exception_handler(NoPriceAtPurchase)
+    async def _no_price_at_purchase(_: Request, exc: NoPriceAtPurchase) -> JSONResponse:
+        # 009 FR-006 — 매입 달 시세가 없고 매입가도 없다. 매입가를 넣으면 계산할 수 있다.
+        return JSONResponse(status_code=409, content={
+            "status": "no_price_at_purchase", "message": str(exc),
+            "month": f"{exc.month:%Y-%m}"})
+
+    @app.exception_handler(NoTradesInArea)
+    async def _no_trades_in_area(_: Request, exc: NoTradesInArea) -> JSONResponse:
+        return JSONResponse(status_code=409, content={
+            "status": "no_trades_in_area", "message": str(exc)})
+
+    @app.exception_handler(RuleNotCovered)
+    async def _rule_not_covered(_: Request, exc: RuleNotCovered) -> JSONResponse:
+        # 009 FR-023 — 세법 표가 그 날짜를 덮지 않는다. 가까운 해로 대신하지 않는다.
+        return JSONResponse(status_code=409, content={
+            "status": "tax_rule_not_covered", "message": str(exc), "tax": exc.tax,
+            "date": exc.on.isoformat()})
+
     @app.exception_handler(RegionRetired)
     async def _region_retired(_: Request, exc: RegionRetired) -> JSONResponse:
         # 009 FR-002 — 개편으로 사라진 시·군·구. 지역에서 다시 골라 실행하라고 안내한다.
@@ -393,6 +421,7 @@ def create_app() -> FastAPI:
     from src.api.routes import realestate_complexes as realestate_complexes_routes
     from src.api.routes import realestate_progress as realestate_progress_routes
     from src.api.routes import realestate_regions as realestate_regions_routes
+    from src.api.routes import realestate_simulation as realestate_simulation_routes
     from src.api.routes import series as series_routes
     from src.api.routes import spreads as spread_routes
     from src.api.routes import stock_progress as stock_progress_routes
@@ -437,6 +466,7 @@ def create_app() -> FastAPI:
     app.include_router(realestate_regions_routes.router)
     app.include_router(realestate_complexes_routes.router)
     app.include_router(realestate_progress_routes.router)
+    app.include_router(realestate_simulation_routes.router)
 
     return app
 

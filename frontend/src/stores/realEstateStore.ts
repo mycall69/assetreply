@@ -1,6 +1,6 @@
 /**
- * 부동산 화면의 단일 상태 원천 — 지역·단지·평형 고르기 (T026) — 009 FR-002~FR-004, FR-011, FR-014, FR-015, SC-007,
- * ui-wireframes E2·E9, 헌법 원칙 VII.
+ * 부동산 화면의 단일 상태 원천 — 지역·단지·평형 고르기 (T026)와 실행 (T039) — 009 FR-002~FR-007, FR-011, FR-014, FR-015,
+ * FR-023, SC-007, ui-wireframes E2·E3·E9, 헌법 원칙 VII.
  *
  * 예금 화면(`depositStore`)을 본뜬다. 고르는 순서는 시·도 → 시·군·구 → 동 → 단지 → 평형이고, 고를 때마다 그다음 목록을 요청한다.
  *
@@ -11,7 +11,14 @@
  *   FR-011). 진행 구독은 행정구역·실거래·기본 정보·평형 넷이고, 상위를 바꾸면 그 아래의 구독을 끊는다 — 남기면 떠난 동의 완료가
  *   단지 목록을 다시 요청한다
  * - 실패는 **종류와 사유**를 들고 있다. 문구는 화면이 종류마다 다르게 한다(FR-014·FR-015, `realEstateFailureText`)
- * - 결과(`summary`·`rows`)의 모양은 Phase 4(T039)가 정한다. 지금은 상위를 바꾸면 비운다는 약속만 있다
+ *
+ * 실행(T039)은 예금(`depositStore`)과 같다. **결과를 저장하지 않는다** — 설정과 거래가 바뀌면 결과가 달라진다.
+ * - **부분 결과를 보여주지 않는다**(FR-011). 202면 결과를 비우고 진행(받은 달 / 받을 달)을 구독하고, 끝나면 같은 조건으로 다시 요청한다
+ * - 수집이 실패하면 종류마다 다른 말(E9)로 할 일까지 보인다. 다만 **받아 둔 시·군·구**(단지 목록의 `trades.state = "collected"`)면
+ *   곧바로 한 번 다시 요청한다 — 서버가 받아 둔 거래로 계산해 200 + `recheckFailed`를 준다. 받은 적 없거나 중간까지만 받은 시·군·구는
+ *   다시 요청하지 않는다 — 서버도 200을 주지 않으므로(부분 결과) 같은 실패가 되풀이되며 하루 한도만 쓴다. 한 실행에 한 번이다
+ * - 409는 종류마다 따로 든다 — `before_first_trade`는 시작 가능 날짜와 근거(매입일은 **바꾸지 않는다**, FR-005), 나머지는 거절
+ * - 평형·단지 이하를 바꾸면 결과·거절을 지우고, 늦게 온 이전 실행의 응답은 버린다
  */
 
 import { create } from "zustand";
@@ -21,17 +28,22 @@ import {
   type RealEstateProgressHandlers,
   type RealEstateProgressSnapshot,
 } from "@/lib/realEstateProgressStream";
+import { DEFAULT_START } from "@/lib/startDate";
 import type {
+  RealEstateAcquisition,
   RealEstateAreaKey,
   RealEstateAreasResponse,
   RealEstateComplexesResponse,
+  RealEstateCondition,
   RealEstateFailureKind,
   RealEstateRegion,
   RealEstateRegionCollecting,
   RealEstateRegionLevel,
   RealEstateRegionsResponse,
+  RealEstateRow,
+  RealEstateSimulationResponse,
+  RealEstateSummary,
   RealEstateTradeCollecting,
-  SimulationSummary,
 } from "@/lib/types";
 
 /** 단계별 목록. 받기 전에는 `null`이다 — 빈 목록(`[]`)과 가른다. */
@@ -51,6 +63,25 @@ export interface RealEstateFailureNotice {
   reason: string;
 }
 
+export interface RealEstateInput {
+  buyDate: string;
+  /** 원 단위 정수 문자열(쉼표 없음). 비었으면 매입 달의 시세다(FR-006). 문자열로 들고 있다가 문자열로 보낸다(헌법 원칙 VI). */
+  buyPrice: string;
+}
+
+/** 실행 뒤 서버가 알려 준 시작 가능 날짜와 근거(409 `before_first_trade`, FR-005). */
+export interface RealEstateStartable {
+  startableFrom: string;
+  basis: "first_trade" | "tax_rules";
+}
+
+/** 실행의 거절(409, ui-wireframes E3) — 화면이 종류마다 다른 말과 할 일을 보인다. */
+export type RealEstateRejection =
+  | { kind: "no_price_at_purchase"; month: string }
+  | { kind: "no_trades_in_area" }
+  | { kind: "tax_rule_not_covered"; tax: string; date: string }
+  | { kind: "region_retired"; lawdCd: string };
+
 interface RealEstateState {
   regions: RealEstateRegionLists;
   selection: RealEstateSelection;
@@ -68,9 +99,20 @@ interface RealEstateState {
   areas: RealEstateAreasResponse | null;
   /** 실거래를 아직 받지 않아 평형 구분을 모른다(202). */
   areasCollecting: RealEstateTradeCollecting | null;
-  /** 결과 — Phase 4(T039)가 모양을 정한다. */
-  summary: SimulationSummary | null;
-  rows: unknown[];
+  input: RealEstateInput;
+  summary: RealEstateSummary | null;
+  rows: RealEstateRow[];
+  condition: RealEstateCondition | null;
+  acquisition: RealEstateAcquisition | null;
+  /** 결과의 단지·평형 — 입력이 바뀌어도 결과가 어느 단지·평형의 것인지 남긴다. */
+  resultTarget: Pick<RealEstateSimulationResponse, "complex" | "area"> | null;
+  /** 실행이 그 시·군·구의 실거래를 기다린다(202). */
+  collecting: RealEstateTradeCollecting | null;
+  /** 그 수집의 진행. 스냅샷이 오기 전에는 `null`이다. */
+  progress: RealEstateProgressSnapshot | null;
+  startable: RealEstateStartable | null;
+  rejection: RealEstateRejection | null;
+  loading: boolean;
   error: string | null;
 
   /** 화면을 열 때 시·도를 요청한다. 실패 뒤에 다시 부르면 새 작업을 따라간다. */
@@ -81,6 +123,9 @@ interface RealEstateState {
   selectComplex: (complexId: number) => Promise<void>;
   /** 평형을 고른다. 결과를 지운다 — 실행은 버튼으로 한다. */
   selectArea: (key: RealEstateAreaKey) => void;
+  setInput: (next: Partial<RealEstateInput>) => void;
+  /** 고른 단지·평형과 입력으로 실행한다. 실행 즉시 이전 결과를 비운다. */
+  run: () => Promise<void>;
   /** 화면에 돌아왔을 때 받는 중이던 작업을 다시 구독한다 — 떠날 때 끊었다. 수집은 서버에서 이어졌다. */
   resumeWatching: () => void;
   /** 화면을 떠날 때 진행 구독을 모두 끊는다. */
@@ -117,10 +162,10 @@ const message = (err: unknown, fallback: string): string =>
 const isCollecting = <T extends { status: "collecting" }>(body: object): body is T =>
   "status" in body && body.status === "collecting";
 
-type Watch = "region" | "trade" | "details" | "areas";
+type Watch = "region" | "trade" | "details" | "areas" | "simulation";
 /** 살아 있는 진행 구독 — 종류마다 하나. 작업 번호를 들고 있어 같은 작업을 두 번 구독하지 않는다. */
 const watchers: Record<Watch, { jobId: number; stop: () => void } | null> = {
-  region: null, trade: null, details: null, areas: null,
+  region: null, trade: null, details: null, areas: null, simulation: null,
 };
 
 function stopWatching(key: Watch): void {
@@ -135,13 +180,83 @@ function watch(key: Watch, jobId: number, handlers: RealEstateProgressHandlers):
   watchers[key] = { jobId, stop: subscribeRealEstateProgress(jobId, handlers) };
 }
 
-const NO_RESULT = { summary: null, rows: [] } satisfies Partial<RealEstateState>;
+const NO_RESULT = {
+  summary: null, rows: [], condition: null, acquisition: null, resultTarget: null,
+  collecting: null, progress: null, startable: null, rejection: null, loading: false,
+} satisfies Partial<RealEstateState>;
+
+/** 지금 실행의 번호. 결과를 지우거나 새로 실행하면 늘어난다 — 늦게 온 이전 실행의 응답을 버린다. */
+let runSeq = 0;
+/** 지금 실행이 화면이 스스로 한 것인지(수집 완료·실패 뒤). 사용자가 실행하면 자동 다시 요청의 기회를 되돌린다. */
+let automaticRun = false;
+/** 이 실행에서 실패 뒤 다시 요청했는지 — 한 실행에 한 번(008 FR-016a와 같다). */
+let retriedAfterFailure = false;
+
+/** 결과·거절을 지우고 실행의 진행 구독을 끊는다. */
+function clearResult(): typeof NO_RESULT {
+  stopWatching("simulation");
+  runSeq += 1;
+  return NO_RESULT;
+}
+
+/** 실행의 질의. 매입가는 **문자열 그대로**, 비었으면 보내지 않는다. 통화는 보내지 않는다 — 원화만이다(FR-007). */
+function simulationQuery(complexId: number, area: RealEstateAreaKey, input: RealEstateInput): string {
+  const query = new URLSearchParams({ complexId: String(complexId), area, buyDate: input.buyDate });
+  if (input.buyPrice !== "") query.set("buyPrice", input.buyPrice);
+  return query.toString();
+}
+
+/** 오류 본문의 글자 필드. */
+const field = (body: Record<string, unknown>, key: string): string =>
+  typeof body[key] === "string" ? body[key] : "";
+
+/** 409 본문 → 거절. 모르는 종류면 `null`(사유를 그대로 보인다). */
+function rejectionOf(code: string, body: Record<string, unknown>): RealEstateRejection | null {
+  switch (code) {
+    case "no_price_at_purchase":
+      return { kind: code, month: field(body, "month") };
+    case "no_trades_in_area":
+      return { kind: code };
+    case "tax_rule_not_covered":
+      return { kind: code, tax: field(body, "tax"), date: field(body, "date") };
+    case "region_retired":
+      return { kind: code, lawdCd: field(body, "lawdCd") };
+    default:
+      return null;
+  }
+}
 
 export const useRealEstateStore = create<RealEstateState>((set, get) => {
   /** 단지를 바꾸면 평형·결과를 지운다. */
   function belowComplex(): Partial<RealEstateState> {
     stopWatching("areas");
-    return { areas: null, areasCollecting: null, ...NO_RESULT, error: null };
+    return { areas: null, areasCollecting: null, ...clearResult(), error: null };
+  }
+
+  function rerunAutomatically(): void {
+    automaticRun = true;
+    void get().run();
+  }
+
+  /** 실행의 진행을 구독한다. **완료에 다시 요청한다** — 부분 결과를 먼저 보여주지 않는 대신 끝난 시점을 알려야 한다. */
+  function watchSimulation(jobId: number): void {
+    watch("simulation", jobId, {
+      onSnapshot: (progress) => set({ progress }),
+      onCompleted: () => {
+        stopWatching("simulation");
+        rerunAutomatically();
+      },
+      onFailed: (kind, reason) => {
+        stopWatching("simulation");
+        // 받아 둔 시·군·구면 서버가 받아 둔 거래로 답한다(200 + recheckFailed). 한 실행에 한 번.
+        if (get().complexes?.trades.state === "collected" && !retriedAfterFailure) {
+          retriedAfterFailure = true;
+          rerunAutomatically();
+          return;
+        }
+        set({ collecting: null, progress: null, error: realEstateFailureText(kind, reason) });
+      },
+    });
   }
 
   /** 동을 바꾸면 단지·평형·결과를 지우고 그 동의 진행 구독을 끊는다. */
@@ -276,6 +391,7 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
     detailsProgress: null,
     areas: null,
     areasCollecting: null,
+    input: { buyDate: DEFAULT_START, buyPrice: "" },
     ...NO_RESULT,
     error: null,
 
@@ -335,14 +451,64 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
       await fetchAreas(complexId);
     },
 
-    selectArea: (key) => set({ selection: { ...get().selection, area: key }, ...NO_RESULT }),
+    selectArea: (key) => set({ selection: { ...get().selection, area: key }, ...clearResult(), error: null }),
+
+    setInput: (next) => set({ input: { ...get().input, ...next } }),
+
+    run: async () => {
+      if (!automaticRun) retriedAfterFailure = false;
+      automaticRun = false;
+      const { selection, input } = get();
+      if (selection.complexId === null || selection.area === null) {
+        set({ error: "단지와 평형을 고르세요." });
+        return;
+      }
+      // FR-006 — 0 이하는 거절한다. 칸이 숫자만 받으므로 남는 것은 0뿐이다.
+      if (input.buyPrice !== "" && !/[1-9]/.test(input.buyPrice)) {
+        set({ error: "매입가는 0보다 커야 합니다." });
+        return;
+      }
+      set({ ...clearResult(), loading: true, error: null });
+      const seq = runSeq;
+      try {
+        const body = await apiClient.get<RealEstateSimulationResponse | RealEstateTradeCollecting>(
+          `/api/realestate/simulation?${simulationQuery(selection.complexId, selection.area, input)}`);
+        if (seq !== runSeq) return;
+        if (isCollecting<RealEstateTradeCollecting>(body)) {
+          set({ collecting: body, progress: null, loading: false });
+          watchSimulation(body.jobId);
+          return;
+        }
+        set({
+          summary: body.summary, rows: body.rows, condition: body.condition, acquisition: body.acquisition,
+          resultTarget: { complex: body.complex, area: body.area }, loading: false,
+        });
+      } catch (err) {
+        if (seq !== runSeq) return;
+        if (err instanceof ApiError && err.httpStatus === 409 && err.body !== null) {
+          if (err.code === "before_first_trade") {
+            // 조용히 옮기지 않는다 — 옮기기는 눌러야 일어난다(FR-005).
+            const basis = field(err.body, "basis") === "tax_rules" ? "tax_rules" : "first_trade";
+            set({ startable: { startableFrom: field(err.body, "startableFrom"), basis }, loading: false });
+            return;
+          }
+          const rejection = rejectionOf(err.code, err.body);
+          if (rejection !== null) {
+            set({ rejection, loading: false });
+            return;
+          }
+        }
+        set({ error: message(err, "시뮬레이션에 실패했습니다."), loading: false });
+      }
+    },
 
     resumeWatching: () => {
-      const { complexes, areasCollecting, selection } = get();
+      const { complexes, areasCollecting, collecting, selection } = get();
       if (complexes !== null && selection.umd !== null) watchComplexJobs(complexes, selection.umd);
       if (areasCollecting !== null && selection.complexId !== null) {
         watchAreas(areasCollecting.jobId, selection.complexId);
       }
+      if (collecting !== null) watchSimulation(collecting.jobId);
     },
 
     dispose: () => {
@@ -350,6 +516,7 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
       stopWatching("trade");
       stopWatching("details");
       stopWatching("areas");
+      stopWatching("simulation");
     },
   };
 });

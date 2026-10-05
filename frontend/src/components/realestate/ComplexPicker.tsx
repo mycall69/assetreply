@@ -12,7 +12,7 @@
  *   `role="alert"`. 실패는 응답(`trades.failure`)에 남아 다시 열어도 보인다
  */
 
-import { CollectingNotice } from "@/components/stock/CollectingNotice";
+import { TradeCollectingNotice } from "@/components/realestate/TradeCollectingNotice";
 import type { RealEstateProgressSnapshot } from "@/lib/realEstateProgressStream";
 import type { RealEstateComplex, RealEstateComplexesResponse, RealEstateTradeCollecting } from "@/lib/types";
 import { realEstateFailureText } from "@/stores/realEstateStore";
@@ -20,6 +20,14 @@ import { realEstateFailureText } from "@/stores/realEstateStore";
 const SELECT_ID = "realestate-complex";
 
 /** 풀다운 항목의 글자. `withJibun`은 같은 동에 같은 이름의 단지가 또 있을 때다. */
+/** 단지 목록의 실거래 상태 → 실행의 202와 같은 모양(진행 줄이 함께 쓴다). */
+function tradeCollecting({ trades, umd }: RealEstateComplexesResponse): RealEstateTradeCollecting {
+  return {
+    status: "collecting", kind: "trade", lawdCd: umd.lawdCd, jobId: trades.jobId ?? 0,
+    monthsDone: trades.monthsDone, monthsTotal: trades.monthsTotal, progressUrl: trades.progressUrl ?? "",
+  };
+}
+
 export function complexLabel(complex: RealEstateComplex, withJibun: boolean): string {
   const parts = [complex.name];
   if (complex.moveInYear !== null) parts.push(`${complex.moveInYear}년 입주`);
@@ -96,7 +104,8 @@ export function ComplexPicker({
 
       {complexes !== null && trades?.state === "collecting" && (
         <div className="space-y-1">
-          <TradeNotice complexes={complexes} sggName={sggName} progress={tradeProgress} />
+          <TradeCollectingNotice collecting={tradeCollecting(complexes)} sggName={sggName} progress={tradeProgress}
+            doneNote="끝나면 단지 목록에 없던 단지가 더해집니다." />
           <p className="text-xs text-gray-400">
             처음 고르는 시·군·구는 전체 이력을 받습니다(하루 한도로 30곳 남짓).
           </p>
@@ -109,31 +118,5 @@ export function ComplexPicker({
         </p>
       )}
     </div>
-  );
-}
-
-/** 실거래 진행 줄 — 006 `CollectingNotice`. 스냅샷이 오기 전에는 응답의 받은 달 / 받을 달을 쓴다. */
-function TradeNotice({
-  complexes,
-  sggName,
-  progress,
-}: {
-  complexes: RealEstateComplexesResponse;
-  sggName: string | null;
-  progress: RealEstateProgressSnapshot | null;
-}) {
-  const { trades, umd } = complexes;
-  const jobId = trades.jobId ?? 0;
-  const collecting: RealEstateTradeCollecting = {
-    status: "collecting", kind: "trade", lawdCd: umd.lawdCd, jobId,
-    monthsDone: trades.monthsDone, monthsTotal: trades.monthsTotal, progressUrl: trades.progressUrl ?? "",
-  };
-  const current: RealEstateProgressSnapshot = progress ?? {
-    jobId, kind: "trade", target: umd.lawdCd, status: "running",
-    done: trades.monthsDone, total: trades.monthsTotal,
-  };
-  return (
-    <CollectingNotice collecting={collecting} stockName={sggName ?? "이 시·군·구"} progress={current}
-      subject="실거래" unit="개월" doneNote="끝나면 단지 목록에 없던 단지가 더해집니다." />
   );
 }
