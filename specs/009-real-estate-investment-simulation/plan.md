@@ -43,7 +43,7 @@
 | 프레임워크 | FastAPI, SQLAlchemy 2.x async, aiohttp. XML은 표준 라이브러리(`xml.etree.ElementTree`) — 새 의존 없음 |
 | 언어 (프론트엔드) | TypeScript 5.x (`strict`), Next.js 16 App Router, React 19 |
 | 상태 관리 | Zustand (헌법 원칙 VII) |
-| DB | MySQL 8.0+ — **신규 테이블 9개**(data-model), Alembic 마이그레이션 하나(head `c4d8e2f91b07` 다음). 기존 테이블 변경 없음 |
+| DB | MySQL 8.0+ — **신규 테이블 10개**(data-model), Alembic 마이그레이션 하나(head `c4d8e2f91b07` 다음). 기존 테이블 변경 없음 |
 | 테스트 | pytest·pytest-asyncio / Vitest·React Testing Library. 출처는 **실제 응답 픽스처**로 계약 테스트 |
 | 타입·린트 | mypy strict, ruff(`--no-cache`) / tsc, eslint |
 | 출처 | **공공데이터포털**(국토교통부 실거래 상세·단지 목록·기본 정보, 행정안전부 법정동코드) — 공식 공개 API, 한 인증키(`DATA_API_KEY`)가 URL 질의에 들어간다. 동시 수·자료별 하루 한도·재시도(`DATA_API_RETRY_MAX_ATTEMPTS` 4, `DATA_API_RETRY_BASE_DELAY_MS` 1000)는 설정 |
@@ -96,7 +96,7 @@ specs/009-real-estate-investment-simulation/
 ├── spec.md              # /speckit-specify, /speckit-clarify (+ plan 실측 뒤 결정 2건)
 ├── plan.md              # 이 파일
 ├── research.md          # R9-1 ~ R9-11 (공공데이터포털 실측, 헬리오시티 225칸 대조)
-├── data-model.md        # 신규 테이블 9개 + 세법 표 모듈
+├── data-model.md        # 신규 테이블 10개 + 세법 표 모듈
 ├── quickstart.md        # 활용신청 4건, 검증 시나리오 26개
 ├── contracts/
 │   ├── rest-api.md      # /api/realestate/* + 출처(공공데이터포털 4자료) 계약

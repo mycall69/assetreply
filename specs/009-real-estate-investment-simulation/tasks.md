@@ -133,17 +133,18 @@ description: "Task list for 009-real-estate-investment-simulation"
   XML이 아님 → 연결 오류, 게이트웨이 응답(사유 30 → 인증, 22 → 한도, 12 → 형식) (FR-008, FR-009, FR-014, FR-019, research R9-1·R9-4)
 - [ ] T005 [P] `backend/tests/contract/test_datagokr_lists_parse.py` — 법정동코드 → `Region`: 시·도·시·군·구·법정동 단계(`level` `sido`·`sgg`·`umd`),
   **리(`ri_cd ≠ 00`) 제외**, 실거래 요청 단위 `lawd_cd`(5자리), 수원시처럼 일반시 아래 구가 있으면 **구를 시·군·구로**(이름 "수원시 장안구")
-  보이고 상위 시(41110)는 시·군·구 목록에서 뺌, **폐지로 표시된 코드는 결과에 현존 아님으로 표시**(T001 픽스처 — 옛 강원도 코드가 오면), 단지 목록 → `ComplexListing`(`kaptCode`·이름·`bjdCode`), 기본
-  정보 → `ComplexBasis`(세대수 정수, 사용승인일 → 연도, 지번 주소에서 본번·부번 — 못 읽으면 `None`). 빈 목록은 빈 결과 (FR-002, FR-003,
-  FR-015, research R9-3)
-- [ ] T006 [P] `backend/tests/contract/test_datagokr_client.py`·`test_datagokr_gate.py` — 가짜 세션으로: 요청 URL의 모양(자료별 경로, `LAWD_CD`·
+  보이고 상위 시(41110)는 시·군·구 목록에서 뺌, 출처는 폐지 코드를 주지 않음(옛 "강원도" → `INFO-3` 결과 없음 — 오류가 아니라 빈 결과,
+  T001 실측), 단지 목록 → `ComplexListing`(`kaptCode`·이름·`bjdCode`), 기본 정보 → `ComplexBasis`(세대수 = `kaptdaCnt`(실수 → 정수), **0이면
+  `hoCnt`, 그것도 0이면 `None`** — 더샵송파루미스타 0.0·183, 사용승인일 `YYYYMMDD` → 연도, 지번 주소에서 본번·부번 — `142-`는 부번 0, 못
+  읽으면 `None`), 없는 단지 코드(`kaptCode: null`) → 결과 없음. 빈 목록은 빈 결과 (FR-002, FR-003, FR-015, research R9-3)
+- [ ] T006 [P] `backend/tests/contract/test_datagokr_client.py`·`test_datagokr_gate.py`·`backend/tests/integration/test_apt_usage.py`(DB 계수기 — 한도까지 세고 멈춤, 자료·날짜별, 다시 만들어도 이어 셈, 동시 요청도 한도만큼만) — 가짜 세션으로: 요청 URL의 모양(자료별 경로, `LAWD_CD`·
   `DEAL_YMD`·`pageNo`·`numOfRows=1000`), **키는 한 번만 인코딩**(가짜 키 `TEST+KEY/1234567890abcd==`가 `%2B`·`%2F`·`%3D`로 한 번 — `%25`가
   없다), 돌려주는 원본에 URL이 없음, **연결 오류·HTTP 오류의 문구에 키가 없다** — 64자 영숫자 가짜 키와 `+`·`/`·`=`가 든 가짜 키 둘 다, 날 것과
   인코딩된 것 둘 다(문구에 URL이 섞인 aiohttp 예외를 흉내), 연결 오류·HTTP 5xx는 지수 백오프 + 지터로 `DATA_API_RETRY_MAX_ATTEMPTS`만큼
   재시도(지연 `DATA_API_RETRY_BASE_DELAY_MS` × 2ⁿ + 지터 — 주입한 잠), 인증·한도(사유 22)는 재시도하지 않음, 넘겨받은 세션을 닫지 않음. 관문(`DataGoKrGate`): 동시 요청이 `DATA_API_MAX_CONCURRENT`를 넘지 않음(실거래 줄·목록 줄·요청
   경로가 함께), **자료별 하루 호출 수를 보내기 전에 세고 한도에 닿으면 보내지 않고 한도 오류**(주입한 계수기·한국 시간 날짜 — 자정이 지나면 다시
   0부터), 사유 22를 받으면 그날 그 자료의 요청을 더 보내지 않음 (FR-012, FR-013, FR-014, SC-011, SC-012, 헌법 원칙 II, research R9-5)
-- [ ] T007 [P] `backend/tests/integration/test_apt_schema.py` — 마이그레이션 뒤 테이블 9개와 열(data-model): `apt_region`(`code CHAR(10)` PK, `level
+- [ ] T007 [P] `backend/tests/integration/test_apt_schema.py` — 마이그레이션 뒤 테이블 10개와 열(data-model — 작업은 `kind`·`target`·`total`·`done`): `apt_region`(`code CHAR(10)` PK, `level
   VARCHAR(8)`, `parent_code CHAR(10) NULL`, `lawd_cd CHAR(5) NULL`, `name VARCHAR(40)`, `full_name VARCHAR(80)`, `source VARCHAR(16)`, `ingested_at`,
   `seen_at`, `retired_at NULL`), `apt_complex`(`apt_seq VARCHAR(20) NULL UNIQUE`, `kapt_code VARCHAR(20) NULL UNIQUE`, `name VARCHAR(80)`, `jibun
   VARCHAR(20) NULL`, `move_in_year SMALLINT NULL`, `move_in_source VARCHAR(8) NULL`, `households INT NULL`, `details_checked_at NULL`, `merged_into
@@ -163,9 +164,9 @@ description: "Task list for 009-real-estate-investment-simulation"
 
 ### Implementation for Phase 2
 
-- [ ] T009 `backend/src/config/settings.py` — `data_api_key`(비밀 — repr에 나오지 않게), `data_api_max_concurrent`(기본 3, 최소 1),
+- [ ] T009 `backend/src/config/settings.py`(테스트 `backend/tests/unit/test_settings_datagokr.py`) — `data_api_key`(비밀 — repr에 나오지 않게), `data_api_max_concurrent`(기본 3, 최소 1),
   `data_api_daily_limit_trade`(9000)·`_kapt`(4500)·`_region`(9000)(최소 1), `data_api_retry_max_attempts`(4, 최소 1)·`data_api_retry_base_delay_ms`
-  (1000, 최소 0), `apt_trade_probe_start`(`2005-01`, `YYYY-MM` 검사), `apt_trade_provisional_months`(12, 최소 1), `apt_trade_daily_recheck_months`(3,
+  (1000, 최소 0), `apt_trade_probe_start`(**코드 기본값 없음** — 없으면 None, `YYYY-MM` 검사. 헌법 — 시작일을 코드에 두지 않는다, 001 `ECOS_PROBE_FLOOR`와 같은 취지. 없으면 실거래 수집이 사유와 함께 멈춘다), `apt_trade_provisional_months`(12, 최소 1), `apt_trade_daily_recheck_months`(3,
   최소 1, 잠정 개월 이하), `apt_list_refresh_days`(30, 최소 1), `load_settings`에 연결 (FR-010, FR-012, FR-013, 헌법 원칙 II)
 - [ ] T010 `backend/src/db/models.py`·`backend/src/db/migrations/versions/…_부동산_스키마.py` — Apt* 9개(data-model 1~9절). 형식 이름 `AREA`
   (`DECIMAL(7,2)`)·`WON`(`DECIMAL(15,0)`), 비율은 기존 `SPREAD`. 이전 head `c4d8e2f91b07` (FR-009, FR-034)
@@ -198,8 +199,9 @@ description: "Task list for 009-real-estate-investment-simulation"
   59.96 → 20평대, 84.94~84.99 → 30평대(국평), 99.6 → 30평대(대형), 110.44·110.66·130.06 → 40평대, 150.07·150.09 → 50평대), 경계표가 화면용 형태
   (`minArea`·`maxArea`·`maxInclusive`)로 나옴 (FR-004, research R9-2)
 - [ ] T014 [P] [US1] `backend/tests/unit/test_realestate_complex_match.py` — 순수 함수: 단지 목록(가락동 픽스처)과 실거래 단지(송파구 픽스처의
-  가락동 거래)를 **법정동 코드 + 본번·부번**으로 짝지음(헬리오시티 = 실거래의 그 `aptSeq`), 지번을 못 읽으면 정규화 이름(공백·괄호·"아파트"
-  제거)이 같을 때만, 짝짓지 못한 실거래 단지는 따로(세대수 없음), 같은 동의 같은 이름 다른 지번 → 둘, 같은 `aptSeq`의 이름이 바뀌어도 하나(최근
+  가락동 거래)를 **법정동 코드가 같고 본번·부번이 같거나, 정규화 이름(공백·괄호와 그 안·"아파트" 제거)이 같고 그 동의 두 자료에서 하나씩뿐**
+  이면 짝지음 — **헬리오시티는 대표 지번이 다르다(단지 목록 479, 실거래 913 — T001 실측)** 이름으로 짝지어 실거래의 그 `aptSeq`와 한 행,
+  짝짓지 못한 실거래 단지는 따로(세대수 없음), 같은 동의 같은 이름 다른 지번 → 둘(이름으로 짝짓지 않음), 같은 `aptSeq`의 이름이 바뀌어도 하나(최근
   이름), 짝짓기 결과에 같은 단지가 두 번 나오지 않음, **두 행이 이미 따로 있을 때 짝이 드러나면 먼저 만든 행에 합치고 다른 행은 `merged_into`**
   (지우지 않음 — 결과가 "합칠 행 쌍"으로 나온다). 가락동 픽스처의 짝짓기 성공·실패 수를 기대값으로 고정 (FR-003, FR-032, research R9-3)
 - [ ] T015 [P] [US1] `backend/tests/integration/test_apt_trade_collection.py` — 가짜 출처(T001 픽스처)로 실거래 실행기: **첫 달 탐색**

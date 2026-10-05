@@ -21,13 +21,13 @@
 게이트웨이 사유 30이다.
 
 ```bash
-cd backend && .venv/bin/python -m alembic upgrade head      # 부동산 테이블 9개 (data-model)
+cd backend && .venv/bin/python -m alembic upgrade head      # 부동산 테이블 10개 (data-model)
 ./be-start.sh && ./fe-start.sh                                # 백엔드 8080(단일 워커), 프론트엔드 3030
 ```
 
 - `.env`의 `DATA_API_KEY`를 쓴다. 키 값을 출력하거나 셸 인자로 넘기지 않는다. 새 설정(모두 선택 — 없으면 기본값): `DATA_API_MAX_CONCURRENT`(3),
   `DATA_API_DAILY_LIMIT_TRADE`(9000)·`_KAPT`(4500)·`_REGION`(9000), `DATA_API_RETRY_MAX_ATTEMPTS`(4)·`DATA_API_RETRY_BASE_DELAY_MS`(1000),
-  `APT_TRADE_PROBE_START`(`2005-01`), `APT_TRADE_PROVISIONAL_MONTHS`(12), `APT_TRADE_DAILY_RECHECK_MONTHS`(3), `APT_LIST_REFRESH_DAYS`(30)
+  `APT_TRADE_PROBE_START`(**코드 기본값 없음** — `.env.example`의 `2005-01`을 옮긴다. 없으면 실거래 수집이 사유와 함께 멈춘다), `APT_TRADE_PROVISIONAL_MONTHS`(12), `APT_TRADE_DAILY_RECHECK_MONTHS`(3), `APT_LIST_REFRESH_DAYS`(30)
 - 처음 고르는 시·군·구는 전체 이력(약 280회)을 받는다 — 하루 한도(9,000회)로 30곳 남짓이다(research R9-5)
 - **개발 서버를 띄운 채 통합 테스트를 돌리지 않는다**(CLAUDE.md)
 

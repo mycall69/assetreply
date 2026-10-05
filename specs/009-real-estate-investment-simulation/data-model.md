@@ -2,7 +2,7 @@
 
 **Feature**: `009-real-estate-investment-simulation` | 근거: [research.md](./research.md), [spec.md](./spec.md)
 
-신규 테이블 9개, Alembic 마이그레이션 하나(head `c4d8e2f91b07` 다음). 기존 테이블은 바꾸지 않는다. 접두사 `apt_`(대상이 아파트 매매다).
+신규 테이블 10개(아래 9절 — 6절이 작업·점유 둘), Alembic 마이그레이션 하나(head `c4d8e2f91b07` 다음). 기존 테이블은 바꾸지 않는다. 접두사 `apt_`(대상이 아파트 매매다).
 
 형식 이름: `AREA` = `DECIMAL(7, 2)`(전용㎡), `WON` = `DECIMAL(15, 0)`(원 단위 금액 — 최고가 수백억도 담는다), `SPREAD` = `DECIMAL(9, 6)`(기존 —
 비율), `TS` = `DATETIME`(UTC). 시뮬레이션 결과는 저장하지 않는다(거래·세법·설정의 함수).
@@ -49,8 +49,8 @@
 | `merged_into` | BIGINT NULL | 다른 행에 합쳐졌으면 그 행의 `id` |
 | `updated_at` | TS | |
 
-- 두 자료의 같은 단지는 한 행이다 — `apt_seq`와 `kapt_code`를 함께 가진다. 짝짓기 규칙은 research R9-3(법정동 코드 + 지번, 아니면 정규화한
-  이름). 짝짓지 못하면 각자 한 행.
+- 두 자료의 같은 단지는 한 행이다 — `apt_seq`와 `kapt_code`를 함께 가진다. 짝짓기 규칙은 research R9-3(법정동 코드가 같고 지번이 같거나, 정규화한
+  이름이 같고 그 동에서 하나뿐 — 헬리오시티는 대표 지번이 자료마다 다르다). 짝짓지 못하면 각자 한 행.
 - **단지 행은 지우지 않고 `id`는 바뀌지 않는다** — 이력이 단지 id를 저장한다(FR-032). 짝짓기는 있는 행에 다른 쪽 식별자를 붙이는 것으로 한다.
   두 행이 이미 따로 있을 때 짝이 드러나면 먼저 만든 행(`id`가 작은 쪽)에 합치고, 다른 행의 식별자(`apt_seq`·`kapt_code`)를 옮긴 뒤 `merged_into`에
   그 `id`를 적는다. 단지 id를 받는 모든 API는 `merged_into`를 따라간다 — 옛 id로 열어도 같은 단지다. 목록 응답에는 합쳐진 행이 나오지 않는다.
@@ -131,9 +131,11 @@ V). 송파구 95개월 원본이 약 15MB다(research R9-5) — 다시 받기의
 
 ## 6. `apt_collection_job` · `apt_collection_lock` — 수집 작업 (FR-011, FR-012)
 
-`apt_collection_job`: `id`, `lawd_cd`, `kind`(`trade` · `region` · `complex_details`), `months_total`, `months_done`(trade만), `items_total`,
-`items_done`(complex_details), `status`(JobStatus), `started_at`, `finished_at`, `last_error`(종류를 앞에 둔다 — `auth`·`rate_limited`·
-`format`·`network`, 사유는 키를 지운다).
+`apt_collection_job`: `id`, `kind`(`trade` · `region` · `complex_details`), `target`(`VARCHAR(20)` — 시·군·구 5자리 ·
+`regions` · 법정동 10자리), `total`·`done`(진행의 분모·분자 — 실거래는 달, 기본 정보는 단지, 행정구역은 쪽), `status`(JobStatus),
+`started_at`, `finished_at`, `last_error`(종류를 앞에 둔다 — `auth`·`rate_limited`·`format`·`network`, 사유는 키를 지운다). 종류마다
+분모가 달라도 진행 스트림(SSE `snapshot`의 `done`·`total`)이 한 모양으로 읽는다(T007 구현 때 정리 — 처음 설계의
+`months_*`·`items_*` 두 쌍을 하나로 묶었다).
 
 `apt_collection_lock`: (`kind`, `target`) PK — 같은 시·군·구·같은 법정동의 중복 수집 방지. 기동 시 남은 점유를 회수한다(008과 같다).
 
