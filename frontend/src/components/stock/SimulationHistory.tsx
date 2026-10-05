@@ -11,6 +11,8 @@
  * 조건만 남아 있다(R5-9). 저장 당시 수치를 적어 두면 지금 값인 것처럼 읽힌다.
  */
 
+import { ExternalLink } from "@/components/ExternalLink";
+import { stockLink } from "@/lib/externalLinks";
 import { formatMoney } from "@/lib/format";
 import { isAllowedPrincipal, principalRule } from "@/lib/principalCurrency";
 import type { SimulationHistoryEntry } from "@/lib/types";
@@ -74,7 +76,11 @@ export function SimulationHistory({
                 onChange={() => onToggle(entry.id)}
                 aria-label={`${entry.stock.name} 비교 대상으로 선택`}
               />
-              <span className="min-w-28 font-medium">{entry.stock.name}</span>
+              <span className="min-w-28 font-medium">
+                <ExternalLink href={stockLink(entry.stock)} label={`${entry.stock.name} 네이버 증권에서 보기`}>
+                  {entry.stock.name}
+                </ExternalLink>
+              </span>
               <span className="tabular-nums text-gray-600">{entry.start}</span>
               <span className="tabular-nums text-gray-600">
                 {formatMoney(entry.principal, entry.principalCurrency)}{" "}

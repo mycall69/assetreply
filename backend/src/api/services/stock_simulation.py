@@ -12,7 +12,8 @@
 from __future__ import annotations
 
 import datetime as dt
-from dataclasses import dataclass, replace
+from collections.abc import Mapping
+from dataclasses import dataclass, field, replace
 from decimal import Decimal, InvalidOperation
 from functools import partial
 
@@ -97,6 +98,9 @@ class SimulationResult:
     #: 선이 꺾이는 까닭을 표식으로 밝힌다. 기본값이 빈 묶음인 이유: 결과를 직접 만드는 곳(단위
     #: 테스트)이 있다.
     splits: tuple[SplitOn, ...] = ()
+    #: 날짜별 원주가 종가(010 반복 1) — 차트의 수정 종가(`simulation/split_adjust`)가
+    #: 쓴다. 표는 쓰지 않는다(시작가 그대로).
+    closes: Mapping[dt.date, Decimal] = field(default_factory=dict)
 
 
 #: 원금으로 고를 수 있는 통화 (005 FR-003). 006 FR-050d — **EUR을 뺀다.** 지원 시장(국내·미국·
@@ -242,13 +246,15 @@ async def run_simulation(
     is_final = as_of >= end
 
     quote_dates = frozenset(r.quote_date for r in bars_rows)
+    closes = {r.quote_date: r.close_raw for r in bars_rows}
 
     if lookup is None:
         # 국내 종목이다. 모두 KRW라 평가할 것이 없다 (FR-023).
         return SimulationResult(
             rows=[ConvertedRow(r) for r in rows],
             latest=ConvertedRow(outcome.latest) if outcome.latest else None,
-            as_of=as_of, is_final=is_final, quote_dates=quote_dates, splits=splits)
+            as_of=as_of, is_final=is_final, quote_dates=quote_dates, splits=splits,
+            closes=closes)
 
     evaluate = partial(_evaluate, lookup=lookup, principal=principal,
                        basis=principal_krw if principal_krw is not None else principal)
@@ -256,7 +262,7 @@ async def run_simulation(
         rows=[evaluate(r) for r in rows],
         latest=evaluate(outcome.latest) if outcome.latest else None,
         as_of=as_of, is_final=is_final, exchange=exchange, quote_dates=quote_dates,
-        principal_krw=principal_krw, splits=splits)
+        principal_krw=principal_krw, splits=splits, closes=closes)
 
 
 def _krw_principal(

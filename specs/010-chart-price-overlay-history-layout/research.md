@@ -267,7 +267,11 @@ JS가 배치 — 코드가 늘고 첫 그림에서 깜박인다. 이력 칸을 �
 - 정의: `adjusted(d) = close_raw(d) ÷ ∏ (numerator / denominator)`. 곱은 효력일 `e`가 `d < e ≤ 계산 끝`인 분할 전부다.
   - 효력일 당일 이후의 종가는 이미 분할 뒤 값이라 그 분할로 나누지 않는다.
   - 병합(분자 < 분모)도 같은 식이다. 분할이 없으면 원주가 종가 그대로다.
-- 계산 자리: 순수 함수 `simulation/split_adjust.adjusted_close(close, day, splits)`(원칙 IV — DB·HTTP 없음).
+- 계산 자리: 순수 함수 `simulation/split_adjust.split_restated_close(close, day, splits)`(원칙 IV — DB·HTTP 없음).
+  - **이름은 출처 수정가와 가른다**(구현 중 발견 — 처음 이름 `adjusted_close`가 005 가드 `test_no_adjusted_price`에 걸렸다). 가드는 시뮬레이션 계층에서
+    출처 수정가의 이름(`close_adjusted`·`adjclose`·`adjusted_close`)을 찾아 배당 이중 반영을 막는다(005 FR-011). 이 값은 원주가 종가에서 분할만
+    환산한 **차트 표시용**이라 재투자 계산(`reinvest`)에 들어가지 않고 배당도 소급하지 않는다 — 가드의 우려와 다르므로 가드는 그대로 두고(D2 없음)
+    이름을 가른다. 응답의 `priceKind "stock_adjusted_close"`는 API 계층이라 가드 밖이다.
   - 시계열 조립이 결과의 `closes`(원주가 종가 — `run_simulation`이 이미 읽은 `bars_rows`)와 `splits`로 부른다.
   - 저장하지 않는다(원칙 V — 명시 규칙, 원본은 원주가·분할 기록).
 - 응답: `priceKind "stock_adjusted_close"`. `splits` 키를 뺀다(분할 표식 없음).

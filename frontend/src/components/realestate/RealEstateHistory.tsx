@@ -9,6 +9,8 @@
  * - 버튼·고르기의 이름은 단지·평형·매입일이다 — 같은 단지·평형을 다른 날 산 줄이 여럿일 수 있다
  */
 
+import { ExternalLink } from "@/components/ExternalLink";
+import { complexSearchLink } from "@/lib/externalLinks";
 import { formatMoney } from "@/lib/format";
 import type { RealEstateHistoryEntry } from "@/lib/types";
 
@@ -23,6 +25,7 @@ export function RealEstateHistory({
   onRemove,
   onCompare,
   onRerun,
+  umdNames = {},
 }: {
   entries: RealEstateHistoryEntry[];
   selected: string[];
@@ -32,6 +35,8 @@ export function RealEstateHistory({
   onRemove: (id: string) => void;
   onCompare: () => void;
   onRerun: (id: string) => void;
+  /** 받아 둔 법정동의 이름(코드 → 이름) — 단지 검색에 붙인다(010 FR-026). 모르는 코드면 단지명만으로 찾는다. */
+  umdNames?: Record<string, string>;
 }) {
   return (
     <section className="rounded-lg border border-gray-200 p-4">
@@ -60,7 +65,13 @@ export function RealEstateHistory({
               <li key={entry.id} data-testid="history-row" className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
                 <input type="checkbox" checked={selected.includes(entry.id)}
                   onChange={() => onToggle(entry.id)} aria-label={`${label} 비교 대상으로 선택`} />
-                <span className="min-w-48 font-medium">{name}</span>
+                <span className="min-w-48 font-medium">
+                  <ExternalLink href={complexSearchLink(entry.complexName, umdNames[entry.umd] ?? null)}
+                    label={`${entry.complexName} 네이버에서 단지 찾기`}>
+                    {entry.complexName}
+                  </ExternalLink>{" "}
+                  {entry.areaLabel}
+                </span>
                 <span className="tabular-nums text-gray-600">{entry.buyDate}</span>
                 <span className="tabular-nums text-gray-600">
                   {entry.buyPrice === null ? "그 달 시세" : `${formatMoney(entry.buyPrice, "KRW")}원`}

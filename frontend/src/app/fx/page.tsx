@@ -5,9 +5,12 @@
  *
  * 001의 4개 탭(조회·스프레드·차트·수집현황)을 하나로 합친 화면이다. 통화·요약·차트·표가
  * 하나의 선택 날짜를 공유한다 (contracts/ui-interaction.md).
+ *
+ * 010 반복 1 — 다른 네 화면처럼 왼쪽에서 시작한다(FR-022). 통화를 바꾸면 요약·차트·표가 "불러오는 중"으로 바뀌어 문서가 창보다 짧아지고, 브라우저가
+ * 스크롤을 끌어내렸다(R10-16 실측). 그래서 바꾸기 **직전** 본문 높이를 최소 높이로 붙잡고, 새 통화가 다 오면 놓는다(FR-023).
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CurrencyTabs } from "@/components/fx/CurrencyTabs";
 import { PeriodTabs } from "@/components/fx/PeriodTabs";
 import { DailyTable } from "@/components/fx/DailyTable";
@@ -17,6 +20,7 @@ import { TodayRefresh } from "@/components/fx/TodayRefresh";
 import { TrendChart } from "@/components/fx/TrendChart";
 import { PeriodPresets } from "@/components/fx/PeriodPresets";
 import { EmptyState } from "@/components/EmptyState";
+import type { CurrencyCode } from "@/lib/types";
 import { PRESETS, useFxWorkspaceStore } from "@/stores/fxWorkspaceStore";
 
 export default function FxPage() {
@@ -33,14 +37,28 @@ export default function FxPage() {
 
   const noData = latest?.status === "no_data";
 
+  // FR-023 — 통화를 바꾸는 동안 붙잡는 본문 높이(px). 빠르게 두 번 바꾸면 늦게 끝난 앞 전환이 뒤 전환의 높이를 놓지 않게 차례를 센다.
+  const workspace = useRef<HTMLDivElement>(null);
+  const [reserve, setReserve] = useState<number | null>(null);
+  const turn = useRef(0);
+  function changeCurrency(next: CurrencyCode): void {
+    const height = workspace.current?.getBoundingClientRect().height ?? 0;
+    const mine = ++turn.current;
+    setReserve(height > 0 ? height : null);
+    void setCurrency(next).finally(() => {
+      if (turn.current === mine) setReserve(null);
+    });
+  }
+
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
+    <div ref={workspace} className="max-w-5xl space-y-5"
+      style={reserve === null ? undefined : { minHeight: `${reserve}px` }}>
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">외환 데이터 분석</h2>
           <p className="mt-1 text-sm text-gray-500">매매기준율 및 히스토리컬 트렌드</p>
         </div>
-        <CurrencyTabs value={currency} onChange={(c) => void setCurrency(c)} />
+        <CurrencyTabs value={currency} onChange={changeCurrency} />
       </header>
 
       {error && (

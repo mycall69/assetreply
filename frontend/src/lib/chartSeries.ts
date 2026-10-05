@@ -23,7 +23,7 @@
  */
 
 import { formatAxisNumber, shiftDecimal } from "./format";
-import type { SeriesGap, SeriesPoint, SimulationPoint, SplitMark } from "./types";
+import type { SeriesGap, SeriesPoint, SimulationPoint } from "./types";
 
 /**
  * 축 눈금 형식 — 시리즈의 `priceFormat`에 넘긴다 (007 FR-043a·FR-046a, research R7-14).
@@ -148,31 +148,6 @@ export function priceSegments<T extends { date: string; price?: string | null }>
     if (current.length > 0) segments.push(current);
   }
   return segments;
-}
-
-/** 분할 표식 하나 — 그 점에 걸린 분할 기록들. */
-export interface SplitMarkAt {
-  date: string;
-  splits: SplitMark[];
-}
-
-/**
- * 분할 표식의 자리 (010 FR-008, research R10-4).
- *
- * **그린 점**(다운샘플 뒤) 중 효력일 이상인 첫 점이다 — 원주가가 그 점에서 처음 분할을 반영해 꺾인다. 서버가 자리를 정하면
- * 그 점이 줄이기에서 빠졌을 때 표식이 허공을 가리킨다. 효력일 뒤에 점이 없으면(꺾임도 없다) 표식이 없다. 같은 점에 분할이
- * 둘이면 표식 하나에 둘 다 싣는다. 점은 날짜 오름차순이다.
- */
-export function splitMarks(points: { date: string }[], splits: SplitMark[]): SplitMarkAt[] {
-  const marks: SplitMarkAt[] = [];
-  for (const split of [...splits].sort((a, b) => a.date.localeCompare(b.date))) {
-    const at = points.find((point) => point.date >= split.date);
-    if (at === undefined) continue;
-    const last = marks[marks.length - 1];
-    if (last !== undefined && last.date === at.date) last.splits.push(split);
-    else marks.push({ date: at.date, splits: [split] });
-  }
-  return marks;
 }
 
 /** 값 없는 자리 하나 — 결측 구간과 그 사유. */

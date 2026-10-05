@@ -13,8 +13,10 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ExternalLink } from "@/components/ExternalLink";
 import { ApiError, apiClient } from "@/lib/apiClient";
 import { subscribeCoinListProgress } from "@/lib/cryptoListProgressStream";
+import { coinLink } from "@/lib/externalLinks";
 import { formatKst } from "@/lib/format";
 import { createSequence } from "@/lib/searchSequence";
 import type {
@@ -208,10 +210,13 @@ export function CoinSearch({
 
       {value !== null && term === "" && (
         <p data-testid="coin-selected" className="mt-1 pl-14 text-sm">
-          {value.nameKo !== null && <span className="font-semibold">{value.nameKo} </span>}
-          <span className={value.nameKo === null ? "font-semibold" : "text-gray-700"}>
-            {value.name}
-          </span>{" "}
+          {/* 010 FR-025 — 고른 코인의 이름은 네이버 증권(업비트) 링크다. */}
+          <ExternalLink href={coinLink(value)} label={`${value.nameKo ?? value.name} 네이버 증권에서 보기`}>
+            {value.nameKo !== null && <span className="font-semibold">{value.nameKo} </span>}
+            <span className={value.nameKo === null ? "font-semibold" : "text-gray-700"}>
+              {value.name}
+            </span>
+          </ExternalLink>{" "}
           <span className="text-xs text-gray-500">
             {value.symbol} · {value.currency} {rankText(value.rank)}
           </span>

@@ -361,16 +361,16 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 ### Tests for 반복 1 ⚠️
 
-- [ ] T041 [P] [US1] `backend/tests/unit/test_stock_series_adjusted.py` — `SimulationResult(rows=…, closes=…, splits=…)`를 직접 만들어
+- [X] T041 [P] [US1] `backend/tests/unit/test_stock_series_adjusted.py` — `SimulationResult(rows=…, closes=…, splits=…)`를 직접 만들어
   `stock_series.build_series`:
   - 점 `price` = `closes[date] ÷ ∏(numerator/denominator)`. 곱은 효력일이 그 날짜 **뒤**인 분할이다 — 효력일 당일 점은 나누지 않는다
   - 분할 둘(곱한다), 병합(분자 < 분모), 분할이 없으면 원주가 종가 그대로
   - 배당 행이 있어도 값이 같다(배당 무관)
   - 분할 앞뒤 점의 가격 비율 = 원주가 종가 비율 × 분할 비율(꺾임 없음)
   - 다운샘플된 점의 가격이 그 날짜의 원래 값
-  - 순수 함수 `adjusted_close`(`backend/src/simulation/split_adjust.py`)를 DB 없이 직접 검사한다(원칙 IV)
+  - 순수 함수 `split_restated_close`(`backend/src/simulation/split_adjust.py`)를 DB 없이 직접 검사한다(원칙 IV — 이름은 R10-13, 005 가드)
   - (FR-001, FR-002, FR-007)
-- [ ] T042 [P] [US1] `backend/tests/integration/test_stock_series_adjusted_api.py` — 기존 `test_stock_series_price_api.py`의 준비(AAPL 분할
+- [X] T042 [P] [US1] `backend/tests/integration/test_stock_series_adjusted_api.py` — 기존 `test_stock_series_price_api.py`의 준비(AAPL 분할
   2021-08-31 4:1, 원주가 400→100)로:
   - `priceKind "stock_adjusted_close"`, 점 `price` = 그 날 `close_raw` ÷ 뒤 분할 비율(문자열)
   - 분할 앞 점과 뒤 첫 점의 가격 비율이 0.9~1.1(4배 꺾임 없음)
@@ -378,25 +378,25 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   - **이 기능의 기존 테스트 고침**: `test_stock_series_price_api.py`(시작가 대조·`splits` 단언)·`tests/unit/test_stock_series_price.py`(`open_price`·
     `splits` 단언)를 새 정의로 바꾸거나 이 파일로 옮긴다(010 안의 반복 변경 — 테스트 커밋에 사유)
   - (FR-001, FR-002, FR-008, SC-001)
-- [ ] T043 [P] [US1] 프론트엔드 차트 테스트 고침(010 안의 반복 변경):
+- [X] T043 [P] [US1] 프론트엔드 차트 테스트 고침(010 안의 반복 변경):
   - `PerformanceChartPrice.test.tsx` — 분할 표식 시리즈 없음, 범례에 "분할" 없음, `priceKind "stock_adjusted_close"`의 범례 `주가 (USD)`
   - `chartSeriesPrice.test.ts` — `splitMarks` 테스트 제거
   - `chartHover.test.ts`·`PerformanceChartHover.test.tsx` — 주식 줄 이름 `주가(수정 종가)`, `notes` 없음(분할 문구 없음)
   - (FR-008, FR-009)
-- [ ] T044 [P] [US5] `frontend/tests/externalLinks.test.ts` — URL 만들기(T040 규칙):
+- [X] T044 [P] [US5] `frontend/tests/externalLinks.test.ts` — URL 만들기(T040 규칙):
   - 국내 `005930.KS` → `https://stock.naver.com/domestic/stock/005930/price`, 코스닥 `.KQ`
   - NASDAQ `NVDA` → `https://stock.naver.com/worldstock/stock/NVDA.O/price`, NYSE·AMEX·TSE(T040)
   - 비트코인 `BTC` → `https://stock.naver.com/crypto/UPBIT/BTC/price`
   - 부동산 검색어 인코딩(공백·한글)
   - 확인하지 못한 시장은 `null`(링크 없음)
   - (FR-024~FR-026, SC-007)
-- [ ] T045 [P] [US5] `frontend/tests/ExternalLinks.test.tsx` — 대상 여섯(고른 종목 줄 `StockSearch`·주식 이력 행·고른 코인 `CoinSearch`·코인 이력 행·
+- [X] T045 [P] [US5] `frontend/tests/ExternalLinks.test.tsx` — 대상 여섯(고른 종목 줄 `StockSearch`·주식 이력 행·고른 코인 `CoinSearch`·코인 이력 행·
   부동산 보드·부동산 이력 행):
   - 이름이 `<a target="_blank" rel="noopener noreferrer">`이고 href가 규칙대로다
   - 이력 행의 링크를 눌러도 `onToggle`·`onRerun`이 불리지 않는다
   - 검색 목록의 옵션은 링크가 아니다(누르면 고르기)
   - (FR-024~FR-026, SC-007)
-- [ ] T046 [P] [US6] `frontend/tests/FxPageLayout.test.tsx` — 외환 화면:
+- [X] T046 [P] [US6] `frontend/tests/FxPageLayout.test.tsx` — 외환 화면:
   - 본문에 `mx-auto`가 없다(왼쪽 정렬)
   - 통화를 바꾸는 동안 본문이 바꾸기 직전 높이를 최소 높이로 붙잡고, 새 통화가 오면 놓는다(구현 중 실측 — 원인은 높이 무너짐, research R10-16)
   - `DailyTable`(StrictMode 아래)이 다시 붙어도 `resetKey`가 같으면 `scrollIntoView`를 부르지 않고, `resetKey`가 바뀌면 부른다(004 FR-005b 유지)
@@ -405,27 +405,28 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 ### Implementation for 반복 1
 
-- [ ] T047 [US1] 백엔드:
+- [X] T047 [US1] 백엔드:
   - `backend/src/api/services/stock_simulation.py` — `SimulationResult.closes: Mapping[date, Decimal]`(기본값 빈 매핑), `run_simulation` 두 반환 경로에서
     `bars_rows`의 `close_raw`
-  - `backend/src/simulation/split_adjust.py`(신규) — 순수 함수 `adjusted_close(close, day, splits)`
+  - `backend/src/simulation/split_adjust.py`(신규) — 순수 함수 `split_restated_close(close, day, splits)`(처음 이름 `adjusted_close`는 005 가드
+    `test_no_adjusted_price`에 걸려 바꿨다 — R10-13)
   - `backend/src/api/services/stock_series.py` — 점 `price` = 수정 종가, `StockSeries.splits` 제거
   - `backend/src/api/routes/stock_series.py` — `priceKind "stock_adjusted_close"`, `splits` 키 제거
   - 시뮬레이터·표 경로는 바꾸지 않는다
   - (FR-001, FR-002, FR-008)
-- [ ] T048 [US1] 프론트엔드 차트:
+- [X] T048 [US1] 프론트엔드 차트:
   - `frontend/src/lib/types.ts` — `PriceKind` `stock_open` → `stock_adjusted_close`, `SplitMark`·`splits?` 제거
   - `frontend/src/lib/chartSeries.ts` — `splitMarks`·`SplitMarkAt` 제거
   - `frontend/src/components/stock/PerformanceChart.tsx` — 분할 표식 시리즈·`● 분할` 범례·상자 `notes` 렌더 제거, 머리 주석
   - `frontend/src/lib/chartHover.ts` — 주식 줄 이름 `주가(수정 종가)`, `notes` 제거
   - (FR-008, FR-009)
-- [ ] T049 [US5] 프론트엔드 링크:
+- [X] T049 [US5] 프론트엔드 링크:
   - `frontend/src/lib/externalLinks.ts`(신규)
   - `frontend/src/components/stock/StockSearch.tsx`(고른 종목 줄 이름)·`stock/SimulationHistory.tsx`(이력 행 이름)
   - `frontend/src/components/crypto/CoinSearch.tsx`(고른 코인)·`crypto/CryptoHistory.tsx`(이력 행)
   - `frontend/src/components/realestate/RealEstateBoard.tsx`(단지 이름)·`realestate/RealEstateHistory.tsx`(이력 행 — T040이 정한 이름 얻는 방법)
   - (FR-024~FR-026)
-- [ ] T050 [US6] 외환:
+- [X] T050 [US6] 외환:
   - `frontend/src/app/fx/page.tsx` — 가운데 정렬 제거
   - 통화를 바꾸는 동안 본문 최소 높이를 붙잡는다(`app/fx/page.tsx`), `frontend/src/components/fx/DailyTable.tsx`는 `resetKey`의 직전 값과 비교해
     처음으로 돌린다(R10-16 — 구현 중 실측으로 고침)

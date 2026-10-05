@@ -577,20 +577,14 @@ export interface SimulationPoint {
 }
 
 /** 가격 선의 종류(010) — 화면이 범례 이름과 값 형식을 고른다. 서버는 한국어 표시 문구를 만들지 않는다. */
-export type PriceKind = "stock_open" | "crypto_open" | "deposit_rate" | "apt_average";
+/** 반복 1(2026-10-05) — 주식은 `stock_open`(원주가 시가) → `stock_adjusted_close`(분할만 반영한 수정 종가). */
+export type PriceKind = "stock_adjusted_close" | "crypto_open" | "deposit_rate" | "apt_average";
 
 /**
- * 가격이 없는 사유(010 FR-011) — `unpublished`(예금 — 아직 발표되지 않은 달), `missing`(예금 — 발표 기간 안인데 통계가 빈 달), `no_trades`(부동산 —
+ * 가격이 없는 사유(010 FR-011) — `unpublished`(예금 — 아직 발표되지 않은 달), `missing`(예금 — 발표 기간 안인데 통계가 빈 달, 주식 — 그 날 원주가 종가 없음), `no_trades`(부동산 —
  * 그 평형의 그 달 거래 없음). 가격만 없는 점이라 `gaps`(잔고 선이 끊기는 자리)와 다르다.
  */
 export type PriceMissing = "unpublished" | "missing" | "no_trades";
-
-/** 주식 분할 기록(010 FR-008) — 효력일과 비율. 표식 자리는 화면이 그린 점에서 정한다(`splitMarks`). */
-export interface SplitMark {
-  date: string;
-  numerator: number;
-  denominator: number;
-}
 
 export interface SimulationSeriesResponse {
   from: string;
@@ -613,8 +607,6 @@ export interface SimulationSeriesResponse {
   priceKind?: PriceKind;
   /** 가격의 통화(010) — 원금 통화와 관계없이 자산 자신의 통화. 예금은 `null`(단위 연 %). */
   priceCurrency?: string | null;
-  /** 주식만 — 구간 안의 분할 기록, 효력일 오름차순(010 FR-008). */
-  splits?: SplitMark[];
 }
 
 /** 수수료·세율 (FR-015, FR-016). 배당 소득세는 국내·해외 두 값이다(006 FR-055). */

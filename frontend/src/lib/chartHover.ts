@@ -11,7 +11,7 @@
  * 시세 없음 — `gapSlots`, 구간마다 하나)는 구간과 사유를 보인다.
  */
 
-import { gapSlots, splitMarks } from "./chartSeries";
+import { gapSlots } from "./chartSeries";
 import {
   currencySymbol,
   formatAnnualRate,
@@ -33,15 +33,13 @@ export interface HoverView {
   /** 날짜(부동산은 달 — 첫 점·끝 점은 날짜), 값 없는 자리는 구간. */
   title: string;
   lines: HoverLine[];
-  /** 주식 분할 표식 점이면 비율과 효력일(FR-008). */
-  notes: string[];
   /** 값 없는 자리의 사유. 점이면 `null`. */
   reason: string | null;
 }
 
 /** 가격 선의 이름(010 FR-005) — 범례와 상자가 함께 쓴다. */
 export const PRICE_NAME: Record<PriceKind, string> = {
-  stock_open: "주가",
+  stock_adjusted_close: "주가",
   crypto_open: "시세",
   deposit_rate: "금리",
   apt_average: "실거래가 평균",
@@ -65,7 +63,7 @@ type Field = "price" | "balance" | "profit" | "returnRate";
 /** 자산군마다 줄의 순서(ui-wireframes F2). 가격이 없는 응답(005~009)은 잔고·수익률만. */
 function fields(kind: PriceKind | undefined): Field[] {
   switch (kind) {
-    case "stock_open":
+    case "stock_adjusted_close":
     case "crypto_open":
       return ["price", "balance", "returnRate"];
     case "deposit_rate":
@@ -78,7 +76,8 @@ function fields(kind: PriceKind | undefined): Field[] {
 }
 
 function label(field: Field, kind: PriceKind | undefined): string {
-  if (field === "price") return kind === undefined ? "" : PRICE_NAME[kind];
+  // 반복 1 — 주식 주가는 표의 시작가(원주가)와 다른 값이라 이름에 "수정 종가"를 밝힌다.
+  if (field === "price") return kind === undefined ? "" : kind === "stock_adjusted_close" ? "주가(수정 종가)" : PRICE_NAME[kind];
   if (field === "balance") return kind === "apt_average" ? "평가액" : "잔고";
   if (field === "profit") return "투자 수익";
   return "수익률";
@@ -93,7 +92,7 @@ function withSymbol(text: string, currency: string | null | undefined): string {
 
 function priceText(kind: PriceKind, price: string, currency: string | null | undefined): string {
   switch (kind) {
-    case "stock_open":
+    case "stock_adjusted_close":
       return withSymbol(formatRate(price), currency);
     case "crypto_open":
       return withSymbol(formatPrice(price), currency);
@@ -125,7 +124,6 @@ export function hoverView(series: SimulationSeriesResponse, time: string): Hover
     return {
       title: `${day(slot.from)} ~ ${day(slot.to)}`,
       lines: fields(kind).map((field) => ({ label: label(field, kind), value: DASH })),
-      notes: [],
       reason: SLOT_REASON[slot.reason],
     };
   }
@@ -146,12 +144,10 @@ export function hoverView(series: SimulationSeriesResponse, time: string): Hover
     }
     return { label: name, value: priceText(kind, point.price, series.priceCurrency) };
   });
-  const mark = splitMarks(series.points, series.splits ?? []).find((m) => m.date === time);
 
   return {
     title: monthly && !edge ? point.date.slice(0, 7) : point.date,
     lines,
-    notes: mark === undefined ? [] : mark.splits.map((s) => `분할 ${s.denominator}→${s.numerator} (${s.date} 효력)`),
     reason: null,
   };
 }

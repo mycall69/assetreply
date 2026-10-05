@@ -8,6 +8,8 @@
  * - **수익률을 줄에 적지 않는다** — 결과는 설정과 환율이 바뀌면 달라진다(005 R5-9)
  */
 
+import { ExternalLink } from "@/components/ExternalLink";
+import { coinLink } from "@/lib/externalLinks";
 import { formatMoney } from "@/lib/format";
 import { isAllowedPrincipal, principalRule } from "@/lib/principalCurrency";
 import type { CryptoHistoryEntry } from "@/lib/types";
@@ -60,7 +62,9 @@ export function CryptoHistory({
               <li key={entry.id} data-testid="history-row" className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm">
                 <input type="checkbox" checked={selected.includes(entry.id)}
                   onChange={() => onToggle(entry.id)} aria-label={`${label} 비교 대상으로 선택`} />
-                <span className="min-w-28 font-medium">{label}</span>
+                <span className="min-w-28 font-medium">
+                  <ExternalLink href={coinLink(entry.coin)} label={`${label} 네이버 증권에서 보기`}>{label}</ExternalLink>
+                </span>
                 <span className="text-xs text-gray-500">{entry.coin.symbol}</span>
                 <span className="tabular-nums text-gray-600">{entry.start}</span>
                 <span className="tabular-nums text-gray-600">

@@ -45,6 +45,7 @@
 - `price` = 그 날의 **분할만 반영한 수정 종가** — `close_raw ÷ ∏(numerator/denominator)`(효력일이 그 날 뒤 ~ 계산 끝인 분할, research R10-13). 분할 날에도 이어진다.
   배당은 소급하지 않는다. 표의 `openPrice`(매수 기준 원주가 시가)와 다른 값이다.
 - `splits` 키는 없다(분할 표식 없음 — spec FR-008).
+- 그 날 원주가 종가가 없으면 `price: null` + `priceMissing: "missing"`이다(지어내지 않는다). 점은 거래일이라 실제로는 생기지 않는다.
 - 실패 양상(테스트가 잡는다): 원주가를 내면 분할 효력일 뒤 첫 점에서 분할 비율만큼 꺾인다. 출처 `close_adjusted`(배당 소급)를 내면 규칙 값과 다르다.
 
 **처음 형식(반복 전)**: `priceKind "stock_open"`, `price` = 그 날 마지막 행의 `openPrice`(원주가 시가), `splits: [{date, numerator, denominator}]`.

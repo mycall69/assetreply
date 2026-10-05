@@ -19,8 +19,10 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ExternalLink } from "@/components/ExternalLink";
 import { ApiError, apiClient } from "@/lib/apiClient";
 import { nameWithCode } from "@/lib/displayCode";
+import { stockLink } from "@/lib/externalLinks";
 import { formatKst } from "@/lib/format";
 import { createSequence } from "@/lib/searchSequence";
 import type {
@@ -313,7 +315,10 @@ export function StockSearch({
 
       {value !== null && term === "" && (
         <p className="mt-1 pl-14 text-sm">
-          <span className="font-semibold">{nameWithCode(value)}</span>{" "}
+          {/* 010 FR-024 — 고른 종목의 이름은 네이버 증권 링크다. 목록의 옵션은 고르기 그대로(링크 아님). */}
+          <ExternalLink href={stockLink(value)} label={`${value.name} 네이버 증권에서 보기`} className="font-semibold">
+            {nameWithCode(value)}
+          </ExternalLink>{" "}
           <span className="text-xs text-gray-500">
             {value.market} · {value.currency}
           </span>

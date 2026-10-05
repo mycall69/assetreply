@@ -64,6 +64,8 @@ export default function RealEstatePage() {
     else void selectUmd(code);
   }
 
+  // 010 FR-026 — 이력 행의 단지 검색에 붙일 법정동 이름. 받아 둔 목록에 있는 것만.
+  const umdNames = Object.fromEntries((regions.umd ?? []).map((r) => [r.code, r.name]));
   // 실거래 진행 줄의 주어 — 고른 시·군·구의 이름.
   const sggName = regions.sgg?.find((r) => r.code === selection.sgg)?.name ?? null;
   // 그 시·군·구의 실거래를 다 받기 전에는 평형의 거래 수를 모른다(E2).
@@ -153,6 +155,7 @@ export default function RealEstatePage() {
             onRemove={removeHistoryEntry}
             onCompare={() => void compareSelected()}
             onRerun={(id) => void rerunHistory(id)}
+            umdNames={umdNames}
           />
         )}
       />

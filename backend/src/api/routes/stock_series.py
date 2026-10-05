@@ -85,9 +85,9 @@ async def get_simulation_series(
         # 기준을 말하면 달러 원금 실행의 KRW 값을 달러로 읽는다.
         "principalCurrency": principal_currency,
         "basisCurrency": "KRW",
-        # 010 — 가격은 원주가 시가, 통화는 **종목 통화**다(원금이 KRW여도 환산하지 않는다 — 표의
-        # 시작가와 같은 값).
-        "priceKind": "stock_open",
+        # 010 — 가격은 분할만 반영한 수정 종가(반복 1), 통화는 **종목 통화**다(원금이 KRW여도
+        # 환산하지 않는다).
+        "priceKind": "stock_adjusted_close",
         "priceCurrency": stock.currency,
         "downsampled": series.downsampled,
         "algorithm": "lttb",
@@ -96,16 +96,12 @@ async def get_simulation_series(
         # 무너지고, 그것은 헌법 원칙 VI를 API 경계에서 무력화하는 일이다.
         "points": [
             {"date": p.date.isoformat(), "balance": str(p.balance),
-             "returnRate": str(p.return_rate), "price": str(p.price)}
+             "returnRate": str(p.return_rate),
+             "price": None if p.price is None else str(p.price),
+             **({} if p.price_missing is None else {"priceMissing": p.price_missing})}
             for p in series.points],
         "gaps": [
             {"from": g.start.isoformat(), "to": g.end.isoformat(),
              "reason": g.reason}
             for g in series.gaps],
-        # 010 FR-008 — 원주가 선이 꺾이는 까닭. 표식 자리(효력일 뒤 첫 점)는 그린 점을 아는 화면이
-        # 정한다.
-        "splits": [
-            {"date": s.date.isoformat(), "numerator": s.numerator,
-             "denominator": s.denominator}
-            for s in series.splits],
     }

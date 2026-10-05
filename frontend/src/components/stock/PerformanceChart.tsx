@@ -29,7 +29,7 @@
  * 축이면 바닥의 평선, 수익률 축이면 금리를 수익률로 읽는다. `priceScaleId`가 left·right가 아니면 라이브러리가 눈금 없는 겹침 축으로
  * 자동 비율을 준다. 정확한 값은 차트 위 상자로 읽는다. 가격이 없는 점(미발표·결측·거래 없음)에서는 **가격 선만** 끊긴다
  * (`priceSegments` — 직전 값을 끌어오지 않는다). 점 하나뿐인 구간과 부동산(달마다 거래가 드물다)은 점으로 그린다. 잠정 구간은 가격
- * 선도 연한 색이다. 주식 분할은 그린 점 중 효력일 이상인 첫 점에 표식을 단다(`splitMarks` — 원주가가 꺾이는 까닭, FR-008).
+ * 선도 연한 색이다. 주식 주가는 분할만 반영한 수정 종가라 분할 날에도 이어진다 — 분할 표식은 반복 1에서 없앴다(FR-008).
  * **점에 `price` 키가 없으면 가격 시리즈를 만들지 않는다** — 005~009의 응답·테스트는 지금과 같다. 기존 테스트 모의 객체에 없는
  * API(`createSeriesMarkers`·`subscribeClick`·`priceScale()`)를 부르지 않는다 — 겹침 축 여백은 `createChart` 옵션으로 준다.
  *
@@ -44,7 +44,7 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
 import { hoverView, placeHover, PRICE_NAME, type HoverView } from "@/lib/chartHover";
 import {
-  axisPriceFormat, gapSlots, priceSegments, splitMarks, splitSeriesAtGaps, toPerformanceData,
+  axisPriceFormat, gapSlots, priceSegments, splitSeriesAtGaps, toPerformanceData,
 } from "@/lib/chartSeries";
 import type {
   CryptoCollecting,
@@ -70,8 +70,6 @@ const COLORS = {
   provisional: { balance: "#9ca3af", returnRate: "#fcd34d", price: "#93c5fd" },
 } as const;
 
-/** 분할 표식 — 가격 선 위의 채운 원. */
-const SPLIT_MARKER = { color: "#7c3aed", radius: 5 } as const;
 
 /** 추정 표식 — 테두리 원과 그 위의 배경색 작은 원. 둘을 겹쳐 속이 빈 원으로 보인다(라이브러리에 빈 원 모양이 없다). */
 const ESTIMATED_MARKER = { ring: 4, hole: 2, holeColor: "#ffffff" } as const;
@@ -253,23 +251,6 @@ export function PerformanceChart({
         }
       }
 
-      // FR-008 — 분할 표식. 그린 점 중 효력일 이상인 첫 점, 가격 선 위에 점만.
-      const priced = new Map(series.points.map((p) => [p.date, p.price]));
-      const marks = splitMarks(series.points, series.splits ?? []);
-      if (marks.length > 0) {
-        const marker = instance.addSeries(LineSeries, {
-          color: SPLIT_MARKER.color,
-          lineVisible: false,
-          pointMarkersVisible: true,
-          pointMarkersRadius: SPLIT_MARKER.radius,
-          priceScaleId: PRICE_AXIS,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-        });
-        marker.setData(marks.map((m) => ({ time: m.date, value: Number(priced.get(m.date)) })));
-      }
-
       // FR-011 — 점이 없는 출처 결측·시세 없음 구간마다 값 없는 자리 하나. 그리는 것이 없고 커서가 놓일 자리만 생긴다.
       const slots = gapSlots(series.points, series.gaps);
       if (slots.length > 0) {
@@ -333,7 +314,6 @@ export function PerformanceChart({
   const priceLegend = series.priceKind !== undefined && series.points.some((p) => p.price !== undefined)
     ? `${PRICE_NAME[series.priceKind]} (${series.priceKind === "deposit_rate" ? "연 %" : (series.priceCurrency ?? "")})`
     : null;
-  const hasSplitMark = priceLegend !== null && splitMarks(series.points, series.splits ?? []).length > 0;
 
   return (
     <section className="rounded-lg border border-gray-200 p-4">
@@ -361,9 +341,6 @@ export function PerformanceChart({
                 </Fragment>
               ))}
             </dl>
-            {hover.view.notes.map((note) => (
-              <p key={note} className="mt-1 whitespace-nowrap text-violet-700">{note}</p>
-            ))}
             {hover.view.reason !== null && (
               <p className="mt-1 whitespace-nowrap text-amber-700">{hover.view.reason}</p>
             )}
@@ -379,7 +356,6 @@ export function PerformanceChart({
         <span>─ 잔고 ({series.basisCurrency})</span>
         <span className="text-amber-700">╌ 수익률 (%)</span>
         {priceLegend !== null && <span className="text-blue-600">─ {priceLegend}</span>}
-        {hasSplitMark && <span className="text-violet-600">● 분할</span>}
         {notCollected > 0 && <span>╌╌ 미수집 {notCollected}구간</span>}
         {missing > 0 && <span>┆ 결측 {missing}구간</span>}
         {hasEstimated && <span>○ 추정 시세(1개월 밖의 창)</span>}

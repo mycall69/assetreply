@@ -47,13 +47,13 @@ export function DailyTable({
   const sentinel = useInfiniteScroll(onLoadMore, open);
 
   // FR-005b: 표가 통째로 바뀌면 스크롤을 처음으로 되돌린다. 이전 위치에 머무르면
-  // 새로 받은 내용과 화면이 어긋난다. 첫 렌더에서는 움직이지 않는다.
-  const mounted = useRef(false);
+  // 새로 받은 내용과 화면이 어긋난다. **`resetKey`가 정말 바뀌었을 때만** 움직인다(010 R10-16) —
+  // "첫 렌더인가"로 가르면 StrictMode가 효과를 두 번 실행해 다시 붙은 표가 창을 표로 옮겼다
+  // (통화를 바꾸면 표가 떨어졌다 다시 붙는다).
+  const shown = useRef(resetKey);
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      return;
-    }
+    if (shown.current === resetKey) return;
+    shown.current = resetKey;
     root.current?.scrollIntoView?.({ block: "start" });
   }, [resetKey]);
 
