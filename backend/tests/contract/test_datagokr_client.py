@@ -224,6 +224,20 @@ class Test오류:
             await api.fetch_complex_basis("A10025850")
         assert len(session.calls) == 1
 
+    @pytest.mark.parametrize(("reason", "error"), [
+        ("30", DataGoKrAuthError), ("22", DataGoKrRateLimited), ("12", DataGoKrFormatError)])
+    async def test_JSON_자료의_게이트웨이_오류도_사유로_가른다(
+            self, no_sleep: list[float], reason: str, error: type[Exception]) -> None:
+        """T054 실측(2026-10-05) — 법정동코드·단지 목록·기본 정보는 게이트웨이 오류를 **JSON**으로
+        준다 (`"returnReasonCode": "30"`). XML만 읽으면 사유를 몰라 연결 오류로 다시 시도하고, 틀린
+        키가 "출처에 연결하지 못했습니다"로 보인다."""
+        body = load("apt/gateway_30.json").replace('"30"', f'"{reason}"')
+        session = StubSession(StubResponse(body, status=403))
+        api, _ = client(session)
+        with pytest.raises(error):
+            await api.fetch_regions(1)
+        assert len(session.calls) == 1  # 다시 시도하지 않는다
+
     async def test_넘겨받은_세션을_닫지_않는다(self) -> None:
         class Closing(StubSession):
             closed = 0

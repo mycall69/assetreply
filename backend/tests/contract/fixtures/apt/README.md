@@ -52,6 +52,7 @@
 | 파일 | 받은 방법 | 내용 |
 |------|-----------|------|
 | `gateway_30.xml` | 가짜 키(`TESTKEY1234567890abcd`)로 상세 실거래 1회 | HTTP 403, `OpenAPI_ServiceResponse` — `returnReasonCode 30`, `SERVICE_KEY_IS_NOT_REGISTERED_ERROR` |
+| `gateway_30.json` | 가짜 키로 법정동코드(`type=json`) 1회(2026-10-05, T054) | HTTP 403, **JSON** `{"OpenAPI_ServiceResponse":{"cmmMsgHeader":{…,"returnReasonCode":"30"}}}` — JSON 자료(법정동코드·단지 목록·기본 정보)는 게이트웨이 오류도 JSON으로 준다(셋 다 같은 본문) |
 
 ## 아파트 매매 실거래가 상세 자료 — 국토교통부 `RTMSDataSvcAptTradeDev` (2026-10-05, 활용신청 반영 뒤)
 
