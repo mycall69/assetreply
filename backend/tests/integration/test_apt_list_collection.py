@@ -295,6 +295,38 @@ class Test짝짓기:
         assert live["11680-289"].kapt_code is None  # 옛 단지는 따로
         assert (live["11680-5235"].kapt_code, live["11680-5235"].households) == ("A10023348", 3375)
 
+    async def test_실거래를_받는_중에는_목록_쪽에서_실거래와_짝짓지_않는다(  # type: ignore[no-untyped-def]
+            self, session_factory) -> None:
+        """T027 실측 — 기본 정보가 실거래 수집 중에 끝나면, 그때까지 받은 거래(옛 단지 2006~)로
+        짝지으면서 건축년도를 몰라(실거래 단지 행이 아직 없다) 재건축 판정을 건너뛰었다. 실거래
+        작업이 진행 중이면 목록 쪽은 실거래와 짝짓지 않고, 그 실행의 마지막 맞추기(건축년도를 다
+        안다)가 짝짓는다."""
+        gaepo = "1168010300"
+        async with session_factory() as s:
+            s.add(AptTrade(
+                lawd_cd="11680", deal_ym="200601", deal_date=D("2006-01-02"), apt_seq="11680-289",
+                umd_code=gaepo, jibun="189", apt_name="개포주공4단지", apt_dong="", floor=3,
+                excl_area=Decimal("42.55"), amount=500_000_000, occurrence=0, cancelled=False,
+                source="molit:aptdev", ingested_at=NOW_UTC))
+            s.add(AptComplex(umd_code=gaepo, lawd_cd="11680", kapt_code="A10023348",
+                             name="개포자이프레지던스", jibun="189", move_in_year=2023,
+                             move_in_source="kapt", details_checked_at=NOW_UTC))
+            job_id, _ = await apt_job.acquire_or_get_running(s, "trade", "11680", total=262)
+            await s.commit()
+        async with session_factory() as s:
+            latest = await apt_list_runner.latest_for_umd(s, gaepo)
+            await apt_list_runner.sync_umd(s, gaepo, latest=latest)
+            await s.commit()
+        rows = await complexes(session_factory, gaepo)
+        assert [(r.kapt_code, r.apt_seq) for r in rows] == [("A10023348", None)]
+        async with session_factory() as s:  # 실행의 마지막 맞추기 — 그 실행에서 본 건축년도
+            await apt_list_runner.sync_lawd(s, "11680", build_years={"11680-289": 1982})
+            await apt_job.finish_job(s, job_id, JobStatus.SUCCEEDED)
+            await s.commit()
+        rows = await complexes(session_factory, gaepo)
+        assert sorted((r.kapt_code or "", r.apt_seq or "") for r in rows) == [
+            ("", "11680-289"), ("A10023348", "")]
+
     async def test_새_코드로_받은_거래의_같은_단지는_코드가_바뀐다(self, session_factory) -> None:  # type: ignore[no-untyped-def]
         """춘천 51110 2020-01의 단지 하나가 옛 코드(42110)로 남아 있었다 — 같은 `aptSeq`면 새
         코드로."""
