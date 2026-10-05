@@ -368,7 +368,7 @@ description: "Task list for 009-real-estate-investment-simulation"
   `frontend/src/components/realestate/RealEstateSimulationForm.tsx`·`RealEstateBoard.tsx`·`RealEstateNotice.tsx`·`RealEstatePerformanceTable.tsx`·
   `frontend/src/app/realestate/page.tsx` — E1·E3·E4·E5·E9. 금액 형식은 `PerformanceBoard`와 같은 함수 (FR-005, FR-006, FR-014, FR-017, FR-018,
   FR-026, FR-028~FR-030)
-- [ ] T040 [US1] 브라우저 확인 — quickstart 7~16과 19를 실행하고 기록한다: 7(처음 실행 202 → 2초 안 진행 → 결과, 부분 결과 없음), 8(표 2020-01~
+- [X] T040 [US1] 브라우저 확인 — quickstart 7~16과 19를 실행하고 기록한다: 7(처음 실행 202 → 2초 안 진행 → 결과, 부분 결과 없음), 8(표 2020-01~
   2023-09가 T029의 해제 제외 기대값과 같다), 9(매입 행·7·9·12월 세금 — T031 산식으로 그날 값 손계산), 10(같은 날 다시 3초 안, 출처 호출 없음),
   11(2021-07-15 매입 → 2021년 보유세 없음), 12(50평대 — 추정 창·시세 없음), 13(2018-01-01 → 409·옮기기, 2005-12 첫 거래 → 세법 표 근거로 2006-01
   옮기기), 14(매입가 직접 입력), 15(시세 없는 달 + 매입가 없음 → 409), 16(잠정 12개월 표시·6월 시세 추정 세금 표시), 19(1440px — 열 11개, 가로
