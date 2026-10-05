@@ -116,7 +116,7 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   (기존 `test_stock_series_build.py`와 같은 방식): 점의 `price` = **그 날 마지막 행**의 `open_price`(같은 날 배당락 행·달 첫 행), `price`는 늘
   `None`이 아니다, `max_points`를 작게 해 줄인 점마다 `price`가 그 날짜 원래 점의 값(FR-007), `SimulationResult(splits=…)`의 분할 중 `start ≤ date
   ≤ end`인 것만 효력일 오름차순으로 `StockSeries.splits`에, **`splits`를 넘기지 않은 `SimulationResult`도 만들어진다**(기본값 `()` — 기존 테스트를
-  위해) (FR-001, FR-007, FR-008)
+  위해) (FR-001, FR-007, FR-008) **(반복 1에서 주가 정의가 바뀜 → T041·T042·T047)**
 - [X] T005 [P] [US1] `backend/tests/unit/test_deposit_series_price.py` — `simulate_deposit`(순수 함수)로 만든 `DepositOutcome`과 같은 `rates`·
   `latest_month`를 `deposit_series.build_series(outcome, start=…, rates=…, latest_month=…)`에 넣는다: 점 날짜의 달 `m`이 `m > latest_month` →
   `price None` + `price_missing "unpublished"`, `m`이 `rates`에 없음(만기 사이의 빈 달 — 계산이 멈추지 않는 경우) → `None` + `"missing"`, 아니면
@@ -131,7 +131,7 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   = 같은 조건 표(`/simulation`)의 그 날 마지막 행 `openPrice`(문자열 그대로), **점의 날짜 집합 = 표의 날짜 집합**(일별 점이 없다 — spec FR-001), 분할을 넣은 종목(효력일이 점의 날짜가 아닌 날)의 `splits`
   `[{date, numerator, denominator}]`와 효력일 앞 점·뒤 첫 점의 `price` 비율, 분할 없는 종목은 `splits: []`, `maxPoints`를 작게 한 응답의 점마다
   `price`가 전체 응답의 같은 날짜 값, `priceMissing` 키가 없다, 기존 키(`balance`·`returnRate`·`gaps`)가 그대로 (FR-001, FR-002, FR-007, FR-008,
-  SC-001)
+  SC-001) **(반복 1에서 주가 정의가 바뀜(시작가 대조·`splits` 단언) → T042·T047)**
 - [X] T008 [P] [US1] `backend/tests/integration/test_crypto_series_price_api.py` — 기존 `test_crypto_series_api.py`와 같은 준비로 `GET
   /api/crypto/simulation/series`: `priceKind "crypto_open"`, `priceCurrency` = 코인의 시세 통화(원화 원금이어도), 점마다 `price` = 표의 그 날
   `openPrice`, 출처 결측 날은 점이 없고 `gaps`(`source_missing`)는 지금과 같다, 다운샘플 점의 `price`가 그 날짜 값 (FR-001~FR-003, FR-007, SC-001,
@@ -149,7 +149,7 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   (`splitSeriesAtGaps` — `not_collected`·`source_missing`·`no_price`)에서 끊고 **`price === null`인 점에서 다시 끊는다**, `no_quote`(휴장)는 잇는다,
   점 하나뿐인 구간도 남긴다, `null` 점을 앞뒤 구간에 넣지 않는다(직전 값 복사 없음). `splitMarks(points, splits)` — 그린 점 중 `date ≥ split.date`인
   첫 점, 효력일 뒤에 점이 없으면 표식 없음, 효력일이 점의 날짜와 같으면 그 점, 같은 점에 분할 둘이면 표식 하나에 둘 다, 다운샘플로 효력일 직후 점이
-  빠진 점 목록에서는 그 다음 점 (FR-003, FR-008, SC-002)
+  빠진 점 목록에서는 그 다음 점 (FR-003, FR-008, SC-002) **(반복 1에서 분할 표식 없앰(`splitMarks`) → T043·T048)**
 - [X] T012 [P] [US1] `frontend/tests/PerformanceChartPrice.test.tsx` — 파일 안의 인라인 모의 객체(`createChart` 옵션, `addSeries` 옵션, `setData` 값을
   기록)로 `PerformanceChart`: 점에 `price`가 있으면 가격 시리즈가 `priceScaleId "price"`·`priceLineVisible false`·`lastValueVisible false`이고 값이
   `Number(price)`·날짜가 점과 같다, `createChart` 옵션에 `overlayPriceScales`, `price null` 점에서 가격 시리즈가 둘로 나뉘고 잔고·수익률 시리즈는
@@ -157,14 +157,14 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   구간은 연한 색, 분할 표식 시리즈(점만)가 `splitMarks`의 날짜·가격에 있다, 부동산 추정 표식은 잔고 축(`left`)에만 있고 가격 축에 없다, 범례
   `주가 (USD)`·`시세 (USD)`·`금리 (연 %)`·`실거래가 평균 (KRW)`(`priceKind` → 이름, `priceCurrency` → 단위)·분할이 있으면 `● 분할`, **같은 응답에서
   `price` 키를 지우면 시리즈 수·옵션이 지금과 같다**. 모의 객체에 `createSeriesMarkers`·`subscribeClick`·`priceScale`을 두지 않는다(부르면 실패)
-  (FR-001, FR-003~FR-006, FR-008)
+  (FR-001, FR-003~FR-006, FR-008) **(반복 1에서 분할 표식 없앰 → T043·T048)**
 
 ### Implementation for User Story 1
 
 - [X] T013 [P] [US1] 주식 — `backend/src/api/services/stock_simulation.py`(`SimulationResult.splits: tuple[SplitOn, ...] = ()`, `run_simulation`의 두
   반환 경로 모두 `split_rows`로 채운다)·`backend/src/api/services/stock_series.py`(`SeriesPoint.price: Decimal` = 그 날 마지막 행 `row.open_price`,
   `StockSeries.splits` — 구간 안·오름차순)·`backend/src/api/routes/stock_series.py`(`priceKind "stock_open"`, `priceCurrency` = `stock.currency`, 점
-  `price` = `str(p.price)`, `splits`). 시뮬레이터(`simulation/reinvest.py`)는 바꾸지 않는다 (FR-001, FR-002, FR-007, FR-008)
+  `price` = `str(p.price)`, `splits`). 시뮬레이터(`simulation/reinvest.py`)는 바꾸지 않는다 (FR-001, FR-002, FR-007, FR-008) **(반복 1에서 주가 = 수정 종가, `splits` 응답 제거 → T047)**
 - [X] T014 [P] [US1] 가상자산 — `backend/src/api/services/crypto_series.py`(`SeriesPoint.price: Decimal` = `v.row.open_price`)·
   `backend/src/api/routes/crypto_series.py`(`priceKind "crypto_open"`, `priceCurrency` = `coin.quote_currency`, 점 `price` = `format(p.price, "f")`)
   (FR-001, FR-002)
@@ -179,10 +179,10 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 - [X] T017 [US1] 화면 — `frontend/src/lib/chartSeries.ts`(`priceSegments`·`splitMarks`)·`frontend/src/components/stock/PerformanceChart.tsx`(점에
   `price` 키가 있을 때만: 가격 시리즈 — 겹침 축 `"price"`, 파랑 실선·잠정 연한 파랑, 점 하나 구간과 부동산은 점 표식, 분할 표식 시리즈(점만, 가격 축),
   `createChart` 옵션 `overlayPriceScales.scaleMargins`, 범례 이름·단위·`● 분할`. 머리 주석에 010 규칙을 더한다). 화면 파일(`app/*/page.tsx`)·스토어는
-  바꾸지 않는다 — 시계열 응답의 새 키가 그대로 흐른다. ui-wireframes F1 (FR-001, FR-003~FR-006, FR-008)
+  바꾸지 않는다 — 시계열 응답의 새 키가 그대로 흐른다. ui-wireframes F1 (FR-001, FR-003~FR-006, FR-008) **(반복 1에서 분할 표식 제거 → T048)**
 - [X] T018 [US1] quickstart 1~5를 실행하고 `specs/010-chart-price-overlay-history-layout/quickstart.md`에 실행 기록을 더한다 — 네 화면의 표 대조
   불일치 수(0이어야 한다), 주식 주가 점 수 = 표의 날짜 수, AAPL `splits`와 표식 위치·꺾임, 예금 미발표 점, 부동산 거래 없는 달·가락미륭 시세 없음 끊김, 다운샘플 대조, 화면 캡처
-  (1440px). 가상자산 출처 결측이 개발 DB에 없으면 그 사실과 T008로 갈음함을 적는다. 끝나면 서버를 내린다 (SC-001, SC-002, FR-007)
+  (1440px). 가상자산 출처 결측이 개발 DB에 없으면 그 사실과 T008로 갈음함을 적는다. 끝나면 서버를 내린다 (SC-001, SC-002, FR-007) **(반복 1에서 시나리오 1(주식) 다시 잼 → T051)**
 
 **Checkpoint**: 네 화면의 차트에 가격 선이 표와 같은 값으로 그려지고, 값이 없는 날은 끊기며, 범례가 단위를 밝힌다. 005~009 차트 테스트 그대로 통과
 
@@ -207,13 +207,13 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   수익·수익률은 그대로). 분할 표식 점 — `분할 1→4 (2020-08-31 효력)`(분모→분자). 자리(값 없는 시각) — 구간 `from ~ to` · 가상자산 모든 값 `—` +
   `출처 결측`, 부동산 모든 값 `—` + `시세 없음`. `gapSlots(points, gaps)` — 첫 점 ~ 끝 점 안의 `source_missing`·`no_price` **구간마다 `from` 하나**(날마다
   두지 않는다 — 여러 날 구간도 자리 하나), `no_quote`·`not_collected`는 자리 없음, 점 범위 밖 구간은 없음. `placeHover(point, box, area)` — 기본 커서 오른쪽 아래 12px, 오른쪽이 넘치면 커서 왼쪽, 아래가 넘치면 위,
-  늘 `0 ≤ left ≤ area.width − box.width`·`0 ≤ top ≤ area.height − box.height` (FR-009~FR-012, SC-003)
+  늘 `0 ≤ left ≤ area.width − box.width`·`0 ≤ top ≤ area.height − box.height` (FR-009~FR-012, SC-003) **(반복 1에서 주식 줄 이름·`notes` 제거 → T043·T048)**
 - [X] T021 [P] [US2] `frontend/tests/PerformanceChartHover.test.tsx` — 파일 안의 인라인 모의 객체(`subscribeCrosshairMove` 콜백을 잡는다)로
   `PerformanceChart`: 콜백에 `{ time, point }`를 주면 `role="tooltip"`·`data-testid="performance-hover"` 상자가 `hoverView`의 줄을 보이고 위치가
   `placeHover`의 결과(차트 칸 크기는 `getBoundingClientRect` 흉내로), `{}`(벗어남)를 주면 상자가 없다, `performance-tooltip`(차트 아래 한 줄)이
   어떤 경우에도 없다, 다운샘플된 점의 시각이면 그 점의 날짜·값, 가격이 있고 점 범위 안에 `source_missing`·`no_price` 구간이 있으면 값 없는 자리
   시리즈(데이터가 `{ time }`뿐, **구간마다 하나**)가 있고 그 시각의 상자가 구간 `from ~ to`와 사유를 보인다, 부동산 거래 없는 달 점은 `— 거래 없음`과 평가액, 예금 미발표 점은 `— 미발표`.
-  **`price` 키가 없는 응답이면 값 없는 자리 시리즈가 없다**(기존 테스트의 시리즈 수 그대로). 모의 객체에 `subscribeClick`이 없다 (FR-009~FR-014, SC-003)
+  **`price` 키가 없는 응답이면 값 없는 자리 시리즈가 없다**(기존 테스트의 시리즈 수 그대로). 모의 객체에 `subscribeClick`이 없다 (FR-009~FR-014, SC-003) **(반복 1에서 분할 문구 없음 → T043·T048)**
 
 ### Implementation for User Story 2
 
@@ -226,10 +226,10 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 - [X] T024 [US2] 화면 — `frontend/src/lib/chartHover.ts`(신규 — `hoverView`·`placeHover`)·`frontend/src/lib/chartSeries.ts`(`gapSlots`)·
   `frontend/src/components/stock/PerformanceChart.tsx`(차트 칸을 `relative`로 감싸고 상자를 `absolute`로, `subscribeCrosshairMove`의 `time`·`point`로
   상자를 열고 닫는다 — 값은 지금처럼 `lookup`의 **원본 문자열**, 가격이 있을 때만 값 없는 자리 시리즈(겹침 축, `{ time }`만, 구간마다 하나), **차트 아래 한 줄
-  `performance-tooltip`을 없앤다**, 터치는 라이브러리 기본 추적 모드 그대로 — 새 API·열거형 읽기 없음). ui-wireframes F2 (FR-009~FR-014)
+  `performance-tooltip`을 없앤다**, 터치는 라이브러리 기본 추적 모드 그대로 — 새 API·열거형 읽기 없음). ui-wireframes F2 (FR-009~FR-014) **(반복 1에서 상자 `notes`·분할 제거 → T048)**
 - [X] T025 [US2] quickstart 6·7을 실행하고 기록한다 — 네 화면 × 10곳의 상자 값과 표 대조(다른 값 0건), 마우스 이동부터 상자 표시까지의 시간(0.2초 안),
   오른쪽·아래 끝의 잘림 0건, 벗어난 뒤 남는 상자 0건, 터치 흉내(길게 누름 → 상자, 따라감, 다음 탭에 사라짐). 끝나면 서버를 내린다 (SC-003, FR-012,
-  FR-014)
+  FR-014) **(반복 1에서 주식 상자 다시 잼 → T051)**
 
 **Checkpoint**: 상자가 커서 가까이 표와 같은 값을 보이고, 차트 아래 한 줄이 없다
 
@@ -327,6 +327,128 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 ---
 
+## Phase 8: 반복 1 (2026-10-05) — 수정 종가·외부 시세 페이지·외환 화면
+
+**Purpose**: 사용자 요청(spec Iterations 2026-10-05) — 주식 주가 선을 **분할만 반영한 수정 종가**로 바꾸고 분할 표식을 없앤다(표의 시작가는 그대로).
+주식·가상자산·부동산 이름에서 네이버 증권·네이버 부동산 검색을 새 탭으로 연다. 외환 화면을 왼쪽에 붙이고 통화를 바꿔도 스크롤 위치를 그대로 둔다.
+결정 넷은 spec Clarifications(반복 1).
+
+**Independent Test**: quickstart 11~13 — AAPL 분할 앞뒤 주가 선이 이어지고, 참조 넷과 시장별 표본의 링크가 새 탭에서 기대 페이지이며, 외환에서 통화를 세
+번 바꿔도 스크롤 위치가 같다.
+
+**이 반복에서 조심할 것**:
+- **수정 종가는 명시 규칙이다**(research R10-13): 원주가 종가 ÷ 그 날 뒤 분할 비율의 곱. 효력일 **당일 이후**의 종가는 이미 분할 뒤 값이므로 그 분할로
+  나누지 않는다. 출처 `close_adjusted`(Yahoo `adjclose` — 배당 소급, 받은 시점마다 기준이 다름)를 쓰지 않는다. 계산은 순수 함수(원칙 IV)이고 저장하지
+  않는다(원칙 V)
+- **표의 시작가·주식 수·잔고는 바뀌지 않는다**(FR-021): 시뮬레이터(`simulation/reinvest.py`)와 표 경로는 손대지 않는다. T054가 T001 기준과 대조한다
+- **외부 링크는 외부를 부르지 않는다**: URL만 만든다. 테스트에 네트워크가 없다(헌법 원칙 III). 네이버 확인은 T040 조사에서만, 저장소 밖에서 한다
+- **링크가 행 동작을 일으키지 않는다**: 이력 행 안의 이름 링크를 눌러도 고르기·다시 실행이 일어나면 안 된다(이벤트 전파). 검색 목록 옵션은 링크가 아니다
+- **004 FR-005b는 통화 전환에서만 대체한다**: 기간 단위 전환·먼 날짜 고르기의 "표의 처음으로"는 그대로다. 004 테스트를 바꿔야 하면 멈추고 승인을 받는다(D2)
+- 010 자체 테스트를 새 정의로 고치는 것은 이 기능 안의 반복 변경이다 — 테스트 커밋에 사유를 적는다
+
+### 조사
+
+- [ ] T040 [US5] 네이버 URL 규칙 조사(테스트 없음 — 저장소 밖에서 브라우저·curl, 인증 정보 없음):
+  - ① 네이버 증권 해외 종목 URL 접미사를 저장소의 시장 값별로 실제 페이지로 확인한다 — `NASDAQ`(NVDA → `NVDA.O`, 사용자 제공), `NYSE`(예: KO·JPM),
+    `AMEX`(NYSE American·NYSE Arca ETF — 예: SPY·SOXL·JEPQ 아님 확인), `TSE`(예: 7203.T 토요타)
+  - ② 국내 `KRX`의 코스피(`.KS`)·코스닥(`.KQ`)이 같은 `domestic/stock/{6자리}` 경로인지 확인한다
+  - ③ 가상자산 `crypto/UPBIT/{심볼}` — 업비트에 없는 코인일 때 화면이 어떻게 보이는지, 다른 거래소 경로가 있는지
+  - ④ 네이버 부동산 검색 URL(새 UI `fin.land.naver.com`·`new.land.naver.com`) — 검색어 `{시·군·구} {법정동} {단지명}`로 그 단지가 결과에 나오는지
+    (헬리오시티·가락미륭·다른 지역의 같은 이름 단지)
+  - ⑤ 부동산 이력 행의 이름 얻는 방법 — 항목에는 법정동 코드·단지명만 있다(저장 형식 불변 — FR-021)
+  - 결과를 research R10-14·R10-15에 적고 data-model 7절 표를 채운다. **확인하지 못한 시장은 링크를 두지 않고(이름만) 사유를 적는다**
+  - (FR-024~FR-026, SC-007)
+
+### Tests for 반복 1 ⚠️
+
+- [ ] T041 [P] [US1] `backend/tests/unit/test_stock_series_adjusted.py` — `SimulationResult(rows=…, closes=…, splits=…)`를 직접 만들어
+  `stock_series.build_series`:
+  - 점 `price` = `closes[date] ÷ ∏(numerator/denominator)`. 곱은 효력일이 그 날짜 **뒤**인 분할이다 — 효력일 당일 점은 나누지 않는다
+  - 분할 둘(곱한다), 병합(분자 < 분모), 분할이 없으면 원주가 종가 그대로
+  - 배당 행이 있어도 값이 같다(배당 무관)
+  - 분할 앞뒤 점의 가격 비율 = 원주가 종가 비율 × 분할 비율(꺾임 없음)
+  - 다운샘플된 점의 가격이 그 날짜의 원래 값
+  - 순수 함수 `adjusted_close`(`backend/src/simulation/split_adjust.py`)를 DB 없이 직접 검사한다(원칙 IV)
+  - (FR-001, FR-002, FR-007)
+- [ ] T042 [P] [US1] `backend/tests/integration/test_stock_series_adjusted_api.py` — 기존 `test_stock_series_price_api.py`의 준비(AAPL 분할
+  2021-08-31 4:1, 원주가 400→100)로:
+  - `priceKind "stock_adjusted_close"`, 점 `price` = 그 날 `close_raw` ÷ 뒤 분할 비율(문자열)
+  - 분할 앞 점과 뒤 첫 점의 가격 비율이 0.9~1.1(4배 꺾임 없음)
+  - `splits` 키가 없다. 원화 원금이어도 `priceCurrency USD`
+  - **이 기능의 기존 테스트 고침**: `test_stock_series_price_api.py`(시작가 대조·`splits` 단언)·`tests/unit/test_stock_series_price.py`(`open_price`·
+    `splits` 단언)를 새 정의로 바꾸거나 이 파일로 옮긴다(010 안의 반복 변경 — 테스트 커밋에 사유)
+  - (FR-001, FR-002, FR-008, SC-001)
+- [ ] T043 [P] [US1] 프론트엔드 차트 테스트 고침(010 안의 반복 변경):
+  - `PerformanceChartPrice.test.tsx` — 분할 표식 시리즈 없음, 범례에 "분할" 없음, `priceKind "stock_adjusted_close"`의 범례 `주가 (USD)`
+  - `chartSeriesPrice.test.ts` — `splitMarks` 테스트 제거
+  - `chartHover.test.ts`·`PerformanceChartHover.test.tsx` — 주식 줄 이름 `주가(수정 종가)`, `notes` 없음(분할 문구 없음)
+  - (FR-008, FR-009)
+- [ ] T044 [P] [US5] `frontend/tests/externalLinks.test.ts` — URL 만들기(T040 규칙):
+  - 국내 `005930.KS` → `https://stock.naver.com/domestic/stock/005930/price`, 코스닥 `.KQ`
+  - NASDAQ `NVDA` → `https://stock.naver.com/worldstock/stock/NVDA.O/price`, NYSE·AMEX·TSE(T040)
+  - 비트코인 `BTC` → `https://stock.naver.com/crypto/UPBIT/BTC/price`
+  - 부동산 검색어 인코딩(공백·한글)
+  - 확인하지 못한 시장은 `null`(링크 없음)
+  - (FR-024~FR-026, SC-007)
+- [ ] T045 [P] [US5] `frontend/tests/ExternalLinks.test.tsx` — 대상 여섯(고른 종목 줄 `StockSearch`·주식 이력 행·고른 코인 `CoinSearch`·코인 이력 행·
+  부동산 보드·부동산 이력 행):
+  - 이름이 `<a target="_blank" rel="noopener noreferrer">`이고 href가 규칙대로다
+  - 이력 행의 링크를 눌러도 `onToggle`·`onRerun`이 불리지 않는다
+  - 검색 목록의 옵션은 링크가 아니다(누르면 고르기)
+  - (FR-024~FR-026, SC-007)
+- [ ] T046 [P] [US6] `frontend/tests/FxPageLayout.test.tsx` — 외환 화면:
+  - 본문에 `mx-auto`가 없다(왼쪽 정렬)
+  - 통화를 바꾸면 `scrollIntoView`가 불리지 않는다
+  - 기간 단위 전환·먼 날짜 고르기는 지금처럼 불린다(004 FR-005b 유지)
+  - **004 기존 테스트 변경(D2 — 승인 뒤)**: `fxWorkspaceScroll.test.ts`의 통화 전환 신호 단언이 바뀌어야 하면 멈추고 승인을 받는다
+  - (FR-022, FR-023, SC-008)
+
+### Implementation for 반복 1
+
+- [ ] T047 [US1] 백엔드:
+  - `backend/src/api/services/stock_simulation.py` — `SimulationResult.closes: Mapping[date, Decimal]`(기본값 빈 매핑), `run_simulation` 두 반환 경로에서
+    `bars_rows`의 `close_raw`
+  - `backend/src/simulation/split_adjust.py`(신규) — 순수 함수 `adjusted_close(close, day, splits)`
+  - `backend/src/api/services/stock_series.py` — 점 `price` = 수정 종가, `StockSeries.splits` 제거
+  - `backend/src/api/routes/stock_series.py` — `priceKind "stock_adjusted_close"`, `splits` 키 제거
+  - 시뮬레이터·표 경로는 바꾸지 않는다
+  - (FR-001, FR-002, FR-008)
+- [ ] T048 [US1] 프론트엔드 차트:
+  - `frontend/src/lib/types.ts` — `PriceKind` `stock_open` → `stock_adjusted_close`, `SplitMark`·`splits?` 제거
+  - `frontend/src/lib/chartSeries.ts` — `splitMarks`·`SplitMarkAt` 제거
+  - `frontend/src/components/stock/PerformanceChart.tsx` — 분할 표식 시리즈·`● 분할` 범례·상자 `notes` 렌더 제거, 머리 주석
+  - `frontend/src/lib/chartHover.ts` — 주식 줄 이름 `주가(수정 종가)`, `notes` 제거
+  - (FR-008, FR-009)
+- [ ] T049 [US5] 프론트엔드 링크:
+  - `frontend/src/lib/externalLinks.ts`(신규)
+  - `frontend/src/components/stock/StockSearch.tsx`(고른 종목 줄 이름)·`stock/SimulationHistory.tsx`(이력 행 이름)
+  - `frontend/src/components/crypto/CoinSearch.tsx`(고른 코인)·`crypto/CryptoHistory.tsx`(이력 행)
+  - `frontend/src/components/realestate/RealEstateBoard.tsx`(단지 이름)·`realestate/RealEstateHistory.tsx`(이력 행 — T040이 정한 이름 얻는 방법)
+  - (FR-024~FR-026)
+- [ ] T050 [US6] 외환:
+  - `frontend/src/app/fx/page.tsx` — 가운데 정렬 제거
+  - 통화 전환이 스크롤 신호를 내지 않게 — 외환 스토어(`resetKey`를 통화 전환에서 올리지 않음) 또는 `frontend/src/components/fx/DailyTable.tsx`(R10-16)
+  - (FR-022, FR-023)
+
+### 반복 1 마무리
+
+- [ ] T051 quickstart 11~13을 실행하고 `specs/010-chart-price-overlay-history-layout/quickstart.md`에 기록한다:
+  - 11: AAPL 원화 원금 2020-01-02 — 분할 앞뒤 수정 종가 비율이 원주가 시세 변동과 같고, 같은 날 네이버 증권 값과 대략 같음(캡처)
+  - 12: 링크 — 참조 넷 + 시장별 표본(NYSE·AMEX·코스닥·일본)이 새 탭에서 기대 페이지, 원래 화면 그대로
+  - 13: 외환 — 1920px에서 제목 왼쪽, 통화 USD → JPY → EUR로 바꿀 때 `window.scrollY` 변화 0, 기간 단위 전환은 표의 처음으로
+  - 시나리오 1·6의 주식 부분(수정 종가·상자)을 다시 잰다
+  - 끝나면 서버를 내린다
+  - (FR-001, FR-022~FR-026, SC-001, SC-007, SC-008)
+- [ ] T052 [P] `README.md`·`CLAUDE.md` — 010 행에 반복 1(수정 종가·외부 링크·외환 다듬기) (헌법 원칙 VIII — 문서화. 대응 FR 없음)
+- [ ] T053 품질 게이트 — 서버를 내리고 백엔드·프론트엔드 전체 검사. 기존 테스트 파일 변경이 plan 목록 안(T029의 둘 + 반복 1에서 승인된 것)인지
+  `git diff --stat 73077aa`로 확인한다 (SC-006)
+- [ ] T054 계산 불변 대조 — T001 기준 응답(`010-baseline`)과 같은 조건의 표 경로가 같다. 시계열 기존 키 중 주식 `price`만 정의가 바뀌었다(새 정의로 확인)
+  (FR-021, SC-006)
+
+**Checkpoint**: 주가 선이 분할 날 이어지고, 이름에서 네이버 페이지가 새 탭으로 열리며, 외환이 왼쪽 정렬·통화 전환 스크롤 유지다
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -338,6 +460,7 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 - **US3 (Phase 5)**: Setup 뒤면 언제든(차트와 무관). **T029는 사용자 승인 뒤**
 - **US4 (Phase 6)**: Setup 뒤면 언제든. US3과 같은 파일(`SimulationHistory.tsx`·`app/stocks/page.tsx`)을 만지므로 US3 뒤가 자연스럽다
 - **Polish (Phase 7)**: 모든 스토리 뒤
+- **반복 1 (Phase 8)**: Phase 7 뒤. T040(조사)이 T044·T045·T049를 막는다. 안에서는 테스트 T041~T046(커밋) → 구현 T047~T050(커밋) → T051 → T052~T054
 
 ### Within Each Phase
 
@@ -348,12 +471,16 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 | 파일 | 태스크 |
 |------|--------|
-| `frontend/src/components/stock/PerformanceChart.tsx`·`frontend/src/lib/chartSeries.ts` | T017, T024 |
+| `frontend/src/components/stock/PerformanceChart.tsx`·`frontend/src/lib/chartSeries.ts` | T017, T024, T048 |
+| `frontend/src/lib/chartHover.ts` | T024, T048 |
+| `backend/src/api/services/stock_series.py`·`backend/src/api/routes/stock_series.py`·`stock_simulation.py` | T013, T047 |
+| `frontend/src/components/realestate/RealEstateHistory.tsx`·`crypto/CryptoHistory.tsx` | T034, T049 |
+| 010 자체 테스트 `test_stock_series_price*.py`·`PerformanceChartPrice`·`chartSeriesPrice`·`chartHover`·`PerformanceChartHover` | T042, T043 |
 | `backend/src/api/services/realestate_series.py`·`backend/src/api/routes/realestate_series.py` | T016, T022 |
-| `frontend/src/components/stock/SimulationHistory.tsx` | T030, T034 |
+| `frontend/src/components/stock/SimulationHistory.tsx` | T030, T034, T049 |
 | `frontend/src/app/stocks/page.tsx` | T030, T035 |
 | `frontend/src/app/deposit/page.tsx` | T023, T035 |
-| `specs/010-chart-price-overlay-history-layout/quickstart.md`(실행 기록) | T018, T025, T031, T036, T039 |
+| `specs/010-chart-price-overlay-history-layout/quickstart.md`(실행 기록) | T018, T025, T031, T036, T039, T051 |
 | `specs/010-chart-price-overlay-history-layout/plan.md`(경계 폭 기록) | T036 |
 | 기존 테스트 `SimulationHistoryList.test.tsx`·`SimulationHistoryBlocked.test.tsx` | T029 |
 
@@ -396,6 +523,7 @@ Task: "T012 PerformanceChartPrice.test.tsx — 겹침 축·끊김·표식·범�
 3. US3 — 주식 다시 실행(기존 테스트 변경 승인 뒤)
 4. US4 — 표 옆 최근 시뮬레이션, 경계 폭 실측 기록
 5. Polish — 기록 갱신, 게이트, 계산 불변 대조
+6. 반복 1 — 수정 종가(분할 표식 없앰)·외부 시세 페이지·외환 정렬·통화 전환 스크롤
 
 ---
 

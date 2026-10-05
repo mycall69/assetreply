@@ -12,9 +12,11 @@
 | 형식 | 더하는 필드 | 출처 | 기본값 |
 |------|-------------|------|--------|
 | `stock_simulation.SimulationResult` | `splits: tuple[SplitOn, ...]` | `run_simulation`이 이미 읽는 `price_repo.splits(stock_id, start, end)` | `()` — 결과를 직접 만드는 테스트(`test_stock_series_build`)를 위해 |
+| `stock_simulation.SimulationResult`(반복 1) | `closes: Mapping[date, Decimal]` — 날짜별 **원주가 종가**(`close_raw`) | `run_simulation`이 이미 읽는 `price_repo.prices`의 `close_raw` | 빈 매핑 — 위와 같은 이유 |
 | `deposit_simulation.Prepared` | `rates: Mapping[date, Decimal]`(달 1일 → 연 %), `latest_month: date`(마지막 발표 달) | `prepare`가 이미 읽는 `deposit_rate.get_rates`·`get_coverage` | 없음 — `Prepared`를 만드는 곳은 `prepare`·`simulate_or_collect` 둘뿐이고 둘 다 넘긴다 |
 
-`SplitOn`은 시뮬레이터의 기존 형식(`date`·`numerator`·`denominator`)이다 — 새 형식을 만들지 않는다.
+`SplitOn`은 시뮬레이터의 기존 형식(`date`·`numerator`·`denominator`)이다 — 새 형식을 만들지 않는다. 반복 1부터 `splits`는 수정 종가 계산에만 쓰고 응답에
+싣지 않는다.
 
 ## 2. 백엔드 — 시계열 점
 
@@ -22,7 +24,7 @@
 
 | 자산군 | `price` | `price_missing` | 그 밖 |
 |--------|---------|-----------------|-------|
-| 주식 | `Decimal` — 그 날 마지막 행의 `Row.open_price`(원주가 시가, 종목 통화). 늘 있다. 점은 표의 행 날짜뿐(일별 아님 — spec FR-001) | 없음 | — |
+| 주식 | `Decimal` — 그 날의 **분할만 반영한 수정 종가**(반복 1): `closes[date] ÷ ∏(numerator/denominator)` — 곱은 `date < 효력일 ≤ end`인 분할 전부(효력일 당일 이후의 종가는 이미 분할 뒤 값). 종목 통화. 늘 있다. 점은 표의 행 날짜뿐(일별 아님 — spec FR-001). 처음(반복 전)은 `Row.open_price`(원주가 시가) | 없음 | — |
 | 가상자산 | `Decimal` — `daily[i].row.open_price`(시세 통화). 늘 있다(점은 일봉이 있는 날만) | 없음 | — |
 | 예금 | `Decimal \| None` — 점 날짜의 달 `m`: `m > latest_month` → `None`, `m ∉ rates` → `None`, 아니면 `rates[m]` | `"unpublished"`(`m > latest_month`) · `"missing"`(`m ∉ rates`) · `None` | — |
 | 부동산 | `int \| None` — 그 점이 나온 행의 `month_average`. 첫 점(매입일)은 매입 달 행, 끝점(계산 끝)은 그 달 행(`rows[0]`) | `"no_trades"`(`month_average is None`) · `None` | `profit: int` — 행의 `profit`, 끝점은 `summary.profit` |
@@ -31,13 +33,15 @@
 
 | 형식 | 필드 |
 |------|------|
-| `StockSeries` | `splits: tuple[SplitOn, ...]` — `start ≤ date ≤ end`, 효력일 오름차순 |
+| `StockSeries` | ~~`splits`~~ — 반복 1에서 응답에서 뺐다(분할 표식 없음). 수정 종가는 조립 안에서 결과의 `splits`로 계산한다 |
 | `DepositSeries` | 없음(점의 필드만) — `build_series(outcome, *, start, rates, latest_month)`. 새 인자는 **필수**(R10-5) |
 
 **불변식**:
 
 - `price is None` ⇔ `price_missing is not None`.
 - 주식·가상자산의 `price`는 `None`이 아니다 — `None`이면 조립이 틀린 것이다(단위 테스트).
+- 주식의 `price`는 분할 앞뒤에서 원주가 종가의 변동만큼만 바뀐다 — 분할 비율만큼 꺾이지 않는다(반복 1). 분할이 없으면 원주가 종가 그대로다.
+- 수정 종가는 계산할 때마다 구하고 저장하지 않는다(원칙 V — 명시 규칙, 원본은 원주가·분할 기록).
 - 예금의 `price`(값이 있을 때)는 같은 달에 시작한 가입·재예치 행의 적용 금리(`Row.rate`, 잠정이 아닌 행)와 같다(FR-002).
 - 부동산의 `price`(값이 있을 때)는 같은 달 행의 `month_average`와 같다. 시세 없음 달은 점이 없다(지금과 같다 — `gaps`의 `no_price`).
 - `gaps`는 바뀌지 않는다 — 가격만 없는 날을 넣지 않는다(R10-2).
@@ -45,9 +49,9 @@
 ## 3. 프론트엔드 — 응답 형식 (`lib/types.ts`)
 
 ```text
-PriceKind     = "stock_open" | "crypto_open" | "deposit_rate" | "apt_average"
+PriceKind     = "stock_adjusted_close" | "crypto_open" | "deposit_rate" | "apt_average"   # 반복 1: stock_open → stock_adjusted_close
 PriceMissing  = "unpublished" | "missing" | "no_trades"
-SplitMark     = { date: string; numerator: number; denominator: number }
+(반복 1에서 제거: SplitMark)
 
 SimulationPoint (+)
   price?: DecimalString | null        # 가격이 있는 응답(010)에만 키가 있다
@@ -57,7 +61,7 @@ SimulationPoint (+)
 SimulationSeriesResponse (+)
   priceKind?: PriceKind
   priceCurrency?: string | null       # 예금은 null
-  splits?: SplitMark[]                # 주식만
+  (반복 1에서 제거: splits?)
 ```
 
 모두 **선택 키**다 — 기존 테스트 응답(가격 없음)이 타입 검사를 그대로 통과하고, 차트는 가격 키가 없으면 지금과 같이 그린다(R10-7).
@@ -67,7 +71,7 @@ SimulationSeriesResponse (+)
 | 이름 | 입력 → 출력 | 규칙 |
 |------|-------------|------|
 | `priceSegments(points, gaps)` | 점 → 가격 선 구간들 | `splitSeriesAtGaps`(잔고와 같은 자리) → `price === null`인 점에서 다시 끊음. 점 하나뿐인 구간도 남긴다(점으로 그린다) |
-| `splitMarks(points, splits)` | 분할마다 표식 점 | 그린 점 중 `date ≥ split.date`인 첫 점. 없으면 그 분할은 표식이 없다. 같은 점에 둘이면 하나의 표식에 둘 다 |
+| ~~`splitMarks(points, splits)`~~ | — | 반복 1에서 없앴다(분할 표식 없음 — spec FR-008) |
 | `gapSlots(points, gaps)` | 값 없는 자리(구간마다 하나) | 첫 점 ~ 끝 점 안의 `source_missing`·`no_price` **구간마다 `from` 하나**(그 구간의 `from`·`to`·사유를 함께). 점 범위 밖 구간·그 밖의 사유(`no_quote`·`not_collected`)는 자리를 두지 않는다. 날마다 두지 않는다 — 줄인 차트에서 구간이 과장된다(research R10-8) |
 | `hoverView(series, time)` | 커서 자리 → 상자 내용 | 아래 표. 점이 없고 자리면 사유 |
 | `placeHover(point, box, area)` | 좌표 → 상자 왼쪽·위 | 오른쪽 아래 12px, 넘치면 왼쪽·위로. 늘 `0 ≤ left ≤ area.width − box.width`, `0 ≤ top ≤ area.height − box.height` |
@@ -76,11 +80,13 @@ SimulationSeriesResponse (+)
 
 | 자산군 | 줄 |
 |--------|----|
-| 주식 | 날짜 · 주가 `$182.40`(분할 표식 점이면 "분할 1→4 (2020-08-31 효력)") · 잔고 `₩12,345,678` · 수익률 |
+| 주식 | 날짜 · 주가(수정 종가) `$182.40` · 잔고 `₩12,345,678` · 수익률 — 반복 1: 줄 이름에 "수정 종가", 분할 문구(`notes`) 없음 |
 | 가상자산 | 날짜 · 시세 `$0.0000053` · 잔고 `₩…` · 수익률 |
 | 예금 | 날짜 · 잔고 `₩…` · 수익률 · 금리 `연 3.45%` / "— 미발표" / "— 결측" |
 | 부동산 | 달(첫 점·끝 점은 날짜) · 평가액 `₩…` · 투자 수익 `₩…` · 수익률 · 실거래가 평균 `₩…` / "— 거래 없음" |
 | (자리) | 구간 `from ~ to`(부동산은 달) · 모든 값 "—" · 사유 "출처 결측"(가상자산) / "시세 없음"(부동산) |
+
+`HoverView.notes`는 반복 1에서 뺐다(분할 문구가 유일한 쓰임이었다).
 
 ## 5. 최근 시뮬레이션 항목 — 바꾸지 않는다
 
@@ -101,3 +107,21 @@ SimulationSeriesResponse (+)
 | 이력 행(네 화면) | `flex-wrap` — 칸이 좁으면 버튼 묶음이 다음 줄로. 칸 안 가로 넘침 없음 |
 
 경계 폭은 상수가 아니다 — 두 칸의 기본 크기 합이 본문 폭을 넘으면 이력이 다음 줄(전체 폭)로 내려간다(R10-10).
+
+## 7. 외부 페이지 링크 (반복 1, `lib/externalLinks.ts`)
+
+저장하지 않고 외부를 부르지 않는다 — 자산의 식별에서 규칙으로 URL을 만든다. 모든 링크는 `<a target="_blank" rel="noopener noreferrer">`이고, 이력 행 안의
+링크는 누를 때 행의 고르기·다시 실행을 일으키지 않는다.
+
+| 자산 | 입력 | URL 규칙 |
+|------|------|----------|
+| 국내 주식(`KRX`) | 종목코드 `005930.KS`·`091990.KQ` | `https://stock.naver.com/domestic/stock/{접미사를 뺀 6자리}/price` |
+| 미국 주식(`NASDAQ`) | 티커 `NVDA` | `https://stock.naver.com/worldstock/stock/{티커}.O/price` |
+| 미국 주식(`NYSE`·`AMEX`) · 일본(`TSE`) | 티커·`7203.T` | research R10-14(T040 실측)가 정한다 |
+| 가상자산 | 심볼 `BTC` | `https://stock.naver.com/crypto/UPBIT/{심볼}/price` — 업비트에 없는 코인은 R10-14 |
+| 부동산 단지 | 시·군·구·법정동·단지명 | 네이버 부동산 검색 URL(R10-15) — 검색어 `{시·군·구} {법정동} {단지명}`, URL 인코딩 |
+
+대상 자리: 주식 — 고른 종목 줄(`StockSearch`), 이력 행(`SimulationHistory`). 가상자산 — 고른 코인 표시(`CoinSearch`), 이력 행(`CryptoHistory`).
+부동산 — 보드의 단지 이름(`RealEstateBoard`), 이력 행(`RealEstateHistory`). 검색 목록 항목(옵션)은 링크가 아니다(고르기 그대로).
+부동산 이력 항목에는 법정동 **코드**(`umd`)와 단지명만 있고 시·군·구·법정동 이름이 없다 — 검색어의 이름을 얻는 방법(저장 형식은 바꾸지 않는다 — FR-021)은 R10-15(T040)가 정한다.
+

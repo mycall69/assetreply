@@ -7,7 +7,7 @@
 
 | 경로 | 더하는 키 |
 |------|-----------|
-| `GET /api/stocks/simulation/series` | `priceKind`·`priceCurrency`·`splits`, 점의 `price` |
+| `GET /api/stocks/simulation/series` | `priceKind`·`priceCurrency`, 점의 `price`(반복 1: 수정 종가, `splits` 키 제거) |
 | `GET /api/crypto/simulation/series` | `priceKind`·`priceCurrency`, 점의 `price` |
 | `GET /api/deposit/simulation/series` | `priceKind`·`priceCurrency`(`null`), 점의 `price`·`priceMissing` |
 | `GET /api/realestate/simulation/series` | `priceKind`·`priceCurrency`, 점의 `price`·`priceMissing`·`profit` |
@@ -17,33 +17,37 @@
 - `points[].price` — 그 점 날짜(부동산은 그 달)의 가격 문자열 또는 `null`. 키는 늘 있다.
 - `points[].priceMissing` — `price`가 `null`일 때**만** 있다. `unpublished`(예금 — 아직 발표되지 않은 달), `missing`(예금 — 발표 기간 안인데 통계가 빈
   달), `no_trades`(부동산 — 그 평형의 그 달 거래 없음).
-- `priceKind` — `stock_open` · `crypto_open` · `deposit_rate` · `apt_average`. 화면은 이것으로 범례 이름·형식을 고른다.
+- `priceKind` — `stock_adjusted_close`(반복 1 — 처음은 `stock_open`) · `crypto_open` · `deposit_rate` · `apt_average`. 화면은 이것으로 범례 이름·형식을 고른다.
 - `priceCurrency` — 가격의 통화. 주식은 종목 통화, 가상자산은 시세 통화, 부동산은 `KRW`, 예금은 `null`(단위는 연 %). **원금 통화와 관계없다** — 원화 원금으로
   미국 종목을 실행해도 `USD`다(Clarifications). 잔고·수익률의 기준은 지금처럼 `basisCurrency`(KRW).
-- 가격 서식은 **표의 같은 값과 같은 함수**다 — 주식 `str()`(표 `openPrice`), 가상자산 `format(…, "f")`(표 `openPrice`), 예금 `rate_text`(표 `rate`), 부동산
+- 가격 서식은 **표의 같은 값과 같은 함수**다 — 주식 `str()`(반복 1: 수정 종가 — 표에는 없다, R10-13), 가상자산 `format(…, "f")`(표 `openPrice`), 예금 `rate_text`(표 `rate`), 부동산
   원 정수 `str()`(표 `monthAverage`).
 - 가격이 없는 날을 `gaps`에 넣지 않는다 — `gaps`는 잔고·수익률 선이 끊기는 자리다(research R10-2).
 - 다운샘플된 점의 `price`는 그 점 날짜의 원래 값이다(FR-007).
 
 ## `GET /api/stocks/simulation/series`
 
+반복 1(2026-10-05)의 형식이다 — 처음 형식(`priceKind "stock_open"`, 원주가 시가, `splits`)은 아래 "처음 형식"에 남긴다.
+
 ```json
 {
   "from": "2020-01-02", "to": "2026-10-04", "principalCurrency": "KRW", "basisCurrency": "KRW",
-  "priceKind": "stock_open", "priceCurrency": "USD",
+  "priceKind": "stock_adjusted_close", "priceCurrency": "USD",
   "downsampled": false, "algorithm": "lttb", "sourcePointCount": 95,
   "points": [
-    { "date": "2020-08-03", "balance": "14210345", "returnRate": "0.4210", "price": "432.80" },
-    { "date": "2020-09-01", "balance": "15342210", "returnRate": "0.5342", "price": "132.76" }
+    { "date": "2020-08-03", "balance": "14210345", "returnRate": "0.4210", "price": "108.9375" },
+    { "date": "2020-09-01", "balance": "15342210", "returnRate": "0.5342", "price": "134.18" }
   ],
-  "gaps": [ { "from": "2020-09-07", "to": "2020-09-07", "reason": "no_quote" } ],
-  "splits": [ { "date": "2020-08-31", "numerator": 4, "denominator": 1 } ]
+  "gaps": [ { "from": "2020-09-07", "to": "2020-09-07", "reason": "no_quote" } ]
 }
 ```
 
-- `price` = 그 날 마지막 행(같은 날의 배당락 행·달 첫 행 중 나중 것)의 `openPrice` — 원주가 시가. 그래서 분할 효력일 뒤 첫 점에서 값이 꺾인다.
-- `splits` = 구간(`from`~`to`) 안의 분할 기록, 효력일 오름차순. 없으면 `[]`. 표식 자리는 화면이 정한다(research R10-4).
-- 실패 양상(테스트가 잡는다): `price`가 수정주가면 분할 앞뒤가 이어져 표의 시작가와 어긋난다. `splits`를 빠뜨리면 꺾임의 이유가 사라진다.
+- `price` = 그 날의 **분할만 반영한 수정 종가** — `close_raw ÷ ∏(numerator/denominator)`(효력일이 그 날 뒤 ~ 계산 끝인 분할, research R10-13). 분할 날에도 이어진다.
+  배당은 소급하지 않는다. 표의 `openPrice`(매수 기준 원주가 시가)와 다른 값이다.
+- `splits` 키는 없다(분할 표식 없음 — spec FR-008).
+- 실패 양상(테스트가 잡는다): 원주가를 내면 분할 효력일 뒤 첫 점에서 분할 비율만큼 꺾인다. 출처 `close_adjusted`(배당 소급)를 내면 규칙 값과 다르다.
+
+**처음 형식(반복 전)**: `priceKind "stock_open"`, `price` = 그 날 마지막 행의 `openPrice`(원주가 시가), `splits: [{date, numerator, denominator}]`.
 
 ## `GET /api/crypto/simulation/series`
 
@@ -105,7 +109,7 @@
 
 - 네 경로 모두 — 점마다 `price`가 표(또는 예금은 그 달 금리)의 같은 날 값과 같다(SC-001). `price`가 `null` ⇔ `priceMissing`이 있다.
 - 다운샘플(`maxPoints`를 작게) — 줄인 점의 `price`가 그 날짜의 원래 값이다(FR-007).
-- 주식 — 분할이 있는 종목의 `splits`와, 효력일 앞뒤 점의 `price` 비율.
+- 주식 — 분할이 있는 종목의 효력일 앞뒤 점의 `price` 비율이 원주가 시세 변동만큼(분할 비율만큼 꺾이지 않음), `splits` 키 없음(반복 1).
 - 예금 — `unpublished`(마지막 발표 달 뒤)·`missing`(발표 기간 안 빈 달) 각 하나.
 - 부동산 — `no_trades` 달의 `balance`·`returnRate`가 표와 같고 `price`가 `null`. `profit`이 표와 같다.
 - 기존 `gaps` 정확 비교 테스트는 바꾸지 않고 통과한다.
