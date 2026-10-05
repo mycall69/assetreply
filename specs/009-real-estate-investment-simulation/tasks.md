@@ -263,7 +263,7 @@ description: "Task list for 009-real-estate-investment-simulation"
   `move_in_source`)·`apt_trade.py`(거래 upsert — 바뀌는 필드만, 사라진 행·사라진 코드 표시와 `missing_reason`, 커버리지·`checked_on`·받아 둔 시·군·구 판정, 원본 — 같은 본문이면 새 행 없음, 단지·구분별 거래
   읽기 — 해제·사라짐 제외 여부를 인자로)·`apt_job.py`(작업·점유·고아 회수 — 008 `deposit_job`과 같은 수단). upsert는 기존 `db/dialect.py`
   (FR-002, FR-003, FR-009, FR-010, FR-012, data-model 1~8절)
-- [X] T023 [US1] `backend/src/api/services/realestate_complex_match.py` — 짝짓기 순수 함수(법정동 코드 + 지번, 아니면 정규화 이름) (FR-003)
+- [X] T023 [US1] `backend/src/api/services/realestate_complex_match.py` — 짝짓기 순수 함수(법정동 코드 + 지번, 아니면 정규화 이름. 2026-10-05 T027 실측으로 **건축년도·사용승인 연도가 10년 넘게 다르면 짝짓지 않음** — 재건축 전후, research R9-3) (FR-003)
 - [X] T024 [US1] `backend/src/worker/apt_queue.py`(시작 큐 둘 — 실거래·목록)·`apt_trade_runner.py`(첫 달 탐색, 쪽 넘김, 원본·거래·커버리지,
   잠정 다시 받기 — 최근 3개월 하루 한 번·4~12개월 한 달 한 번, 사라진 행·바뀐 수 사건, 받은 거래의 `apt_seq`로 단지 행 코드 갱신, 한도 멈춤)·
   `apt_list_runner.py`(행정구역 30일 갱신 — 사라진 코드 `retired_at`과 그 코드 거래 `missing_since(region_retired)`, 단지 기본 정보 채우기, 실거래 뒤
@@ -575,3 +575,7 @@ Task: "T034 frontend 폼·보드·안내·표·스토어"
   일감을 워커가 꺼내는 수단은 동 선택 경로와 같다). 단지 응답의 `details`에는 `jobId`가 없다 — 화면이 `progressUrl`에서 읽는다(계약 그대로).
   평형 구분의 하한 포함 여부는 응답에 없고 앞 구분의 `maxInclusive`로 정한다(구분이 빈틈없이 이어진다). 행정구역 수집 실패 문구는 E2대로
   E9 표를 쓴다 — `rate_limited`면 "실거래 출처의 하루 호출 한도…"로 보인다(문구를 나누려면 명세를 먼저 고친다)
+- **2026-10-05 T027 실측이 바꾼 것**: 행정구역 — 리 행의 상위 코드가 비어 오고(전국 15쪽), 세종특별자치시는 시·도 행이 없다(시·군·구 하나).
+  둘 다 테스트를 먼저 더하고 고쳤다(`test_datagokr_lists_parse`). 짝짓기 — 재건축 전 옛 단지가 같은 필지 지번으로 새 단지와 짝지어졌다(개포동
+  개포주공4단지 ↔ 개포자이프레지던스). 건축년도·사용승인 연도가 10년 넘게 다르면 짝짓지 않는다(research R9-3, T014에 새 사례, 기존 기대값은
+  그대로)

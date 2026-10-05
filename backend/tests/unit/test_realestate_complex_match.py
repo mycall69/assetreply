@@ -154,6 +154,39 @@ class Test규칙:
         assert [(s.apt_seq, s.name) for s in sides] == [("S1", "새이름")]
 
 
+GAEPO = "1168010300"
+
+
+class Test재건축:
+    """같은 필지의 재건축 전 옛 단지와 새 단지는 짝짓지 않는다(T027 실측 — 개포동 개포주공4단지 ↔
+    개포자이프레지던스). 재건축 전후 연결은 범위 밖이다. 건축년도와 사용승인 연도를 둘 다 알고 10년
+    넘게 다를 때만 막는다."""
+
+    def test_지번이_같아도_연도가_10년_넘게_다르면_짝짓지_않는다(self) -> None:
+        kapt = [KaptSide("A1", "개포자이프레지던스", GAEPO, "189", move_in_year=2023)]
+        trade = [TradeSide("11680-289", "개포주공4단지", GAEPO, "189", 1982),
+                 TradeSide("11680-5235", "개포자이프레지던스", GAEPO, "1284", 2023)]
+        matching = match_complexes(kapt, trade)
+        assert matching.pairs == (("A1", "11680-5235"),)  # 새 단지와는 이름으로
+        assert matching.trade_only == ("11680-289",)
+
+    def test_이름이_같아도_연도가_10년_넘게_다르면_짝짓지_않는다(self) -> None:
+        kapt = [KaptSide("A1", "현대", GAEPO, None, move_in_year=2020)]
+        trade = [TradeSide("S1", "현대", GAEPO, "5", 1980)]
+        assert match_complexes(kapt, trade).pairs == ()
+
+    def test_10년_안의_차이는_짝짓는다(self) -> None:
+        """가락현대5차 — 사용승인 1986, 실거래 건축년도 1989(픽스처 실측)."""
+        kapt = [KaptSide("A1", "가락현대5차", GARAK, "161-2", move_in_year=1986)]
+        trade = [TradeSide("11710-71", "현대(5차)", GARAK, "161-2", 1989)]
+        assert match_complexes(kapt, trade).pairs == (("A1", "11710-71"),)
+
+    def test_한쪽_연도를_모르면_보지_않는다(self) -> None:
+        kapt = [KaptSide("A1", "새단지", GAEPO, "189")]
+        trade = [TradeSide("S1", "옛단지", GAEPO, "189", 1982)]
+        assert match_complexes(kapt, trade).pairs == (("A1", "S1"),)
+
+
 class Test합치기:
     def test_따로_있는_두_행은_작은_id에_합친다(self) -> None:
         rows = [ComplexIds(5, "A1", None), ComplexIds(9, None, "S1"), ComplexIds(3, None, "S2")]

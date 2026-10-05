@@ -31,8 +31,8 @@ from src.db.models import (
     AptTrade,
     JobStatus,
 )
-from src.repository import apt_job
-from src.worker import apt_worker
+from src.repository import apt_job, apt_trade
+from src.worker import apt_list_runner, apt_worker
 from src.worker.apt_queue import AptWork
 from tests.integration.apt_support import (
     KEY,
@@ -265,6 +265,35 @@ class Test짝짓기:
         pungrim = next(r for r in live if r.kapt_code == "A10021256")  # 가락풍림 ↔ 풍림1(지번 142)
         assert (pungrim.id, pungrim.apt_seq, pungrim.households) == (
             trade_ids["11710-65"], "11710-65", 105)
+
+    async def test_재건축_전_옛_단지는_같은_지번이어도_짝짓지_않는다(self, session_factory) -> None:  # type: ignore[no-untyped-def]
+        """T027 실측(개포동) — 단지 목록·기본 정보를 나중에 받아도(그 실행의 건축년도가 없다) 실거래
+        단지 행에 남긴 건축년도로 판정한다. 옛 단지(1982, 지번 189)는 따로, 새 단지(2023, 지번
+        1284)는 이름으로 한 행."""
+        gaepo = "1168010300"
+        async with session_factory() as s:
+            complexes_ = (("11680-289", "개포주공4단지", "189", 1982, "2022-12-01"),
+                          ("11680-5235", "개포자이프레지던스", "1284", 2023, "2023-04-10"))
+            for seq, name, jibun, built, day in complexes_:
+                s.add(AptTrade(
+                    lawd_cd="11680", deal_ym=day[:7].replace("-", ""), deal_date=D(day),
+                    apt_seq=seq, umd_code=gaepo, jibun=jibun, apt_name=name, apt_dong="", floor=3,
+                    excl_area=Decimal("84.9"), amount=1_000_000_000, occurrence=0, cancelled=False,
+                    source="molit:aptdev", ingested_at=NOW_UTC))
+                s.add(AptComplex(umd_code=gaepo, lawd_cd="11680", apt_seq=seq, name=name,
+                                 jibun=jibun, move_in_year=built, move_in_source="trade"))
+            s.add(AptComplex(umd_code=gaepo, lawd_cd="11680", kapt_code="A10023348",
+                             name="개포자이프레지던스", jibun="189", move_in_year=2023,
+                             move_in_source="kapt", households=3375, details_checked_at=NOW_UTC))
+            await s.commit()
+        async with session_factory() as s:
+            latest = await apt_trade.latest_by_complex(s, "11680", umd_code=gaepo)
+            await apt_list_runner.sync_umd(s, gaepo, latest=latest)
+            await s.commit()
+        rows = await complexes(session_factory, gaepo)
+        live = {r.apt_seq: r for r in rows if r.merged_into is None}
+        assert live["11680-289"].kapt_code is None  # 옛 단지는 따로
+        assert (live["11680-5235"].kapt_code, live["11680-5235"].households) == ("A10023348", 3375)
 
     async def test_새_코드로_받은_거래의_같은_단지는_코드가_바뀐다(self, session_factory) -> None:  # type: ignore[no-untyped-def]
         """춘천 51110 2020-01의 단지 하나가 옛 코드(42110)로 남아 있었다 — 같은 `aptSeq`면 새
