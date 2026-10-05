@@ -96,7 +96,7 @@ SimulationSeriesResponse (+)
 | 칸 | 규칙 |
 |----|------|
 | 바깥 | `flex flex-wrap items-start gap-5` |
-| 표 칸 | `flex: 999 1 auto` — 기본 크기 = 표 고유 폭. 결과가 없으면 없다 |
+| 표 칸 | `flex: 999 1 auto` — 기본 크기 = 표 고유 폭. `min-w-0` — 줄은 기본 크기로 나뉘므로 나란히 둔 표는 줄지 않고, 표 하나도 담지 못하는 좁은 창에서는 표 안에서 가로 스크롤한다(없으면 화면이 넘친다 — 구현 중 고침). 결과가 없으면 없다 |
 | 이력 칸 | `flex: 1 1 400px`, `sticky top-4 self-start`, `max-height: calc(100vh − 2rem)`, 세로 스크롤 |
 | 이력 행(네 화면) | `flex-wrap` — 칸이 좁으면 버튼 묶음이 다음 줄로. 칸 안 가로 넘침 없음 |
 

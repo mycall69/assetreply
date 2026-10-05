@@ -52,8 +52,10 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   오류를 낸다(타입 가져오기와 숫자 리터럴은 괜찮다 — 지금 `lineStyle: 2`처럼). 겹침 축 여백은 `createChart` 옵션 `overlayPriceScales`로 준다
 - **분할 표식 자리는 화면이 정한다**(R10-4): 서버는 효력일만 보낸다. 표식은 **그린 점(다운샘플 뒤)** 중 효력일 이상인 첫 점이다 — 서버가 정하면 그
   점이 줄이기에서 빠졌을 때 표식이 허공을 가리킨다. 표에는 분할 표시가 없다(spec FR-008 고침)
-- **배치에 경계 폭 상수를 두지 않는다**(R10-10): 미디어 쿼리·`ResizeObserver` 없이 줄바꿈 flex의 기본 크기로 정한다. 표 칸이 줄어들게 하는 규칙
-  (`min-w-0`로 표를 좁히기, 고정 폭)을 넣지 않는다 — 1440px 기준(006 FR-069 등)을 깨는 길이다
+- **배치에 경계 폭 상수를 두지 않는다**(R10-10): 미디어 쿼리·`ResizeObserver`·고정 폭 없이 줄바꿈 flex의 기본 크기로 정한다. 표 칸에는
+  `min-w-0`를 **둔다**(구현 중 고침 — 처음에는 넣지 말라고 적었다): 줄을 나누는 것은 기본 크기(표 고유 폭)라 나란히 둔 표는 줄지 않고,
+  창이 표 하나도 담지 못할 때(1440px 미만)는 지금처럼 표 안에서 가로 스크롤한다. 없으면 표 칸이 줄지 않아 화면 전체가 가로로 넘친다
+  (표 부품이 `overflow-x-auto` 안에 있다)
 - **주식 다시 실행은 등록 요청을 보내지 않는다**(research R10-11): 등록 경로(`POST /api/stocks/selection`)는 목록 id나 일본 외부 결과만 받고, 이력
   항목에는 목록 id가 없다. `selectStock`을 부르지 않고 입력을 바꿔 `run()` — 이력의 종목은 이미 등록되어 있다
 - **주식 가격 점은 표의 행 날짜뿐이다**(spec FR-001, 사용자 결정): 일별 가격을 따로 보내거나 그리지 않는다
@@ -284,7 +286,7 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 ### Tests for User Story 4 ⚠️
 
 - [ ] T032 [P] [US4] `frontend/tests/TableWithHistory.test.tsx` — `<TableWithHistory table={…} history={…}>`: 바깥(`data-testid="table-with-history"`)이
-  `flex flex-wrap items-start gap-5`, 표 칸이 `flex: 999 1 auto`(기본 크기 = 표 고유 폭 — 표를 좁히는 `min-w-0`·고정 폭 없음), 이력 칸이 `flex: 1 1
+  `flex flex-wrap items-start gap-5`, 표 칸이 `flex: 999 1 auto`(기본 크기 = 표 고유 폭)·`min-w-0`(좁은 창에서 표 안 가로 스크롤 — 없으면 화면이 넘친다)·고정 폭 없음, 이력 칸이 `flex: 1 1
   400px`·`sticky top-4 self-start`·`max-height: calc(100vh − 2rem)`·세로 스크롤, DOM 순서 표 → 이력, `table`이 없으면(실행 전) 이력 칸만.
   네 이력 부품(`SimulationHistory`·`CryptoHistory`·`DepositHistory`·`RealEstateHistory`)의 행(`history-row`)이 `flex-wrap`(칸 안 가로 넘침 없음)
   (FR-015~FR-017, SC-004 — 구조, data-model 6절)
