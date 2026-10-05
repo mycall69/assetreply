@@ -1,12 +1,13 @@
 "use client";
 
 /**
- * 부동산 투자 시뮬레이션 (T026·T039·T048) — 009 FR-001~FR-007, FR-011, FR-014, FR-015, FR-028~FR-031, FR-036,
- * ui-wireframes E1~E6·E9.
+ * 부동산 투자 시뮬레이션 (T026·T039·T048·T050) — 009 FR-001~FR-007, FR-011, FR-014, FR-015, FR-028~FR-033, FR-036,
+ * ui-wireframes E1~E7·E9.
  *
  * 주식·가상자산·예금 화면과 같은 구성이되 **종목 검색 대신 지역 풀다운 셋 → 단지 풀다운 → 평형 라디오 일곱**이고, 그 아래에 매입일·
- * 매입가(선택)를 넣어 실행한다. 원금은 원화만이라 통화 칸이 없다(FR-007). 결과는 보드 → 안내 줄 → 차트 → 월별 표 순이다. 받지 않은
- * 구간이면 진행만 보이고 **부분 결과를 보여주지 않는다**(FR-011). 화면 아래에 출처를 밝힌다(FR-036, 헌법 원칙 II).
+ * 매입가(선택)를 넣어 실행한다. 원금은 원화만이라 통화 칸이 없다(FR-007). 결과는 보드 → 안내 줄 → 차트 → 월별 표 순이고, 그 아래
+ * 이력과 비교다. 받지 않은 구간이면 진행만 보이고 **부분 결과를 보여주지 않는다**(FR-011). 화면 아래에 출처를 밝힌다(FR-036, 헌법
+ * 원칙 II).
  * 경로 이름(`realestate`)은 미구현 자산군 가드(`noUnbuiltAssetRoutes.test.ts`)와 사이드바가 함께 전제한다.
  */
 
@@ -14,11 +15,13 @@ import { useEffect, useMemo } from "react";
 import { AreaBucketPicker } from "@/components/realestate/AreaBucketPicker";
 import { ComplexPicker } from "@/components/realestate/ComplexPicker";
 import { RealEstateBoard } from "@/components/realestate/RealEstateBoard";
+import { RealEstateHistory } from "@/components/realestate/RealEstateHistory";
 import { RealEstateNotice } from "@/components/realestate/RealEstateNotice";
 import { RealEstatePerformanceTable } from "@/components/realestate/RealEstatePerformanceTable";
 import { RealEstateSimulationForm, startBoundFor } from "@/components/realestate/RealEstateSimulationForm";
 import { RegionPicker } from "@/components/realestate/RegionPicker";
 import { TradeCollectingNotice } from "@/components/realestate/TradeCollectingNotice";
+import { ComparisonChart } from "@/components/stock/ComparisonChart";
 import { PerformanceChart } from "@/components/stock/PerformanceChart";
 import { kstToday } from "@/lib/startDate";
 import type { RealEstateRegionLevel } from "@/lib/types";
@@ -32,6 +35,8 @@ export default function RealEstatePage() {
     rejection, loading,
     loadSidos, selectSido, selectSgg, selectUmd, selectComplex, selectArea, setInput, run, refreshIfRan,
     resumeWatching, dispose,
+    history, historySaveError, selectedHistory, comparison, comparing, comparisonError,
+    restoreHistory, toggleHistory, removeHistoryEntry, rerunHistory, compareSelected,
   } = useRealEstateStore();
 
   // 화면을 열면 받는 중이던 작업을 다시 구독하고 시·도를 요청한다. 떠나면 진행 구독을 끊는다 — 수집은 서버에서 이어진다.
@@ -44,6 +49,10 @@ export default function RealEstatePage() {
   useEffect(() => {
     void refreshIfRan();
   }, [refreshIfRan]);
+  // FR-032 — 이력은 브라우저에 있다. 화면이 열릴 때 읽는다.
+  useEffect(() => {
+    restoreHistory();
+  }, [restoreHistory]);
 
   // 매입일의 마지막 날 — 오늘(한국 시간). 화면을 연 때로 정한다(서버도 계산 끝을 한국 시간 오늘로 잡는다).
   const limit = useMemo(() => kstToday(), []);
@@ -130,6 +139,22 @@ export default function RealEstatePage() {
           <h3 className="mb-2 text-sm font-semibold">월별 투자 성과</h3>
           <RealEstatePerformanceTable rows={rows} taxGaps={summary.taxGaps} />
         </section>
+      )}
+
+      <RealEstateHistory
+        entries={history}
+        selected={selectedHistory}
+        comparing={comparing}
+        saveError={historySaveError}
+        onToggle={toggleHistory}
+        onRemove={removeHistoryEntry}
+        onCompare={() => void compareSelected()}
+        onRerun={(id) => void rerunHistory(id)}
+      />
+
+      {(comparing || comparison.length > 0 || comparisonError !== null) && (
+        // FR-033 — 모두 KRW 기준 수익률로 겹친다. 다른 자산군 이력과 섞이지 않는다.
+        <ComparisonChart items={comparison} loading={comparing} error={comparisonError} />
       )}
 
       <p className="text-xs text-gray-400">

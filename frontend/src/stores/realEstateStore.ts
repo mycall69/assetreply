@@ -19,15 +19,21 @@
  *   다시 요청하지 않는다 — 서버도 200을 주지 않으므로(부분 결과) 같은 실패가 되풀이되며 하루 한도만 쓴다. 한 실행에 한 번이다
  * - 409는 종류마다 따로 든다 — `before_first_trade`는 시작 가능 날짜와 근거(매입일은 **바꾸지 않는다**, FR-005), 나머지는 거절
  * - 평형·단지 이하를 바꾸면 결과·거절을 지우고, 늦게 온 이전 실행의 응답은 버린다
+ *
+ * 이력과 비교(T050)도 예금과 같다 — 결과가 나온 실행의 **조건만** 남기고(FR-032), 비교는 고른 이력을 **지금 다시 계산해서** 겹친다
+ * (FR-033). 다시 실행은 지역 풀다운까지 그 단지의 지역으로 맞춘다 — 풀다운이 이전 지역에 남으면 화면이 말하는 지역과 결과의 단지가
+ * 어긋난다. 비교에서 빠지는 항목은 조용히 빼지 않는다 — 빼면 그 단지가 진 것으로 읽힌다.
  */
 
 import { create } from "zustand";
+import type { ComparisonItem } from "@/components/stock/ComparisonChart";
 import { ApiError, apiClient } from "@/lib/apiClient";
 import {
   subscribeRealEstateProgress,
   type RealEstateProgressHandlers,
   type RealEstateProgressSnapshot,
 } from "@/lib/realEstateProgressStream";
+import { loadRealEstateHistory, removeRealEstateHistory, saveRealEstateHistory } from "@/lib/realEstateHistory";
 import { DEFAULT_START } from "@/lib/startDate";
 import type {
   RealEstateAcquisition,
@@ -36,6 +42,7 @@ import type {
   RealEstateComplexesResponse,
   RealEstateCondition,
   RealEstateFailureKind,
+  RealEstateHistoryEntry,
   RealEstateRegion,
   RealEstateRegionCollecting,
   RealEstateRegionLevel,
@@ -136,6 +143,21 @@ interface RealEstateState {
    * 끝날 때 어차피 다시 요청한다.
    */
   refreshIfRan: () => Promise<void>;
+
+  /** 이력(FR-032). **조건만** 담긴다. 다른 자산군 이력과 따로다. */
+  history: RealEstateHistoryEntry[];
+  historySaveError: string | null;
+  selectedHistory: string[];
+  comparison: ComparisonItem[];
+  comparing: boolean;
+  comparisonError: string | null;
+  restoreHistory: () => void;
+  toggleHistory: (id: string) => void;
+  removeHistoryEntry: (id: string) => void;
+  /** 이력의 조건으로 지역 풀다운부터 평형까지 맞추고 곧바로 실행한다. */
+  rerunHistory: (id: string) => Promise<void>;
+  /** 고른 이력을 **지금 다시 계산해서** 겹친다(FR-033) — 저장된 결과가 없다. */
+  compareSelected: () => Promise<void>;
   /** 화면에 돌아왔을 때 받는 중이던 작업을 다시 구독한다 — 떠날 때 끊었다. 수집은 서버에서 이어졌다. */
   resumeWatching: () => void;
   /** 화면을 떠날 때 진행 구독을 모두 끊는다. */
@@ -485,6 +507,78 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
 
     setInput: (next) => set({ input: { ...get().input, ...next } }),
 
+    history: [],
+    historySaveError: null,
+    selectedHistory: [],
+    comparison: [],
+    comparing: false,
+    comparisonError: null,
+
+    restoreHistory: () => set({ history: loadRealEstateHistory() }),
+
+    toggleHistory: (id) => {
+      const selected = get().selectedHistory;
+      set({ selectedHistory: selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id] });
+    },
+
+    removeHistoryEntry: (id) => {
+      const result = removeRealEstateHistory(id);
+      set({
+        history: loadRealEstateHistory(),
+        selectedHistory: get().selectedHistory.filter((x) => x !== id),
+        // 지운 항목의 선을 남기면 목록에 없는 조건이 차트에 남는다.
+        comparison: get().comparison.filter((c) => c.id !== id),
+        historySaveError: result.ok ? null : result.reason,
+      });
+    },
+
+    rerunHistory: async (id) => {
+      const entry = get().history.find((e) => e.id === id);
+      if (entry === undefined) return;
+      // 고르기와 같은 요청으로 목록을 채운다 — 시·도는 동 코드의 앞 2자리, 시·군·구는 앞 5자리다(법정동 코드 체계).
+      await get().selectSido(`${entry.umd.slice(0, 2)}00000000`);
+      await get().selectSgg(`${entry.umd.slice(0, 5)}00000`);
+      await get().selectUmd(entry.umd);
+      await get().selectComplex(entry.complexId);
+      get().selectArea(entry.area);
+      get().setInput({ buyDate: entry.buyDate, buyPrice: entry.buyPrice ?? "" });
+      await get().run();
+    },
+
+    compareSelected: async () => {
+      const { history, selectedHistory } = get();
+      const targets = history.filter((e) => selectedHistory.includes(e.id));
+      if (targets.length < 2) return;
+      set({ comparing: true, comparisonError: null, comparison: [] });
+      const items: ComparisonItem[] = [];
+      const failed: string[] = [];
+      for (const entry of targets) {
+        const name = `${entry.complexName} ${entry.areaLabel}`;
+        const query = simulationQuery(entry.complexId, entry.area,
+          { buyDate: entry.buyDate, buyPrice: entry.buyPrice ?? "" });
+        try {
+          const body = await apiClient.get<SimulationSeriesResponse | RealEstateTradeCollecting>(
+            `/api/realestate/simulation/series?${query}`);
+          if (isCollecting<RealEstateTradeCollecting>(body)) {
+            // 부분 결과를 완성된 선처럼 겹치지 않는다.
+            failed.push(`${name}(아직 받지 못한 구간이 있습니다 — 실행해서 받으세요)`);
+            continue;
+          }
+          // FR-033 — 잠정 거래가 들어간 선이면 범례가 말한다. `provisionalFrom`은 늘 오므로 점으로 가른다.
+          const provisional = body.points.some((p) => p.provisional === true);
+          items.push({ id: entry.id, label: provisional ? `${name} (잠정)` : name, start: entry.buyDate, series: body });
+        } catch (err) {
+          failed.push(err instanceof ApiError && err.code === "unknown_complex"
+            ? `${name}(알 수 없는 단지)` : `${name}(${message(err, "알 수 없는 오류")})`);
+        }
+      }
+      set({
+        comparison: items,
+        comparing: false,
+        comparisonError: failed.length === 0 ? null : `${failed.join(" · ")}의 시계열을 불러오지 못했습니다.`,
+      });
+    },
+
     refreshIfRan: async () => {
       if (get().summary === null) return;
       await get().run();
@@ -519,6 +613,15 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
           summary: body.summary, rows: body.rows, condition: body.condition, acquisition: body.acquisition,
           resultTarget: { complex: body.complex, area: body.area },
         });
+        // FR-032 — 실행한 조건을 이력에 남긴다. **결과는 넣지 않는다.** 수집 중(202)·거절이면 남기지 않는다 — 아직 결과가 없다.
+        if (selection.umd !== null) {
+          const saved = saveRealEstateHistory({
+            complexId: body.complex.complexId, complexName: body.complex.name, umd: selection.umd,
+            area: body.area.key, areaLabel: body.area.label, buyDate: input.buyDate,
+            buyPrice: input.buyPrice === "" ? null : input.buyPrice,
+          });
+          set({ history: loadRealEstateHistory(), historySaveError: saved.ok ? null : saved.reason });
+        }
         await loadSeries(query, seq);
       } catch (err) {
         if (seq !== runSeq) return;

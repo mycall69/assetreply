@@ -1101,3 +1101,19 @@ export interface RealEstateSettings {
   holdingTaxBaseRatio: DecimalString;
   isDefault: boolean;
 }
+
+/**
+ * 부동산 이력 한 줄 (009 FR-032, data-model "이력"). **조건만** 담는다 — 결과는 거래·세법·보유세 기준 비율의 함수라 바뀐다(005 R5-9).
+ * `umd`는 그 단지의 법정동 코드다 — 다시 실행할 때 지역 풀다운(시·도·시·군·구·동)을 맞춘다. `buyPrice`가 `null`이면 그 달 시세다.
+ */
+export interface RealEstateHistoryEntry {
+  id: string;
+  complexId: number;
+  complexName: string;
+  umd: string;
+  area: RealEstateAreaKey;
+  areaLabel: string;
+  buyDate: string;
+  buyPrice: DecimalString | null;
+  savedAt: string;
+}

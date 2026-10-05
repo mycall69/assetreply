@@ -441,7 +441,7 @@ description: "Task list for 009-real-estate-investment-simulation"
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T049 [P] [US4] `frontend/tests/realEstateHistory.test.ts`·`RealEstateHistoryList.test.tsx`(이름 — 아래 메모)·`realEstateStoreCompare.test.ts` — 저장 키가 다른 자산군과
+- [X] T049 [P] [US4] `frontend/tests/realEstateHistory.test.ts`·`RealEstateHistoryList.test.tsx`(이름 — 아래 메모)·`realEstateStoreCompare.test.ts` — 저장 키가 다른 자산군과
   다름(`assetreplay:realestate-history:v1`), 조건만(단지 id·이름, 평형 구분, 매입일, 직접 넣은 매입가 또는 null — 결과 수치 없음), 같은 조건은 맨
   앞으로, 다시 실행 = 지역 풀다운까지 그 단지의 지역으로 맞추고 조건을 넣어 곧바로 실행, 삭제, 매입가 칸 "그 달 시세" 또는 금액, 둘 이상 골라
   비교 → `ComparisonChart`, 범례에 단지·평형·매입일, 잠정 항목 "(잠정)", 빠지는 항목은 "…의 시계열을 불러오지 못했습니다"와 사유(받지 않은 구간 —
@@ -449,7 +449,7 @@ description: "Task list for 009-real-estate-investment-simulation"
 
 ### Implementation for User Story 4
 
-- [ ] T050 [US4] `frontend/src/lib/realEstateHistory.ts`·`frontend/src/components/realestate/RealEstateHistory.tsx`·`frontend/src/stores/realEstateStore.ts`
+- [X] T050 [US4] `frontend/src/lib/realEstateHistory.ts`·`frontend/src/components/realestate/RealEstateHistory.tsx`·`frontend/src/stores/realEstateStore.ts`
   (이력·비교)·`frontend/src/app/realestate/page.tsx` — E7. 비교는 `ComparisonChart` 그대로 (FR-032, FR-033)
 - [ ] T051 [US4] 브라우저 확인 — quickstart 17·18·20(비율 70% → 되돌리기, 차트와 표·보드, 이력 비교)을 실행하고 기록한다 (FR-031~FR-034,
   SC-009)
