@@ -115,9 +115,9 @@
 |------|-------------|------|
 | 엔비디아(NVDA, NASDAQ) | 고른 종목 줄 · 이력 행 | 새 탭 `https://stock.naver.com/worldstock/stock/NVDA.O/price` |
 | 삼성전자(005930.KS) | 고른 종목 줄 · 이력 행 | 새 탭 `https://stock.naver.com/domestic/stock/005930/price` |
-| NYSE·AMEX·코스닥·일본 표본 각 하나 | 고른 종목 줄 | research R10-14의 규칙 URL(확인하지 못한 시장은 링크 없음) |
+| NYSE `KO`·AMEX `IOSX`·코스닥 안랩·일본 `7203.T` | URL 규칙(단위 테스트) + 등록된 종목은 고른 종목 줄 | `KO` · `IOSX.K` · `domestic/stock/053800` · `7203.T` (research R10-14) |
 | 비트코인(BTC) | 고른 코인 · 이력 행 | 새 탭 `https://stock.naver.com/crypto/UPBIT/BTC/price` |
-| 헬리오시티 | 보드 · 이력 행 | 새 탭 네이버 부동산 검색(`송파구 가락동 헬리오시티` — R10-15)에 그 단지가 나온다 |
+| 헬리오시티 | 보드 · 이력 행 | 새 탭 네이버 검색 `가락동 헬리오시티아파트` — 맨 위 단지 카드가 `fin.land.naver.com/complexes/111515`(R10-15) |
 
 - 원래 탭의 결과(보드·표·차트)가 그대로다. 이력 행의 링크를 눌러도 행이 골라지거나 다시 실행되지 않는다. 검색 목록 항목을 누르면 지금처럼 고르기다.
 

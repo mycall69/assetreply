@@ -348,7 +348,7 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 ### 조사
 
-- [ ] T040 [US5] 네이버 URL 규칙 조사(테스트 없음 — 저장소 밖에서 브라우저·curl, 인증 정보 없음):
+- [X] T040 [US5] 네이버 URL 규칙 조사(테스트 없음 — 저장소 밖에서 브라우저·curl, 인증 정보 없음):
   - ① 네이버 증권 해외 종목 URL 접미사를 저장소의 시장 값별로 실제 페이지로 확인한다 — `NASDAQ`(NVDA → `NVDA.O`, 사용자 제공), `NYSE`(예: KO·JPM),
     `AMEX`(NYSE American·NYSE Arca ETF — 예: SPY·SOXL·JEPQ 아님 확인), `TSE`(예: 7203.T 토요타)
   - ② 국내 `KRX`의 코스피(`.KS`)·코스닥(`.KQ`)이 같은 `domestic/stock/{6자리}` 경로인지 확인한다

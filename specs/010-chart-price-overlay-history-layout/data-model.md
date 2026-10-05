@@ -117,11 +117,14 @@ SimulationSeriesResponse (+)
 |------|------|----------|
 | 국내 주식(`KRX`) | 종목코드 `005930.KS`·`091990.KQ` | `https://stock.naver.com/domestic/stock/{접미사를 뺀 6자리}/price` |
 | 미국 주식(`NASDAQ`) | 티커 `NVDA` | `https://stock.naver.com/worldstock/stock/{티커}.O/price` |
-| 미국 주식(`NYSE`·`AMEX`) · 일본(`TSE`) | 티커·`7203.T` | research R10-14(T040 실측)가 정한다 |
-| 가상자산 | 심볼 `BTC` | `https://stock.naver.com/crypto/UPBIT/{심볼}/price` — 업비트에 없는 코인은 R10-14 |
-| 부동산 단지 | 시·군·구·법정동·단지명 | 네이버 부동산 검색 URL(R10-15) — 검색어 `{시·군·구} {법정동} {단지명}`, URL 인코딩 |
+| 미국 주식(`NYSE`) | 티커 `KO` | `https://stock.naver.com/worldstock/stock/{티커}/price`(접미사 없음 — T040) |
+| 미국 주식(`AMEX`) | 티커 `IOSX` | `https://stock.naver.com/worldstock/stock/{티커}.K/price`(T040) |
+| 일본(`TSE`) | `7203.T` | `https://stock.naver.com/worldstock/stock/{저장소 심볼 그대로}/price`(T040) |
+| 그 밖의 시장 | — | 링크 없음(이름만) |
+| 가상자산 | 심볼 `BTC` | `https://stock.naver.com/crypto/UPBIT/{심볼}/price` — 늘 UPBIT(업비트에 없는 코인은 네이버 증권 홈으로 간다 — R10-14 한계) |
+| 부동산 단지 | 법정동 이름·단지명 | 네이버 통합검색 `https://search.naver.com/search.naver?query={법정동} {단지명}`(URL 인코딩) — 맨 위 단지 카드가 네이버 부동산 단지 화면으로 이어진다(R10-15). 법정동 이름을 모르면 `{단지명}` |
 
 대상 자리: 주식 — 고른 종목 줄(`StockSearch`), 이력 행(`SimulationHistory`). 가상자산 — 고른 코인 표시(`CoinSearch`), 이력 행(`CryptoHistory`).
 부동산 — 보드의 단지 이름(`RealEstateBoard`), 이력 행(`RealEstateHistory`). 검색 목록 항목(옵션)은 링크가 아니다(고르기 그대로).
-부동산 이력 항목에는 법정동 **코드**(`umd`)와 단지명만 있고 시·군·구·법정동 이름이 없다 — 검색어의 이름을 얻는 방법(저장 형식은 바꾸지 않는다 — FR-021)은 R10-15(T040)가 정한다.
+부동산 이력 항목에는 법정동 **코드**(`umd`)와 단지명만 있다 — 지금 받아 둔 행정구역(`regions.umd`)에 그 코드가 있으면 이름을 쓰고, 없으면 단지명만(R10-15, 저장 형식 불변 — FR-021).
 
