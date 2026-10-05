@@ -267,7 +267,7 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   `frontend/src/components/stock/SimulationHistory.tsx`(필수 속성 `onRerun: (id: string) => void`, 행마다 "다시 실행" 버튼 — `CryptoHistory`와 같은 문구·
   클래스, 지금 행 끝의 `ml-auto`를 버튼으로 옮긴다)·`frontend/src/app/stocks/page.tsx`(`onRerun={(id) => void rerunHistory(id)}`). ui-wireframes F4
   (FR-018~FR-020)
-- [ ] T031 [US3] quickstart 9를 실행하고 기록한다 — 다시 실행 결과(보드·표)와 같은 조건 직접 실행의 대조(다른 사례 0건), 막힌 조합 항목의 거절과
+- [X] T031 [US3] quickstart 9를 실행하고 기록한다 — 다시 실행 결과(보드·표)와 같은 조건 직접 실행의 대조(다른 사례 0건), 막힌 조합 항목의 거절과
   사유, 받지 않은 구간 항목의 수집 진행. 끝나면 서버를 내린다 (SC-005)
 
 **Checkpoint**: 주식 이력의 다시 실행이 직접 실행과 같은 결과를 낸다
