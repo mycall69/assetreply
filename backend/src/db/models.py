@@ -11,6 +11,7 @@ from decimal import Decimal
 from enum import StrEnum
 
 from sqlalchemy import (
+    CHAR,
     BigInteger,
     Boolean,
     Date,
@@ -23,6 +24,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    UniqueConstraint,
     func,
     text,
 )
@@ -864,5 +866,199 @@ class DepositSetting(Base):
 
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, default=1)
     interest_tax_rate: Mapped[Decimal] = mapped_column(SPREAD, nullable=False)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())
+
+
+# ── 009 부동산 — 아파트 매매 실거래 ───────────────────────────────────────────────────────────
+
+#: 전용면적(㎡) — 출처는 소수 2자리까지 준다. 경계 비교는 Decimal로 한다(research R9-2).
+AREA = Numeric(7, 2, asdecimal=True)
+#: 원 단위 금액 — 최고가 수백억도 담는다.
+WON = Numeric(15, 0, asdecimal=True)
+
+
+class AptRegion(Base):
+    """행정구역(시·도·시·군·구·법정동). 갱신에서 사라진 코드는 지우지 않고 `retired_at`을 남긴다 —
+    풀다운·요청에는 현존 코드만 쓴다(출처는 과거 거래도 새 코드로만 준다, research R9-3)."""
+
+    __tablename__ = "apt_region"
+
+    code: Mapped[str] = mapped_column(CHAR(10), primary_key=True)
+    level: Mapped[str] = mapped_column(String(8), nullable=False)
+    parent_code: Mapped[str | None] = mapped_column(CHAR(10), nullable=True)
+    lawd_cd: Mapped[str | None] = mapped_column(CHAR(5), nullable=True)
+    name: Mapped[str] = mapped_column(String(40), nullable=False)
+    full_name: Mapped[str] = mapped_column(String(80), nullable=False)
+    source: Mapped[str] = mapped_column(String(16), nullable=False)
+    ingested_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+    seen_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+    retired_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+
+
+class AptComplex(Base):
+    """단지. 실거래(`apt_seq`)와 단지 목록(`kapt_code`)의 같은 단지는 한 행이다. **행을 지우지 않고
+    id가 바뀌지 않는다** — 이력이 단지 id를 저장한다(FR-032). 합쳐진 행은 `merged_into`를 남긴다."""
+
+    __tablename__ = "apt_complex"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    umd_code: Mapped[str] = mapped_column(CHAR(10), nullable=False)
+    lawd_cd: Mapped[str] = mapped_column(CHAR(5), nullable=False)
+    apt_seq: Mapped[str | None] = mapped_column(String(20), nullable=True, unique=True)
+    kapt_code: Mapped[str | None] = mapped_column(String(20), nullable=True, unique=True)
+    name: Mapped[str] = mapped_column(String(80), nullable=False)
+    jibun: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    move_in_year: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    move_in_source: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    households: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    details_checked_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    merged_into: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())
+
+
+class AptTrade(Base):
+    """거래 하나. 유니크 키는 (자산 식별자, 날짜)를 **거래 사건**에 맞춘 것이다 — 같은 날 같은
+    층·면적·금액의 다른 호가 있어 응답 안 순번까지 넣는다(research R9-4). 바뀌는
+    필드(유형·해제·사라짐)만 upsert로 고친다. 해제·사라진 행은 지우지 않고 집계에서 뺀다."""
+
+    __tablename__ = "apt_trade"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    lawd_cd: Mapped[str] = mapped_column(CHAR(5), nullable=False)
+    deal_ym: Mapped[str] = mapped_column(CHAR(6), nullable=False)
+    deal_date: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    apt_seq: Mapped[str] = mapped_column(String(20), nullable=False)
+    umd_code: Mapped[str] = mapped_column(CHAR(10), nullable=False)
+    jibun: Mapped[str] = mapped_column(String(20), nullable=False)
+    apt_name: Mapped[str] = mapped_column(String(80), nullable=False)
+    apt_dong: Mapped[str] = mapped_column(String(20), nullable=False)
+    floor: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    excl_area: Mapped[Decimal] = mapped_column(AREA, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(WON, nullable=False)
+    occurrence: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    dealing_type: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    cancelled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    cancelled_on: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    missing_since: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    # `absent`(다시 받은 응답에 없음) · `region_retired`(시·군·구 코드가 사라짐)
+    missing_reason: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    source: Mapped[str] = mapped_column(String(16), nullable=False)
+    ingested_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("lawd_cd", "deal_date", "apt_seq", "apt_dong", "floor", "excl_area",
+                         "amount", "occurrence", name="uq_apt_trade_event"),
+        Index("ix_apt_trade_complex", "apt_seq", "deal_date"),
+    )
+
+
+class AptRawResponse(Base):
+    """받은 원본. **요청 URL은 담지 않는다** — 인증키가 질의 문자열에 있다(FR-013). 같은 요청의
+    마지막 원본과 본문이 같으면 새 행을 만들지 않는다(`body_sha256`) — 다른 판은 모두 남아 잠정→확정
+    변화를 추적한다."""
+
+    __tablename__ = "apt_raw_response"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    endpoint: Mapped[str] = mapped_column(String(24), nullable=False)
+    request_ref: Mapped[str] = mapped_column(String(40), nullable=False)
+    status_code: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    result_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    body: Mapped[str] = mapped_column(Text(length=16_777_215), nullable=False)
+    body_sha256: Mapped[str] = mapped_column(CHAR(64), nullable=False)
+    received_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+    __table_args__ = (
+        Index("ix_apt_raw_request", "endpoint", "request_ref", "received_at"),
+        Index("ix_apt_raw_received", "received_at"),
+    )
+
+
+class AptTradeCoverage(Base):
+    """받은 달(시·군·구 × 계약 월). 잠정(최근 12개월)은 다시 받는다 — 최근 3개월은 하루 한 번, 그
+    앞은 한 달에 한 번. `checked_on`은 **성공했을 때만** 바뀐다(FR-010)."""
+
+    __tablename__ = "apt_trade_coverage"
+
+    lawd_cd: Mapped[str] = mapped_column(CHAR(5), primary_key=True)
+    deal_ym: Mapped[str] = mapped_column(CHAR(6), primary_key=True)
+    state: Mapped[str] = mapped_column(String(12), nullable=False)
+    trade_rows: Mapped[int] = mapped_column(Integer, nullable=False)
+    checked_on: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())
+
+
+class AptCollectionJob(Base):
+    """수집 작업 — 실거래(시·군·구), 행정구역(전국), 단지 기본 정보(법정동). 진행은 종류마다 분모가
+    달라도 `done`· `total` 한 쌍으로 읽는다(달·단지·쪽)."""
+
+    __tablename__ = "apt_collection_job"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False)
+    target: Mapped[str] = mapped_column(String(20), nullable=False)
+    total: Mapped[int] = mapped_column(Integer, nullable=False)
+    done: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    status: Mapped[JobStatus] = mapped_column(
+        Enum(JobStatus, native_enum=False, length=16), nullable=False)
+    started_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
+    finished_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    # 사유 종류(`auth`·`rate_limited`·`format`·`network`)를 앞에 둔다(FR-014). 문구는 키를 지운다.
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (Index("ix_apt_job_target", "kind", "target", "status"),)
+
+
+class AptCollectionLock(Base):
+    """같은 대상의 단일 수집 작업 잠금. 기본 키 INSERT 충돌이 곧 "이미 진행 중"이다(FR-012)."""
+
+    __tablename__ = "apt_collection_lock"
+
+    kind: Mapped[str] = mapped_column(String(16), primary_key=True)
+    target: Mapped[str] = mapped_column(String(20), primary_key=True)
+    job_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("apt_collection_job.id"), nullable=False)
+    acquired_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
+    heartbeat_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())
+
+
+class AptApiUsage(Base):
+    """자료별 하루 호출 수(한국 시간 날짜). 보내기 **전에** 더하고 설정 한도를 넘으면 보내지
+    않는다(SC-012)."""
+
+    __tablename__ = "apt_api_usage"
+
+    api: Mapped[str] = mapped_column(String(16), primary_key=True)
+    kst_date: Mapped[dt.date] = mapped_column(Date, primary_key=True)
+    calls: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
+class AptListState(Base):
+    """목록 갱신 상태 — `regions`(전국), `umd:<법정동>`(그 동의 단지 목록), `sgg:<시·군·구>`(그
+    시·군·구의 실거래, 처음 거래가 있는 달)."""
+
+    __tablename__ = "apt_list_state"
+
+    scope: Mapped[str] = mapped_column(String(20), primary_key=True)
+    refreshed_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    first_trade_ym: Mapped[str | None] = mapped_column(CHAR(6), nullable=True)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())
+
+
+class AptSetting(Base):
+    """부동산 설정. **전역 단일 행**, 다른 자산군 설정과 따로다(FR-034). 행이 없으면
+    기본값(0.600000)이다."""
+
+    __tablename__ = "apt_setting"
+
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, default=1)
+    holding_tax_base_ratio: Mapped[Decimal] = mapped_column(SPREAD, nullable=False)
     updated_at: Mapped[dt.datetime] = mapped_column(
         TS, server_default=func.now(), onupdate=func.now())

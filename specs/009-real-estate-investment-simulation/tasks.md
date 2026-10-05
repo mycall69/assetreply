@@ -131,20 +131,20 @@ description: "Task list for 009-real-estate-investment-simulation"
   두 번 읽어도 같은 순번), 행 수 = README의 `totalCount`, 쪽 둘을 합쳐도 순번이 이어짐, `totalCount 0` → 빈 결과(오류 아님), **받은 행 수 ≠
   `totalCount` → 형식 오류(잘림)**, 금액·면적을 읽지 못하는 행이 하나라도 있으면 **응답 전체가 형식 오류**, `resultCode ≠ 000` → 형식 오류,
   XML이 아님 → 연결 오류, 게이트웨이 응답(사유 30 → 인증, 22 → 한도, 12 → 형식) (FR-008, FR-009, FR-014, FR-019, research R9-1·R9-4)
-- [ ] T005 [P] `backend/tests/contract/test_datagokr_lists_parse.py` — 법정동코드 → `Region`: 시·도·시·군·구·법정동 단계(`level` `sido`·`sgg`·`umd`),
+- [X] T005 [P] `backend/tests/contract/test_datagokr_lists_parse.py` — 법정동코드 → `Region`: 시·도·시·군·구·법정동 단계(`level` `sido`·`sgg`·`umd`),
   **리(`ri_cd ≠ 00`) 제외**, 실거래 요청 단위 `lawd_cd`(5자리), 수원시처럼 일반시 아래 구가 있으면 **구를 시·군·구로**(이름 "수원시 장안구")
   보이고 상위 시(41110)는 시·군·구 목록에서 뺌, 출처는 폐지 코드를 주지 않음(옛 "강원도" → `INFO-3` 결과 없음 — 오류가 아니라 빈 결과,
   T001 실측), 단지 목록 → `ComplexListing`(`kaptCode`·이름·`bjdCode`), 기본 정보 → `ComplexBasis`(세대수 = `kaptdaCnt`(실수 → 정수), **0이면
   `hoCnt`, 그것도 0이면 `None`** — 더샵송파루미스타 0.0·183, 사용승인일 `YYYYMMDD` → 연도, 지번 주소에서 본번·부번 — `142-`는 부번 0, 못
   읽으면 `None`), 없는 단지 코드(`kaptCode: null`) → 결과 없음. 빈 목록은 빈 결과 (FR-002, FR-003, FR-015, research R9-3)
-- [ ] T006 [P] `backend/tests/contract/test_datagokr_client.py`·`test_datagokr_gate.py`·`backend/tests/integration/test_apt_usage.py`(DB 계수기 — 한도까지 세고 멈춤, 자료·날짜별, 다시 만들어도 이어 셈, 동시 요청도 한도만큼만) — 가짜 세션으로: 요청 URL의 모양(자료별 경로, `LAWD_CD`·
+- [X] T006 [P] `backend/tests/contract/test_datagokr_client.py`·`test_datagokr_gate.py`·`backend/tests/integration/test_apt_usage.py`(DB 계수기 — 한도까지 세고 멈춤, 자료·날짜별, 다시 만들어도 이어 셈, 동시 요청도 한도만큼만) — 가짜 세션으로: 요청 URL의 모양(자료별 경로, `LAWD_CD`·
   `DEAL_YMD`·`pageNo`·`numOfRows=1000`), **키는 한 번만 인코딩**(가짜 키 `TEST+KEY/1234567890abcd==`가 `%2B`·`%2F`·`%3D`로 한 번 — `%25`가
   없다), 돌려주는 원본에 URL이 없음, **연결 오류·HTTP 오류의 문구에 키가 없다** — 64자 영숫자 가짜 키와 `+`·`/`·`=`가 든 가짜 키 둘 다, 날 것과
   인코딩된 것 둘 다(문구에 URL이 섞인 aiohttp 예외를 흉내), 연결 오류·HTTP 5xx는 지수 백오프 + 지터로 `DATA_API_RETRY_MAX_ATTEMPTS`만큼
   재시도(지연 `DATA_API_RETRY_BASE_DELAY_MS` × 2ⁿ + 지터 — 주입한 잠), 인증·한도(사유 22)는 재시도하지 않음, 넘겨받은 세션을 닫지 않음. 관문(`DataGoKrGate`): 동시 요청이 `DATA_API_MAX_CONCURRENT`를 넘지 않음(실거래 줄·목록 줄·요청
   경로가 함께), **자료별 하루 호출 수를 보내기 전에 세고 한도에 닿으면 보내지 않고 한도 오류**(주입한 계수기·한국 시간 날짜 — 자정이 지나면 다시
   0부터), 사유 22를 받으면 그날 그 자료의 요청을 더 보내지 않음 (FR-012, FR-013, FR-014, SC-011, SC-012, 헌법 원칙 II, research R9-5)
-- [ ] T007 [P] `backend/tests/integration/test_apt_schema.py` — 마이그레이션 뒤 테이블 10개와 열(data-model — 작업은 `kind`·`target`·`total`·`done`): `apt_region`(`code CHAR(10)` PK, `level
+- [X] T007 [P] `backend/tests/integration/test_apt_schema.py` — 마이그레이션 뒤 테이블 10개와 열(data-model — 작업은 `kind`·`target`·`total`·`done`): `apt_region`(`code CHAR(10)` PK, `level
   VARCHAR(8)`, `parent_code CHAR(10) NULL`, `lawd_cd CHAR(5) NULL`, `name VARCHAR(40)`, `full_name VARCHAR(80)`, `source VARCHAR(16)`, `ingested_at`,
   `seen_at`, `retired_at NULL`), `apt_complex`(`apt_seq VARCHAR(20) NULL UNIQUE`, `kapt_code VARCHAR(20) NULL UNIQUE`, `name VARCHAR(80)`, `jibun
   VARCHAR(20) NULL`, `move_in_year SMALLINT NULL`, `move_in_source VARCHAR(8) NULL`, `households INT NULL`, `details_checked_at NULL`, `merged_into
@@ -156,7 +156,7 @@ description: "Task list for 009-real-estate-investment-simulation"
   `apt_collection_lock`((`kind`, `target`) PK), `apt_api_usage`((`api`, `kst_date`) PK, `calls INT`), `apt_list_state`(`scope VARCHAR(20)` PK,
   `first_trade_ym CHAR(6) NULL`), `apt_setting`(`holding_tax_base_ratio DECIMAL(9,6)`, 행 없음 = 기본). `FLOAT`·`DOUBLE` 열이 없음, 마이그레이션
   하향·재상향 (FR-009, FR-012, FR-034, data-model 1~9절)
-- [ ] T008 [P] `backend/tests/unit/test_datagokr_boundaries.py`·`backend/tests/contract/test_apt_fixtures_no_key.py` — 공공데이터포털 응답 고유
+- [X] T008 [P] `backend/tests/unit/test_datagokr_boundaries.py`·`backend/tests/contract/test_apt_fixtures_no_key.py` — 공공데이터포털 응답 고유
   이름(`aptSeq`·`excluUseAr`·`dealAmount`·`cdealType`·`dealingGbn`·`kaptCode`·`kaptdaCnt`·`region_cd`·`locatadd_nm`·`resultCode`·
   `returnReasonCode`·`serviceKey`·`OpenAPI_ServiceResponse`)이 `src/ingestion/datagokr/` 밖(마이그레이션 제외)에 없다. `simulation/apt_*.py`가
   상위 계층을 임포트하지 않는다(기존 `test_layer_boundaries.py`가 이미 검사 — 바꾸지 않는다). 픽스처 전체(압축 안 포함)에 `.env`의 `DATA_API_KEY`
@@ -164,16 +164,16 @@ description: "Task list for 009-real-estate-investment-simulation"
 
 ### Implementation for Phase 2
 
-- [ ] T009 `backend/src/config/settings.py`(테스트 `backend/tests/unit/test_settings_datagokr.py`) — `data_api_key`(비밀 — repr에 나오지 않게), `data_api_max_concurrent`(기본 3, 최소 1),
+- [X] T009 `backend/src/config/settings.py`(테스트 `backend/tests/unit/test_settings_datagokr.py`) — `data_api_key`(비밀 — repr에 나오지 않게), `data_api_max_concurrent`(기본 3, 최소 1),
   `data_api_daily_limit_trade`(9000)·`_kapt`(4500)·`_region`(9000)(최소 1), `data_api_retry_max_attempts`(4, 최소 1)·`data_api_retry_base_delay_ms`
   (1000, 최소 0), `apt_trade_probe_start`(**코드 기본값 없음** — 없으면 None, `YYYY-MM` 검사. 헌법 — 시작일을 코드에 두지 않는다, 001 `ECOS_PROBE_FLOOR`와 같은 취지. 없으면 실거래 수집이 사유와 함께 멈춘다), `apt_trade_provisional_months`(12, 최소 1), `apt_trade_daily_recheck_months`(3,
   최소 1, 잠정 개월 이하), `apt_list_refresh_days`(30, 최소 1), `load_settings`에 연결 (FR-010, FR-012, FR-013, 헌법 원칙 II)
-- [ ] T010 `backend/src/db/models.py`·`backend/src/db/migrations/versions/…_부동산_스키마.py` — Apt* 9개(data-model 1~9절). 형식 이름 `AREA`
+- [X] T010 `backend/src/db/models.py`·`backend/src/db/migrations/versions/…_부동산_스키마.py` — Apt* 9개(data-model 1~9절). 형식 이름 `AREA`
   (`DECIMAL(7,2)`)·`WON`(`DECIMAL(15,0)`), 비율은 기존 `SPREAD`. 이전 head `c4d8e2f91b07` (FR-009, FR-034)
-- [ ] T011 `backend/src/ingestion/protocols.py`(`AptTrade`·`Region`·`ComplexListing`·`ComplexBasis`·결과·원본 타입, 출처 Protocol)·
+- [ ] T011 (2026-10-05 진행 중 — 실거래 파서 `trade_parse.py`만 남음: 상세 자료 등록 대기) `backend/src/ingestion/protocols.py`(`AptTrade`·`Region`·`ComplexListing`·`ComplexBasis`·결과·원본 타입, 출처 Protocol)·
   `backend/src/ingestion/datagokr/errors.py`(인증·한도·형식·연결)·`trade_parse.py`·`region_parse.py`·`kapt_parse.py` (FR-002, FR-003, FR-008,
   FR-014, FR-019, research R9-1·R9-3·R9-4)
-- [ ] T012 `backend/src/ingestion/datagokr/gate.py`(`DataGoKrGate` — 이벤트 루프마다 하나, 동시 수 + 자료별 하루 계수(주입한 `UsageCounter`
+- [ ] T012 (2026-10-05 진행 중 — `fetch_trades`만 남음: 상세 자료 등록 대기) `backend/src/ingestion/datagokr/gate.py`(`DataGoKrGate` — 이벤트 루프마다 하나, 동시 수 + 자료별 하루 계수(주입한 `UsageCounter`
   Protocol) + 사유 22 막힘)·`backend/src/ingestion/datagokr/client.py`(`DataGoKrClient(settings, gate, *, session=None)` — `fetch_trades(lawd_cd,
   ym, page)`·`fetch_regions(page)`·`fetch_complex_list(bjd_code)`·`fetch_complex_basis(kapt_code)` → (결과, 원본 본문), 키 한 번 인코딩, 오류 문구에서
   키를 직접 지운 뒤 `mask_secrets`, 재시도 설정으로 백오프+지터)·`backend/src/repository/apt_usage.py`(하루 호출 수 — 한국 시간 날짜, `UsageCounter` 구현)

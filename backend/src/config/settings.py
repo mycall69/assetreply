@@ -133,6 +133,31 @@ def _env_date(key: str) -> dt.date | None:
         raise ValueError(f"{key}는 YYYY-MM-DD 형식이어야 합니다: {raw!r}") from exc
 
 
+def _env_month(key: str) -> dt.date | None:
+    """`YYYY-MM` 달(그 달 1일). 없으면 None — 시작일에 코드 기본값을 두지 않는다(헌법)."""
+    raw = os.getenv(key)
+    if not raw:
+        return None
+    parts = raw.split("-")
+    shaped = len(parts) == 2 and len(parts[0]) == 4 and len(parts[1]) == 2
+    if not shaped or not raw.replace("-", "").isdigit():
+        raise ValueError(f"{key}는 YYYY-MM 형식이어야 합니다: {raw!r}")
+    try:
+        return dt.date(int(parts[0]), int(parts[1]), 1)
+    except ValueError as exc:
+        raise ValueError(f"{key}는 YYYY-MM 형식이어야 합니다: {raw!r}") from exc
+
+
+def _recheck_months(provisional: int) -> int:
+    """하루 한 번 다시 받는 최근 개월 수 — 잠정 기간 안이어야 한다."""
+    value = _env_int("APT_TRADE_DAILY_RECHECK_MONTHS", 3, minimum=1)
+    if value > provisional:
+        raise ValueError(
+            f"APT_TRADE_DAILY_RECHECK_MONTHS({value})는 "
+            f"APT_TRADE_PROVISIONAL_MONTHS({provisional}) 이하여야 합니다")
+    return value
+
+
 def _probe_starts() -> tuple[tuple[str, dt.date], ...]:
     """통화별 탐색 시작일. 통화별 설정이 없으면 전역 하한을 쓴다.
 
@@ -178,6 +203,30 @@ class Settings:
     # 예금 금리를 다시 확인할 때 마지막으로 받은 달의 몇 달 전부터 받을지 — 겹친 달로 출처의
     # 사후 수정을 관측한다(덮어쓰지 않는다, 008 R8-4).
     deposit_recheck_overlap_months: int = 2
+
+    # ── 공공데이터포털 — 실거래·법정동코드·단지 목록·기본 정보 (009 research R9-5) ──
+    # 네 자료가 같은 인증키다(활용신청 네 건). 키는 URL 질의에 들어가므로 URL을 남기지
+    # 않는다(FR-013).
+    data_api_key: _Secret = field(default_factory=lambda: _Secret(""), repr=False)
+    # 네 자료가 함께 쓰는 동시 요청 수 — 한 프로세스의 관문(`DataGoKrGate`)이 지킨다.
+    data_api_max_concurrent: int = 3
+    # 자료별 하루 호출 한도(한국 시간 날짜). 보내기 전에 세고 넘으면 보내지 않는다 — 포털
+    # 한도(10,000·5,000)에서 여유를 뒀다.
+    data_api_daily_limit_trade: int = 9000
+    data_api_daily_limit_kapt: int = 4500
+    data_api_daily_limit_region: int = 9000
+    # 한 요청의 최대 시도 횟수(첫 시도 포함)와 재시도 간격 기준 — 연결 실패·5xx만 다시 시도한다.
+    data_api_retry_max_attempts: int = 4
+    data_api_retry_base_delay_ms: int = 1000
+    # 시·군·구의 첫 거래 달을 찾기 시작하는 달. **코드 기본값이 없다** — 헌법은 시작일을 코드에 두지
+    # 못하게 한다(001 `ECOS_PROBE_FLOOR`와 같은 취지). 없으면 실거래 수집이 사유와 함께 멈춘다.
+    apt_trade_probe_start: dt.date | None = None
+    # 잠정 기간(개월, 계약 월 기준)과 그중 하루 한 번 다시 받는 최근 개월 수 — 그 앞의 잠정 달은 한
+    # 달에 한 번(R9-5).
+    apt_trade_provisional_months: int = 12
+    apt_trade_daily_recheck_months: int = 3
+    # 행정구역·동의 단지 목록을 다시 받는 주기(일).
+    apt_list_refresh_days: int = 30
 
     # ── 주식 시세 출처 (005 research R5-1) ──
     #
@@ -328,6 +377,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
     if not api_key:
         raise ValueError("ECOS_API_KEY가 설정되지 않았습니다. 저장소 루트 .env를 확인하세요.")
 
+    provisional_months = _env_int("APT_TRADE_PROVISIONAL_MONTHS", 12, minimum=1)
     return Settings(
         ecos_api_key=_Secret(api_key),
         ecos_chunk_days=_env_int("ECOS_CHUNK_DAYS", 365, minimum=1),
@@ -338,6 +388,17 @@ def load_settings(env_file: Path | None = None) -> Settings:
         ecos_retry_base_delay_ms=_env_int("ECOS_RETRY_BASE_DELAY_MS", 1000),
         ecos_max_concurrent_requests=_env_int("ECOS_MAX_CONCURRENT_REQUESTS", 3, minimum=1),
         deposit_recheck_overlap_months=_env_int("DEPOSIT_RECHECK_OVERLAP_MONTHS", 2),
+        data_api_key=_Secret(_env_str("DATA_API_KEY")),
+        data_api_max_concurrent=_env_int("DATA_API_MAX_CONCURRENT", 3, minimum=1),
+        data_api_daily_limit_trade=_env_int("DATA_API_DAILY_LIMIT_TRADE", 9000, minimum=1),
+        data_api_daily_limit_kapt=_env_int("DATA_API_DAILY_LIMIT_KAPT", 4500, minimum=1),
+        data_api_daily_limit_region=_env_int("DATA_API_DAILY_LIMIT_REGION", 9000, minimum=1),
+        data_api_retry_max_attempts=_env_int("DATA_API_RETRY_MAX_ATTEMPTS", 4, minimum=1),
+        data_api_retry_base_delay_ms=_env_int("DATA_API_RETRY_BASE_DELAY_MS", 1000),
+        apt_trade_probe_start=_env_month("APT_TRADE_PROBE_START"),
+        apt_trade_provisional_months=provisional_months,
+        apt_trade_daily_recheck_months=_recheck_months(provisional_months),
+        apt_list_refresh_days=_env_int("APT_LIST_REFRESH_DAYS", 30, minimum=1),
         stock_source_base_url=_env_str(
             "STOCK_SOURCE_BASE_URL", "https://query1.finance.yahoo.com"),
         stock_chunk_delay_ms=_env_int("STOCK_CHUNK_DELAY_MS", 1500),

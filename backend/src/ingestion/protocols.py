@@ -96,3 +96,66 @@ class DepositSeries(Protocol):
 
     @property
     def start_month(self) -> dt.date: ...
+
+
+# ── 009 부동산 — 공공데이터포털 자료의 도메인 형식(출처 필드명이 없다, 헌법 원칙 II) ──────────────
+
+@dataclass(frozen=True, slots=True)
+class AptTrade:
+    """아파트 매매 거래 하나. 금액은 원 단위 정수, 면적은 `Decimal`(헌법 원칙 VI). 날짜는 한국 시간
+    달력이다.
+
+    `occurrence`는 같은 응답 안에서 키 필드가 모두 같은 행의 순번(0부터)이다 — 같은 날 같은
+    층·면적·금액의 다른 호가 있다(research R9-4).
+    """
+
+    lawd_cd: str
+    deal_ym: str
+    deal_date: dt.date
+    apt_seq: str
+    umd_code: str
+    jibun: str
+    apt_name: str
+    apt_dong: str
+    floor: int
+    excl_area: Decimal
+    amount: int
+    occurrence: int
+    dealing_type: str | None
+    cancelled: bool
+    cancelled_on: dt.date | None
+    build_year: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class Region:
+    """행정구역 하나 — 시·도(`sido`), 시·군·구(`sgg`, 실거래 요청 단위), 법정동(`umd`)."""
+
+    code: str
+    level: str
+    parent_code: str | None
+    lawd_cd: str | None
+    name: str
+    full_name: str
+
+
+@dataclass(frozen=True, slots=True)
+class ComplexListing:
+    """단지 목록 자료의 단지 — 이름을 기다림 없이 곧바로 보인다(FR-003)."""
+
+    kapt_code: str
+    name: str
+    bjd_code: str
+
+
+@dataclass(frozen=True, slots=True)
+class ComplexBasis:
+    """단지 기본 정보 — 세대수·입주년도·지번(짝짓기 근거). 모르는 값은 None이다(지어내지 않는다)."""
+
+    kapt_code: str
+    name: str
+    households: int | None
+    move_in_year: int | None
+    bjd_code: str
+    bonbun: int | None
+    bubun: int | None

@@ -1,0 +1,113 @@
+"""행정안전부 법정동코드 파서 (009 T011, FR-002, FR-015, research R9-3).
+
+응답(`type=json`)은 `{"StanReginCd":[{"head":[{"totalCount":N}, …, {"RESULT":{…}}]},
+{"row":[…]}]}`이다.
+결과 없음은 `{"RESULT":{"resultCode":"INFO-3"}}` — 오류가 아니라 빈 쪽이다. **출처는 폐지 코드를
+주지 않는다**(옛 "강원도"는 INFO-3 — T001 실측). 그래서 갱신에서 사라진 코드가 곧 폐지다(저장 계층이
+`retired_at`을 남긴다).
+
+`build_regions`는 여러 쪽을 모은 행으로 화면용 단계를 만든다:
+
+- 리(`ri_cd ≠ 00`)는 뺀다 — 법정동까지만 쓴다
+- 일반시 아래 구(수원시 장안구 …)는 **구를 시·군·구로** 보이고 이름을 "수원시 장안구"로 붙인다. 상위
+  시(41110)는 뺀다.
+  구 행의 상위 코드가 시가 아니라 도(4100000000)라, 다른 시·군·구의 이름이 "경기도 수원시 "로
+  시작하는지로 판정한다
+- 실거래 요청 단위(`lawd_cd`)는 시·군·구 5자리다
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Iterable
+from dataclasses import dataclass
+
+from src.ingestion.datagokr.errors import DataGoKrFormatError, DataGoKrUnavailable
+from src.ingestion.protocols import Region
+
+_OK = "INFO-0"
+_NO_DATA = "INFO-3"
+
+
+@dataclass(frozen=True, slots=True)
+class RegionRow:
+    """출처의 한 행을 정규화한 것 — 단계는 아직 정하지 않았다."""
+
+    code: str
+    sido_cd: str
+    sgg_cd: str
+    umd_cd: str
+    ri_cd: str
+    full_name: str
+    high_code: str
+    low_name: str
+
+
+@dataclass(frozen=True, slots=True)
+class RegionPage:
+    total_count: int
+    rows: tuple[RegionRow, ...]
+
+
+def _text(row: dict[str, object], key: str, length: int | None = None) -> str:
+    value = row.get(key)
+    if not isinstance(value, str):
+        raise DataGoKrFormatError(f"법정동코드 행의 {key} 값을 읽을 수 없습니다: {value!r}")
+    if length is not None and (len(value) != length or not value.isdigit()):
+        raise DataGoKrFormatError(f"법정동코드 행의 {key} 값을 읽을 수 없습니다: {value!r}")
+    return value
+
+
+def parse_regions(body: str) -> RegionPage:
+    """법정동코드 한 쪽. JSON이 아니면 연결 오류(점검 안내 등), 모르는 결과 코드는 형식 오류."""
+    try:
+        data = json.loads(body)
+    except json.JSONDecodeError as exc:
+        raise DataGoKrUnavailable("법정동코드 응답이 JSON이 아닙니다") from exc
+    if isinstance(data, dict) and "RESULT" in data:
+        code = str(data["RESULT"].get("resultCode", ""))
+        if code == _NO_DATA:
+            return RegionPage(0, ())
+        raise DataGoKrFormatError(f"법정동코드 결과 코드 {code}")
+    try:
+        head, body_part = data["StanReginCd"][0]["head"], data["StanReginCd"][1]["row"]
+        result = next(h["RESULT"] for h in head if "RESULT" in h)
+        total = int(next(h["totalCount"] for h in head if "totalCount" in h))
+    except (KeyError, IndexError, TypeError, StopIteration, ValueError) as exc:
+        raise DataGoKrFormatError("법정동코드 응답의 모양이 다릅니다") from exc
+    if result.get("resultCode") != _OK:
+        raise DataGoKrFormatError(f"법정동코드 결과 코드 {result.get('resultCode')}")
+    rows = tuple(
+        RegionRow(
+            code=_text(row, "region_cd", 10), sido_cd=_text(row, "sido_cd", 2),
+            sgg_cd=_text(row, "sgg_cd", 3), umd_cd=_text(row, "umd_cd", 3),
+            ri_cd=_text(row, "ri_cd", 2),
+            full_name=_text(row, "locatadd_nm").strip(), high_code=_text(row, "locathigh_cd", 10),
+            low_name=_text(row, "locallow_nm").strip(),
+        )
+        for row in body_part
+    )
+    return RegionPage(total, rows)
+
+
+def build_regions(rows: Iterable[RegionRow]) -> tuple[Region, ...]:
+    """여러 쪽의 행으로 시·도 → 시·군·구 → 법정동을 만든다(리 제외, 일반시 아래 구는 구를
+    시·군·구로)."""
+    used = [row for row in rows if row.ri_cd == "00"]
+    sgg = [row for row in used if row.sgg_cd != "000" and row.umd_cd == "000"]
+    cities_with_gu = {city.code for city in sgg
+                      if any(other.full_name.startswith(city.full_name + " ") for other in sgg)}
+    regions: list[Region] = []
+    for row in used:
+        if row.sgg_cd == "000":
+            regions.append(Region(row.code, "sido", None, None, row.full_name, row.full_name))
+        elif row.umd_cd == "000":
+            if row.code in cities_with_gu:
+                continue
+            name = " ".join(row.full_name.split()[1:]) or row.low_name
+            regions.append(Region(row.code, "sgg", row.sido_cd + "00000000", row.code[:5], name,
+                                  row.full_name))
+        else:
+            regions.append(Region(row.code, "umd", row.high_code, row.code[:5], row.low_name,
+                                  row.full_name))
+    return tuple(regions)
