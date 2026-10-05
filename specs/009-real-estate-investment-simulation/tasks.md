@@ -198,13 +198,13 @@ description: "Task list for 009-real-estate-investment-simulation"
   69.99·70·84.99·85·85.01·104.99·105·134.99·135·164.99·165)이 `Decimal`로 정확히 갈림, 헬리오시티의 실제 면적(39.1~39.86·49.19~49.32 → 10평대,
   59.96 → 20평대, 84.94~84.99 → 30평대(국평), 99.6 → 30평대(대형), 110.44·110.66·130.06 → 40평대, 150.07·150.09 → 50평대), 경계표가 화면용 형태
   (`minArea`·`maxArea`·`maxInclusive`)로 나옴 (FR-004, research R9-2)
-- [ ] T014 [P] [US1] `backend/tests/unit/test_realestate_complex_match.py` — 순수 함수: 단지 목록(가락동 픽스처)과 실거래 단지(송파구 픽스처의
+- [X] T014 [P] [US1] `backend/tests/unit/test_realestate_complex_match.py` — 순수 함수: 단지 목록(가락동 픽스처)과 실거래 단지(송파구 픽스처의
   가락동 거래)를 **법정동 코드가 같고 본번·부번이 같거나, 정규화 이름(공백·괄호와 그 안·"아파트" 제거)이 같고 그 동의 두 자료에서 하나씩뿐**
   이면 짝지음 — **헬리오시티는 대표 지번이 다르다(단지 목록 479, 실거래 913 — T001 실측)** 이름으로 짝지어 실거래의 그 `aptSeq`와 한 행,
   짝짓지 못한 실거래 단지는 따로(세대수 없음), 같은 동의 같은 이름 다른 지번 → 둘(이름으로 짝짓지 않음), 같은 `aptSeq`의 이름이 바뀌어도 하나(최근
   이름), 짝짓기 결과에 같은 단지가 두 번 나오지 않음, **두 행이 이미 따로 있을 때 짝이 드러나면 먼저 만든 행에 합치고 다른 행은 `merged_into`**
   (지우지 않음 — 결과가 "합칠 행 쌍"으로 나온다). 가락동 픽스처의 짝짓기 성공·실패 수를 기대값으로 고정 (FR-003, FR-032, research R9-3)
-- [ ] T015 [P] [US1] `backend/tests/integration/test_apt_trade_collection.py` — 가짜 출처(T001 픽스처)로 실거래 실행기: **첫 달 탐색**
+- [X] T015 [P] [US1] `backend/tests/integration/test_apt_trade_collection.py` — 가짜 출처(T001 픽스처)로 실거래 실행기: **첫 달 탐색**
   (`APT_TRADE_PROBE_START`부터, 처음 거래가 있는 달을 `apt_list_state.first_trade_ym`에 — 2005-12), 달마다 `totalCount`만큼 쪽을 넘김, 거래 upsert
   (`source = molit:aptdev`, `ingested_at`은 다시 받아도 그대로), 원본은 쪽마다 한 행(본문만, `request_ref` `11710/202001/p1`), 커버리지(잠정 기간
   밖 `confirmed`, 최근 12개월 `provisional`, `trade_rows`, `checked_on` = 한국 시간 오늘), **같은 달을 다시 받아도 행이 늘지 않음**, 다시 받은 응답에
@@ -217,7 +217,7 @@ description: "Task list for 009-real-estate-investment-simulation"
   `checked_on`을 갱신하지 않음**, **하루 한도에 닿으면 받은 달까지 커버리지에 남기고 `rate_limited`로 멈추며 다음 실행은 받은 달 뒤부터**, 같은
   시·군·구 점유 중이면 두 번째 작업 없음, 실패 사유·사건·원본에 인증키 문자열 0건, 수집 전용 로그에 시작·완료·실패(시·군·구·구간·종류)
   (FR-002, FR-008~FR-014, FR-019, SC-006, SC-011, SC-012, research R9-3~R9-5)
-- [ ] T016 [P] [US1] `backend/tests/integration/test_apt_list_collection.py` — 가짜 출처로 목록 줄: 행정구역 전체를 쪽마다 받아 upsert(`seen_at`),
+- [X] T016 [P] [US1] `backend/tests/integration/test_apt_list_collection.py` — 가짜 출처로 목록 줄: 행정구역 전체를 쪽마다 받아 upsert(`seen_at`),
   **다음 갱신에서 사라졌거나 폐지로 표시된 코드는 지우지 않고 `retired_at`**(시·군·구면 그 `lawd_cd`의 거래에 `missing_since`·`missing_reason =
   region_retired`), **새 코드로 받은 거래의 `apt_seq`가 같은 단지 행은 `umd_code`·`lawd_cd`가 새 코드로 바뀜**(식별자가 바뀐 경우 — 다른 `apt_seq` —
   옛 행은 그대로), 30일
@@ -225,7 +225,7 @@ description: "Task list for 009-real-estate-investment-simulation"
   받음), 기본 정보는 새 단지만 1회로 세대수·입주년도 채움(`details_checked_at`), 실거래를 받은 뒤 짝짓기로 단지 행 합침(같은 행에 `apt_seq`·
   `kapt_code` — 두 행이 이미 있으면 먼저 만든 행에 합치고 다른 행 `merged_into`), 입주년도는 사용승인 연도(`move_in_source = kapt`) → 없으면 실거래
   건축년도(`trade`), 한도·실패 종류는 실거래와 같음 (FR-002, FR-003, FR-012, FR-014, FR-015, FR-032, research R9-3)
-- [ ] T017 [P] [US1] `backend/tests/integration/test_realestate_lists_api.py` — `GET /api/realestate/regions`: 처음 → 202(`kind: region`, `progressUrl`)와
+- [X] T017 [P] [US1] `backend/tests/integration/test_realestate_lists_api.py` — `GET /api/realestate/regions`: 처음 → 202(`kind: region`, `progressUrl`)와
   수집 요청, 그 작업 실패 → 진행 스트림 `failed`(종류·사유)·다음 요청은 다시 202, 받은 뒤 시·도 → 시·군·구 → 법정동(가나다순, 수원시 장안구,
   **`retired_at`이 있는 코드 없음**), 30일 갱신 실패 → 받아 둔 목록 그대로 200, 모르는·사라진 `parent` → 400 `unknown_region`. `GET /api/realestate/complexes?umd=`:
   단지 목록으로 곧바로 `items`(가구수 내림차순·모르면 뒤, `households` 모르면 `null`, `jibun`, 합쳐진 행 없음), `details.pending`, 그 시·군·구
@@ -235,16 +235,16 @@ description: "Task list for 009-real-estate-investment-simulation"
   목록 실패 → 200 + 실거래 단지만 + `listError`(빈 목록 대신 사유), 모르는 `umd` → 400. `GET /complexes/{id}/areas`: 일곱 구분을 늘(거래 0 포함),
   거래 수·첫 달은 **해제·사라짐 제외**, `startableFrom` = 첫 거래 달 1일과 `taxRulesFrom`(2006-01-01) 중 늦은 날(2005-12 첫 거래 → 2006-01-01),
   **합쳐진 단지의 옛 id → 같은 결과**, 실거래를 아직 받지 않았으면 202 (FR-002~FR-005, FR-011, FR-012, FR-014, FR-015, FR-032, SC-007)
-- [ ] T018 [P] [US1] `backend/tests/integration/test_realestate_progress_sse.py` — 진행 스트림: `snapshot`(`kind` `trade`·`region`·`complex_details`,
+- [X] T018 [P] [US1] `backend/tests/integration/test_realestate_progress_sse.py` — 진행 스트림: `snapshot`(`kind` `trade`·`region`·`complex_details`,
   받은 것 / 받을 것 — 실거래는 처음부터 받을 달 수가 0보다 큼), `completed`, `failed`(`kind`, 인증키 없는 `reason`), 머리글 `no-transform`, 프레임마다
   새 스냅샷. **기존 `test_progress_sse.py`를 바꾼다** — 머리글 검사에 부동산 진행을 더하고 SSE 파일 목록에 `realestate_progress.py`(plan의
   목록 — 사유를 테스트 커밋에 적는다) (FR-011, FR-014)
-- [ ] T019 [P] [US1] `backend/tests/integration/test_apt_worker.py` — **실행 주체**: 앱 기동이 부동산 수집 태스크를 띄운다(태스크 8개), 동 선택
+- [X] T019 [P] [US1] `backend/tests/integration/test_apt_worker.py` — **실행 주체**: 앱 기동이 부동산 수집 태스크를 띄운다(태스크 8개), 동 선택
   요청(단지 목록 200 + `trades.state: collecting`)과 시뮬레이션 요청(202)이 큐를 거쳐 워커가 수집을 끝낸다(내부 함수를 직접 부르지 않는다), 태스크 안 두 줄이 서로 기다리지 않음(실거래
   수집 중에 행정구역 갱신이 끝남), **기동 시 남은 부동산 점유를 회수**하고 그 작업을 `network`("점유 회수")로 마감, 예금 수집과 동시에 진행해도
   서로 기다리지 않음. **기존 `test_crypto_worker.py`·`test_deposit_worker.py`의 태스크 수 7 → 8**(plan의 목록 — 사유를 테스트 커밋에 적는다)
   (FR-011, FR-012)
-- [ ] T020 [P] [US1] `frontend/tests/` — `RealEstatePage.test.tsx`(`/realestate` 화면, 풀다운 셋·단지·평형 라디오, 통화 칸 없음, 화면 아래 출처
+- [X] T020 [P] [US1] `frontend/tests/` — `RealEstatePage.test.tsx`(`/realestate` 화면, 풀다운 셋·단지·평형 라디오, 통화 칸 없음, 화면 아래 출처
   줄), `RegionPicker.test.tsx`(시·도를 바꾸면 시·군·구·동·단지·평형·결과가 빔, 동을 바꾸면 단지·평형·결과가 빔 — SC-007, 처음 목록 진행 줄,
   `label`이 붙은 `select`, **행정구역 수집 실패 → 지역 자리에 종류별 문구·할 일 `role="alert"`와 풀다운 비활성**, 받아 둔 목록이 있으면 경고 없음),
   `ComplexPicker.test.tsx`("헬리오시티 · 2018년 입주 · 9,510세대", 세대수 모르면 입주년도만, **같은 이름 단지가 둘이면 둘 다 끝에 지번 — 이름이 겹치지
@@ -258,23 +258,23 @@ description: "Task list for 009-real-estate-investment-simulation"
 ### Implementation for User Story 1 (1/2)
 
 - [X] T021 [US1] `backend/src/simulation/apt_area.py` — 경계표(데이터)와 `area_bucket(excl_area: Decimal) -> AreaBucket` (FR-004)
-- [ ] T022 [US1] `backend/src/repository/apt_region.py`(행정구역 upsert·조회 — 현존 코드만, `seen_at`·`retired_at`, 목록 상태)·`apt_complex.py`(단지
+- [X] T022 [US1] `backend/src/repository/apt_region.py`(행정구역 upsert·조회 — 현존 코드만, `seen_at`·`retired_at`, 목록 상태)·`apt_complex.py`(단지
   upsert — `apt_seq`·`kapt_code` 짝, 합칠 때 `merged_into`, id 해석이 `merged_into`를 따라감, 새 코드로 단지 행 코드 갱신, 세대수·입주년도·
   `move_in_source`)·`apt_trade.py`(거래 upsert — 바뀌는 필드만, 사라진 행·사라진 코드 표시와 `missing_reason`, 커버리지·`checked_on`·받아 둔 시·군·구 판정, 원본 — 같은 본문이면 새 행 없음, 단지·구분별 거래
   읽기 — 해제·사라짐 제외 여부를 인자로)·`apt_job.py`(작업·점유·고아 회수 — 008 `deposit_job`과 같은 수단). upsert는 기존 `db/dialect.py`
   (FR-002, FR-003, FR-009, FR-010, FR-012, data-model 1~8절)
-- [ ] T023 [US1] `backend/src/api/services/realestate_complex_match.py` — 짝짓기 순수 함수(법정동 코드 + 지번, 아니면 정규화 이름) (FR-003)
-- [ ] T024 [US1] `backend/src/worker/apt_queue.py`(시작 큐 둘 — 실거래·목록)·`apt_trade_runner.py`(첫 달 탐색, 쪽 넘김, 원본·거래·커버리지,
+- [X] T023 [US1] `backend/src/api/services/realestate_complex_match.py` — 짝짓기 순수 함수(법정동 코드 + 지번, 아니면 정규화 이름) (FR-003)
+- [X] T024 [US1] `backend/src/worker/apt_queue.py`(시작 큐 둘 — 실거래·목록)·`apt_trade_runner.py`(첫 달 탐색, 쪽 넘김, 원본·거래·커버리지,
   잠정 다시 받기 — 최근 3개월 하루 한 번·4~12개월 한 달 한 번, 사라진 행·바뀐 수 사건, 받은 거래의 `apt_seq`로 단지 행 코드 갱신, 한도 멈춤)·
   `apt_list_runner.py`(행정구역 30일 갱신 — 사라진 코드 `retired_at`과 그 코드 거래 `missing_since(region_retired)`, 단지 기본 정보 채우기, 실거래 뒤
   짝짓기)·
   `apt_worker.py`(태스크 하나, 안에서 두 줄)·`backend/src/observability/events.py`(`apt_collection_started`·`_completed`·`_failed`·
   `apt_trade_revised`)·`backend/src/api/main.py`(`lifespan` 태스크 등록, 기동 시 회수, 관문·클라이언트 하나) (FR-002, FR-008~FR-014, research R9-3~R9-5)
-- [ ] T025 [US1] `backend/src/api/services/realestate_lists.py`(행정구역·단지·평형 응답 — 현존 코드만, `jibun`, `trades.state`(`collected`·`failed`),
+- [X] T025 [US1] `backend/src/api/services/realestate_lists.py`(행정구역·단지·평형 응답 — 현존 코드만, `jibun`, `trades.state`(`collected`·`failed`),
   `startableFrom`, 옛 단지 id 해석, 202·백그라운드 갱신 판정, 단지 목록 요청 경로 호출)·
   `backend/src/api/routes/realestate_regions.py`·`realestate_complexes.py`·`realestate_progress.py`·`backend/src/api/main.py`(라우터) —
   contracts/rest-api (FR-002~FR-004, FR-011, FR-015)
-- [ ] T026 [US1] `frontend/src/lib/types.ts`(부동산 목록·진행 형식)·`frontend/src/lib/realEstateProgressStream.ts`·`frontend/src/stores/realEstateStore.ts`
+- [X] T026 [US1] `frontend/src/lib/types.ts`(부동산 목록·진행 형식)·`frontend/src/lib/realEstateProgressStream.ts`·`frontend/src/stores/realEstateStore.ts`
   (지역·단지·평형 선택, 하위 비움, 목록 202·진행)·`frontend/src/components/realestate/RegionPicker.tsx`·`ComplexPicker.tsx`·`AreaBucketPicker.tsx`·
   `frontend/src/app/realestate/page.tsx`·`frontend/src/components/shell/Sidebar.tsx`(`/realestate`)·`TopBar.tsx`(제목 "부동산")·
   `frontend/src/components/stock/CollectingNotice.tsx`(부동산 202·진행 타입 — 주어·단위는 008의 선택 속성) — E1·E2·E9(같은 이름 단지의 지번,
@@ -571,3 +571,7 @@ Task: "T034 frontend 폼·보드·안내·표·스토어"
   순번(`occurrence`)은 계약 월의 모든 쪽을 이어 매긴다(2020-06 실측 — 같은 키가 1쪽·2쪽에 나뉘어 온다, R9-4)
   D2 승인 1건(구현 뒤) — `test_datagokr_trade_parse.py::test_해제와_해제_신고일`의 선택자: 헬리오시티 2020-06-29 16층 거래가 키가
   같은 정상·해제 두 행이라 첫 행(정상)을 골랐다. 해제 행을 명시해 고르고 순번 0(정상)·1(해제) 단언을 더했다
+- **2026-10-05 Phase 3 구현 메모**: T019의 "시뮬레이션 요청(202)이 큐를 거쳐" 경로는 시뮬레이션 API가 Phase 4라 T033에서 본다(202가 넣은
+  일감을 워커가 꺼내는 수단은 동 선택 경로와 같다). 단지 응답의 `details`에는 `jobId`가 없다 — 화면이 `progressUrl`에서 읽는다(계약 그대로).
+  평형 구분의 하한 포함 여부는 응답에 없고 앞 구분의 `maxInclusive`로 정한다(구분이 빈틈없이 이어진다). 행정구역 수집 실패 문구는 E2대로
+  E9 표를 쓴다 — `rate_limited`면 "실거래 출처의 하루 호출 한도…"로 보인다(문구를 나누려면 명세를 먼저 고친다)

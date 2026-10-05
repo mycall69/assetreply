@@ -883,3 +883,110 @@ export interface DepositHistoryEntry {
   principal: DecimalString;
   savedAt: string;
 }
+
+/* ───────────────────────── 009: 부동산 투자 시뮬레이션 ───────────────────────── */
+
+/** 행정구역 단계 — 시·도 · 시·군·구 · 법정동(contracts/rest-api `regions`). 서버의 값 그대로다. */
+export type RealEstateRegionLevel = "sido" | "sgg" | "umd";
+
+/** 행정구역 한 줄. 현존 코드만 온다(FR-002). 시·군·구는 일반시 아래 구를 "수원시 장안구"처럼 붙인 이름이다. */
+export interface RealEstateRegion {
+  code: string;
+  name: string;
+  level: RealEstateRegionLevel;
+}
+
+export interface RealEstateRegionsResponse {
+  items: RealEstateRegion[];
+  refreshedAt: string | null;
+}
+
+/** 행정구역을 한 번도 받지 않았다(202). 화면은 진행을 보이고 끝나면 다시 요청한다(FR-015). */
+export interface RealEstateRegionCollecting {
+  status: "collecting";
+  kind: "region";
+  jobId: number;
+  progressUrl: string;
+}
+
+/** 수집 실패 종류(FR-014). 할 일이 다르다(ui-wireframes E9). */
+export type RealEstateFailureKind = "auth" | "rate_limited" | "format" | "network";
+
+/** 실패 종류와 사유. 사유에 인증키가 없다(FR-013). */
+export interface RealEstateFailure {
+  kind: RealEstateFailureKind;
+  reason: string;
+}
+
+/**
+ * 단지 한 줄(FR-003). 모르는 값은 `null`이다 — 지어내지 않는다. `jibun`은 같은 동의 같은 이름 단지를 가를 때 쓴다.
+ * `sources`는 단지 목록 자료(`kapt`)·실거래(`trade`) 중 어디에 있었는가.
+ */
+export interface RealEstateComplex {
+  complexId: number;
+  name: string;
+  jibun: string | null;
+  moveInYear: number | null;
+  households: number | null;
+  sources: Array<"kapt" | "trade">;
+}
+
+/** 그 시·군·구의 실거래 상태. `collected`는 첫 달부터 잠정 기간 앞 달까지 모두 받은 시·군·구다(data-model 5절). */
+export type RealEstateTradesState = "none" | "collecting" | "collected" | "failed";
+
+export interface RealEstateTrades {
+  state: RealEstateTradesState;
+  jobId: number | null;
+  monthsDone: number;
+  monthsTotal: number;
+  progressUrl: string | null;
+  /** `failed`일 때만 — 다시 열어도 사유가 보인다(FR-014). */
+  failure: RealEstateFailure | null;
+}
+
+/** 단지 목록. 기본 정보(세대수·입주년도) 진행의 작업 번호는 `details.progressUrl`에만 있다. */
+export interface RealEstateComplexesResponse {
+  umd: { code: string; name: string; lawdCd: string };
+  items: RealEstateComplex[];
+  details: { pending: boolean; progressUrl: string | null };
+  trades: RealEstateTrades;
+  /** 단지 목록 자료를 받지 못했다 — 실거래 단지만 온다(FR-015). */
+  listError?: RealEstateFailure;
+}
+
+/** 평형 구분 키(FR-004). 화면 순서다. */
+export type RealEstateAreaKey = "10" | "20" | "30k" | "30l" | "40" | "50" | "60";
+
+/**
+ * 평형 구분 하나. 면적은 문자열(㎡)이고 경계가 없는 쪽은 `null`이다. 아래 경계의 포함 여부는 오지 않는다 — 구분이 빈틈없이
+ * 이어지므로 앞 구분의 `maxInclusive`의 반대다. 거래 수·첫 달은 해제·사라짐을 뺀 값이다.
+ */
+export interface RealEstateAreaBucket {
+  key: RealEstateAreaKey;
+  label: string;
+  minArea: DecimalString | null;
+  maxArea: DecimalString | null;
+  maxInclusive: boolean;
+  trades: number;
+  firstMonth: string | null;
+  lastMonth: string | null;
+  startableFrom: string | null;
+}
+
+export interface RealEstateAreasResponse {
+  complexId: number;
+  taxRulesFrom: string;
+  /** 일곱 구분을 늘 모두 준다(거래 0인 구분 포함). */
+  buckets: RealEstateAreaBucket[];
+}
+
+/** 그 시·군·구의 실거래를 받는 중(202) — 평형·시뮬레이션 요청. 결과를 싣지 않는다(FR-011). */
+export interface RealEstateTradeCollecting {
+  status: "collecting";
+  kind: "trade";
+  lawdCd: string;
+  jobId: number;
+  monthsDone: number;
+  monthsTotal: number;
+  progressUrl: string;
+}

@@ -20,11 +20,14 @@ from src.api.errors import (
     InvalidSpread,
     NoRateData,
     OutOfRange,
+    RegionRetired,
     StartAfterEnd,
     UnknownCoin,
+    UnknownComplex,
     UnknownCurrency,
     UnknownInstitution,
     UnknownListing,
+    UnknownRegion,
     UnknownStock,
 )
 from src.api.services.stock_collect import FxNotAvailableBefore
@@ -61,12 +64,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     from src.config.settings import load_settings
     from src.db.session import get_session_factory
+    from src.ingestion.datagokr.client import DataGoKrClient
+    from src.ingestion.datagokr.gate import DataGoKrGate
     from src.ingestion.ecos.client import EcosClient
     from src.ingestion.ecos.deposit_client import EcosDepositClient
     from src.ingestion.investing.client import InvestingClient
     from src.ingestion.kiwoom.client import KiwoomClient
     from src.ingestion.yahoo.client import YahooStockClient
     from src.observability.logging_config import configure_logging
+    from src.repository.apt_usage import ApiUsageCounter
+    from src.worker import apt_worker
+    from src.worker.apt_queue import get_apt_list_queue, get_apt_trade_queue
+    from src.worker.apt_worker import apt_worker_loop
+    from src.worker.apt_worker import startup as apt_startup
     from src.worker.crypto_list_queue import get_crypto_list_queue
     from src.worker.crypto_list_worker import crypto_list_worker_loop
     from src.worker.crypto_list_worker import startup as crypto_list_startup
@@ -101,6 +111,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await crypto_startup(factory)
     # 008 — 예금 금리 수집 점유도 같다.
     await deposit_startup(factory)
+    # 009 — 부동산 수집 점유(실거래·행정구역·기본 정보)도 같다.
+    await apt_startup(factory)
 
     # 005 — 주식 수집 워커. **FX와 분리한다**: 출처가 달라 호출 한도도 따로이고,
     # 한 루프에 섞으면 환율 수집이 주식 수집을 막으면서 그 이유가 화면에 드러나지
@@ -120,6 +132,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 백오프는 관문(`EcosGate`)이 환율 줄과 함께 지킨다(research R8-6).
     deposit_client = EcosDepositClient(settings)
     await deposit_client.__aenter__()
+    # 009 — 공공데이터포털 클라이언트 하나. 네 자료가 같은 키·같은 게이트웨이라 관문 하나가 동시
+    # 요청 수와 자료별 하루 호출 수(DB에 센다 — 다시 띄워도 이어 센다)를 지킨다. 요청 경로(단지
+    # 목록)도 같은 것을 쓴다.
+    apt_gate = DataGoKrGate(settings.data_api_max_concurrent, ApiUsageCounter(factory), {
+        "trade": settings.data_api_daily_limit_trade,
+        "region": settings.data_api_daily_limit_region,
+        "kapt": settings.data_api_daily_limit_kapt})
+    apt_client = DataGoKrClient(settings, apt_gate)
+    await apt_client.__aenter__()
+    apt_worker.set_shared_source(apt_client)
 
     tasks = [
         asyncio.create_task(worker_loop(
@@ -141,6 +163,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # 기다리지 않는다(SC-012). 호출 한도는 관문이 함께 지킨다.
         asyncio.create_task(deposit_worker_loop(
             factory, deposit_client, get_deposit_queue(), settings=settings)),
+        # 009 — 부동산 수집 태스크. **다른 자산군과 다른 출처라 따로다**(SC-012). 안에서 실거래 줄과
+        # 목록 줄로 나뉜다 — 시·군·구 전체 이력(약 280회)이 행정구역 갱신을 막지 않는다.
+        asyncio.create_task(apt_worker_loop(
+            factory, apt_client, get_apt_trade_queue(), get_apt_list_queue(), settings=settings)),
     ]
     try:
         yield
@@ -153,6 +179,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await listing_client.__aexit__(None, None, None)
         await crypto_client.__aexit__(None, None, None)
         await deposit_client.__aexit__(None, None, None)
+        apt_worker.set_shared_source(None)
+        await apt_client.__aexit__(None, None, None)
         await shutdown_engine()
 
 
@@ -258,6 +286,23 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=400, content={
             "status": "unknown_institution", "message": str(exc), "allowed": exc.allowed})
 
+    @app.exception_handler(UnknownRegion)
+    async def _unknown_region(_: Request, exc: UnknownRegion) -> JSONResponse:
+        # 009 FR-002 — 사라진 코드도 "거래 없음"이 아니라 거절로 알린다.
+        return JSONResponse(status_code=400, content={
+            "status": "unknown_region", "message": str(exc)})
+
+    @app.exception_handler(UnknownComplex)
+    async def _unknown_complex(_: Request, exc: UnknownComplex) -> JSONResponse:
+        return JSONResponse(status_code=400, content={
+            "status": "unknown_complex", "message": str(exc)})
+
+    @app.exception_handler(RegionRetired)
+    async def _region_retired(_: Request, exc: RegionRetired) -> JSONResponse:
+        # 009 FR-002 — 개편으로 사라진 시·군·구. 지역에서 다시 골라 실행하라고 안내한다.
+        return JSONResponse(status_code=409, content={
+            "status": "region_retired", "message": str(exc), "lawdCd": exc.lawd_cd})
+
     @app.exception_handler(CurrencyNotAllowed)
     async def _currency_not_allowed(_: Request, exc: CurrencyNotAllowed) -> JSONResponse:
         # 008 FR-004 — 예금 원금은 원화만이다. 조용히 원화로 읽지 않는다.
@@ -345,6 +390,9 @@ def create_app() -> FastAPI:
     from src.api.routes import jobs as job_routes
     from src.api.routes import latest as latest_routes
     from src.api.routes import rates as rates_routes
+    from src.api.routes import realestate_complexes as realestate_complexes_routes
+    from src.api.routes import realestate_progress as realestate_progress_routes
+    from src.api.routes import realestate_regions as realestate_regions_routes
     from src.api.routes import series as series_routes
     from src.api.routes import spreads as spread_routes
     from src.api.routes import stock_progress as stock_progress_routes
@@ -386,6 +434,9 @@ def create_app() -> FastAPI:
     app.include_router(deposit_series_routes.router)
     app.include_router(deposit_progress_routes.router)
     app.include_router(deposit_settings_routes.router)
+    app.include_router(realestate_regions_routes.router)
+    app.include_router(realestate_complexes_routes.router)
+    app.include_router(realestate_progress_routes.router)
 
     return app
 

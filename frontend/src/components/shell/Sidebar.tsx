@@ -29,7 +29,8 @@ export const MENU: readonly MenuItem[] = [
   { label: "주식", href: "/stocks" },
   // 008 — 예금을 구현했다. 경로는 단수 `deposit`이다(API도 `/api/deposit/*`).
   { label: "예금", href: "/deposit" },
-  { label: "부동산" },
+  // 009 — 부동산을 구현했다. 원칙 IX의 다섯 자산군이 모두 준비됐다.
+  { label: "부동산", href: "/realestate" },
   { label: "투자 비교" },
   { label: "설정", href: "/settings" },
 ];

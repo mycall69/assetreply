@@ -108,3 +108,21 @@ class CurrencyNotAllowed(Exception):
 class NoRateData(Exception):
     """수집을 마쳤는데 그 투자처의 금리가 하나도 없다 (008, 404 `no_rate_data`). 빈 표를 보이면
     사용자는 수익이 0이라고 읽는다."""
+
+
+class UnknownRegion(Exception):
+    """행정구역 코드가 없거나 사라졌다 (009 FR-002, 400 `unknown_region`). 개편으로 사라진 코드는
+    출처가 0건을 정상으로 주므로 "거래 없음"이 아니라 거절로 알린다."""
+
+
+class UnknownComplex(Exception):
+    """모르는 단지 id다 (009 FR-003, 400 `unknown_complex`)."""
+
+
+class RegionRetired(Exception):
+    """단지의 시·군·구 코드가 개편으로 사라졌고 새 코드로 아직 받지 않았다 (009 FR-002, 409
+    `region_retired`). 받을 수 없는 옛 코드를 기다리거나 "거래 없음"으로 보이지 않게 한다."""
+
+    def __init__(self, message: str, lawd_cd: str) -> None:
+        super().__init__(message)
+        self.lawd_cd = lawd_cd
