@@ -243,25 +243,25 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T026 [P] [US3] `frontend/tests/stockStoreRerun.test.ts` — `apiClient`를 흉내 내어 `useStockStore.getState().rerunHistory(id)`: 입력이 항목의
+- [X] T026 [P] [US3] `frontend/tests/stockStoreRerun.test.ts` — `apiClient`를 흉내 내어 `useStockStore.getState().rerunHistory(id)`: 입력이 항목의
   `stock`·`start`·`principal`·`principalCurrency`·`reinvest`가 되고, `listedOn`·`startable`·`selectionError`가 `null`이 되고, `GET
   /api/stocks/simulation?…`이 그 조건(`reinvest`·`principalCurrency` 포함)으로 나간다. **등록 요청(`/api/stocks/selection`)이 나가지 않는다**(research
   R10-11 — 등록 경로는 목록 id·일본 외부 결과만 받는다). 막힌 조합(원금 EUR·미국 종목) → 입력은 항목대로 들어가고 시뮬레이션 요청 없이
   `error` = `run()`의 지금 문구(`principalRule(…)` + "통화를 다시 고르세요."), 통화가 바뀌지 않는다. 202 → `collecting`이 들어가고 진행 구독이
   시작된다(`run()`과 같다). 없는 id → 아무 요청 없음 (FR-018~FR-020, SC-005)
-- [ ] T027 [P] [US3] `frontend/tests/SimulationHistoryRerun.test.tsx` — `<SimulationHistory onRerun={…}>`: 행(`history-row`)마다 "다시 실행" 버튼,
+- [X] T027 [P] [US3] `frontend/tests/SimulationHistoryRerun.test.tsx` — `<SimulationHistory onRerun={…}>`: 행(`history-row`)마다 "다시 실행" 버튼,
   `aria-label` = `{행 이름} 다시 실행`(가상자산 `CryptoHistory`와 같은 꼴), 삭제 `×` 앞, 누르면 `onRerun(entry.id)`, **막힌 조합 행에도 버튼이 있다**
   (FR-018, FR-019)
-- [ ] T028 [P] [US3] `frontend/tests/StocksPageRerun.test.tsx` — 기존 `CryptoPage.test.tsx`와 같은 방식(진행 스트림 모듈 흉내, `fetch` 흉내)으로
+- [X] T028 [P] [US3] `frontend/tests/StocksPageRerun.test.tsx` — 기존 `CryptoPage.test.tsx`와 같은 방식(진행 스트림 모듈 흉내, `fetch` 흉내)으로
   주식 화면을 렌더하고 브라우저 저장소에 006 형식 이력 항목을 넣는다 → 화면에서 "다시 실행"을 누르면 그 항목 조건의 시뮬레이션 요청이 나가고
   등록 요청은 없다(**화면 → 스토어 → `run()` 경로를 거쳐야만 통과** — 006 D1) (FR-018, FR-020)
-- [ ] T029 [US3] **기존 테스트 변경(D2 — 사용자 승인 뒤)** `frontend/tests/SimulationHistoryList.test.tsx`·`frontend/tests/SimulationHistoryBlocked.test.tsx`
+- [X] T029 [US3] **기존 테스트 변경(D2 — 사용자 승인 뒤)** `frontend/tests/SimulationHistoryList.test.tsx`·`frontend/tests/SimulationHistoryBlocked.test.tsx`
   — `<SimulationHistory>` 렌더 10곳에 `onRerun={vi.fn()}`(또는 기존 흉내 함수와 같은 꼴)만 더한다. 검사 내용은 바꾸지 않는다. 승인 전에는 이 태스크와
   T030을 시작하지 않고 보고한다(plan 설계 후 재평가, research R10-12)
 
 ### Implementation for User Story 3
 
-- [ ] T030 [US3] `frontend/src/stores/stockStore.ts`(`rerunHistory(id)` — 항목을 찾아 `set({ input: { stock: entry.stock, start, principal,
+- [X] T030 [US3] `frontend/src/stores/stockStore.ts`(`rerunHistory(id)` — 항목을 찾아 `set({ input: { stock: entry.stock, start, principal,
   principalCurrency, reinvest }, listedOn: null, startable: null, selectionError: null })` 뒤 `run()` — 가상자산 `rerunHistory`와 같은 꼴, `selectStock`·
   등록 요청 없음. 이력 저장 형식은 그대로)·
   `frontend/src/components/stock/SimulationHistory.tsx`(필수 속성 `onRerun: (id: string) => void`, 행마다 "다시 실행" 버튼 — `CryptoHistory`와 같은 문구·

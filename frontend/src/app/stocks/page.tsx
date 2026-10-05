@@ -30,7 +30,7 @@ export default function StocksPage() {
     history, historySaveError, selectedHistory, comparison, comparing,
     comparisonError, progress, selecting, selectionError, fxBlocked, listedOn, startable,
     setInput, selectStock, run, loadMore, refreshIfRan, dispose,
-    restoreHistory, toggleHistory, removeHistoryEntry, compareSelected,
+    restoreHistory, toggleHistory, removeHistoryEntry, compareSelected, rerunHistory,
   } = useStockStore();
 
   // FR-017 — 설정 화면에 다녀왔을 수 있다. 이미 실행한 결과가 있으면 새 값으로
@@ -172,6 +172,7 @@ export default function StocksPage() {
         onToggle={toggleHistory}
         onRemove={removeHistoryEntry}
         onCompare={() => void compareSelected()}
+        onRerun={(id) => void rerunHistory(id)}
       />
 
       {(comparing || comparison.length > 0) && (

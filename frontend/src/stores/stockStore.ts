@@ -128,6 +128,12 @@ interface StockState {
   toggleHistory: (id: string) => void;
   removeHistoryEntry: (id: string) => void;
   compareSelected: () => Promise<void>;
+  /**
+   * 이력 항목의 조건을 입력에 넣고 곧바로 실행한다(010 FR-018~FR-020) — 가상자산·예금·부동산과 같은 동작. 등록 요청은 보내지 않는다:
+   * 등록 경로는 목록 id나 일본 외부 결과만 받고 이력 항목에는 목록 id가 없다(research R10-11). 이력의 종목은 이미 실행한(= 등록된)
+   * 종목이다.
+   */
+  rerunHistory: (id: string) => Promise<void>;
 }
 
 const message = (err: unknown, fallback: string): string =>
@@ -555,6 +561,23 @@ export const useStockStore = create<StockState>((set, get) => ({
    * 저장된 결과를 쓰지 않는 이유는 R5-9와 같다 — 설정과 환율이 바뀌면 달라지는데,
    * 저장된 값을 겹치면 어느 시점의 조건에서 나온 선인지 알 수 없다.
    */
+  rerunHistory: async (id) => {
+    const entry = get().history.find((e) => e.id === id);
+    if (entry === undefined) return;
+    // 진행 중인 등록이 끝나며 입력의 종목을 덮지 않게 한다 — 그러면 다른 종목의 결과가 이 항목의 결과처럼 보인다.
+    selectionSeq.invalidate();
+    // 조건 하나라도 빠지면(재투자·원금 통화) 다른 조건의 결과가 그 항목의 결과처럼 보인다(FR-018 실패 양상). 고른 종목에 딸린
+    // 상태(상장일 안내·시작 가능 날짜·선택 오류)는 이 종목의 것이 아니다. 막힌 조합은 `run()`이 지금 규칙으로 거절한다(FR-019).
+    set({
+      input: {
+        stock: entry.stock, start: entry.start, principal: entry.principal,
+        principalCurrency: entry.principalCurrency, reinvest: entry.reinvest,
+      },
+      selecting: false, listedOn: null, startable: null, selectionError: null,
+    });
+    await get().run();
+  },
+
   compareSelected: async () => {
     const { history, selectedHistory } = get();
     const targets = history.filter((e) => selectedHistory.includes(e.id));

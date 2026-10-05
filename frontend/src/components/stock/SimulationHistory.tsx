@@ -25,6 +25,7 @@ export function SimulationHistory({
   onToggle,
   onRemove,
   onCompare,
+  onRerun,
 }: {
   entries: SimulationHistoryEntry[];
   selected: string[];
@@ -33,6 +34,8 @@ export function SimulationHistory({
   onToggle: (id: string) => void;
   onRemove: (id: string) => void;
   onCompare: () => void;
+  /** 010 FR-018 — 필수다. 선택이면 화면이 넘기기를 잊어도 버튼이 조용히 사라진다(주식에 처음부터 없던 결함의 모양). */
+  onRerun: (id: string) => void;
 }) {
   return (
     <section className="rounded-lg border border-gray-200 p-4">
@@ -87,11 +90,20 @@ export function SimulationHistory({
                   막힌 조합 — {principalRule(entry.stock.currency)}
                 </span>
               )}
+              {/* 010 FR-018 — 가상자산·예금·부동산과 같은 문구·자리. 막힌 조합 행에도 둔다(지금 규칙의 사유가 보인다). */}
+              <button
+                type="button"
+                onClick={() => onRerun(entry.id)}
+                aria-label={`${entry.stock.name} 다시 실행`}
+                className="ml-auto rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-50"
+              >
+                다시 실행
+              </button>
               <button
                 type="button"
                 onClick={() => onRemove(entry.id)}
                 aria-label={`${entry.stock.name} 이력 삭제`}
-                className="ml-auto rounded px-2 text-gray-400 hover:text-red-600"
+                className="rounded px-2 text-gray-400 hover:text-red-600"
               >
                 ×
               </button>
