@@ -64,6 +64,32 @@ class TestRegionPage:
 
 
 class TestBuildRegions:
+    def test_시도_행이_없는_세종은_시군구에서_시도를_만든다(self) -> None:
+        """2026-10-05 전국 실측(T027) — 세종특별자치시는 시·군·구 단계 `3611000000` 하나뿐이고 시·도
+        행 (`3600000000`)이 없다. 시·도가 없으면 시·도 풀다운에 나오지 않아 세종의 단지를 고를 수
+        없다."""
+        def row(code: str, full: str, low: str, high: str) -> dict[str, str]:
+            return {"region_cd": code, "sido_cd": code[:2], "sgg_cd": code[2:5],
+                    "umd_cd": code[5:8], "ri_cd": code[8:], "locatadd_nm": full,
+                    "locathigh_cd": high, "locallow_nm": low}
+
+        body = json.dumps({"StanReginCd": [
+            {"head": [{"totalCount": 2}, {"RESULT": {"resultCode": "INFO-0"}}]},
+            {"row": [row("3611000000", "세종특별자치시", "세종특별자치시", "3600000000"),
+                     row("3611010100", "세종특별자치시 반곡동", "반곡동", "3611000000")]}]},
+            ensure_ascii=False)
+        regions = {r.code: r for r in build_regions(parse_regions(body).rows)}
+        sejong = regions["3600000000"]
+        assert (sejong.level, sejong.name, sejong.parent_code) == ("sido", "세종특별자치시", None)
+        sgg = regions["3611000000"]
+        assert (sgg.level, sgg.parent_code, sgg.lawd_cd, sgg.name) == (
+            "sgg", "3600000000", "36110", "세종특별자치시")
+        assert regions["3611010100"].parent_code == "3611000000"
+
+    def test_시도_행이_있으면_만들지_않는다(self) -> None:
+        regions = build_regions(parse_regions(load("apt/region_seoul.json")).rows)
+        assert [r.code for r in regions if r.level == "sido"] == ["1100000000"]
+
     def test_서울은_시도_하나_구_25_동_467(self) -> None:
         regions = build_regions(parse_regions(load("apt/region_seoul.json")).rows)
         levels = [r.level for r in regions]
