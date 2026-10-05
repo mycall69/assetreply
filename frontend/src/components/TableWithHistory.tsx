@@ -1,8 +1,9 @@
 /**
  * 성과 표와 최근 시뮬레이션의 배치 (010 T034) — FR-015~FR-017, research R10-10, data-model 6절, ui-wireframes F3.
  *
- * **경계 폭을 상수로 두지 않는다.** 줄바꿈 flex에서 표 칸은 `flex: 999 1 auto`(기본 크기 = 표 고유 폭), 이력 칸은 `flex: 1 1 400px`이다. 두
- * 칸의 기본 크기 합이 본문 폭 이하면 나란히, 넘으면 이력이 다음 줄(전체 폭)로 내려간다. 자산군·조건마다 표의 열이 달라도(배당 열, 환산 열)
+ * **경계 폭을 상수로 두지 않는다.** 줄바꿈 flex에서 표 칸은 `flex: 0 1 auto`(기본 크기 = 표 고유 폭, 늘지 않는다), 이력 칸은 `flex: 1 1
+ * 400px`(남는 폭을 가져간다)이다. 두 칸의 기본 크기 합이 본문 폭 이하면 나란히 — 이력이 표 바로 오른쪽에 붙는다(표 칸이 늘면 표와 이력
+ * 사이에 빈 칸이 생겨 이력이 화면 끝에 붙는다 — T036 실측) — 넘으면 이력이 다음 줄(전체 폭)로 내려간다. 자산군·조건마다 표의 열이 달라도(배당 열, 환산 열)
  * 그 표의 실제 폭으로 경계가 정해진다 — 고정 경계는 열이 바뀌면 조용히 틀린다(너무 좁으면 열이 잘리고, 너무 넓으면 흔한 창에서 늘 아래로
  * 내려간다 — FR-015의 두 실패 양상).
  *
@@ -17,7 +18,7 @@ import type { ReactNode } from "react";
 export function TableWithHistory({ table, history }: { table: ReactNode | null; history: ReactNode }) {
   return (
     <div data-testid="table-with-history" className="flex flex-wrap items-start gap-5">
-      {table !== null && <div className="min-w-0 flex-[999_1_auto]">{table}</div>}
+      {table !== null && <div className="min-w-0 flex-[0_1_auto]">{table}</div>}
       <aside className="sticky top-4 max-h-[calc(100vh-2rem)] flex-[1_1_400px] self-start overflow-y-auto">
         {history}
       </aside>

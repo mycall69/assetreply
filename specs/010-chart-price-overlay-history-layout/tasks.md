@@ -286,7 +286,7 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 ### Tests for User Story 4 ⚠️
 
 - [X] T032 [P] [US4] `frontend/tests/TableWithHistory.test.tsx` — `<TableWithHistory table={…} history={…}>`: 바깥(`data-testid="table-with-history"`)이
-  `flex flex-wrap items-start gap-5`, 표 칸이 `flex: 999 1 auto`(기본 크기 = 표 고유 폭)·`min-w-0`(좁은 창에서 표 안 가로 스크롤 — 없으면 화면이 넘친다)·고정 폭 없음, 이력 칸이 `flex: 1 1
+  `flex flex-wrap items-start gap-5`, 표 칸이 `flex: 0 1 auto`(기본 크기 = 표 고유 폭, 늘지 않는다 — T036 실측으로 고침, 처음은 `999 1 auto`)·`min-w-0`(좁은 창에서 표 안 가로 스크롤 — 없으면 화면이 넘친다)·고정 폭 없음, 이력 칸이 `flex: 1 1
   400px`·`sticky top-4 self-start`·`max-height: calc(100vh − 2rem)`·세로 스크롤, DOM 순서 표 → 이력, `table`이 없으면(실행 전) 이력 칸만.
   네 이력 부품(`SimulationHistory`·`CryptoHistory`·`DepositHistory`·`RealEstateHistory`)의 행(`history-row`)이 `flex-wrap`(칸 안 가로 넘침 없음)
   (FR-015~FR-017, SC-004 — 구조, data-model 6절)
@@ -303,7 +303,7 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 - [X] T035 [US4] 네 화면 `frontend/src/app/stocks/page.tsx`·`frontend/src/app/crypto/page.tsx`·`frontend/src/app/deposit/page.tsx`·
   `frontend/src/app/realestate/page.tsx` — 성과 표 `section`과 이력 부품을 `TableWithHistory`로 감싼다. 차트는 그 위, 이력 비교 차트·출처 줄은 그
   아래 그대로. 머리 주석의 화면 순서 설명을 고친다. ui-wireframes F3 (FR-015~FR-017)
-- [ ] T036 [US4] quickstart 8을 실행하고 기록한다 — 네 화면(주식은 원화 원금 해외 종목)에서 1440px 창의 표 가로 스크롤 없음, 1280~1920px을 10px씩(예금의 계산 경계 약 1,390px)
+- [X] T036 [US4] quickstart 8을 실행하고 기록한다 — 네 화면(주식은 원화 원금 해외 종목)에서 1440px 창의 표 가로 스크롤 없음, 1280~1920px을 10px씩(예금의 계산 경계 약 1,390px)
   넓혀 찾은 **경계 폭**, 경계 폭과 10px 좁은 폭의 표·이력 칸 가로 넘침 없음, 경계 이상에서 끝까지 내려도 이력이 화면 안, 비교 차트 전체 폭.
   측정값을 `specs/010-chart-price-overlay-history-layout/plan.md`의 "측정한 경계 폭" 표 "구현 뒤 실측" 열에 적는다. **어느 경계든 1920px을 넘으면
   멈추고 보고한다**(경계를 조용히 넓히지 않는다 — spec Assumptions). 끝나면 서버를 내린다 (SC-004, FR-015)
