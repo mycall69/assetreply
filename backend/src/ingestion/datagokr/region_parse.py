@@ -14,6 +14,7 @@
   구 행의 상위 코드가 시가 아니라 도(4100000000)라, 다른 시·군·구의 이름이 "경기도 수원시 "로
   시작하는지로 판정한다
 - 실거래 요청 단위(`lawd_cd`)는 시·군·구 5자리다
+- 시·도 행이 없는 시·군·구(세종특별자치시)는 그 이름으로 시·도를 만든다(T027 실측)
 """
 
 from __future__ import annotations
@@ -108,6 +109,16 @@ def build_regions(rows: Iterable[RegionRow]) -> tuple[Region, ...]:
     cities_with_gu = {city.code for city in sgg
                       if any(other.full_name.startswith(city.full_name + " ") for other in sgg)}
     regions: list[Region] = []
+    # 시·도 행이 없는 시·군·구(세종특별자치시 — 시·군·구 3611000000 하나뿐, T027 실측)는 그 이름으로
+    # 시·도를 만든다. 만들지 않으면 상위가 없어 시·도 풀다운에 나오지 않는다. 전체 이름이 한 낱말인
+    # 시·군·구만 — "강원특별자치도 춘천시"처럼 시·도 이름이 앞에 있으면 시·도 행이 따로 있다(일부만
+    # 받은 목록일 뿐이다).
+    sido_codes = {row.code for row in used if row.sgg_cd == "000"}
+    for row in sgg:
+        code = row.sido_cd + "00000000"
+        if code not in sido_codes and len(row.full_name.split()) == 1:
+            regions.append(Region(code, "sido", None, None, row.full_name, row.full_name))
+            sido_codes.add(code)
     for row in used:
         if row.sgg_cd == "000":
             regions.append(Region(row.code, "sido", None, None, row.full_name, row.full_name))
