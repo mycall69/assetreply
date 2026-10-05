@@ -17,7 +17,7 @@ const CUT: SimulationSummary = {
 const LIVE: SimulationSummary = { ...CUT, asOf: "2026-10-01", isFinal: true };
 
 const ROWS: SimulationRow[] = [{
-  date: "2021-09-01", kind: "month_first", openPrice: "30000",
+  date: "2021-09-01", kind: "month_first", openPrice: "30000", closePrice: "30000",
   boughtShares: 0, heldShares: 2, cash: "100", principal: "86997",
   balance: "60000", profit: "-26897", returnRate: "-0.309200",
 }];

@@ -12,13 +12,13 @@ import { PerformanceTable } from "@/components/stock/PerformanceTable";
 import type { SimulationRow } from "@/lib/types";
 
 const monthRow: SimulationRow = {
-  date: "2024-08-01", kind: "month_first", openPrice: "201500.000000",
+  date: "2024-08-01", kind: "month_first", openPrice: "201500.000000", closePrice: "201500.000000",
   boughtShares: 0, heldShares: 1, cash: "6274", principal: "86997",
   balance: "201500", profit: "120777", returnRate: "1.388300",
 };
 
 const dividendRow: SimulationRow = {
-  date: "2024-06-27", kind: "dividend", openPrice: "229500.000000",
+  date: "2024-06-27", kind: "dividend", openPrice: "229500.000000", closePrice: "229500.000000",
   dividendPerShare: "300.000000", dividendYield: "0.001307",
   boughtShares: 0, heldShares: 1, cash: "6274", principal: "86997",
   balance: "229500", profit: "148777", returnRate: "1.710100",
@@ -37,7 +37,7 @@ describe("성과 표", () => {
   it("열 구성이 명세와 같다", () => {
     render(<PerformanceTable {...props} />);
     for (const label of [
-      "날짜", "시작가", "주당 배당금", "배당율", "구매 주식수", "보유 주식",
+      "날짜", "시작가", "종가", "주당 배당금", "배당율", "구매 주식수", "보유 주식",
       "예수금", "투자금", "잔고", "투자 수익", "수익율",
     ]) {
       expect(screen.getByRole("columnheader", { name: label })).toBeInTheDocument();

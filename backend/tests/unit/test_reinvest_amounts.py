@@ -22,9 +22,11 @@ def condition(**over: object) -> Condition:
     return Condition(**base)  # type: ignore[arg-type]
 
 
-BARS = [DayBar(D("2021-08-02"), Decimal("10000")), DayBar(D("2021-09-01"), Decimal("2000")),
-        DayBar(D("2021-09-02"), Decimal("2000")), DayBar(D("2021-09-03"), Decimal("2500")),
-        DayBar(D("2021-10-01"), Decimal("2500"))]
+BARS = [DayBar(D("2021-08-02"), Decimal("10000"), Decimal("10000")),
+        DayBar(D("2021-09-01"), Decimal("2000"), Decimal("2000")),
+        DayBar(D("2021-09-02"), Decimal("2000"), Decimal("2000")),
+        DayBar(D("2021-09-03"), Decimal("2500"), Decimal("2500")),
+        DayBar(D("2021-10-01"), Decimal("2500"), Decimal("2500"))]
 DIVIDEND = [DividendOn(D("2021-09-01"), Decimal("1000"))]
 
 

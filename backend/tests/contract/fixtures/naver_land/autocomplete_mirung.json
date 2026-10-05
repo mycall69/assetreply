@@ -1,0 +1,23 @@
+{
+ "isSuccess": true,
+ "detailCode": "success",
+ "message": "",
+ "result": {
+  "hasNextPage": false,
+  "totalCount": 1,
+  "list": [
+   {
+    "complexNumber": 596,
+    "complexName": "미륭",
+    "type": "A04",
+    "legalDivisionName": "서울시 송파구 가락동",
+    "coordinates": {
+     "xCoordinate": 127.128597,
+     "yCoordinate": 37.4938
+    },
+    "hasVrTour": false,
+    "legalDivisionNumber": "1171010700"
+   }
+  ]
+ }
+}

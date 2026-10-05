@@ -13,7 +13,7 @@ import type { SimulationRow } from "@/lib/types";
 
 /** VOO 원화 원금 — 2026-09-28 배당락 행(W8). */
 const dividend: SimulationRow = {
-  date: "2026-09-28", kind: "dividend", openPrice: "706.280000",
+  date: "2026-09-28", kind: "dividend", openPrice: "706.280000", closePrice: "706.280000",
   dividendPerShare: "1.823000", dividendYield: "0.002581",
   dividendTotal: "48.070000", dividendTotalNet: "40.860000", dividendTax: "7.210000",
   boughtShares: 0, heldShares: 31, cash: "153.960000", principal: "10000000",
@@ -21,7 +21,7 @@ const dividend: SimulationRow = {
   returnRate: "1.981017", fxRate: "1352.000000", fxRateDate: "2026-09-28",
 };
 const reinvest: SimulationRow = {
-  date: "2026-09-30", kind: "reinvest", openPrice: "706.000000",
+  date: "2026-09-30", kind: "reinvest", openPrice: "706.000000", closePrice: "706.000000",
   boughtShares: 1, heldShares: 32, cash: "47.850000", principal: "10000000",
   balance: "22592.000000", balanceKrw: "30544384", tradeFee: "0.105900",
   profit: "20609100", returnRate: "2.060910", fxRate: "1352.000000", fxRateDate: "2026-09-30",
@@ -46,7 +46,7 @@ describe("해외 종목의 머리글 (FR-066)", () => {
   it("열마다 통화를 쓴다 — 원화 원금", () => {
     setup([dividend]);
     expect(headings()).toEqual([
-      "날짜", "시작가 (USD)", "주당 배당금 (USD)", "배당율", "배당금 총액 (USD)",
+      "날짜", "시작가 (USD)", "종가 (USD)", "주당 배당금 (USD)", "배당율", "배당금 총액 (USD)",
       "배당 소득세 (USD)", "구매 주식수", "매매 수수료 (USD)", "보유 주식", "예수금 (USD)",
       "투자금 (KRW)", "잔고 (USD · KRW)", "투자 수익 (KRW)", "수익율 (KRW 기준)", "환율",
     ]);
@@ -103,7 +103,7 @@ describe("배당금 총액 (FR-067)", () => {
 
 describe("국내 종목", () => {
   const krx: SimulationRow = {
-    date: "2026-09-26", kind: "dividend", openPrice: "84000.000000",
+    date: "2026-09-26", kind: "dividend", openPrice: "84000.000000", closePrice: "84000.000000",
     dividendPerShare: "361.000000", dividendYield: "0.004297",
     dividendTotal: "43320.000000", dividendTotalNet: "36650.720000", dividendTax: "6671.280000",
     boughtShares: 0, heldShares: 120, cash: "51234.720000", principal: "10000000",
@@ -113,7 +113,7 @@ describe("국내 종목", () => {
   it("머리글에 통화를 붙이지 않는다 — 모두 KRW다", () => {
     setup([krx], "KRW", "KRW");
     expect(headings()).toEqual([
-      "날짜", "시작가", "주당 배당금", "배당율", "배당금 총액", "배당 소득세", "구매 주식수",
+      "날짜", "시작가", "종가", "주당 배당금", "배당율", "배당금 총액", "배당 소득세", "구매 주식수",
       "매매 수수료", "보유 주식", "예수금", "투자금", "잔고", "투자 수익", "수익율",
     ]);
   });

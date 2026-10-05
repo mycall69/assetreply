@@ -12,6 +12,10 @@ DB에 묶여 있었다면 통합 테스트가 되고 정밀도 차이가 다른 
 (FR-010a, spec Assumptions). 의도된 차이이므로 분할이 없는 입력으로 대조한다.
 
 기대값은 참조 구현의 계산을 손으로 따라가 적은 것이다 (각 테스트의 주석 참조).
+
+**종가는 시가와 같게 둔다**(010 반복 3, 사용자 승인 2026-10-06). 이 기능은 잔고를 종가로
+평가하고(010 FR-028) 참조 구현은 시가로 평가한다 — 종가 = 시가인 입력에서만 둘의 잔고·수익률이 같다.
+이 대조가 지키는 것은 매수·배당 재투자·예수금이고, 실제 결과의 잔고·수익률은 참조 구현과 다르다.
 """
 from __future__ import annotations
 
@@ -35,7 +39,7 @@ NO_FEE = Decimal("0")
 
 
 def bars(*pairs: tuple[str, str]) -> list[DayBar]:
-    return [DayBar(D(day), Decimal(price)) for day, price in pairs]
+    return [DayBar(D(day), Decimal(price), Decimal(price)) for day, price in pairs]
 
 
 def condition(start: str, principal: str, *, reinvest: bool = True) -> Condition:

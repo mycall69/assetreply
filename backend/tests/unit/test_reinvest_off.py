@@ -8,9 +8,9 @@ from src.simulation.reinvest import Condition, DayBar, DividendOn, simulate
 
 D = dt.date.fromisoformat
 
-BARS = [DayBar(D("2021-08-02"), Decimal("10000")),
-        DayBar(D("2021-09-01"), Decimal("10000")),
-        DayBar(D("2021-10-01"), Decimal("10000"))]
+BARS = [DayBar(D("2021-08-02"), Decimal("10000"), Decimal("10000")),
+        DayBar(D("2021-09-01"), Decimal("10000"), Decimal("10000")),
+        DayBar(D("2021-10-01"), Decimal("10000"), Decimal("10000"))]
 DIVIDENDS = [DividendOn(D("2021-09-01"), Decimal("1000"))]
 
 
@@ -45,21 +45,21 @@ class Test켬_끔의_차이:
     def test_보유_주식_수가_다르다(self) -> None:
         """SC-011 — 사용자가 차이를 확인할 수 있어야 한다."""
         on = simulate(
-            [DayBar(D("2021-08-02"), Decimal("10000")),
-             DayBar(D("2021-09-01"), Decimal("1000"))],
+            [DayBar(D("2021-08-02"), Decimal("10000"), Decimal("10000")),
+             DayBar(D("2021-09-01"), Decimal("1000"), Decimal("1000"))],
             [DividendOn(D("2021-09-01"), Decimal("1000"))], [],
             condition(reinvest=True))
         off = simulate(
-            [DayBar(D("2021-08-02"), Decimal("10000")),
-             DayBar(D("2021-09-01"), Decimal("1000"))],
+            [DayBar(D("2021-08-02"), Decimal("10000"), Decimal("10000")),
+             DayBar(D("2021-09-01"), Decimal("1000"), Decimal("1000"))],
             [DividendOn(D("2021-09-01"), Decimal("1000"))], [],
             condition(reinvest=False))
         assert on[0].held_shares > off[0].held_shares
 
     def test_총자산은_수수료가_없으면_같다(self) -> None:
         """재투자는 자산의 **형태**를 바꿀 뿐이다 — 현금이 주식이 된다."""
-        bars = [DayBar(D("2021-08-02"), Decimal("10000")),
-                DayBar(D("2021-09-01"), Decimal("1000"))]
+        bars = [DayBar(D("2021-08-02"), Decimal("10000"), Decimal("10000")),
+                DayBar(D("2021-09-01"), Decimal("1000"), Decimal("1000"))]
         div = [DividendOn(D("2021-09-01"), Decimal("1000"))]
         on = simulate(bars, div, [], condition(reinvest=True))[0]
         off = simulate(bars, div, [], condition(reinvest=False))[0]

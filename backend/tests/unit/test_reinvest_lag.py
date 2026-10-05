@@ -25,7 +25,7 @@ def condition(**over: object) -> Condition:
 
 
 def bars(*pairs: tuple[str, str]) -> list[DayBar]:
-    return [DayBar(D(d), Decimal(p)) for d, p in pairs]
+    return [DayBar(D(d), Decimal(p), Decimal(p)) for d, p in pairs]
 
 
 #: 2021-08-02(월) 1만 원에 10주. 2021-09-01(수) 배당락, 그 뒤 거래일 09-02(목)·09-03(금)·09-06(월).

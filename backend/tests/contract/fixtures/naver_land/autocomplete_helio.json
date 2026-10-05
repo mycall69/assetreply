@@ -1,0 +1,23 @@
+{
+ "isSuccess": true,
+ "detailCode": "success",
+ "message": "",
+ "result": {
+  "hasNextPage": false,
+  "totalCount": 1,
+  "list": [
+   {
+    "complexNumber": 111515,
+    "complexName": "헬리오시티",
+    "type": "A01",
+    "legalDivisionName": "서울시 송파구 가락동",
+    "coordinates": {
+     "xCoordinate": 127.107268,
+     "yCoordinate": 37.497624
+    },
+    "hasVrTour": true,
+    "legalDivisionNumber": "1171010700"
+   }
+  ]
+ }
+}

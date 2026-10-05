@@ -27,8 +27,8 @@ def condition(**over: object) -> Condition:
     return Condition(**base)  # type: ignore[arg-type]
 
 
-BARS = [DayBar(D("2021-08-02"), Decimal("10000")),
-        DayBar(D("2021-09-01"), Decimal("1000"))]
+BARS = [DayBar(D("2021-08-02"), Decimal("10000"), Decimal("10000")),
+        DayBar(D("2021-09-01"), Decimal("1000"), Decimal("1000"))]
 
 
 class Test분할이_먼저다:

@@ -21,7 +21,7 @@ ZERO = Decimal("0")
 
 
 def bars(*pairs: tuple[str, str]) -> list[DayBar]:
-    return [DayBar(D(d), Decimal(p)) for d, p in pairs]
+    return [DayBar(D(d), Decimal(p), Decimal(p)) for d, p in pairs]
 
 
 def by_date(rows: list, date: str):

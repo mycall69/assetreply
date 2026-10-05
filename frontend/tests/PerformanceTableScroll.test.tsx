@@ -11,7 +11,7 @@ import { PerformanceTable } from "@/components/stock/PerformanceTable";
 import type { SimulationRow } from "@/lib/types";
 
 const row = (date: string): SimulationRow => ({
-  date, kind: "month_first", openPrice: "40000", boughtShares: 0,
+  date, kind: "month_first", openPrice: "40000", closePrice: "40000", boughtShares: 0,
   heldShares: 2, cash: "6997", principal: "86997", balance: "80000",
   profit: "0", returnRate: "0.000000",
 });

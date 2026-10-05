@@ -11,8 +11,8 @@ from decimal import Decimal
 from src.simulation.reinvest import Condition, DayBar, DividendOn, simulate
 
 D = dt.date.fromisoformat
-BARS = [DayBar(D("2021-08-02"), Decimal("10000")),
-        DayBar(D("2021-09-01"), Decimal("10000"))]
+BARS = [DayBar(D("2021-08-02"), Decimal("10000"), Decimal("10000")),
+        DayBar(D("2021-09-01"), Decimal("10000"), Decimal("10000"))]
 DIVIDENDS = [DividendOn(D("2021-09-01"), Decimal("1000"))]
 
 

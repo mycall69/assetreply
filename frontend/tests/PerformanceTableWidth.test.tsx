@@ -13,7 +13,7 @@ import { PerformanceTable } from "@/components/stock/PerformanceTable";
 import type { SimulationRow } from "@/lib/types";
 
 const row: SimulationRow = {
-  date: "2026-10-01", kind: "month_first", openPrice: "2670.000000",
+  date: "2026-10-01", kind: "month_first", openPrice: "2670.000000", closePrice: "2670.000000",
   boughtShares: 0, heldShares: 3164, cash: "703", principal: "20000000",
   balance: "8447880", profit: "-11551416", returnRate: "-0.577500",
 };

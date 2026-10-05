@@ -15,7 +15,7 @@ const summary: SimulationSummary = {
 };
 
 const latest: SimulationRow = {
-  date: "2024-08-01", kind: "month_first", openPrice: "201500",
+  date: "2024-08-01", kind: "month_first", openPrice: "201500", closePrice: "201500",
   boughtShares: 0, heldShares: 1, cash: "6274", principal: "86997",
   balance: "201500", profit: "120777", returnRate: "1.388300",
 };

@@ -1,0 +1,47 @@
+{
+ "isSuccess": true,
+ "detailCode": "success",
+ "message": "",
+ "result": {
+  "hasNextPage": false,
+  "totalCount": 3,
+  "list": [
+   {
+    "complexNumber": 128527,
+    "complexName": "개포자이프레지던스",
+    "type": "A01",
+    "legalDivisionName": "서울시 강남구 개포동",
+    "coordinates": {
+     "xCoordinate": 127.071605,
+     "yCoordinate": 37.485105
+    },
+    "hasVrTour": true,
+    "legalDivisionNumber": "1168010300"
+   },
+   {
+    "complexNumber": 8928,
+    "complexName": "개포자이",
+    "type": "A01",
+    "legalDivisionName": "서울시 강남구 개포동",
+    "coordinates": {
+     "xCoordinate": 127.077115,
+     "yCoordinate": 37.496437
+    },
+    "hasVrTour": false,
+    "legalDivisionNumber": "1168010300"
+   },
+   {
+    "complexNumber": 145017,
+    "complexName": "개포자이르네",
+    "type": "A01",
+    "legalDivisionName": "서울시 강남구 개포동",
+    "coordinates": {
+     "xCoordinate": 127.055232,
+     "yCoordinate": 37.478654
+    },
+    "hasVrTour": false,
+    "legalDivisionNumber": "1168010300"
+   }
+  ]
+ }
+}

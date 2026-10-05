@@ -16,19 +16,19 @@ const base = {
 };
 
 const initial: SimulationRow = {
-  ...base, date: "2026-08-03", kind: "month_first", openPrice: "590.000000",
+  ...base, date: "2026-08-03", kind: "month_first", openPrice: "590.000000", closePrice: "590.000000",
   boughtShares: 12, tradeFee: "1.062000",
 };
 const dividend: SimulationRow = {
-  ...base, date: "2026-09-28", kind: "dividend", openPrice: "590.000000",
+  ...base, date: "2026-09-28", kind: "dividend", openPrice: "590.000000", closePrice: "590.000000",
   dividendPerShare: "1.823000", dividendYield: "0.003100", dividendTax: "3.281400",
 };
 const reinvest: SimulationRow = {
-  ...base, date: "2026-09-30", kind: "reinvest", openPrice: "595.000000",
+  ...base, date: "2026-09-30", kind: "reinvest", openPrice: "595.000000", closePrice: "595.000000",
   boughtShares: 1, heldShares: 13, tradeFee: "0.089250",
 };
 const month: SimulationRow = {
-  ...base, date: "2026-10-01", kind: "month_first", openPrice: "600.000000", heldShares: 13,
+  ...base, date: "2026-10-01", kind: "month_first", openPrice: "600.000000", closePrice: "600.000000", heldShares: 13,
 };
 
 function setup(rows: SimulationRow[], stockCurrency = "USD") {

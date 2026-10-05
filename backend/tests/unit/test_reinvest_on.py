@@ -17,8 +17,8 @@ def condition(**over: object) -> Condition:
     return Condition(**base)  # type: ignore[arg-type]
 
 
-BARS = [DayBar(D("2021-08-02"), Decimal("10000")),
-        DayBar(D("2021-09-01"), Decimal("10000"))]
+BARS = [DayBar(D("2021-08-02"), Decimal("10000"), Decimal("10000")),
+        DayBar(D("2021-09-01"), Decimal("10000"), Decimal("10000"))]
 
 
 class Test세후_배당:
@@ -41,8 +41,8 @@ class Test그날_시가로_산다:
     def test_예수금_전액으로_정수_매수한다(self) -> None:
         """FR-008 — 배당락일 당일 시가로 산다."""
         rows = simulate(
-            [DayBar(D("2021-08-02"), Decimal("10000")),
-             DayBar(D("2021-09-01"), Decimal("2000"))],
+            [DayBar(D("2021-08-02"), Decimal("10000"), Decimal("10000")),
+             DayBar(D("2021-09-01"), Decimal("2000"), Decimal("2000"))],
             [DividendOn(D("2021-09-01"), Decimal("1000"))], [], condition())
         row = next(r for r in rows if r.kind == "dividend")
         # 10주 × 1,000 × 0.846 = 8,460 → 2,000원짜리 4주
@@ -61,8 +61,8 @@ class Test그날_시가로_산다:
         """"예수금 전액"이다. 배당금만 쓰면 남은 돈이 영영 놀게 된다."""
         # 원금 100,500으로 10,000원짜리 10주 → 예수금 500
         rows = simulate(
-            [DayBar(D("2021-08-02"), Decimal("10000")),
-             DayBar(D("2021-09-01"), Decimal("1000"))],
+            [DayBar(D("2021-08-02"), Decimal("10000"), Decimal("10000")),
+             DayBar(D("2021-09-01"), Decimal("1000"), Decimal("1000"))],
             [DividendOn(D("2021-09-01"), Decimal("100"))], [],
             condition(principal=Decimal("100500")))
         row = next(r for r in rows if r.kind == "dividend")
@@ -78,8 +78,8 @@ class Test배당이_없을_때:
     def test_매수_전_배당은_반영하지_않는다(self) -> None:
         """시작일 이전에는 보유가 0이라 받을 배당도 없다."""
         rows = simulate(
-            [DayBar(D("2021-07-01"), Decimal("10000")),
-             DayBar(D("2021-08-02"), Decimal("10000"))],
+            [DayBar(D("2021-07-01"), Decimal("10000"), Decimal("10000")),
+             DayBar(D("2021-08-02"), Decimal("10000"), Decimal("10000"))],
             [DividendOn(D("2021-07-01"), Decimal("1000"))], [],
             condition(start=D("2021-08-01")))
         assert all(r.kind == "month_first" for r in rows)

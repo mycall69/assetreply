@@ -1,0 +1,35 @@
+{
+ "isSuccess": true,
+ "detailCode": "success",
+ "message": "",
+ "result": {
+  "hasNextPage": false,
+  "totalCount": 2,
+  "list": [
+   {
+    "complexNumber": 22746,
+    "complexName": "리센츠",
+    "type": "A01",
+    "legalDivisionName": "서울시 송파구 잠실동",
+    "coordinates": {
+     "xCoordinate": 127.08675,
+     "yCoordinate": 37.513251
+    },
+    "hasVrTour": true,
+    "legalDivisionNumber": "1171010100"
+   },
+   {
+    "complexNumber": 572526,
+    "complexName": "리센츠빌(도시형)",
+    "type": "A06",
+    "legalDivisionName": "서울시 송파구 잠실동",
+    "coordinates": {
+     "xCoordinate": 127.07826111,
+     "yCoordinate": 37.50441814
+    },
+    "hasVrTour": false,
+    "legalDivisionNumber": "1171010100"
+   }
+  ]
+ }
+}

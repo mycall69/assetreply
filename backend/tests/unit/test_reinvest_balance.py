@@ -1,4 +1,8 @@
-"""잔고와 총자산 (T026) — 005 FR-013, SC-003, SC-004.
+"""잔고와 총자산 (T026) — 005 FR-013, SC-003, SC-004. **010 반복 3(FR-028)이 잔고를 종가 평가로
+바꿨다**(사용자 승인 2026-10-06).
+
+잔고 = 보유 주식 × 그 행의 **종가**다(005는 시가). 매수는 그대로 시가라, 시세의 종가를 시가와 다르게
+두어 둘이 섞이지 않는지 본다.
 
 **예수금을 총자산에서 빼먹으면 수익률이 실제보다 낮게 나온다.** 정수 매수라 예수금은
 거의 항상 남으므로 **모든 행에서 조금씩 틀리며**, 한 행도 0이 아니어서 눈에 띄지 않는다.
@@ -21,16 +25,16 @@ def condition(**over: object) -> Condition:
     return Condition(**base)  # type: ignore[arg-type]
 
 
-BARS = [DayBar(D("2021-08-02"), Decimal("40000")),
-        DayBar(D("2021-09-01"), Decimal("50000")),
-        DayBar(D("2021-10-01"), Decimal("30000"))]
+BARS = [DayBar(D("2021-08-02"), Decimal("40000"), Decimal("41000")),
+        DayBar(D("2021-09-01"), Decimal("50000"), Decimal("48500")),
+        DayBar(D("2021-10-01"), Decimal("30000"), Decimal("29000"))]
 
 
 class Test잔고:
-    def test_보유_주식_곱하기_그_행의_시가다(self) -> None:
-        """SC-003."""
+    def test_보유_주식_곱하기_그_행의_종가다(self) -> None:
+        """SC-003 — 010 FR-028(005: × 시가)."""
         for row in simulate(BARS, [], [], condition()):
-            assert row.balance == Decimal(row.held_shares) * row.open_price
+            assert row.balance == Decimal(row.held_shares) * row.close_price
 
     def test_예수금을_포함하지_않는다(self) -> None:
         """FR-013 — 잔고와 총자산은 다른 값이다."""
@@ -39,7 +43,7 @@ class Test잔고:
         assert rows[0].balance != rows[0].balance + rows[0].cash
 
     def test_보유가_0이면_잔고도_0이다(self) -> None:
-        rows = simulate([DayBar(D("2021-08-02"), Decimal("999999"))], [], [],
+        rows = simulate([DayBar(D("2021-08-02"), Decimal("999999"), Decimal("999999"))], [], [],
                         condition())
         assert rows[0].held_shares == 0
         assert rows[0].balance == Decimal("0")

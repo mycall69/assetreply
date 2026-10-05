@@ -4,6 +4,9 @@
  * 대상 여섯 — 고른 종목 줄(`StockSearch`)·주식 이력 행(`SimulationHistory`)·고른 코인(`CoinSearch`)·코인 이력 행(`CryptoHistory`)·부동산 보드
  * (`RealEstateBoard`)·부동산 이력 행(`RealEstateHistory`). 이름이 `<a target="_blank" rel="noopener noreferrer">`이고 href는 `lib/externalLinks`의
  * 규칙이다. 이력 행의 링크를 눌러도 행의 고르기·다시 실행이 일어나지 않는다. 검색 목록의 옵션은 링크가 아니다(누르면 고르기).
+ *
+ * 반복 3(FR-029) — 부동산 단지 이름은 검색 주소로 시작하고, 단지 번호 경로가 `found`를 주면 Npay 부동산의 그 단지 화면이 된다
+ * (`ComplexLink.test.tsx`가 자세히 본다). 아래 부동산의 검색 기대는 "번호를 받기 전"이다.
  */
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -14,7 +17,9 @@ import { RealEstateBoard } from "@/components/realestate/RealEstateBoard";
 import { RealEstateHistory } from "@/components/realestate/RealEstateHistory";
 import { SimulationHistory } from "@/components/stock/SimulationHistory";
 import { StockSearch } from "@/components/stock/StockSearch";
+import { apiClient } from "@/lib/apiClient";
 import { coinLink, complexSearchLink, stockLink } from "@/lib/externalLinks";
+import { resetNaverComplexLinks } from "@/lib/naverComplexLink";
 import type { CryptoHistoryEntry, RealEstateHistoryEntry, SimulationHistoryEntry } from "@/lib/types";
 import { SIM_RESULT } from "./support/realEstateSimulationFixtures";
 import { SAMSUNG, local, routeGet } from "./support/stockSearchFixtures";
@@ -34,6 +39,7 @@ function expectExternal(link: HTMLElement, href: string | null) {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  resetNaverComplexLinks();
 });
 
 describe("주식", () => {
@@ -113,6 +119,17 @@ describe("부동산", () => {
     fireEvent.click(link);
     expect(props.onToggle).not.toHaveBeenCalled();
     expect(props.onRerun).not.toHaveBeenCalled();
+  });
+
+  it("보드·이력 행 — 단지 번호를 찾으면 Npay 부동산 단지 화면이다(반복 3)", async () => {
+    vi.spyOn(apiClient, "get").mockImplementation(async (path: string) => {
+      const id = Number(/complexes\/(\d+)\/naver/.exec(path)?.[1]);
+      return { complexId: id, status: "found", url: `https://fin.land.naver.com/complexes/${id === 12 ? 111515 : 0}`,
+        reason: null } as never;
+    });
+    render(<RealEstateHistory entries={[entry]} selected={[]} comparing={false} saveError={null} {...handlers()} />);
+    expectExternal(await screen.findByRole("link", { name: /헬리오시티아파트 Npay 부동산에서 보기/ }),
+      "https://fin.land.naver.com/complexes/111515");
   });
 
   it("이력 행 — 법정동 이름을 모르면 단지명만으로 검색한다", () => {
