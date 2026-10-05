@@ -232,18 +232,17 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
   },
 
   /**
-   * 진입 시 네 번의 병렬 호출 (research R2-6). 커버리지는 세 통화를 한 번에 반환하므로
-   * 통화를 바꿔도 다시 받지 않는다.
+   * 커버리지를 받은 뒤 요약·표·차트 세 번의 병렬 호출 (research R2-6).
+   *
+   * **커버리지는 부를 때마다 새로 받는다**(`.specify/bugs/fx-stale-coverage`). 처음 한 번만 받아 두면 화면을 연 뒤
+   * 수집된 통화의 행이 없어 차트가 하루짜리 구간을 요청해 안내 없이 비었고, 매일 수집이 늘린 `coveredThrough`도
+   * 새로고침 전까지 차트에 들어오지 않았다 — 003부터 수집이 백그라운드로 돈다.
    */
   loadAll: async () => {
-    const { currency, preset, coverage } = get();
+    const { currency, preset } = get();
     set({ loading: true, error: null, collecting: null });
     try {
-      const covPromise =
-        coverage.length > 0
-          ? Promise.resolve({ coverage })
-          : apiClient.get<{ coverage: CoverageRow[] }>("/api/fx/coverage");
-      const cov = await covPromise;
+      const cov = await apiClient.get<{ coverage: CoverageRow[] }>("/api/fx/coverage");
       const row = cov.coverage.find((c) => c.currency === currency) ?? null;
       const from = presetStart(preset, row);
       const presetNotice = presetClampNotice(preset, row);
