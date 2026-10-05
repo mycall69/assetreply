@@ -8,6 +8,7 @@
  *
  * 010 반복 1 — 다른 네 화면처럼 왼쪽에서 시작한다(FR-022). 통화를 바꾸면 요약·차트·표가 "불러오는 중"으로 바뀌어 문서가 창보다 짧아지고, 브라우저가
  * 스크롤을 끌어내렸다(R10-16 실측). 그래서 바꾸기 **직전** 본문 높이를 최소 높이로 붙잡고, 새 통화가 다 오면 놓는다(FR-023).
+ * 기간 단위 전환도 높이를 붙잡되, 새 표가 붙으면 표의 처음으로 옮긴다(004 FR-005b 그대로 — T051 실측).
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -37,18 +38,29 @@ export default function FxPage() {
 
   const noData = latest?.status === "no_data";
 
-  // FR-023 — 통화를 바꾸는 동안 붙잡는 본문 높이(px). 빠르게 두 번 바꾸면 늦게 끝난 앞 전환이 뒤 전환의 높이를 놓지 않게 차례를 센다.
+  // FR-023 — 다시 받는 동안 붙잡는 본문 높이(px). 빠르게 두 번 바꾸면 늦게 끝난 앞 전환이 뒤 전환의 높이를 놓지 않게 차례를 센다.
   const workspace = useRef<HTMLDivElement>(null);
   const [reserve, setReserve] = useState<number | null>(null);
   const turn = useRef(0);
-  function changeCurrency(next: CurrencyCode): void {
+  function holdWhile(reload: () => Promise<void>): void {
     const height = workspace.current?.getBoundingClientRect().height ?? 0;
     const mine = ++turn.current;
     setReserve(height > 0 ? height : null);
-    void setCurrency(next).finally(() => {
+    void reload().finally(() => {
       if (turn.current === mine) setReserve(null);
     });
   }
+
+  // 004 FR-005b — 기간 단위를 바꾸면 표가 떨어졌다 새로 붙는다. 새로 붙은 `DailyTable`은 직전 `resetKey`를 모르므로 화면이 마지막으로 그린
+  // 표의 차례를 기억해 표의 처음으로 옮긴다. 통화 전환은 차례를 올리지 않아 창이 그대로다(FR-023). 표가 붙은 채 바뀌는 경우(먼 날짜)는
+  // `DailyTable`도 같은 자리로 옮긴다 — 표를 바로 감싼 자리라 두 번 옮겨도 같다.
+  const tableTop = useRef<HTMLDivElement>(null);
+  const shownEpoch = useRef(tableEpoch);
+  useEffect(() => {
+    if (daily === null || shownEpoch.current === tableEpoch) return;
+    shownEpoch.current = tableEpoch;
+    tableTop.current?.scrollIntoView?.({ block: "start" });
+  }, [daily, tableEpoch]);
 
   return (
     <div ref={workspace} className="max-w-5xl space-y-5"
@@ -58,7 +70,7 @@ export default function FxPage() {
           <h2 className="text-2xl font-bold tracking-tight">외환 데이터 분석</h2>
           <p className="mt-1 text-sm text-gray-500">매매기준율 및 히스토리컬 트렌드</p>
         </div>
-        <CurrencyTabs value={currency} onChange={changeCurrency} />
+        <CurrencyTabs value={currency} onChange={(c: CurrencyCode) => holdWhile(() => setCurrency(c))} />
       </header>
 
       {error && (
@@ -122,18 +134,20 @@ export default function FxPage() {
             */}
             <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-sm font-semibold">일자별 환율 상세</h3>
-              <PeriodTabs value={period} onChange={(p) => void setPeriod(p)} />
+              <PeriodTabs value={period} onChange={(p) => holdWhile(() => setPeriod(p))} />
             </div>
             {daily ? (
-              <DailyTable
-                data={daily}
-                selectedDate={selectedDate}
-                onSelect={(d) => void selectDate(d)}
-                onLoadMore={() => void loadMoreDaily()}
-                loadingMore={loadingMore}
-                loadError={loadMoreError}
-                resetKey={tableEpoch}
-              />
+              <div ref={tableTop}>
+                <DailyTable
+                  data={daily}
+                  selectedDate={selectedDate}
+                  onSelect={(d) => void selectDate(d)}
+                  onLoadMore={() => void loadMoreDaily()}
+                  loadingMore={loadingMore}
+                  loadError={loadMoreError}
+                  resetKey={tableEpoch}
+                />
+              </div>
             ) : (
               <p role="status" className="rounded-lg border border-gray-200 px-4 py-6 text-center text-sm text-gray-500">
                 ⟳ 불러오는 중…

@@ -401,6 +401,8 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   - 통화를 바꾸는 동안 본문이 바꾸기 직전 높이를 최소 높이로 붙잡고, 새 통화가 오면 놓는다(구현 중 실측 — 원인은 높이 무너짐, research R10-16)
   - `DailyTable`(StrictMode 아래)이 다시 붙어도 `resetKey`가 같으면 `scrollIntoView`를 부르지 않고, `resetKey`가 바뀌면 부른다(004 FR-005b 유지)
   - 004 기존 테스트는 바뀌지 않는다 — 통화 전환은 `tableEpoch`를 올리지 않는다(실측)
+  - (T051 실측 뒤 더함) StrictMode 화면에서 통화 전환은 `scrollIntoView` 0회, 기간 단위 전환은 새 표가 붙은 뒤 표를 품은 자리로 옮긴다. 기간 단위를 바꾸는
+    동안에도 높이를 붙잡는다
   - (FR-022, FR-023, SC-008)
 
 ### Implementation for 반복 1
@@ -430,11 +432,13 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
   - `frontend/src/app/fx/page.tsx` — 가운데 정렬 제거
   - 통화를 바꾸는 동안 본문 최소 높이를 붙잡는다(`app/fx/page.tsx`), `frontend/src/components/fx/DailyTable.tsx`는 `resetKey`의 직전 값과 비교해
     처음으로 돌린다(R10-16 — 구현 중 실측으로 고침)
+  - (T051 실측 뒤 고침) 기간 단위 전환도 높이를 붙잡고, 화면이 마지막으로 그린 표의 차례를 기억해 새 표가 붙으면 표의 처음으로 옮긴다 — 새로 붙은
+    `DailyTable`은 직전 `resetKey`를 몰라 처음으로 가지 않았다(R10-16)
   - (FR-022, FR-023)
 
 ### 반복 1 마무리
 
-- [ ] T051 quickstart 11~13을 실행하고 `specs/010-chart-price-overlay-history-layout/quickstart.md`에 기록한다:
+- [X] T051 quickstart 11~13을 실행하고 `specs/010-chart-price-overlay-history-layout/quickstart.md`에 기록한다:
   - 11: AAPL 원화 원금 2020-01-02 — 분할 앞뒤 수정 종가 비율이 원주가 시세 변동과 같고, 같은 날 네이버 증권 값과 대략 같음(캡처)
   - 12: 링크 — 참조 넷 + 시장별 표본(NYSE·AMEX·코스닥·일본)이 새 탭에서 기대 페이지, 원래 화면 그대로
   - 13: 외환 — 1920px에서 제목 왼쪽, 통화 USD → JPY → EUR로 바꿀 때 `window.scrollY` 변화 0, 기간 단위 전환은 표의 처음으로
@@ -444,7 +448,7 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 - [ ] T052 [P] `README.md`·`CLAUDE.md` — 010 행에 반복 1(수정 종가·외부 링크·외환 다듬기) (헌법 원칙 VIII — 문서화. 대응 FR 없음)
 - [ ] T053 품질 게이트 — 서버를 내리고 백엔드·프론트엔드 전체 검사. 기존 테스트 파일 변경이 plan 목록 안(T029의 둘 + 반복 1에서 승인된 것)인지
   `git diff --stat 73077aa`로 확인한다 (SC-006)
-- [ ] T054 계산 불변 대조 — T001 기준 응답(`010-baseline`)과 같은 조건의 표 경로가 같다. 시계열 기존 키 중 주식 `price`만 정의가 바뀌었다(새 정의로 확인)
+- [X] T054 계산 불변 대조 — T001 기준 응답(`010-baseline`)과 같은 조건의 표 경로가 같다. 시계열 기존 키 중 주식 `price`만 정의가 바뀌었다(새 정의로 확인)
   (FR-021, SC-006)
 
 **Checkpoint**: 주가 선이 분할 날 이어지고, 이름에서 네이버 페이지가 새 탭으로 열리며, 외환이 왼쪽 정렬·통화 전환 스크롤 유지다

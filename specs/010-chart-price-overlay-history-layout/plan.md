@@ -31,7 +31,7 @@
 | 표 고유 폭(1440·1920px 창) | 주식 1,071 · 가상자산 842 · 예금 659 · 부동산 836px. 본문 = 창 − 306px | 경계 폭 = 표 폭 + 726px(이력 400 + 간격 20 포함) → 모두 1920px 이하. 상수 없이 줄바꿈 flex(R10-10) |
 | 출처 수정 종가 (반복 1) | `stock_price.close_adjusted`는 Yahoo `adjclose` 그대로 — 배당까지 소급하고 받은 시점마다 기준이 다르다(`models.py` 주석) | 쓰지 않는다. 분할만 반영한 수정 종가를 `close_raw`·`stock_split`에서 계산(R10-13) |
 | 외환 정렬 (반복 1) | 외환 화면만 본문이 `mx-auto max-w-5xl` — 넓은 창에서 가운데에 뜬다 | 가운데 정렬을 없앤다(R10-17) |
-| 외환 통화 전환 (반복 1 — 구현 중 실측) | 통화를 바꾸면 표·차트가 "불러오는 중"으로 바뀌어 문서가 2,186 → 900px로 줄고 스크롤이 0이 된다. 개발 모드에서는 StrictMode가 `DailyTable`의 첫 렌더 장치를 무력화해 다시 붙은 표가 창을 표로 옮긴다(912px) | 바꾸기 직전 높이를 붙잡고, `DailyTable`은 `resetKey` 변화로만 처음으로 돌린다(R10-16). 004 테스트 변경 없음 |
+| 외환 통화 전환 (반복 1 — 구현 중 실측) | 통화를 바꾸면 표·차트가 "불러오는 중"으로 바뀌어 문서가 2,186 → 900px로 줄고 스크롤이 0이 된다. 개발 모드에서는 StrictMode가 `DailyTable`의 첫 렌더 장치를 무력화해 다시 붙은 표가 창을 표로 옮긴다(912px) | 바꾸기 직전 높이를 붙잡고, `DailyTable`은 `resetKey` 변화로만 처음으로 돌린다(R10-16). 기간 단위 전환은 화면이 표의 차례를 기억해 새 표가 붙으면 처음으로 옮긴다(T051 실측). 004 테스트 변경 없음 |
 
 **반복 1(2026-10-05)**: 주식 주가 선을 **분할만 반영한 수정 종가**로 바꾸고 분할 표식을 없앤다(표의 시작가는 그대로). 주식·가상자산·부동산 이름에서
 네이버 증권·네이버 부동산(검색)을 새 탭으로 연다 — 외부를 부르지 않는다. 외환 화면을 왼쪽에 붙이고 통화를 바꿔도 스크롤 위치를 그대로 둔다. 사용자
@@ -137,11 +137,11 @@ frontend/
 │   ├── stock/StockSearch.tsx · crypto/CoinSearch.tsx · realestate/RealEstateBoard.tsx  # (반복 1) 고른 이름·단지 이름을 외부 링크로
 │   ├── stock/SimulationHistory.tsx  # onRerun(필수)·다시 실행 버튼, 행 줄바꿈 (반복 1: 이름 링크)
 │   ├── crypto/CryptoHistory.tsx · deposit/DepositHistory.tsx · realestate/RealEstateHistory.tsx  # 행 줄바꿈 (반복 1: 가상자산·부동산 이름 링크)
-│   ├── fx/DailyTable.tsx       # (반복 1) 통화 전환에서 창 스크롤 없음 — 또는 외환 스토어의 resetKey(R10-16)
+│   ├── fx/DailyTable.tsx       # (반복 1) resetKey의 직전 값과 비교해 처음으로 — StrictMode에서 다시 붙어도 움직이지 않음(R10-16)
 │   └── deposit/DepositPerformanceTable.tsx · deposit/DepositNotice.tsx  # formatAnnualRate 가져오는 곳만
 ├── src/stores/stockStore.ts    # rerunHistory
 ├── src/app/{stocks,crypto,deposit,realestate}/page.tsx  # TableWithHistory로 감싼다, 주식 onRerun
-├── src/app/fx/page.tsx         # (반복 1) 가운데 정렬(mx-auto) 제거
+├── src/app/fx/page.tsx         # (반복 1) 가운데 정렬(mx-auto) 제거, 통화·기간 전환 동안 높이 붙잡기, 기간 전환 뒤 표의 처음으로(R10-16)
 └── tests/                      # 새 파일 — 가격 선·상자·배치·다시 실행·순수 함수
                                 # 바뀌는 기존 파일 — SimulationHistoryList·SimulationHistoryBlocked(onRerun 속성만, 승인 필요)
 
