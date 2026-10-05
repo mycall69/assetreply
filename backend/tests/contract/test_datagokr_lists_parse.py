@@ -13,6 +13,8 @@ T001의 실제 응답(`fixtures/apt/README.md`)으로 본다:
 """
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from src.ingestion.datagokr.errors import DataGoKrFormatError, DataGoKrUnavailable
@@ -43,6 +45,22 @@ class TestRegionPage:
     def test_모르는_결과_코드는_형식_오류(self) -> None:
         with pytest.raises(DataGoKrFormatError):
             parse_regions('{"RESULT":{"resultCode":"INFO-9","resultMsg":"?"}}')
+
+    def test_상위_코드가_빈_행도_읽는다(self) -> None:
+        """2026-10-05 전국 15쪽 실측(T027) — 리 행 둘(영덕군 영해면 대동리 `4777036039`, 통영시
+        산양읍 당포리 `4822025032`)의 `locathigh_cd`가 공백 한 칸이다. 리는 쓰지 않는 단계라 그 쪽
+        전체를 형식 오류로 버리면 행정구역을 끝내 받지 못한다. 법정동 행이 비면 상위는 코드에서
+        정한다(시·군·구 = 앞 5자리)."""
+        data = json.loads(load("apt/region_chuncheon.json"))
+        rows = data["StanReginCd"][1]["row"]
+        ri = next(r for r in rows if r["ri_cd"] != "00")
+        umd = next(r for r in rows if r["ri_cd"] == "00" and r["umd_cd"] != "000")
+        ri["locathigh_cd"] = umd["locathigh_cd"] = " "
+        page = parse_regions(json.dumps(data, ensure_ascii=False))
+        assert len(page.rows) == len(rows)
+        regions = {r.code: r for r in build_regions(page.rows)}
+        assert ri["region_cd"] not in regions
+        assert regions[umd["region_cd"]].parent_code == umd["region_cd"][:5] + "00000"
 
 
 class TestBuildRegions:
