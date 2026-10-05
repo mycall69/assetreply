@@ -441,7 +441,7 @@ description: "Task list for 009-real-estate-investment-simulation"
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T049 [P] [US4] `frontend/tests/realEstateHistory.test.ts`·`RealEstateHistory.test.tsx`·`realEstateStoreCompare.test.ts` — 저장 키가 다른 자산군과
+- [ ] T049 [P] [US4] `frontend/tests/realEstateHistory.test.ts`·`RealEstateHistoryList.test.tsx`(이름 — 아래 메모)·`realEstateStoreCompare.test.ts` — 저장 키가 다른 자산군과
   다름(`assetreplay:realestate-history:v1`), 조건만(단지 id·이름, 평형 구분, 매입일, 직접 넣은 매입가 또는 null — 결과 수치 없음), 같은 조건은 맨
   앞으로, 다시 실행 = 지역 풀다운까지 그 단지의 지역으로 맞추고 조건을 넣어 곧바로 실행, 삭제, 매입가 칸 "그 달 시세" 또는 금액, 둘 이상 골라
   비교 → `ComparisonChart`, 범례에 단지·평형·매입일, 잠정 항목 "(잠정)", 빠지는 항목은 "…의 시계열을 불러오지 못했습니다"와 사유(받지 않은 구간 —
@@ -583,3 +583,7 @@ Task: "T034 frontend 폼·보드·안내·표·스토어"
   부분 문자열로 찾아 009 응답 키 `lastPricedMonth`(계약) 안의 `lastPrice`를 걸었다. 낱말 경계로 찾게 고쳤다(`lastPrice` 단독은 그대로
   잡는다). 시뮬레이션 요약에 `provisionalFrom`(잠정 기간의 첫 달 1일 — 시계열과 같은 키)을 더했다 — 화면의 잠정 줄이 설정을 따라가게(T034 작성
   중 결정, contracts/rest-api). T029(헬리오시티 참조값)는 계산 모듈(T035)이 이미 있어 첫 실행부터 통과한다
+- **2026-10-05 Phase 7 테스트 메모**: 화면 테스트 이름을 `RealEstateHistoryList.test.tsx`로 했다 — 이 Mac의 파일 시스템은 대소문자를
+  가리지 않아 `tsc`가 `realEstateHistory.test.ts`와 대소문자만 다른 `.tsx`를 검사에서 뺀다(`--listFiles`로 확인). 기존
+  `CryptoHistory.test.tsx`·`DepositHistory.test.tsx`·`SimulationHistory.test.tsx`도 같은 이유로 타입 검사를 받지 않았다 — 이름 바꾸기는
+  기존 테스트 변경이라 사용자에게 알리고 그대로 둔다. 이력 항목에 법정동 코드·평형 이름을 더했다(data-model 이력)
