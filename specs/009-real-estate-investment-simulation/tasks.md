@@ -466,7 +466,7 @@ description: "Task list for 009-real-estate-investment-simulation"
   시·군·구는 전체 이력 약 280회 — 하루 30곳 남짓), **잠정 12개월**(최근 3개월 하루 한 번·4~12개월 한 달 한 번 — 늦은 해제, 그 뒤의 해제 약 1.2%는
   반영하지 않음), **현존 시·군·구 코드만**(출처가 과거 거래도 새 코드로만 준다), 인증키가 URL 질의에 들어가므로 URL을 남기지 않는다, 세법이 바뀌면 `simulation/apt_tax_rules.py`에 규칙을 더한다(현행 규칙의 끝을 닫고), 화면·문서의 출처 표시
   (FR-035, FR-036)
-- [ ] T053 품질 게이트 — 백엔드 전체 테스트·커버리지 80% 이상·mypy strict·`ruff check --no-cache`, 프론트엔드 테스트·tsc·eslint. **001~008의 기존
+- [X] T053 품질 게이트 — 백엔드 전체 테스트·커버리지 80% 이상·mypy strict·`ruff check --no-cache`, 프론트엔드 테스트·tsc·eslint. **001~008의 기존
   테스트가 plan의 목록 밖에서 바뀌지 않았는지** 따로 확인한다(`git diff`로 기존 테스트 파일 목록) (SC-013)
 - [X] T054 quickstart 21~26을 실행하고 기록한다(21·22·24는 테스트 전용 DB의 임시 백엔드 — 008과 같은 방법, `.env`를 고치지 않고 환경변수로):
   21(틀린 키 → 행정구역 실패 경고, 받지 않은 곳 `auth` 문구·다시 열어도 사유, 받아 둔 송파구 → 한 번의 실행으로 결과와 확인 실패 줄, 중간까지만
@@ -587,3 +587,8 @@ Task: "T034 frontend 폼·보드·안내·표·스토어"
   가리지 않아 `tsc`가 `realEstateHistory.test.ts`와 대소문자만 다른 `.tsx`를 검사에서 뺀다(`--listFiles`로 확인). 기존
   `CryptoHistory.test.tsx`·`DepositHistory.test.tsx`·`SimulationHistory.test.tsx`도 같은 이유로 타입 검사를 받지 않았다 — 이름 바꾸기는
   기존 테스트 변경이라 사용자에게 알리고 그대로 둔다. 이력 항목에 법정동 코드·평형 이름을 더했다(data-model 이력)
+- **2026-10-05 T053 품질 게이트**: 백엔드 pytest 2,315 통과(커버리지 96%)·mypy strict·`ruff check --no-cache` 통과, 프론트엔드 vitest
+  114파일 1,031 통과·tsc·eslint 통과. 001~008 테스트 중 바뀐 것(`git diff 68baa42..HEAD`) 9개는 모두 plan 목록이거나 D2 승인이다 —
+  `test_crypto_worker`·`test_deposit_worker`(태스크 수 7 → 8), `test_progress_sse`(부동산 진행 머리글·SSE 파일 목록), `Sidebar`·
+  `noUnbuiltAssetRoutes`·`TopBarTitle`(plan 목록), `test_no_hardcoded_dates`(세법 표 예외 — D2 승인), `test_layer_boundaries`(키움
+  필드명을 낱말 경계로 — D2 승인), `tests/integration/conftest.py`(부동산 큐 둘 비우기 — 다른 큐와 같은 공용 픽스처, Phase 3 테스트 커밋)
