@@ -23,12 +23,13 @@ from src.api.services.stock_simulation import (
     ConvertedRow,
     SimulationResult,
     check_principal_currency,
-    page,
     parse_principal,
     prepare,
     require_start_available,
     require_stock,
+    table,
 )
+from src.api.services.table_rows import parse_period, row_body
 from src.db.session import get_session
 from src.repository.stock_setting import SaleTaxSettings
 from src.simulation.money import quantize_rate
@@ -149,10 +150,13 @@ async def get_simulation(
     end: Annotated[dt.date | None, Query()] = None,
     before: Annotated[dt.date | None, Query(description="이 날짜 미만만 반환")] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 30,
+    period: Annotated[str | None,
+                      Query(description="daily · weekly · monthly — 기본 daily(012)")] = None,
 ) -> Json | JSONResponse:
     """시뮬레이션을 실행하고 표 한 페이지를 돌려준다."""
     check_principal_currency(principal_currency)
     amount = parse_principal(principal)
+    unit = parse_period(period)
 
     # 끝은 기본적으로 어제다. 오늘 시세는 장중에 바뀌므로 재현성이 깨진다.
     finish = end or (dt.date.today() - dt.timedelta(days=1))
@@ -178,7 +182,8 @@ async def get_simulation(
         reinvest=reinvest)
     stock, settings, result = prepared.stock, prepared.settings, prepared.result
 
-    rows, has_more = page(result.rows, before, limit)
+    # 012 — 단위는 표의 행 구성만 바꾼다. 요약·조건·시계열은 단위와 무관하다(FR-007).
+    shown = table(result, unit=unit, end=finish, before=before, limit=limit)
 
     return {
         "stock": {
@@ -203,7 +208,8 @@ async def get_simulation(
             "kind": "cash_buy_discounted",
             "spreadDiscount": str(result.exchange.spread_discount),
         }} if result.exchange is not None else {}),
-        "rows": [row_json(r) for r in rows],
-        "hasMore": has_more,
-        "oldestReturned": rows[-1].row.date.isoformat() if rows else None,
+        "period": unit,
+        "rows": [row_body(r, row_json) for r in shown.rows],
+        "hasMore": shown.has_more,
+        "oldestReturned": shown.oldest.isoformat() if shown.oldest else None,
     }

@@ -273,33 +273,33 @@ description: "Task list for 012-period-tables-history-db"
 
 ### Implementation for User Story 2
 
-- [ ] T027 [US2] `backend/src/simulation/period_table.py` — 달력·`build_table`·`page` (FR-004, FR-004a, FR-004b, FR-005, FR-009, data-model 3)
+- [X] T027 [US2] `backend/src/simulation/period_table.py` — 달력·`build_table`·`page` (FR-004, FR-004a, FR-004b, FR-005, FR-009, data-model 3)
   - 대표일: 주는 "그 주 ∩ 계산 기간에서 금요일 이하의 마지막 시세일, 없으면 그 주 ∩ 계산 기간의 마지막 시세일", 월은 "그 달 ∩ 계산 기간의 마지막
     시세일"이다(research R12-3).
   - `is_ongoing`은 `period_to > end`(일 단위는 거짓)다.
-- [ ] T028 [US2] `backend/src/simulation/reinvest.py`·`recurring_stock.py` — `daily` 더하기 (FR-004, FR-017, data-model 4)
+- [X] T028 [US2] `backend/src/simulation/reinvest.py`·`recurring_stock.py` — `daily` 더하기 (FR-004, FR-017, data-model 4)
   - `Outcome.daily: tuple[Row, ...] = ()`, `RecurringOutcome.daily: tuple[RecurringRow, ...] = ()`, `RowKind`에 `"day"`.
   - `rows`·`latest`의 계산 줄은 고치지 않는다.
-- [ ] T029 [US2] 주식 표 경로 — `backend/src/api/services/stock_simulation.py`·`stock_recurring.py`·`backend/src/api/routes/stock_simulation.py`·`stock_recurring.py` (FR-003~FR-005, FR-007~FR-009, contracts/rest-api.md 1)
+- [X] T029 [US2] 주식 표 경로 — `backend/src/api/services/stock_simulation.py`·`stock_recurring.py`·`backend/src/api/routes/stock_simulation.py`·`stock_recurring.py` (FR-003~FR-005, FR-007~FR-009, contracts/rest-api.md 1)
   - `period` 질의(밖이면 `InvalidQuery`)와 응답 `period`를 더한다.
   - 사건 행을 모은다 — 일시금 `buy`는 매수일의 월 행이다.
   - `build_table` → `page` → 쪽의 항목만 행 JSON으로 바꾼다(원화 환산 포함).
   - `kind`·`shiftedFrom`·`isOngoing`을 싣는다.
   - 기존 쪽 함수(`stock_simulation.page`·`stock_recurring`의 쪽)는 `period_table.page`로 바꾼다.
-- [ ] T030 [US2] 가상자산 표 경로 — `backend/src/api/services/crypto_simulation.py`·`crypto_recurring.py`·`backend/src/api/routes/crypto_simulation.py`·`crypto_recurring.py` (FR-003~FR-005, FR-004b, FR-008)
+- [X] T030 [US2] 가상자산 표 경로 — `backend/src/api/services/crypto_simulation.py`·`crypto_recurring.py`·`backend/src/api/routes/crypto_simulation.py`·`crypto_recurring.py` (FR-003~FR-005, FR-004b, FR-008)
   - T029와 같다.
   - 일 단위는 `series_query.compute_gaps(…, inside_reason="source_missing")`를 시계열 경로와 같은 입력으로 불러 `missing`을 넘긴다. 입력은 일시금은 시작 월 1일,
     적립식은 시작일부터다.
   - 표 행 JSON에서 `firstDayMissing`을 뺀다.
-- [ ] T031 [US2] `frontend/src/lib/types.ts` — 행 `kind`(`buy`·`period`·`missing`, `month_first` 제거)·`shiftedFrom?`·`isOngoing?: true`·`dateTo`, 응답 `period`, 결측 행 판별 합 타입 (contracts/rest-api.md 1.3)
-- [ ] T032 [US2] `frontend/src/components/fx/PeriodTabs.tsx`(선택 속성 `titles`)·`frontend/src/components/period/PeriodMarks.tsx`·`PeriodLegend.tsx` (FR-010, F2·F3)
-- [ ] T033 [US2] 표 넷 — `components/stock/PerformanceTable.tsx`·`components/crypto/CryptoPerformanceTable.tsx`·`components/recurring/RecurringStockTable.tsx`·`RecurringCryptoTable.tsx` (FR-004, FR-004a, FR-004b, FR-005, FR-008, F3·F4)
+- [X] T031 [US2] `frontend/src/lib/types.ts` — 행 `kind`(`buy`·`period`·`missing`, `month_first` 제거)·`shiftedFrom?`·`isOngoing?: true`·`dateTo`, 응답 `period`, 결측 행 판별 합 타입 (contracts/rest-api.md 1.3)
+- [X] T032 [US2] `frontend/src/components/fx/PeriodTabs.tsx`(선택 속성 `titles`)·`frontend/src/components/period/PeriodMarks.tsx`·`PeriodLegend.tsx` (FR-010, F2·F3)
+- [X] T033 [US2] 표 넷 — `components/stock/PerformanceTable.tsx`·`components/crypto/CryptoPerformanceTable.tsx`·`components/recurring/RecurringStockTable.tsx`·`RecurringCryptoTable.tsx` (FR-004, FR-004a, FR-004b, FR-005, FR-008, F3·F4)
   - 속성 `period`를 더한다.
   - 날짜 칸에 `PeriodMarks`, 표 아래에 `PeriodLegend`를 둔다.
   - `missing` 행을 그리고 ◇ 그리기를 지운다. `data-kind`·키는 `${date}:${kind}`다.
-- [ ] T034 [US2] `frontend/src/stores/stockStore.ts`·`cryptoStore.ts` — `tablePeriod`·`tableSeq`·`setTablePeriod` (FR-003, FR-006, FR-007, data-model 5.1)
+- [X] T034 [US2] `frontend/src/stores/stockStore.ts`·`cryptoStore.ts` — `tablePeriod`·`tableSeq`·`setTablePeriod` (FR-003, FR-006, FR-007, data-model 5.1)
   - 실행·이어 받기·다시 실행에 `period`(일이 아니면)와 차례 번호를 쓴다.
-- [ ] T035 [US2] `frontend/src/app/stocks/page.tsx`·`frontend/src/app/crypto/page.tsx` (FR-003, FR-006, F2·F5)
+- [X] T035 [US2] `frontend/src/app/stocks/page.tsx`·`frontend/src/app/crypto/page.tsx` (FR-003, FR-006, F2·F5)
   - 표 머리에 `PeriodTabs`(F2 제목)를 둔다.
   - 단위 전환을 `useHeightHold`로 감싼다.
   - 전환 중에는 "⟳ 불러오는 중…"을 보인다.
@@ -340,7 +340,7 @@ description: "Task list for 012-period-tables-history-db"
     - "`mode`는 `recurring`, 그 밖의 방식은 칸을 두지 않는다"
     - "문자열 칸의 길이는 각각 200 이하, 식별자는 255 이하"
   - 직렬화가 칸 차례와 무관하게 같은 글이다. 원금 `"10000000"`이 글자 그대로 돌아온다(수로 바뀌지 않는다).
-  - `history_conditions`·`history`·`repository/simulation_history`에 원금·매입가로 하는 산술(`+`·`-`·`*`·`/`·`quantize`)이 없다 — 검증의 `Decimal(…)` 읽기뿐이다
+  - `history_conditions`·`history`·`repository/simulation_history`에 곱셈·나눗셈·`quantize`가 없다(덧셈·뺄셈은 보관 기간의 시각 계산에만) — 원금은 검증의 `Decimal(…)` 읽기뿐이다
     (원칙 VI 해석의 장치, plan Complexity Tracking — 사용자 확인 2026-10-06).
 - [ ] T040 [P] [US3] `backend/tests/integration/test_history_api.py` — 이력 경로 넷 (FR-011, FR-013, FR-014, SC-006, contracts/rest-api.md 2~5·7)
   - 목록·저장·삭제
@@ -371,7 +371,7 @@ description: "Task list for 012-period-tables-history-db"
     - `10`·`"30"`·`true`·`30.0`은 422 `invalid_setting`이다
   - `GET /api/history/settings`가 자산군 경로로 잡히지 않는다.
 - [ ] T042 [P] [US3] `backend/tests/integration/test_history_schema.py` — 마이그레이션 (data-model 1)
-  - 두 테이블과 `uq_simulation_history_key`·`ix_simulation_history_list`가 있다. `history_setting.retention`이 비원생 열거다.
+  - 두 테이블과 기본 키 `(asset_class, condition_key)`·`ix_simulation_history_list`가 있다. `history_setting.retention`이 비원생 열거다.
   - 내렸다 다시 올리기를 한다(`test_deposit_schema.py`와 같은 방식).
   - 기존 일반 검사(`test_migrations.py`)는 그대로 통과해야 한다.
 - [ ] T043 [US3] `frontend/tests/setup.ts` — `/api/history` 경로만 받는 메모리 안 대역을 **더한다** (research R12-12)
@@ -425,9 +425,9 @@ description: "Task list for 012-period-tables-history-db"
 ### Implementation for User Story 3
 
 - [ ] T051 [US3] `backend/src/db/models.py`·`backend/src/db/migrations/versions/<rev>_시뮬레이션_이력.py` (`down_revision = "f4c2a8e19d35"`) (FR-011, FR-012, data-model 1)
-  - `simulation_history`: `id BigInteger PK`, `asset_class Enum("stock","crypto","deposit","realestate", native_enum=False, length=16) NOT NULL`, `condition_key String(255) NOT NULL`,
+  - `simulation_history`: `asset_class Enum("stock","crypto","deposit","realestate", native_enum=False, length=16) PK`, `condition_key String(255) PK`,
     `condition Text NOT NULL`, `last_run_at DateTime(timezone=False) NOT NULL`, `retain_from DateTime(timezone=False) NOT NULL`,
-    `uq_simulation_history_key (asset_class, condition_key)`, `ix_simulation_history_list (asset_class, last_run_at)`.
+    `ix_simulation_history_list (asset_class, last_run_at)`.
   - `history_setting`: `id SmallInteger PK 기본 1`, `retention Enum("days_7","days_30","days_90","days_180","days_365","unlimited", native_enum=False, length=16) NOT NULL`,
     `updated_at server_default now() onupdate`.
   - 개발 DB에 `alembic upgrade head`를 올린다.

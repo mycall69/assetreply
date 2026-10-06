@@ -43,7 +43,8 @@ from src.simulation.reinvest import DayBar, DividendOn, SplitOn
 
 _ZERO = Decimal("0")
 
-RowKind = Literal["contribution", "dividend", "reinvest", "month_first", "latest"]
+#: `day`는 표 행이 아니다 — 일봉마다의 상태(012 `RecurringOutcome.daily`)다.
+RowKind = Literal["contribution", "dividend", "reinvest", "month_first", "latest", "day"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,6 +111,10 @@ class RecurringOutcome:
     latest: RecurringRow | None
     #: 매수 수수료의 합(종목 통화). 원화 합은 서비스가 행마다 그 행의 환율로 바꿔 더한다.
     buy_fee_total: Decimal
+    #: 012 — 첫 납입일부터 일봉마다 그날 사건을 모두 처리한 뒤의 상태(오름차순, `kind = "day"`).
+    #: 일·주·월 표가 쓴다(research R12-4).
+    #: `rows`·`latest`와 따로 둔다 — 차트·보드의 재료가 바뀌지 않는다.
+    daily: tuple[RecurringRow, ...] = ()
 
 
 @dataclass(slots=True)
@@ -173,6 +178,7 @@ def simulate_recurring_stock(bars: Sequence[DayBar], dividends: Sequence[Dividen
 
     s = _State()
     events: list[RecurringRow] = []
+    daily: list[RecurringRow] = []
     buy_fees = _ZERO
     started = False
 
@@ -240,6 +246,9 @@ def simulate_recurring_stock(bars: Sequence[DayBar], dividends: Sequence[Dividen
         if first_of_month and paid is None:
             events.append(_row(bar, "month_first", s, fee_rate=fee_rate))
 
+        # (5) 012 — 그날의 상태. 그날 마지막 사건 행·그 달 첫 거래일 행과 같은 시점이다.
+        daily.append(_row(bar, "day", s, fee_rate=fee_rate))
+
     latest = _row(ordered[-1], "latest", s, fee_rate=fee_rate) if ordered and started else None
     events.reverse()
-    return RecurringOutcome(rows=events, latest=latest, buy_fee_total=buy_fees)
+    return RecurringOutcome(rows=events, latest=latest, buy_fee_total=buy_fees, daily=tuple(daily))

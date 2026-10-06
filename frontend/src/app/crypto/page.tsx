@@ -12,7 +12,9 @@
  */
 
 import { useEffect, useMemo } from "react";
+import { useHeightHold } from "@/hooks/useHeightHold";
 import { TableWithHistory } from "@/components/TableWithHistory";
+import { PeriodTableSection } from "@/components/period/PeriodTableSection";
 import { CoinSearch } from "@/components/crypto/CoinSearch";
 import { CryptoHistory } from "@/components/crypto/CryptoHistory";
 import { CryptoPerformanceTable } from "@/components/crypto/CryptoPerformanceTable";
@@ -27,6 +29,8 @@ import { PerformanceChart } from "@/components/stock/PerformanceChart";
 import { formatPercent } from "@/lib/format";
 import { amountLabel } from "@/lib/recurringText";
 import { utcYesterday } from "@/lib/startDate";
+import { CRYPTO_PERIOD_TITLES } from "@/lib/tablePeriod";
+import type { PeriodUnit } from "@/lib/types";
 import { useCryptoStore } from "@/stores/cryptoStore";
 
 /** 코인의 표시 이름 — 한글 이름이 있으면 그것, 없으면 영문 이름. */
@@ -38,10 +42,15 @@ export default function CryptoPage() {
     input, plan, recurring, setPlan, rows, summary, condition, exchange, hasMore, series, seriesError, collecting,
     progress, fxBlocked,
     startable, loading, loadingMore, error, loadMoreError,
+    tablePeriod, tableLoading, tableError, setTablePeriod,
     history, historySaveError, selectedHistory, comparison, comparing, comparisonError,
     setInput, selectCoin, run, loadMore, refreshIfRan, dispose,
     restoreHistory, toggleHistory, removeHistoryEntry, rerunHistory, compareSelected,
   } = useCryptoStore();
+
+  // 012 FR-006 — 표의 단위를 바꾸는 동안 바꾸기 직전 높이를 붙잡는다(주식·외환과 같은 훅).
+  const { ref: workspace, style: holdStyle, hold } = useHeightHold<HTMLDivElement>();
+  const switchPeriod = (period: PeriodUnit) => hold(() => setTablePeriod(period));
 
   // FR-033 — 설정 화면에 다녀왔을 수 있다. 실행한 결과가 있으면 새 수수료로 다시 받는다.
   useEffect(() => {
@@ -66,7 +75,7 @@ export default function CryptoPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div ref={workspace} className="space-y-5" style={holdStyle}>
       <header>
         <h2 className="text-2xl font-bold tracking-tight">가상자산 투자 시뮬레이션</h2>
         <p className="mt-1 text-sm text-gray-500">
@@ -151,8 +160,8 @@ export default function CryptoPage() {
       {/* 010 FR-015~FR-017 — 넓은 창이면 성과 표 오른쪽(sticky), 좁으면 지금처럼 표 아래. 경계는 표의 실제 폭이다. */}
       <TableWithHistory
         table={recurring !== null ? (
-          <section>
-            <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
+          <PeriodTableSection period={tablePeriod} titles={CRYPTO_PERIOD_TITLES} onPeriod={switchPeriod}
+            loading={tableLoading} error={tableError}>
             <RecurringCryptoTable
               rows={recurring.rows}
               principalCurrency={input.principalCurrency}
@@ -161,11 +170,12 @@ export default function CryptoPage() {
               loadingMore={loadingMore}
               loadError={loadMoreError}
               onLoadMore={() => void loadMore()}
+              period={tablePeriod}
             />
-          </section>
+          </PeriodTableSection>
         ) : summary !== null ? (
-          <section>
-            <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
+          <PeriodTableSection period={tablePeriod} titles={CRYPTO_PERIOD_TITLES} onPeriod={switchPeriod}
+            loading={tableLoading} error={tableError}>
             <CryptoPerformanceTable
               rows={rows}
               currency={input.principalCurrency}
@@ -175,8 +185,9 @@ export default function CryptoPage() {
               loadingMore={loadingMore}
               loadError={loadMoreError}
               onLoadMore={() => void loadMore()}
+              period={tablePeriod}
             />
-          </section>
+          </PeriodTableSection>
         ) : null}
         history={(
           <CryptoHistory

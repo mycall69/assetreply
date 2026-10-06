@@ -10,6 +10,8 @@
  * 되어 선택 상태가 보이지 않는다. 002에서 실제로 겪은 결함이다.
  *
  * 색만으로 구별하지 않는다. 굵기가 함께 달라야 흑백·저대비에서도 읽힌다.
+ *
+ * 012 FR-010 — 주식·가상자산 일자별 표가 같은 탭을 쓴다. `titles`로 탭 제목만 그 표의 말로 바꾼다. 주지 않으면 지금 외환 문구다.
  */
 
 import type { PeriodUnit } from "@/lib/types";
@@ -23,9 +25,12 @@ const UNITS: ReadonlyArray<{ unit: PeriodUnit; label: string; title: string }> =
 export function PeriodTabs({
   value,
   onChange,
+  titles,
 }: {
   value: PeriodUnit;
   onChange: (unit: PeriodUnit) => void;
+  /** 탭 제목(`title`). 단위마다 그 표에서의 기준일 규칙을 말한다. */
+  titles?: Record<PeriodUnit, string>;
 }) {
   return (
     <div
@@ -40,7 +45,7 @@ export function PeriodTabs({
             key={unit}
             type="button"
             role="tab"
-            title={title}
+            title={titles?.[unit] ?? title}
             aria-selected={active}
             onClick={() => onChange(unit)}
             className={`rounded-md px-3 py-1 text-sm transition ${

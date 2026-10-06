@@ -18,6 +18,7 @@ import { subscribeCollection } from "@/lib/collectionStream";
 import { isAllowedPrincipal, principalRule } from "@/lib/principalCurrency";
 import { createSequence } from "@/lib/searchSequence";
 import { DEFAULT_START } from "@/lib/startDate";
+import { periodQuery } from "@/lib/tablePeriod";
 import {
   subscribeStockProgress,
   type StockProgressSnapshot,
@@ -30,6 +31,7 @@ import type {
   FxNotAvailableBefore,
   InvestmentPlan,
   JobRow,
+  PeriodUnit,
   PrincipalCurrency,
   RecurringStockCondition,
   RecurringStockResponse,
@@ -123,6 +125,21 @@ interface StockState {
   error: string | null;
   loadMoreError: string | null;
 
+  /**
+   * 012 — 일자별 표의 단위(처음 일). 다시 실행해도 남고, 새로 고치면 처음 값이다(외환의 단위와 같다). 일이면 요청에 `period`를 싣지 않는다 — 기본
+   * 단위의 요청 문자열이 지금과 같다.
+   */
+  tablePeriod: PeriodUnit;
+  /**
+   * 표 요청의 차례 번호. 실행·단위 전환마다 올린다 — 응답이 왔을 때 번호가 다르면 버린다(이어 받기 포함). 단위 비교만으로는 일 → 주 → 일 전환의
+   * 첫 "일" 응답을 거르지 못한다(012 FR-006).
+   */
+  tableSeq: number;
+  /** 단위를 바꿔 표를 다시 받는 중 — 표 자리에 "불러오는 중"을 보인다. 보드·차트는 그대로다(FR-007). */
+  tableLoading: boolean;
+  /** 단위를 바꿨는데 표를 받지 못했다. 고른 단위는 남는다. */
+  tableError: string | null;
+
   /** 이력 (FR-035). **조건만 담긴다** — 결과는 설정·환율이 바뀌면 달라진다. */
   history: SimulationHistoryEntry[];
   historySaveError: string | null;
@@ -143,6 +160,11 @@ interface StockState {
   selectStock: (choice: StockChoice) => Promise<void>;
   run: () => Promise<void>;
   loadMore: () => Promise<void>;
+  /**
+   * 012 — 일자별 표의 단위를 바꾼다. **표의 행만** 비우고 지금 결과(일시금 또는 적립식)의 표 첫 쪽을 다시 받는다 — 요약·시계열은 같은 객체로 남는다
+   * (FR-007 — 보드가 표를 따라가지 않는다). 아직 결과가 없으면 단위만 바꾼다.
+   */
+  setTablePeriod: (period: PeriodUnit) => Promise<void>;
   /**
    * 설정이 바뀐 뒤 결과를 다시 받는다 (FR-017).
    *
@@ -354,7 +376,7 @@ async function runRecurring(
   const query = toRecurringQuery(input, plan);
   try {
     const body = await apiClient.get<RecurringStockResponse | SimulationCollecting>(
-      `/api/stocks/recurring-simulation?${query}`,
+      `/api/stocks/recurring-simulation?${query}${periodQuery(get().tablePeriod)}`,
     );
     if ("status" in body && body.status === "collecting") {
       // 부분 결과를 보이지 않고 이력에도 남기지 않는다(일시금과 같다 — FR-016).
@@ -482,6 +504,10 @@ export const useStockStore = create<StockState>((set, get) => ({
   loadingMore: false,
   error: null,
   loadMoreError: null,
+  tablePeriod: "daily",
+  tableSeq: 0,
+  tableLoading: false,
+  tableError: null,
   history: [],
   historySaveError: null,
   selectedHistory: [],
@@ -554,14 +580,15 @@ export const useStockStore = create<StockState>((set, get) => ({
     }
     // 이전 실행의 구독을 끊는다. 남기면 이전 조건의 완료 신호가 새 조건을 다시 요청한다.
     stopWatching();
-    set({ ...cleared(), loading: true });
+    // 012 — 이전 결과의 이어 받기·단위 전환 응답이 새 결과에 섞이지 않게 차례를 올린다.
+    set({ ...cleared(), loading: true, tableSeq: get().tableSeq + 1, tableLoading: false, tableError: null });
     if (get().plan.mode === "recurring") {
       await runRecurring(input, set, get);
       return;
     }
     try {
       const body = await apiClient.get<SimulationResponse | SimulationCollecting>(
-        `/api/stocks/simulation?${query}`,
+        `/api/stocks/simulation?${query}${periodQuery(get().tablePeriod)}`,
       );
       if ("status" in body && body.status === "collecting") {
         // FR-049 — 부분 결과를 완성된 결과처럼 보여주지 않는다.
@@ -638,11 +665,15 @@ export const useStockStore = create<StockState>((set, get) => ({
     if (recurring !== null) {
       // 011 — 적립식 표를 이어 받는다(같은 날의 행은 서버가 가르지 않는다).
       if (!recurring.hasMore || recurring.oldestReturned === null || get().loadingMore) return;
+      const seq = get().tableSeq;
       set({ loadingMore: true, loadMoreError: null });
       try {
         const body = await apiClient.get<RecurringStockResponse>(
-          `/api/stocks/recurring-simulation?${toRecurringQuery(get().input, get().plan)}&before=${recurring.oldestReturned}`,
+          `/api/stocks/recurring-simulation?${toRecurringQuery(get().input, get().plan)}&before=${recurring.oldestReturned}`
+            + periodQuery(get().tablePeriod),
         );
+        // 012 — 그 사이 단위를 바꿨거나 다시 실행했으면 이전 표의 쪽이다. 붙이지 않는다.
+        if (get().tableSeq !== seq) return;
         const current = get().recurring;
         if (current === null) return;
         set({
@@ -651,17 +682,20 @@ export const useStockStore = create<StockState>((set, get) => ({
           loadingMore: false,
         });
       } catch (err) {
+        if (get().tableSeq !== seq) return;
         set({ loadingMore: false, loadMoreError: message(err, "이어서 불러오지 못했습니다.") });
       }
       return;
     }
-    const { hasMore, oldestReturned, loadingMore, input } = get();
+    const { hasMore, oldestReturned, loadingMore, input, tableSeq: seq } = get();
     if (!hasMore || oldestReturned === null || loadingMore) return;
     set({ loadingMore: true, loadMoreError: null });
     try {
       const body = await apiClient.get<SimulationResponse>(
-        `/api/stocks/simulation?${toQuery(input)}&before=${oldestReturned}`,
+        `/api/stocks/simulation?${toQuery(input)}&before=${oldestReturned}${periodQuery(get().tablePeriod)}`,
       );
+      // 012 — 그 사이 단위를 바꿨거나 다시 실행했으면 이전 표의 쪽이다. 붙이지 않는다.
+      if (get().tableSeq !== seq) return;
       set({
         rows: [...get().rows, ...body.rows],
         hasMore: body.hasMore,
@@ -669,12 +703,47 @@ export const useStockStore = create<StockState>((set, get) => ({
         loadingMore: false,
       });
     } catch (err) {
+      if (get().tableSeq !== seq) return;
       // 이미 표시된 행은 그대로 둔다 (FR-004와 같은 계열). 조용히 멈추면 사용자는
       // 데이터가 거기서 끝난 것으로 오해한다.
       set({
         loadingMore: false,
         loadMoreError: message(err, "이어서 불러오지 못했습니다."),
       });
+    }
+  },
+
+  setTablePeriod: async (period) => {
+    const seq = get().tableSeq + 1;
+    set({ tablePeriod: period, tableSeq: seq, tableError: null, loadingMore: false, loadMoreError: null });
+    const { recurring, summary, input, plan } = get();
+    if (recurring === null && summary === null) return;
+    // 이전 단위의 행이 남지 않는다(004 FR-010과 같다) — 요약·시계열은 건드리지 않는다.
+    if (recurring !== null) {
+      set({ recurring: { ...recurring, rows: [], hasMore: false, oldestReturned: null }, tableLoading: true });
+    } else {
+      set({ rows: [], hasMore: false, oldestReturned: null, tableLoading: true });
+    }
+    try {
+      if (recurring !== null) {
+        const body = await apiClient.get<RecurringStockResponse>(
+          `/api/stocks/recurring-simulation?${toRecurringQuery(input, plan)}${periodQuery(period)}`);
+        if (get().tableSeq !== seq) return;
+        const current = get().recurring;
+        if (current === null) return;
+        set({
+          recurring: { ...current, rows: body.rows, hasMore: body.hasMore, oldestReturned: body.oldestReturned },
+          tableLoading: false,
+        });
+      } else {
+        const body = await apiClient.get<SimulationResponse>(
+          `/api/stocks/simulation?${toQuery(input)}${periodQuery(period)}`);
+        if (get().tableSeq !== seq) return;
+        set({ rows: body.rows, hasMore: body.hasMore, oldestReturned: body.oldestReturned, tableLoading: false });
+      }
+    } catch (err) {
+      if (get().tableSeq !== seq) return;
+      set({ tableLoading: false, tableError: message(err, "표를 불러오지 못했습니다.") });
     }
   },
 

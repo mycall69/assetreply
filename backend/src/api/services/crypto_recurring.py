@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from decimal import ROUND_FLOOR, Decimal
 
@@ -32,6 +33,7 @@ from src.api.services.stock_fx import (
     load_rates,
 )
 from src.api.services.stock_simulation import BeforeListing, NoPriceData
+from src.api.services.table_rows import TablePage, group_events, table_page
 from src.db.models import CryptoCoin
 from src.repository import crypto_daily
 from src.repository.crypto_setting import CryptoSettings, get_settings
@@ -46,6 +48,7 @@ from src.simulation.contribution_schedule import (
 from src.simulation.crypto_hold import DayOpen
 from src.simulation.crypto_sale_cost import CryptoSaleCost, crypto_sale_cost
 from src.simulation.fx_convert import RateLookup, evaluate_krw, resolve_rate
+from src.simulation.period_table import PeriodUnit
 from src.simulation.recurring_crypto import RecurringCryptoRow, simulate_recurring_crypto
 
 _ZERO = Decimal("0")
@@ -88,8 +91,12 @@ class CryptoRecurringResult:
     quote_dates: frozenset[dt.date]
     buy_fee_total_krw: Decimal
     sale_cost: CryptoSaleCost
-    #: 일봉마다의 평가(오름차순). 차트가 요청할 때만 만든다 — 표는 행만 쓴다.
+    #: 일봉마다의 평가(오름차순). 차트가 요청할 때만 만든다.
     daily: tuple[CryptoRecurringView, ...] = ()
+    #: 012 — 일봉마다의 상태(평가 전, 오름차순, 첫 납입일부터)와 그것을 행처럼 평가하는 함수.
+    #: 일·주·월 표의 기간 행이 쓴다.
+    daily_rows: tuple[RecurringCryptoRow, ...] = ()
+    view_of: Callable[[RecurringCryptoRow], CryptoRecurringView] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -192,13 +199,23 @@ async def prepare_recurring(
         pending_after_end=pending_after_end, quote_dates=frozenset(r.day for r in rows),
         buy_fee_total_krw=buy_fees,
         sale_cost=crypto_sale_cost(sale_krw, fee_rate=fee_rate, day=as_of),
-        daily=tuple(view(r) for r in outcome.daily) if daily else ())
+        daily=tuple(view(r) for r in outcome.daily) if daily else (),
+        daily_rows=tuple(outcome.daily), view_of=view)
     return PreparedCryptoRecurring(coin=coin, settings=settings, result=result)
 
 
-def page(views: list[CryptoRecurringView], before: dt.date | None,
-         limit: int) -> tuple[list[CryptoRecurringView], bool]:
-    """커서 쪽(005 FR-029와 같다). 하루에 행이 많아야 하나라(납입 또는 그 달 첫 일봉) 날짜로
-    자른다."""
-    candidates = [v for v in views if before is None or v.row.date < before]
-    return candidates[:limit], len(candidates) > limit
+def table(result: CryptoRecurringResult, *, unit: PeriodUnit, end: dt.date,
+          before: dt.date | None, limit: int,
+          missing: Sequence[tuple[dt.date, dt.date]] = ()) -> TablePage[CryptoRecurringView]:
+    """일자별 표의 한 쪽(012 FR-003~FR-005, FR-004b). 사건 행은 납입이다 — 그 달 첫 일봉 행은 표에
+    없다(FR-008 — ◇도 없다). `missing`은 일 단위의
+    출처 결측 구간이다(라우트가 시계열과 같은 입력 — 시작일부터 — 으로 구한다)."""
+    items = [(v.row.date, v.row.kind, v) for v in result.views if v.row.kind == "contribution"]
+    by_day = {row.date: row for row in result.daily_rows}
+    view_of = result.view_of
+    assert view_of is not None
+    return table_page(
+        unit=unit, end=end, before=before, limit=limit, quote_days=list(by_day),
+        events=group_events(items), end_of_day_last=False,
+        day_state=lambda day: view_of(by_day[day]),
+        missing=missing if unit == "daily" else ())

@@ -18,6 +18,7 @@ import { loadCryptoHistory, removeCryptoHistory, saveCryptoHistory } from "@/lib
 import { subscribeCryptoProgress, type CryptoProgressSnapshot } from "@/lib/cryptoProgressStream";
 import { isAllowedPrincipal, principalRule } from "@/lib/principalCurrency";
 import { DEFAULT_START } from "@/lib/startDate";
+import { periodQuery } from "@/lib/tablePeriod";
 import type {
   BeforeListingBody,
   CoinRef,
@@ -25,20 +26,21 @@ import type {
   CryptoCondition,
   CryptoFailureKind,
   CryptoHistoryEntry,
-  CryptoRow,
   CryptoSimulationResponse,
   CryptoSummary,
+  CryptoTableRow,
   ExchangeInfo,
   Frequency,
   FxCollecting,
   FxNotAvailableBefore,
   InvestmentPlan,
   JobRow,
+  PeriodUnit,
   PrincipalCurrency,
   RecurringCondition,
   RecurringCryptoResponse,
-  RecurringCryptoRow,
   RecurringCryptoSummary,
+  RecurringCryptoTableRow,
   SimulationSeriesResponse,
 } from "@/lib/types";
 
@@ -51,7 +53,7 @@ export interface CryptoInput {
 
 /** 011 — 적립식 결과. 일시금 칸과 **따로 둔다** — 한 번에 한쪽만 채운다(research R11-11). */
 export interface CryptoRecurringResult {
-  rows: RecurringCryptoRow[];
+  rows: RecurringCryptoTableRow[];
   summary: RecurringCryptoSummary;
   condition: RecurringCondition;
   hasMore: boolean;
@@ -73,7 +75,7 @@ interface CryptoState {
   recurring: CryptoRecurringResult | null;
   /** 실행 뒤 서버가 알려 준 시작 가능 날짜(FR-008). 시작일은 바꾸지 않는다 — 옮기기는 눌러야 일어난다. */
   startable: Pick<BeforeListingBody, "startableFrom" | "basis" | "message"> | null;
-  rows: CryptoRow[];
+  rows: CryptoTableRow[];
   summary: CryptoSummary | null;
   condition: CryptoCondition | null;
   exchange: ExchangeInfo | null;
@@ -92,6 +94,13 @@ interface CryptoState {
   error: string | null;
   loadMoreError: string | null;
 
+  /** 012 — 일자별 표의 단위(처음 일). 주식 스토어와 같은 규칙이다 — 다시 실행해도 남고, 일이면 요청에 `period`가 없다. */
+  tablePeriod: PeriodUnit;
+  /** 표 요청의 차례 번호. 실행·단위 전환마다 올린다 — 번호가 다른 응답은 버린다(이어 받기 포함, 012 FR-006). */
+  tableSeq: number;
+  tableLoading: boolean;
+  tableError: string | null;
+
   /** 이력(FR-045). **조건만** 담긴다. 주식 이력과 따로다. */
   history: CryptoHistoryEntry[];
   historySaveError: string | null;
@@ -107,6 +116,8 @@ interface CryptoState {
   selectCoin: (coin: CoinRef) => void;
   run: () => Promise<void>;
   loadMore: () => Promise<void>;
+  /** 012 — 표의 단위를 바꾼다. 표의 행만 다시 받는다 — 요약·시계열은 같은 객체로 남는다(FR-007). 결과가 없으면 단위만 바꾼다. */
+  setTablePeriod: (period: PeriodUnit) => Promise<void>;
   /** 설정이 바뀐 뒤 결과를 다시 받는다(FR-033). 실행한 적이 없으면 아무것도 하지 않는다. */
   refreshIfRan: () => Promise<void>;
   /** 화면을 떠날 때 진행 구독을 끊는다 — 남기면 떠난 화면이 다시 요청을 보낸다. */
@@ -283,7 +294,7 @@ async function runRecurring(input: CryptoInput & { coin: CoinRef }, set: Setter,
   const query = toRecurringQuery(input, plan);
   try {
     const body = await apiClient.get<RecurringCryptoResponse | CryptoCollecting>(
-      `/api/crypto/recurring-simulation?${query}`);
+      `/api/crypto/recurring-simulation?${query}${periodQuery(get().tablePeriod)}`);
     if ("status" in body && body.status === "collecting") {
       // 부분 결과를 보이지 않고 이력에도 남기지 않는다(일시금과 같다 — FR-013).
       set({ collecting: body, progress: null, loading: false });
@@ -340,6 +351,10 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   loadingMore: false,
   error: null,
   loadMoreError: null,
+  tablePeriod: "daily",
+  tableSeq: 0,
+  tableLoading: false,
+  tableError: null,
   history: [],
   historySaveError: null,
   selectedHistory: [],
@@ -375,14 +390,15 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       return;
     }
     stopWatching();
-    set({ ...cleared(), loading: true });
+    // 012 — 이전 결과의 이어 받기·단위 전환 응답이 새 결과에 섞이지 않게 차례를 올린다.
+    set({ ...cleared(), loading: true, tableSeq: get().tableSeq + 1, tableLoading: false, tableError: null });
     if (get().plan.mode === "recurring") {
       await runRecurring({ ...input, coin: input.coin }, set, get);
       return;
     }
     try {
       const body = await apiClient.get<CryptoSimulationResponse | CryptoCollecting>(
-        `/api/crypto/simulation?${toQuery(input)}`);
+        `/api/crypto/simulation?${toQuery(input)}${periodQuery(get().tablePeriod)}`);
       if ("status" in body && body.status === "collecting") {
         set({ collecting: body, progress: null, loading: false });
         if (body.jobId !== undefined) watchProgress(body.jobId, set, get);
@@ -494,10 +510,13 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
     if (recurring !== null) {
       // 011 — 적립식 표를 이어 받는다.
       if (!recurring.hasMore || recurring.oldestReturned === null || get().loadingMore) return;
+      const seq = get().tableSeq;
       set({ loadingMore: true, loadMoreError: null });
       try {
         const body = await apiClient.get<RecurringCryptoResponse>(
-          `/api/crypto/recurring-simulation?${toRecurringQuery(get().input, get().plan)}&before=${recurring.oldestReturned}`);
+          `/api/crypto/recurring-simulation?${toRecurringQuery(get().input, get().plan)}&before=${recurring.oldestReturned}`
+            + periodQuery(get().tablePeriod));
+        if (get().tableSeq !== seq) return;  // 012 — 그 사이 단위를 바꿨거나 다시 실행했다
         const current = get().recurring;
         if (current === null) return;
         set({
@@ -506,22 +525,59 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
           loadingMore: false,
         });
       } catch (err) {
+        if (get().tableSeq !== seq) return;
         set({ loadingMore: false, loadMoreError: message(err, "이어서 불러오지 못했습니다.") });
       }
       return;
     }
-    const { hasMore, oldestReturned, loadingMore, input } = get();
+    const { hasMore, oldestReturned, loadingMore, input, tableSeq: seq } = get();
     if (!hasMore || oldestReturned === null || loadingMore) return;
     set({ loadingMore: true, loadMoreError: null });
     try {
       const body = await apiClient.get<CryptoSimulationResponse>(
-        `/api/crypto/simulation?${toQuery(input)}&before=${oldestReturned}`);
+        `/api/crypto/simulation?${toQuery(input)}&before=${oldestReturned}${periodQuery(get().tablePeriod)}`);
+      if (get().tableSeq !== seq) return;  // 012 — 그 사이 단위를 바꿨거나 다시 실행했다
       set({
         rows: [...get().rows, ...body.rows], hasMore: body.hasMore,
         oldestReturned: body.oldestReturned, loadingMore: false,
       });
     } catch (err) {
+      if (get().tableSeq !== seq) return;
       set({ loadingMore: false, loadMoreError: message(err, "이어서 불러오지 못했습니다.") });
+    }
+  },
+
+  setTablePeriod: async (period) => {
+    const seq = get().tableSeq + 1;
+    set({ tablePeriod: period, tableSeq: seq, tableError: null, loadingMore: false, loadMoreError: null });
+    const { recurring, summary, input, plan } = get();
+    if (recurring === null && summary === null) return;
+    // 이전 단위의 행이 남지 않는다 — 요약·시계열은 건드리지 않는다.
+    if (recurring !== null) {
+      set({ recurring: { ...recurring, rows: [], hasMore: false, oldestReturned: null }, tableLoading: true });
+    } else {
+      set({ rows: [], hasMore: false, oldestReturned: null, tableLoading: true });
+    }
+    try {
+      if (recurring !== null) {
+        const body = await apiClient.get<RecurringCryptoResponse>(
+          `/api/crypto/recurring-simulation?${toRecurringQuery(input, plan)}${periodQuery(period)}`);
+        if (get().tableSeq !== seq) return;
+        const current = get().recurring;
+        if (current === null) return;
+        set({
+          recurring: { ...current, rows: body.rows, hasMore: body.hasMore, oldestReturned: body.oldestReturned },
+          tableLoading: false,
+        });
+      } else {
+        const body = await apiClient.get<CryptoSimulationResponse>(
+          `/api/crypto/simulation?${toQuery(input)}${periodQuery(period)}`);
+        if (get().tableSeq !== seq) return;
+        set({ rows: body.rows, hasMore: body.hasMore, oldestReturned: body.oldestReturned, tableLoading: false });
+      }
+    } catch (err) {
+      if (get().tableSeq !== seq) return;
+      set({ tableLoading: false, tableError: message(err, "표를 불러오지 못했습니다.") });
     }
   },
 }));

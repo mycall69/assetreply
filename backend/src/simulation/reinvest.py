@@ -86,7 +86,9 @@ class Row:
     """
 
     date: dt.date
-    kind: str  # "month_first" | "dividend" | "reinvest"(006 FR-058)
+    #: "month_first" | "dividend" | "reinvest"(006 FR-058) | "day"(012 — 하루하루 상태,
+    #: `Outcome.daily`)
+    kind: str
     open_price: Decimal
     bought_shares: int
     held_shares: int
@@ -143,6 +145,13 @@ class Outcome:
 
     rows: list[Row]
     latest: Row | None
+    #: 012 — 첫 매수일부터 일봉마다 그날 사건(분할·매수·배당·재투자)을 모두 처리한 뒤의
+    #: 상태(오름차순, `kind = "day"`). 일·주·월 표가 쓴다
+    #: (research R12-4). **`rows`·`latest`와 따로 둔다** — `rows`는 주식 차트의 재료라 일 행을
+    #: 넣으면 차트가 바뀐다(012 FR-007). 매수일에만
+    #: `bought_shares`·`trade_fee`가 있다(그날의 월 행과 같다). 기본값이 빈 튜플인 이유: 결과를
+    #: 손으로 만드는 테스트가 있다.
+    daily: tuple[Row, ...] = ()
 
 
 def simulate(
@@ -186,6 +195,7 @@ def simulate_detailed(
     cash = _ZERO
     invested = False
     rows: list[Row] = []
+    daily: list[Row] = []
     # 006 FR-058 — 재투자 매수가 걸린 거래일의 순번. **거래일로 센다** — 달력일로 세면 휴장일에
     # 매수가 걸려 시가가 없고 매수가 조용히 사라진다. 기간 밖이면 걸지 않는다(예수금으로 남는다).
     reinvest_due: set[int] = set()
@@ -268,6 +278,13 @@ def simulate_detailed(
                 bar, "month_first", bought_initial, held, cash, condition,
                 trade_fee=_fee(bought_initial, bar.open_price, condition.fee_rate)))
 
+        # (5) 012 — 그날의 상태. 월 행과 같은 시점(그날 사건을 모두 처리한 뒤)이라 월 행이 있는 날은
+        # 값이 같다.
+        if invested:
+            daily.append(_row(
+                bar, "day", bought_initial, held, cash, condition,
+                trade_fee=_fee(bought_initial, bar.open_price, condition.fee_rate)))
+
     rows.sort(key=lambda r: r.date, reverse=True)
 
     # 마지막 거래일의 상태. **매수가 아니라 평가다** — 그날 산 주식이 없으므로 0이다.
@@ -275,7 +292,7 @@ def simulate_detailed(
         _row(ordered[-1], "latest", 0, held, cash, condition)
         if ordered and invested else None
     )
-    return Outcome(rows=rows, latest=latest)
+    return Outcome(rows=rows, latest=latest, daily=tuple(daily))
 
 
 def _row(

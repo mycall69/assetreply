@@ -13,12 +13,15 @@
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from decimal import Decimal
+from functools import partial
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.errors import CurrencyPairNotAllowed, UnknownCoin
+from src.api.services.series_query import compute_gaps
 from src.api.services.stock_fx import (
     FxUnavailable,
     InitialExchange,
@@ -28,6 +31,7 @@ from src.api.services.stock_fx import (
     load_rates,
 )
 from src.api.services.stock_simulation import BeforeListing, NoPriceData
+from src.api.services.table_rows import TablePage, group_events, table_page
 from src.db.models import CryptoCoin
 from src.repository import crypto_daily
 from src.repository.crypto_setting import CryptoSettings, get_settings
@@ -39,6 +43,7 @@ from src.simulation.fx_convert import (
     to_foreign,
     to_principal,
 )
+from src.simulation.period_table import PeriodUnit
 
 
 def utc_yesterday(now: dt.datetime | None = None) -> dt.date:
@@ -104,8 +109,13 @@ class CryptoResult:
     principal_krw: Decimal | None = None
     #: 실제로 일봉이 있는 날 — 차트의 결측 판정에 쓴다.
     quote_dates: frozenset[dt.date] = frozenset()
-    #: 일봉마다의 평가(오름차순). 차트가 요청할 때만 만든다 — 표는 월 행만 쓴다.
+    #: 일봉마다의 평가(오름차순). 차트가 요청할 때만 만든다.
     daily: tuple[CryptoRowView, ...] = ()
+    #: 012 — 일봉마다의 상태(평가 전, 오름차순)와 그것을 이 결과와 같은 규칙으로 평가하는 함수.
+    #: 일·주·월 표의 기간 행이 쓴다 — 평가는 쪽에 들어간
+    #: 행만 한다(research R12-7).
+    daily_rows: tuple[HoldRow, ...] = ()
+    convert: Callable[[HoldRow], CryptoRowView] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,26 +192,24 @@ async def run_simulation(
     assert outcome.bought_on is not None  # 일봉이 있으므로 산다
     quote_dates = frozenset(r.day for r in rows)
 
+    convert: Callable[[HoldRow], CryptoRowView]
     if lookup is None:
         # 시세 통화가 KRW다 — 평가할 것이 없다.
         def plain(row: HoldRow) -> CryptoRowView:
             return CryptoRowView(row=row, principal=principal, profit=row.profit,
                                  return_rate=row.return_rate)
-        views = [plain(r) for r in outcome.rows]
-        latest = plain(outcome.latest) if outcome.latest else None
-        per_day = [plain(r) for r in outcome.daily] if daily else []
+        convert = plain
     else:
-        basis = principal_krw if principal_krw is not None else principal
-        views = [_evaluate(r, lookup=lookup, principal=principal, basis=basis)
-                 for r in outcome.rows]
-        latest = (_evaluate(outcome.latest, lookup=lookup, principal=principal, basis=basis)
-                  if outcome.latest else None)
-        per_day = ([_evaluate(r, lookup=lookup, principal=principal, basis=basis)
-                    for r in outcome.daily] if daily else [])
+        convert = partial(_evaluate, lookup=lookup, principal=principal,
+                          basis=principal_krw if principal_krw is not None else principal)
+    views = [convert(r) for r in outcome.rows]
+    latest = convert(outcome.latest) if outcome.latest else None
+    per_day = [convert(r) for r in outcome.daily] if daily else []
     return CryptoResult(
         rows=views, latest=latest, as_of=as_of, is_final=as_of >= end,
         bought_on=outcome.bought_on, exchange=exchange, principal_krw=principal_krw,
-        quote_dates=quote_dates, daily=tuple(per_day))
+        quote_dates=quote_dates, daily=tuple(per_day), daily_rows=tuple(outcome.daily),
+        convert=convert)
 
 
 async def prepare(
@@ -231,8 +239,29 @@ async def prepare(
     return Prepared(coin=coin, settings=settings, result=result)
 
 
-def page(rows: list[CryptoRowView], before: dt.date | None,
-         limit: int) -> tuple[list[CryptoRowView], bool]:
-    """커서 방식 페이지(005 FR-029와 같다) — 오프셋을 쓰지 않는다."""
-    candidates = [r for r in rows if before is None or r.row.date < before]
-    return candidates[:limit], len(candidates) > limit
+def table(result: CryptoResult, *, unit: PeriodUnit, end: dt.date, before: dt.date | None,
+          limit: int,
+          missing: Sequence[tuple[dt.date, dt.date]] = ()) -> TablePage[CryptoRowView]:
+    """일자별 표의 한 쪽(012 FR-003~FR-005, FR-004b). 사건 행은 첫 매수(`buy` — 매수일의 월 행,
+    수수료가 있다) 하나다. 그 밖의 월 행은 표에 없다
+    (FR-008 — ◇도 없다). `missing`은 일 단위의 출처 결측 구간이다(라우트가 시계열과 같은 입력으로
+    구한다)."""
+    items = [(v.row.date, "buy", v) for v in result.rows if v.row.date == result.bought_on]
+    by_day = {row.date: row for row in result.daily_rows}
+    convert = result.convert
+    assert convert is not None
+    return table_page(
+        unit=unit, end=end, before=before, limit=limit, quote_days=list(by_day),
+        events=group_events(items), end_of_day_last=True,
+        day_state=lambda day: convert(by_day[day]),
+        missing=missing if unit == "daily" else ())
+
+
+def source_missing(start: dt.date, end: dt.date, present: set[dt.date],
+                   covered: tuple[dt.date, dt.date] | None) -> list[tuple[dt.date, dt.date]]:
+    """출처 결측 구간 — 시계열 경로와 **같은 함수·같은 입력**이라 표의 결측 행 수가 차트의 끊김 수와
+    같다(012 SC-002)."""
+    gaps = compute_gaps(start, end, present, covered[0] if covered else None,
+                        covered[1] if covered else None,
+                        inside_reason="source_missing")
+    return [(g.start, g.end) for g in gaps if g.reason == "source_missing"]

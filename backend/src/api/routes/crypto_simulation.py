@@ -25,16 +25,19 @@ from src.api.services.crypto_simulation import (
     CryptoResult,
     CryptoRowView,
     check_principal_currency,
-    page,
     prepare,
     require_coin,
     require_start_available,
+    source_missing,
+    table,
     utc_yesterday,
 )
 from src.api.services.stock_simulation import parse_principal
+from src.api.services.table_rows import parse_period, row_body
 from src.config.settings import load_settings
 from src.db.models import CryptoCoin
 from src.db.session import get_session
+from src.repository import crypto_daily
 
 router = APIRouter(prefix="/api/crypto", tags=["crypto"])
 
@@ -68,9 +71,8 @@ def row_json(view: CryptoRowView) -> Json:
     }
     if row.trade_fee is not None:
         body["tradeFee"] = money(row.trade_fee)
-    # FR-030 — 그 달 1일 일봉이 없어 다른 날이 그 달의 행이다
-    if row.first_day_missing is not None:
-        body["firstDayMissing"] = row.first_day_missing.isoformat()
+    # 012 FR-008 — 지금의 ◇(그 달 1일 결측)는 싣지 않는다. 월 단위는 옮겨진 기준일 표시가, 일 단위는
+    # 결측 구간 행이 대신한다.
     if view.balance_krw is not None:
         body["balanceKrw"] = format(view.balance_krw, "f")
     # 그 행의 평가에 쓴 환율과 **실제로 쓴 날짜**(006 FR-041c) — 잠정 환율만 있으면 이전
@@ -119,9 +121,12 @@ async def get_simulation(
     end: Annotated[dt.date | None, Query()] = None,
     before: Annotated[dt.date | None, Query(description="이 날짜 미만만 반환")] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 30,
+    period: Annotated[str | None,
+                      Query(description="daily · weekly · monthly — 기본 daily(012)")] = None,
 ) -> Json | JSONResponse:
     """시뮬레이션을 실행하고 표 한 페이지를 돌려준다."""
     amount = parse_principal(principal)
+    unit = parse_period(period)
     finish = calculation_end(end)
     if start > finish:
         raise StartAfterEnd(finish)
@@ -137,7 +142,12 @@ async def get_simulation(
     prepared = await prepare(session, coin, start=start, end=finish, principal=amount,
                              principal_currency=principal_currency)
     result = prepared.result
-    rows, has_more = page(result.rows, before, limit)
+    # 012 FR-004b — 일 단위의 결측 구간 행은 시계열과 같은 입력(시작 월 1일부터, 같은 커버리지)으로
+    # 구한다.
+    missing = (source_missing(start.replace(day=1), finish, set(result.quote_dates),
+                              await crypto_daily.get_coverage(session, int(coin.id)))
+               if unit == "daily" else [])
+    shown = table(result, unit=unit, end=finish, before=before, limit=limit, missing=missing)
     body: Json = {
         "coin": coin_json(coin),
         # 설정은 언제든 바뀐다. 결과만 남으면 어느 조건의 수치인지 알 수 없다(FR-033).
@@ -147,9 +157,10 @@ async def get_simulation(
             "tradeFeeRate": format(prepared.settings.trade_fee_rate, "f"),
         },
         "summary": summary_json(result, amount),
-        "rows": [row_json(r) for r in rows],
-        "hasMore": has_more,
-        "oldestReturned": rows[-1].row.date.isoformat() if rows else None,
+        "period": unit,
+        "rows": [row_body(r, row_json) for r in shown.rows],
+        "hasMore": shown.has_more,
+        "oldestReturned": shown.oldest.isoformat() if shown.oldest else None,
     }
     if result.exchange is not None:
         body["exchange"] = {

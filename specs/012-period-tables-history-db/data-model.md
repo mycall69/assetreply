@@ -10,14 +10,14 @@ Alembic 리비전 하나(`down_revision = "f4c2a8e19d35"`, 파일 이름 `<rev>_
 
 | 열 | 타입 | 제약 | 뜻 |
 |----|------|------|----|
-| `id` | `BigInteger` | PK, 자동 증가 | 행 번호(API에 나오지 않는다) |
-| `asset_class` | `Enum("stock","crypto","deposit","realestate", native_enum=False, length=16)` | NOT NULL | 자산군 |
-| `condition_key` | `String(255)` | NOT NULL | 조건 식별자 — 서버가 조건에서 계산(2절). API의 `id` |
+| `asset_class` | `Enum("stock","crypto","deposit","realestate", native_enum=False, length=16)` | PK | 자산군 |
+| `condition_key` | `String(255)` | PK | 조건 식별자 — 서버가 조건에서 계산(2절). API의 `id` |
 | `condition` | `Text` | NOT NULL | 조건 — 서버가 정해진 차례로 직렬화한 JSON 글(2절) |
 | `last_run_at` | `DateTime(timezone=False)` | NOT NULL | 마지막 실행 시각(UTC). 목록 차례 |
 | `retain_from` | `DateTime(timezone=False)` | NOT NULL | 보관 기준 시각(UTC) — 마지막 실행 시각, 옮긴 항목은 옮긴 시각(spec FR-012) |
 
-- 유일: `uq_simulation_history_key (asset_class, condition_key)`
+- 기본 키: `(asset_class, condition_key)` — 같은 조건은 한 행이다. `db/dialect.upsert`가 기본 키로 충돌을 가르므로 따로 된 유일 키를 두지 않는다
+  (구현 중 확인 — PostgreSQL의 `ON CONFLICT` 대상도 기본 키다)
 - 색인: `ix_simulation_history_list (asset_class, last_run_at)` — 목록·차례
 - 결과를 담지 않는다(spec FR-011 — 005 R5-9).
 

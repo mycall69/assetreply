@@ -17,6 +17,8 @@
  * (research R6-26 — 한 줄이면 표가 1,365px로 칸 1,166px를 넘었다).
  */
 
+import { PeriodLegend } from "@/components/period/PeriodLegend";
+import { PeriodMarks } from "@/components/period/PeriodMarks";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import {
   formatDividend,
@@ -25,7 +27,7 @@ import {
   formatRate,
   formatYield,
 } from "@/lib/format";
-import type { SimulationRow, SimulationSummary } from "@/lib/types";
+import type { PeriodUnit, SimulationRow, SimulationSummary } from "@/lib/types";
 
 // 006 FR-059 — 배당 소득세(배당락 행)와 매매 수수료(매수 행). FR-067 — 배당금 총액(배당락 행).
 // 010 반복 3(FR-028) — 종가(잔고를 평가한 가격)는 시작가(매수 가격) 바로 뒤.
@@ -55,6 +57,7 @@ export function PerformanceTable({
   loadingMore = false,
   loadError = null,
   onLoadMore,
+  period = "daily",
 }: {
   rows: SimulationRow[];
   /** 입력한 원금 통화 — 투자금 열의 통화다. */
@@ -72,6 +75,8 @@ export function PerformanceTable({
   loadingMore?: boolean;
   loadError?: string | null;
   onLoadMore: () => void;
+  /** 012 — 표의 단위. 주·월이면 서버가 준 기간 표시(📅·⏳)와 범례를 그린다. */
+  period?: PeriodUnit;
 }) {
   // 실패한 동안에는 감시를 끊는다. 즉시 다시 관찰하면 같은 오류를 무한히 반복한다.
   const open = hasMore && !loadingMore && loadError === null;
@@ -176,6 +181,7 @@ export function PerformanceTable({
                       ⟳ 재투자
                     </span>
                   )}
+                  <PeriodMarks row={row} unit={period} asset="stock" />
                 </td>
                 <td className={CELL}>{formatRate(row.openPrice)}</td>
                 <td className={CELL}>{formatRate(row.closePrice)}</td>
@@ -256,6 +262,8 @@ export function PerformanceTable({
           </tbody>
         </table>
       </div>
+
+      <PeriodLegend unit={period} />
 
       {/* 이어 보기 상태 — 004의 방식. `더 보기` 버튼이 없는 만큼 상태를 말로 알린다. */}
       <div className="flex items-center justify-center gap-3 border-t border-gray-100 px-4 py-3 text-xs">

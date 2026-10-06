@@ -3,22 +3,25 @@
 /**
  * 가상자산 적립식 표 (011 T039) — FR-017, FR-019, ui-wireframes §4.
  *
- * - 행은 납입(매수 0이어도)과 그 달 첫 일봉(그날 납입이 없을 때만)이다. 하루에 행이 많아야 하나라 키는 날짜다
+ * - 012 — 행은 납입(매수 0이어도)과 일·주·월의 기간 행이다. 일 단위에는 결측 구간 행(FR-004b)이 끼어 있다. 하루에 행이 많아야 하나다
  * - 수량은 소수 8자리(`formatQuantity`), 시가는 유효 숫자를 잃지 않게(`formatPrice` — 007 FR-040)
  * - 외화 시세의 수수료·대기금·잔고도 유효 숫자를 잃지 않는다. 적립식은 한 번 납입액이 작아 수수료가 1센트에 못 미친다 — "0.00"이면
  *   수수료가 없다고 읽힌다(T039 실측). 원화 시세는 원 단위 그대로다
- * - "◇ 1일 결측" = 그 달 1일 일봉이 출처에 없어 다른 날이 그 달의 첫 행이다(007 FR-030). 기호만으로 전달하지 않는다
+ * - 012 FR-008 — 지금의 "◇ 1일 결측"은 없다. 결측은 결측 구간 행(일 단위)과 옮겨진 기준일 표시(주·월)가 드러낸다
  * - 미뤄진 납입은 원래 날짜를 잃지 않는다 — "+n회(원래 날짜)"
  * - 환율 열은 환율이 있는 행이 있을 때만 둔다(원화 시세 코인이면 빈 열을 남기지 않는다). 원화 원금 납입 행은 환전 환율이다
  * - 화면은 계산하지 않는다 — 서식만 입힌다
  */
 
+import { MissingRowLine } from "@/components/period/MissingRowLine";
+import { PeriodLegend } from "@/components/period/PeriodLegend";
+import { PeriodMarks } from "@/components/period/PeriodMarks";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { formatMoney, formatMoneyWithSymbol, formatPercent, formatPrice, formatQuantity, formatRate } from "@/lib/format";
-import type { RecurringCryptoRow } from "@/lib/types";
+import type { PeriodUnit, RecurringCryptoTableRow } from "@/lib/types";
 
 interface Props {
-  rows: RecurringCryptoRow[];
+  rows: RecurringCryptoTableRow[];
   principalCurrency: string;
   /** 코인의 시세 통화. */
   quoteCurrency: string;
@@ -26,6 +29,8 @@ interface Props {
   loadingMore?: boolean;
   loadError?: string | null;
   onLoadMore: () => void;
+  /** 012 — 표의 단위. 주·월이면 기간 표시와 범례를 그린다. */
+  period?: PeriodUnit;
 }
 
 const short = (iso: string) => iso.slice(5);
@@ -41,10 +46,11 @@ const nothingBought = (quantity: string) => /^0*\.?0*$/.test(quantity);
 
 export function RecurringCryptoTable({
   rows, principalCurrency, quoteCurrency, hasMore, loadingMore = false, loadError = null, onLoadMore,
+  period = "daily",
 }: Props) {
   const open = hasMore && !loadingMore && loadError === null;
   const sentinel = useInfiniteScroll(onLoadMore, open);
-  const showFx = rows.some((r) => r.fxRate !== undefined || r.exchangeRate !== undefined);
+  const showFx = rows.some((r) => r.kind !== "missing" && (r.fxRate !== undefined || r.exchangeRate !== undefined));
   const foreign = quoteCurrency !== "KRW";
   const quoteMoney = (value: string) => (foreign ? formatPrice(value) : formatMoney(value, quoteCurrency));
 
@@ -88,6 +94,9 @@ export function RecurringCryptoTable({
           </thead>
           <tbody>
             {rows.map((row) => {
+              if (row.kind === "missing") {
+                return <MissingRowLine key={`${row.date}:missing`} row={row} colSpan={columns.length} />;
+              }
               const bought = !nothingBought(row.boughtQuantity);
               const idle = row.kind === "contribution" && !bought;
               const deferred = deferredText(row.deferred);
@@ -95,7 +104,7 @@ export function RecurringCryptoTable({
                 ? { text: `환전 ${formatRate(row.exchangeRate)}`, date: row.exchangeRateDate }
                 : row.fxRate !== undefined ? { text: formatRate(row.fxRate), date: row.fxRateDate } : null;
               return (
-                <tr key={row.date} data-kind={row.kind} className="border-b border-gray-100 last:border-0">
+                <tr key={`${row.date}:${row.kind}`} data-kind={row.kind} className="border-b border-gray-100 last:border-0">
                   <td className="whitespace-nowrap px-1.5 py-1.5 text-left tabular-nums">
                     {row.date}
                     {row.kind === "contribution" && (
@@ -105,12 +114,7 @@ export function RecurringCryptoTable({
                           className={idle ? "text-gray-400" : "text-emerald-700"}>＋</span>
                       </>
                     )}
-                    {row.firstDayMissing !== undefined && (
-                      <span className="ml-1 text-amber-700"
-                        title={`${row.firstDayMissing} 일봉이 없어 ${short(row.date)} 일봉을 썼습니다`}>
-                        ◇ 1일 결측
-                      </span>
-                    )}
+                    <PeriodMarks row={row} unit={period} asset="crypto" />
                   </td>
                   <td className={CELL}>
                     {row.contribution === undefined ? "" : formatMoney(row.contribution, principalCurrency)}
@@ -150,6 +154,8 @@ export function RecurringCryptoTable({
           </tbody>
         </table>
       </div>
+
+      <PeriodLegend unit={period} />
 
       <p role="status" className="border-t border-gray-100 px-4 py-2 text-xs text-gray-500">
         {loadingMore ? "⟳ 불러오는 중…"

@@ -22,18 +22,19 @@ from src.api.services.stock_collect import collecting_body
 from src.api.services.stock_recurring import (
     PreparedRecurring,
     dec,
-    page,
     parse_amount,
     parse_frequency,
     prepare_recurring,
     row_json,
     summary_json,
+    table,
 )
 from src.api.services.stock_simulation import (
     check_principal_currency,
     require_start_available,
     require_stock,
 )
+from src.api.services.table_rows import parse_period, row_body
 from src.db.session import get_session
 from src.repository.stock import get_coverage
 
@@ -77,15 +78,19 @@ async def get_recurring_simulation(
     end: Annotated[dt.date | None, Query()] = None,
     before: Annotated[dt.date | None, Query(description="이 날짜 미만만 반환")] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 30,
+    period: Annotated[str | None,
+                      Query(description="daily · weekly · monthly — 기본 daily(012)")] = None,
 ) -> Json | JSONResponse:
     """적립식을 실행하고 표 한 쪽을 돌려준다."""
+    unit = parse_period(period)
     prepared = await _prepare_or_collect(
         session, market=market, symbol=symbol, start=start, amount_raw=amount,
         principal_currency=principal_currency, frequency_raw=frequency, reinvest=reinvest, end=end)
     if isinstance(prepared, JSONResponse):
         return prepared
     stock, result = prepared.stock, prepared.result
-    rows, has_more = page(result.views, before, limit)
+    finish = end or (dt.date.today() - dt.timedelta(days=1))
+    shown = table(result, unit=unit, end=finish, before=before, limit=limit)
     return {
         "stock": {"market": stock.market, "symbol": stock.symbol, "name": stock.name,
                   "currency": stock.currency},
@@ -96,9 +101,10 @@ async def get_recurring_simulation(
             "dividendTaxRate": dec(prepared.dividend_tax_rate),
         },
         "summary": summary_json(result, amount=parse_amount(amount), stock=stock),
-        "rows": [row_json(v) for v in rows],
-        "hasMore": has_more,
-        "oldestReturned": rows[-1].row.date.isoformat() if rows else None,
+        "period": unit,
+        "rows": [row_body(r, row_json) for r in shown.rows],
+        "hasMore": shown.has_more,
+        "oldestReturned": shown.oldest.isoformat() if shown.oldest else None,
     }
 
 

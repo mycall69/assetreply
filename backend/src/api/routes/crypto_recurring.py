@@ -25,17 +25,19 @@ from src.api.services.crypto_recurring import (
     CryptoRecurringResult,
     CryptoRecurringView,
     PreparedCryptoRecurring,
-    page,
     prepare_recurring,
+    table,
 )
 from src.api.services.crypto_simulation import (
     check_principal_currency,
     require_coin,
     require_start_available,
+    source_missing,
 )
 from src.api.services.recurring_series import build_crypto_series
 from src.api.services.series_query import DEFAULT_MAX_POINTS
 from src.api.services.stock_recurring import parse_amount, parse_frequency
+from src.api.services.table_rows import parse_period, row_body
 from src.config.settings import load_settings
 from src.db.session import get_session
 from src.repository import crypto_daily
@@ -128,9 +130,7 @@ def row_json(v: CryptoRecurringView) -> Json:
         body["deferred"] = [d.isoformat() for d in row.deferred]
     if row.trade_fee is not None:
         body["tradeFee"] = money(row.trade_fee)
-    # 007 FR-030 — 그 달 1일 일봉이 없어 다른 날이 그 달의 첫 행이다
-    if row.first_day_missing is not None:
-        body["firstDayMissing"] = row.first_day_missing.isoformat()
+    # 012 FR-008 — 지금의 ◇(그 달 1일 결측)는 싣지 않는다. 일 단위는 결측 구간 행이 대신한다.
     if v.balance_krw is not None:
         body["balanceKrw"] = money(v.balance_krw)
     # 평가 환율과 **실제로 쓴 날짜**(006 FR-041c), 원화 원금 납입 행의 환전 환율과 고시일(FR-010)
@@ -154,15 +154,23 @@ async def get_recurring_simulation(
     end: Annotated[dt.date | None, Query()] = None,
     before: Annotated[dt.date | None, Query(description="이 날짜 미만만 반환")] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 30,
+    period: Annotated[str | None,
+                      Query(description="daily · weekly · monthly — 기본 daily(012)")] = None,
 ) -> Json | JSONResponse:
     """적립식을 실행하고 표 한 쪽을 돌려준다."""
+    unit = parse_period(period)
     prepared = await _prepare_or_collect(
         session, coin_id=coin_id, start=start, amount_raw=amount,
         principal_currency=principal_currency, frequency_raw=frequency, end=end)
     if isinstance(prepared, JSONResponse):
         return prepared
     result = prepared.result
-    rows, has_more = page(result.views, before, limit)
+    finish = calculation_end(end)
+    # 012 FR-004b — 결측 구간 행은 시계열과 같은 입력(시작일부터, 같은 커버리지)으로 구한다.
+    missing = (source_missing(start, finish, set(result.quote_dates),
+                              await crypto_daily.get_coverage(session, int(prepared.coin.id)))
+               if unit == "daily" else [])
+    shown = table(result, unit=unit, end=finish, before=before, limit=limit, missing=missing)
     return {
         "coin": coin_json(prepared.coin),
         # 설정은 언제든 바뀐다. 결과만 남으면 어느 조건의 수치인지 알 수 없다(007 FR-033).
@@ -173,9 +181,10 @@ async def get_recurring_simulation(
             "tradeFeeRate": _rate(prepared.settings.trade_fee_rate),
         },
         "summary": summary_json(result, pending_after_end=result.pending_after_end),
-        "rows": [row_json(v) for v in rows],
-        "hasMore": has_more,
-        "oldestReturned": rows[-1].row.date.isoformat() if rows else None,
+        "period": unit,
+        "rows": [row_body(r, row_json) for r in shown.rows],
+        "hasMore": shown.has_more,
+        "oldestReturned": shown.oldest.isoformat() if shown.oldest else None,
     }
 
 

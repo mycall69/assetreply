@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
 from decimal import Decimal, InvalidOperation
 from functools import partial
@@ -29,6 +29,7 @@ from src.api.services.stock_fx import (
     load_rates,
 )
 from src.api.services.stock_selection import listing_for, register_from_price_symbol
+from src.api.services.table_rows import TablePage, group_events, table_page
 from src.config.settings import load_settings
 from src.db.models import Stock
 from src.repository import stock_price as price_repo
@@ -43,6 +44,7 @@ from src.simulation.fx_convert import (  # noqa: E501
     to_foreign,
     to_principal,
 )
+from src.simulation.period_table import PeriodUnit
 from src.simulation.quote_finality import is_final as quote_is_final
 from src.simulation.reinvest import (
     Condition,
@@ -103,6 +105,12 @@ class SimulationResult:
     #: 날짜별 원주가 종가(010 반복 1) — 차트의 수정 종가(`simulation/split_adjust`)가
     #: 쓴다. 표는 쓰지 않는다(시작가 그대로).
     closes: Mapping[dt.date, Decimal] = field(default_factory=dict)
+    #: 012 — 하루하루 상태(첫 매수일부터, 오름차순). 일·주·월 표의 기간 행이 쓴다. **바꾸지 않은
+    #: 행이다** — 원화 평가는 쪽에 들어간 행만
+    #: `convert`로 한다(research R12-7). 차트·보드는 쓰지 않는다(`rows`·`latest` 그대로 — FR-007).
+    daily: tuple[Row, ...] = ()
+    #: 행을 이 결과와 같은 규칙으로 평가하는 함수 — 국내 종목은 그대로 감싼다.
+    convert: Callable[[Row], ConvertedRow] = ConvertedRow
 
 
 #: 원금으로 고를 수 있는 통화 (005 FR-003). 006 FR-050d — **EUR을 뺀다.** 지원 시장(국내·미국·
@@ -272,7 +280,7 @@ async def run_simulation(
             rows=[ConvertedRow(r) for r in rows],
             latest=ConvertedRow(outcome.latest) if outcome.latest else None,
             as_of=as_of, is_final=is_final, quote_dates=quote_dates, splits=splits,
-            closes=closes)
+            closes=closes, daily=outcome.daily)
 
     evaluate = partial(_evaluate, lookup=lookup, principal=principal,
                        basis=principal_krw if principal_krw is not None else principal)
@@ -280,7 +288,8 @@ async def run_simulation(
         rows=[evaluate(r) for r in rows],
         latest=evaluate(outcome.latest) if outcome.latest else None,
         as_of=as_of, is_final=is_final, exchange=exchange, quote_dates=quote_dates,
-        principal_krw=principal_krw, splits=splits, closes=closes)
+        principal_krw=principal_krw, splits=splits, closes=closes, daily=outcome.daily,
+        convert=evaluate)
 
 
 def _krw_principal(
@@ -328,19 +337,29 @@ def _evaluate(
     return ConvertedRow(evaluated, fx_rate=rate, fx_rate_date=used, balance_krw=krw.balance_krw)
 
 
-def page(
-    rows: list[ConvertedRow], before: dt.date | None, limit: int
-) -> tuple[list[ConvertedRow], bool]:
-    """커서 방식 페이지 (FR-029).
+def table(result: SimulationResult, *, unit: PeriodUnit, end: dt.date, before: dt.date | None,
+          limit: int) -> TablePage[ConvertedRow]:
+    """일자별 표의 한 쪽 (012 FR-003~FR-005 — 005 FR-029의 커서 쪽을 대체).
 
-    004가 정한 것과 같다 — 오프셋을 쓰지 않는다. 수집이 조회 중에 행을 추가해도
-    "이 날짜 미만"은 같은 집합이라 같은 행을 두 번 주거나 건너뛰지 않는다.
-
-    `(페이지, 더 있는가)`를 돌려준다.
+    사건 행은 첫 매수(`buy` — 시작 월의 월 행, 수수료가 있다)·배당락·재투자다. 그 밖의 월 행(그 달
+    첫 거래일)은 표에 없다 — 주식 차트의 재료로만 남는다
+    (FR-008). 같은 날의 행은 처리 차례(배당락 → 재투자 → 그날 스냅숏)로 놓여 마지막 행이 그날의
+    상태를 보인다.
     """
-    candidates = [r for r in rows if before is None or r.row.date < before]
-    chunk = candidates[:limit]
-    return chunk, len(candidates) > limit
+    months = [c.row.date for c in result.rows if c.row.kind == "month_first"]
+    bought_on = min(months) if months else None
+    items: list[tuple[dt.date, str, ConvertedRow]] = []
+    for converted in result.rows:
+        kind = converted.row.kind
+        if kind in {"dividend", "reinvest"}:
+            items.append((converted.row.date, kind, converted))
+        elif kind == "month_first" and converted.row.date == bought_on:
+            items.append((converted.row.date, "buy", converted))
+    by_day = {row.date: row for row in result.daily}
+    return table_page(
+        unit=unit, end=end, before=before, limit=limit, quote_days=list(by_day),
+        events=group_events(items), end_of_day_last=True,
+        day_state=lambda day: result.convert(by_day[day]))
 
 
 @dataclass(frozen=True, slots=True)

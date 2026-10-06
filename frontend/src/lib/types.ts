@@ -399,9 +399,36 @@ export interface SelectionResponse {
   listedOn: string | null;
 }
 
-/** 표 행의 종류 (FR-025). 월 첫 거래일 스냅샷과 배당락일 둘뿐이다. */
-/** 006 FR-058 — `reinvest`는 배당락 뒤 2번째 거래일의 재투자 매수 행이다. */
-export type SimulationRowKind = "month_first" | "dividend" | "reinvest";
+/**
+ * 표 행의 종류 (012 FR-003~FR-005 — 005의 "그 달 첫 거래일" 행을 대체).
+ *
+ * - `buy` — 첫 매수(첫 평가일). 단위와 관계없이 늘 있다
+ * - `period` — 기간 행. 그 구간 대표일의 하루 평가다(일·주·월)
+ * - `dividend` — 배당락. `reinvest` — 배당락 뒤 2번째 거래일의 재투자 매수(006 FR-058). 둘 다 늘 있다
+ */
+export type SimulationRowKind = "buy" | "period" | "dividend" | "reinvest";
+
+/**
+ * 기간 표시 (012 FR-004, FR-004a). 서버가 대표 행에만 싣는다 — 화면은 계산하지 않는다.
+ *
+ * - `shiftedFrom` — 대표일이 기준일(그 주 금요일·그 달 말일)과 달라 옮겨졌으면 그 기준일. 없으면 옮겨지지 않았다
+ * - `isOngoing` — 구간이 아직 끝나지 않았다(구간 끝이 계산 끝 뒤). 없으면 끝난 구간이다
+ */
+export interface PeriodMarked {
+  shiftedFrom?: string;
+  isOngoing?: true;
+}
+
+/**
+ * 가상자산 일 단위 표의 결측 구간 행 (012 FR-004b) — 연속된 출처 결측 구간 하나. **값이 없다** — 메우지 않는다(원칙 V).
+ * 차트의 출처 결측 끊김과 같은 구간이다.
+ */
+export interface MissingRow {
+  kind: "missing";
+  /** 구간의 처음 — 쪽의 커서이기도 하다. */
+  date: string;
+  dateTo: string;
+}
 
 /**
  * 성과 표 한 행.
@@ -412,7 +439,7 @@ export type SimulationRowKind = "month_first" | "dividend" | "reinvest";
  * `fxRate`·`fxRateDate`는 외화 종목일 때만 있다. `fxRateDate`가 `date`와 다를 수
  * 있다 — 주식 거래일과 환율 고시일은 일치하지 않는다 (FR-041c).
  */
-export interface SimulationRow {
+export interface SimulationRow extends PeriodMarked {
   date: string;
   kind: SimulationRowKind;
   openPrice: DecimalString;
@@ -511,6 +538,8 @@ export interface SimulationResponse {
   condition: SimulationCondition;
   summary: SimulationSummary;
   exchange?: ExchangeInfo;
+  /** 012 — 받은 표의 단위. 서버는 늘 싣는다. 화면은 늦은 응답을 차례 번호로 가른다 — 이 값에 기대지 않는다. */
+  period?: PeriodUnit;
   rows: SimulationRow[];
   hasMore: boolean;
   oldestReturned: string | null;
@@ -727,9 +756,10 @@ export type CryptoFailureKind = "blocked" | "format" | "network" | "empty";
  * 수량은 소수 8자리 문자열(FR-026), 시가는 출처 원값(14자리, FR-040). `tradeFee`는 매수 행에만, `firstDayMissing`은 그 달 1일
  * 일봉이 없어 다른 날이 행이 된 경우에만 있다(FR-030). 금액 열은 시세 통화, 투자 수익·수익율은 KRW 기준이다(FR-035).
  */
-export interface CryptoRow {
+export interface CryptoRow extends PeriodMarked {
   date: string;
-  kind: "month_first";
+  /** 012 — `buy`(첫 매수 — 시작 월의 첫 일봉) · `period`(기간 행). */
+  kind: "buy" | "period";
   openPrice: DecimalString;
   boughtQuantity: DecimalString;
   heldQuantity: DecimalString;
@@ -742,8 +772,10 @@ export interface CryptoRow {
   returnRate: DecimalString;
   fxRate?: DecimalString;
   fxRateDate?: string;
-  firstDayMissing?: string;
 }
+
+/** 가상자산 일시금 표의 한 행 — 일 단위에는 결측 구간 행이 끼어 있다(012 FR-004b). */
+export type CryptoTableRow = CryptoRow | MissingRow;
 
 /** 요약. `boughtOn`은 실제 매수일 — 시작 월 1일이 결측이면 1일이 아니다(FR-030). */
 export interface CryptoSummary extends SimulationSummary {
@@ -770,7 +802,9 @@ export interface CryptoSimulationResponse {
   condition: CryptoCondition;
   summary: CryptoSummary;
   exchange?: ExchangeInfo;
-  rows: CryptoRow[];
+  /** 012 — 받은 표의 단위(`SimulationResponse.period`와 같다). */
+  period?: PeriodUnit;
+  rows: CryptoTableRow[];
   hasMore: boolean;
   oldestReturned: string | null;
 }
@@ -1232,8 +1266,8 @@ export interface InvestmentPlan {
   frequency: Frequency;
 }
 
-/** 적립식 표 행의 종류 — 같은 날의 사건은 행이 따로다(FR-014). `month_first`는 그날 납입이 없을 때만. */
-export type RecurringStockRowKind = "contribution" | "dividend" | "reinvest" | "month_first";
+/** 적립식 표 행의 종류 — 같은 날의 사건은 행이 따로다(011 FR-014). 012 — `period`(기간 행)가 그 달 첫 거래일 행을 대체한다. */
+export type RecurringStockRowKind = "contribution" | "dividend" | "reinvest" | "period";
 
 /** 납입의 환율 — 환전(원화 원금, 현금 살 때 + 우대) 또는 평가(외화 원금, 매매기준율). */
 interface RecurringFx {
@@ -1245,7 +1279,7 @@ interface RecurringFx {
   exchangeRateDate?: string;
 }
 
-export interface RecurringStockRow extends RecurringFx {
+export interface RecurringStockRow extends RecurringFx, PeriodMarked {
   date: string;
   kind: RecurringStockRowKind;
   openPrice: DecimalString;
@@ -1323,14 +1357,16 @@ export interface RecurringStockResponse {
   stock: StockSearchResult;
   condition: RecurringStockCondition;
   summary: RecurringStockSummary;
+  /** 012 — 받은 표의 단위. */
+  period?: PeriodUnit;
   rows: RecurringStockRow[];
   hasMore: boolean;
   oldestReturned: string | null;
 }
 
-export type RecurringCryptoRowKind = "contribution" | "month_first";
+export type RecurringCryptoRowKind = "contribution" | "period";
 
-export interface RecurringCryptoRow extends RecurringFx {
+export interface RecurringCryptoRow extends RecurringFx, PeriodMarked {
   date: string;
   kind: RecurringCryptoRowKind;
   openPrice: DecimalString;
@@ -1346,9 +1382,10 @@ export interface RecurringCryptoRow extends RecurringFx {
   profit: DecimalString;
   returnRate: DecimalString;
   tradeFee?: DecimalString;
-  /** 그 달 1일 일봉이 출처에 없어 다른 날이 그 달의 행이면 그 1일(007과 같다). */
-  firstDayMissing?: string;
 }
+
+/** 가상자산 적립식 표의 한 행 — 일 단위에는 결측 구간 행이 끼어 있다(012 FR-004b). */
+export type RecurringCryptoTableRow = RecurringCryptoRow | MissingRow;
 
 /** 가상자산 매도 비용 — 과세 시행(2027-01-01) 전이면 세금 0, 그 뒤면 `null`(세법 미반영 — 0으로 메우지 않는다). */
 export interface CryptoSaleCost {
@@ -1367,7 +1404,9 @@ export interface RecurringCryptoResponse {
   coin: { coinId: number; symbol: string; name: string; nameKo: string | null; currency: string };
   condition: RecurringCondition;
   summary: RecurringCryptoSummary;
-  rows: RecurringCryptoRow[];
+  /** 012 — 받은 표의 단위. */
+  period?: PeriodUnit;
+  rows: RecurringCryptoTableRow[];
   hasMore: boolean;
   oldestReturned: string | null;
 }

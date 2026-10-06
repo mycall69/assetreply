@@ -3,20 +3,23 @@
 /**
  * 가상자산 일자별 투자 성과 표 (T033) — 007 FR-037~FR-041, ui-wireframes C4.
  *
- * 주식 표(`PerformanceTable`)를 본뜨되 **배당 열이 없다**(FR-037) — 그대로 쓰면 빈 열 다섯이 1440px을 차지한다. 행은 매달의 첫
- * 일봉뿐이다(FR-038).
+ * 주식 표(`PerformanceTable`)를 본뜨되 **배당 열이 없다**(FR-037) — 그대로 쓰면 빈 열 다섯이 1440px을 차지한다. 012 — 행은 일·주·월
+ * 단위의 기간 행과 첫 매수 행이고, 일 단위에는 결측 구간 행(FR-004b)이 끼어 있다.
  *
  * - 통화는 열 이름 아래 줄(006 R6-26). 시가·수수료·예수금·잔고는 시세 통화, 잔고 괄호는 KRW, 투자 수익·수익율은 KRW 기준(FR-035)
  * - 수량은 소수 8자리(FR-026). 시가는 **유효 숫자를 잃지 않게**(FR-040) — `0.00`으로 보이면 시세가 없다고 읽힌다
- * - `◇` = 그 달 1일 일봉이 출처에 없어 다른 날이 그 달의 행이다(FR-030). 기호만으로 전달하지 않는다 — 글자 설명을 함께 둔다
+ * - 012 FR-008 — 지금의 `◇`(그 달 1일 결측)는 없다. 월 단위는 옮겨진 기준일 표시(📅)가, 일 단위는 결측 구간 행이 대신한다
  * - 표는 **내용 폭**이다(006 버그 table-column-width) — 1440px에서 모든 열이 보이고, 넘치면 표만 스크롤된다(FR-041)
  *
  * 스크롤로 이어 본다(005 FR-029). 손익을 색만으로 구별하지 않는다 — 부호를 함께 쓴다.
  */
 
+import { MissingRowLine } from "@/components/period/MissingRowLine";
+import { PeriodLegend } from "@/components/period/PeriodLegend";
+import { PeriodMarks } from "@/components/period/PeriodMarks";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { formatMoney, formatPercent, formatPrice, formatQuantity, formatRate } from "@/lib/format";
-import type { CryptoRow, CryptoSummary } from "@/lib/types";
+import type { CryptoSummary, CryptoTableRow, PeriodUnit } from "@/lib/types";
 
 const COLUMNS = [
   "날짜", "시가", "구매 수량", "매매 수수료", "보유 수량", "예수금", "투자금", "잔고", "투자 수익", "수익율",
@@ -25,9 +28,6 @@ const COLUMNS = [
 const QUOTE_COLUMNS = ["시가", "매매 수수료", "예수금"];
 const FX_COLUMN = "환율";
 const CELL = "px-1.5 py-2 text-right tabular-nums";
-
-/** `2021-03-01` → `03-01`. ◇ 설명에 쓴다. */
-const monthDay = (date: string) => date.slice(5);
 
 export function CryptoPerformanceTable({
   rows,
@@ -38,8 +38,9 @@ export function CryptoPerformanceTable({
   loadingMore = false,
   loadError = null,
   onLoadMore,
+  period = "daily",
 }: {
-  rows: CryptoRow[];
+  rows: CryptoTableRow[];
   /** 입력한 원금 통화 — 투자금 열의 통화다. */
   currency: string;
   /** 코인의 시세 통화(USD). */
@@ -50,10 +51,13 @@ export function CryptoPerformanceTable({
   loadingMore?: boolean;
   loadError?: string | null;
   onLoadMore: () => void;
+  /** 012 — 표의 단위. 주·월이면 기간 표시와 범례를 그린다. */
+  period?: PeriodUnit;
 }) {
   const open = hasMore && !loadingMore && loadError === null;
   const sentinel = useInfiniteScroll(onLoadMore, open);
-  const showFx = rows.some((r) => r.fxRate !== undefined);
+  const showFx = rows.some((r) => r.kind !== "missing" && r.fxRate !== undefined);
+  const columnCount = COLUMNS.length + (showFx ? 1 : 0);
   const foreign = quoteCurrency !== "KRW";
 
   const unitOf = (column: string): string | null => {
@@ -108,20 +112,13 @@ export function CryptoPerformanceTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.date} className="border-b border-gray-100 last:border-0">
+            {rows.map((row) => row.kind === "missing" ? (
+              <MissingRowLine key={`${row.date}:missing`} row={row} colSpan={columnCount} />
+            ) : (
+              <tr key={`${row.date}:${row.kind}`} data-kind={row.kind} className="border-b border-gray-100 last:border-0">
                 <td className="whitespace-nowrap px-1.5 py-2 tabular-nums">
                   {row.date}
-                  {row.firstDayMissing !== undefined && (
-                    <span
-                      role="img"
-                      className="ml-1 text-amber-700"
-                      title={`${row.firstDayMissing} 일봉이 없어 ${monthDay(row.date)} 일봉을 썼습니다`}
-                      aria-label={`${row.firstDayMissing} 일봉이 없어 ${monthDay(row.date)} 일봉을 썼습니다`}
-                    >
-                      ◇
-                    </span>
-                  )}
+                  <PeriodMarks row={row} unit={period} asset="crypto" />
                 </td>
                 <td className={CELL}>{formatPrice(row.openPrice)}</td>
                 <td className={CELL}>{formatQuantity(row.boughtQuantity)}</td>
@@ -162,6 +159,8 @@ export function CryptoPerformanceTable({
           </tbody>
         </table>
       </div>
+
+      <PeriodLegend unit={period} />
 
       <div className="flex items-center justify-center gap-3 border-t border-gray-100 px-4 py-3 text-xs">
         <span role="status" aria-live="polite" className="text-gray-500">

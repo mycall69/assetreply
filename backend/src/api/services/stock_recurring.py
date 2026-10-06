@@ -19,6 +19,7 @@ R11-3~R11-5·R11-7.
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from decimal import ROUND_FLOOR, Decimal
 from typing import Final
@@ -40,6 +41,7 @@ from src.api.services.stock_simulation import (
     reaches_end,
     require_stock,
 )
+from src.api.services.table_rows import TablePage, group_events, table_page
 from src.db.models import Stock
 from src.repository import stock_price as price_repo
 from src.repository.stock_setting import SaleTaxSettings, get_sale_tax, get_settings
@@ -55,6 +57,7 @@ from src.simulation.contribution_schedule import (
 )
 from src.simulation.fx_convert import RateLookup, evaluate_krw, resolve_rate
 from src.simulation.money import quantize_rate
+from src.simulation.period_table import PeriodUnit
 from src.simulation.recurring_stock import (
     RecurringCondition,
     RecurringRow,
@@ -134,6 +137,10 @@ class RecurringResult:
     sale_cost: SaleCost | None = None
     #: 쪽을 나눌 때 같은 날의 행이 갈리지 않게 쓰는 날짜 목록(최신순 행과 같은 순서).
     dates: tuple[dt.date, ...] = field(default=())
+    #: 012 — 하루하루 상태(첫 납입일부터, 오름차순)와 그것을 행처럼 평가하는 함수. 일·주·월 표의
+    #: 기간 행이 쓴다 — 평가는 쪽에 들어간 행만 한다.
+    daily: tuple[RecurringRow, ...] = ()
+    view_of: Callable[[RecurringRow], RecurringView] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -262,21 +269,27 @@ async def prepare_recurring(
         is_final=await reaches_end(session, stock_id, as_of, end),
         pending_after_end=pending_after_end, quote_dates=frozenset(trading_days), splits=splits,
         buy_fee_total_krw=buy_fees, dividend_tax_total_krw=dividend_taxes, sale_cost=sale,
-        dates=tuple(v.row.date for v in views))
+        dates=tuple(v.row.date for v in views), daily=outcome.daily, view_of=view)
     return PreparedRecurring(stock=stock, settings=settings, sale_tax=sale_tax,
                              dividend_tax_rate=tax_rate, result=result)
 
 
-def page(views: list[RecurringView], before: dt.date | None,
-         limit: int) -> tuple[list[RecurringView], bool]:
-    """커서 쪽(005 FR-029와 같다). **같은 날의 행을 가르지 않는다** — 다음 쪽은 `before = 마지막
-    날짜`라, 그날의 남은 행을 가르면 건너뛴다."""
-    candidates = [v for v in views if before is None or v.row.date < before]
-    chunk = candidates[:limit]
-    if chunk and len(candidates) > limit:
-        last = chunk[-1].row.date
-        chunk += [v for v in candidates[limit:] if v.row.date == last]
-    return chunk, len(candidates) > len(chunk)
+def table(result: RecurringResult, *, unit: PeriodUnit, end: dt.date, before: dt.date | None,
+          limit: int) -> TablePage[RecurringView]:
+    """일자별 표의 한 쪽(012 FR-003~FR-005). 사건 행은 납입·배당락·재투자다 — 그 달 첫 거래일 행은
+    표에 없다(차트의 재료로만 남는다, FR-008).
+
+    같은 날의 행은 늦은 사건이 위다(011 그대로) — 첫 행이 그날의 상태를 보인다. 같은 날의 행은
+    쪽에서 갈리지 않는다(`period_table.page`).
+    """
+    items = [(v.row.date, v.row.kind, v) for v in result.views if v.row.kind != "month_first"]
+    by_day = {row.date: row for row in result.daily}
+    view_of = result.view_of
+    assert view_of is not None
+    return table_page(
+        unit=unit, end=end, before=before, limit=limit, quote_days=list(by_day),
+        events=group_events(items), end_of_day_last=False,
+        day_state=lambda day: view_of(by_day[day]))
 
 
 def summary_json(result: RecurringResult, *, amount: Decimal, stock: Stock) -> dict[str, object]:

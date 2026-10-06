@@ -11,9 +11,11 @@
  * - 화면은 계산하지 않는다 — 서식만 입힌다
  */
 
+import { PeriodLegend } from "@/components/period/PeriodLegend";
+import { PeriodMarks } from "@/components/period/PeriodMarks";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { formatDividend, formatMoney, formatPercent, formatRate } from "@/lib/format";
-import type { RecurringStockRow } from "@/lib/types";
+import type { PeriodUnit, RecurringStockRow } from "@/lib/types";
 
 interface Props {
   rows: RecurringStockRow[];
@@ -23,20 +25,22 @@ interface Props {
   loadingMore?: boolean;
   loadError?: string | null;
   onLoadMore: () => void;
+  /** 012 — 표의 단위. 주·월이면 기간 표시와 범례를 그린다. */
+  period?: PeriodUnit;
 }
 
 const MARK: Record<RecurringStockRow["kind"], string> = {
   contribution: "＋",
   dividend: "◆",
   reinvest: "⟳ 재투자",
-  month_first: "",
+  period: "",
 };
 
 const BG: Record<RecurringStockRow["kind"], string> = {
   contribution: "",
   dividend: "bg-amber-50",
   reinvest: "bg-emerald-50",
-  month_first: "",
+  period: "",
 };
 
 const short = (iso: string) => iso.slice(5);
@@ -48,6 +52,7 @@ function deferredText(deferred: string[] | undefined): string | null {
 
 export function RecurringStockTable({
   rows, principalCurrency, stockCurrency, hasMore, loadingMore = false, loadError = null, onLoadMore,
+  period = "daily",
 }: Props) {
   const open = hasMore && !loadingMore && loadError === null;
   const sentinel = useInfiniteScroll(onLoadMore, open);
@@ -115,6 +120,7 @@ export function RecurringStockTable({
                         {MARK[row.kind]}
                       </span>
                     )}
+                    <PeriodMarks row={row} unit={period} asset="stock" />
                   </td>
                   <td className="px-1.5 py-1.5 text-right tabular-nums">
                     {row.contribution === undefined ? "" : money(row.contribution, principalCurrency)}
@@ -166,6 +172,8 @@ export function RecurringStockTable({
           </tbody>
         </table>
       </div>
+
+      <PeriodLegend unit={period} />
 
       <p role="status" className="border-t border-gray-100 px-4 py-2 text-xs text-gray-500">
         {loadingMore ? "⟳ 불러오는 중…"

@@ -9,6 +9,7 @@
  */
 
 import { TableWithHistory } from "@/components/TableWithHistory";
+import { PeriodTableSection } from "@/components/period/PeriodTableSection";
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
 import { PerformanceChart } from "@/components/stock/PerformanceChart";
 import { PerformanceTable } from "@/components/stock/PerformanceTable";
@@ -24,19 +25,27 @@ import { SimulationHistory } from "@/components/stock/SimulationHistory";
 import { SimulationForm } from "@/components/stock/SimulationForm";
 import { StockSearch } from "@/components/stock/StockSearch";
 import { useEffect, useMemo } from "react";
+import { useHeightHold } from "@/hooks/useHeightHold";
 import { amountLabel } from "@/lib/recurringText";
 import { localYesterday } from "@/lib/startDate";
+import { STOCK_PERIOD_TITLES } from "@/lib/tablePeriod";
+import type { PeriodUnit } from "@/lib/types";
 import { useStockStore } from "@/stores/stockStore";
 
 export default function StocksPage() {
   const {
     input, plan, recurring, setPlan, rows, summary, exchange, hasMore, collecting,
     series, seriesError, loading, loadingMore, error, loadMoreError,
+    tablePeriod, tableLoading, tableError, setTablePeriod,
     history, historySaveError, selectedHistory, comparison, comparing,
     comparisonError, progress, selecting, selectionError, fxBlocked, listedOn, startable,
     setInput, selectStock, run, loadMore, refreshIfRan, dispose,
     restoreHistory, toggleHistory, removeHistoryEntry, compareSelected, rerunHistory,
   } = useStockStore();
+
+  // 012 FR-006 — 표의 단위를 바꾸는 동안 바꾸기 직전 높이를 붙잡는다. 표가 떨어졌다 붙는 사이 문서가 줄면 브라우저가 창을 당긴다(US1과 같은 훅).
+  const { ref: workspace, style: holdStyle, hold } = useHeightHold<HTMLDivElement>();
+  const switchPeriod = (period: PeriodUnit) => hold(() => setTablePeriod(period));
 
   // FR-017 — 설정 화면에 다녀왔을 수 있다. 이미 실행한 결과가 있으면 새 값으로
   // 다시 받는다. 갱신하지 않으면 화면은 정상으로 보이면서 낡은 값을 보여준다.
@@ -58,7 +67,7 @@ export default function StocksPage() {
 
   return (
     // 006 FR-069 — 폭을 묶지 않는다. 1152px(max-w-6xl)로 묶으면 1440px 화면에서도 표의 오른쪽 열이 잘렸다.
-    <div className="space-y-5">
+    <div ref={workspace} className="space-y-5" style={holdStyle}>
       <header>
         <h2 className="text-2xl font-bold tracking-tight">주식 투자 시뮬레이션</h2>
         <p className="mt-1 text-sm text-gray-500">
@@ -188,8 +197,8 @@ export default function StocksPage() {
       {/* 010 FR-015~FR-017 — 넓은 창이면 성과 표 오른쪽(sticky), 좁으면 지금처럼 표 아래. 경계는 표의 실제 폭이다. */}
       <TableWithHistory
         table={recurring !== null ? (
-          <section>
-            <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
+          <PeriodTableSection period={tablePeriod} titles={STOCK_PERIOD_TITLES} onPeriod={switchPeriod}
+            loading={tableLoading} error={tableError}>
             <RecurringStockTable
               rows={recurring.rows}
               principalCurrency={input.principalCurrency}
@@ -198,11 +207,12 @@ export default function StocksPage() {
               loadingMore={loadingMore}
               loadError={loadMoreError}
               onLoadMore={() => void loadMore()}
+              period={tablePeriod}
             />
-          </section>
+          </PeriodTableSection>
         ) : summary !== null ? (
-          <section>
-            <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
+          <PeriodTableSection period={tablePeriod} titles={STOCK_PERIOD_TITLES} onPeriod={switchPeriod}
+            loading={tableLoading} error={tableError}>
             <PerformanceTable
               rows={rows}
               currency={input.principalCurrency}
@@ -212,8 +222,9 @@ export default function StocksPage() {
               loadingMore={loadingMore}
               loadError={loadMoreError}
               onLoadMore={() => void loadMore()}
+              period={tablePeriod}
             />
-          </section>
+          </PeriodTableSection>
         ) : null}
         history={(
           <SimulationHistory
