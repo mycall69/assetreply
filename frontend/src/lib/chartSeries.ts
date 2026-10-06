@@ -108,11 +108,13 @@ export function toChartData(points: SeriesPoint[]): ChartDatum[] {
  */
 export function toPerformanceData(
   points: SimulationPoint[],
-  field: "balance" | "returnRate",
+  field: "balance" | "returnRate" | "principal",
 ): ChartDatum[] {
   return points
+    // 011 — 누적 납입 원금은 적립식·적금 점에만 있다. 키가 없는 점은 그 선에 넣지 않는다(0으로 그리지 않는다).
+    .filter((p) => field !== "principal" || p.principal !== undefined)
     .map((p) => {
-      const raw = field === "balance" ? p.balance : p.returnRate;
+      const raw = field === "balance" ? p.balance : field === "principal" ? (p.principal as string) : p.returnRate;
       return {
         time: p.date,
         value: Number(field === "returnRate" ? shiftDecimal(raw, 2) : raw),

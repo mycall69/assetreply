@@ -32,8 +32,8 @@ from src.api.services.stock_selection import listing_for, register_from_price_sy
 from src.db.models import Stock
 from src.repository import stock_price as price_repo
 from src.repository.stock import find_stock, find_us_stock
+from src.repository.stock_setting import SaleTaxSettings, get_sale_tax, get_settings
 from src.repository.stock_setting import Settings as StockSettings
-from src.repository.stock_setting import get_settings
 from src.search.price_symbol import US_MARKETS
 from src.simulation.fx_convert import (  # noqa: E501
     RateLookup,
@@ -340,6 +340,8 @@ class Prepared:
     result: SimulationResult
     #: 그 종목에 적용한 배당 소득세 — 국내 또는 해외 (006 FR-055). 응답의 조건에 싣는다.
     dividend_tax_rate: Decimal
+    #: 011 FR-037 — 보드의 매도 세금 설정(기준일에 모두 판다고 가정할 때). 표·차트에는 쓰지 않는다.
+    sale_tax: SaleTaxSettings
 
 
 async def require_stock(session: AsyncSession, market: str, symbol: str) -> Stock:
@@ -451,4 +453,5 @@ async def prepare(
         fee_rate=settings.trade_fee_rate, tax_rate=tax_rate,
         lookup=lookup, spread=spread)
 
-    return Prepared(stock=stock, settings=settings, result=result, dividend_tax_rate=tax_rate)
+    return Prepared(stock=stock, settings=settings, result=result, dividend_tax_rate=tax_rate,
+                    sale_tax=await get_sale_tax(session))

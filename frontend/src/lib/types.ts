@@ -593,11 +593,16 @@ export interface SimulationPoint {
   priceMissing?: PriceMissing;
   /** 부동산만 — 투자 수익(원). 표의 `profit`, 끝점은 `summary.profit`(010 FR-009). */
   profit?: DecimalString;
+  /** 011 — 적립식·적금 시계열에만: 그날까지의 원화 총 납입 원금. 있으면 차트가 누적 납입 원금 점선을 그린다(FR-015). */
+  principal?: DecimalString;
+  /** 011 — 적금만: 그 달 발표된 1년 정기예금 금리(연 %). 없는 달은 키가 없다(FR-032). */
+  depositRate?: DecimalString;
 }
 
 /** 가격 선의 종류(010) — 화면이 범례 이름과 값 형식을 고른다. 서버는 한국어 표시 문구를 만들지 않는다. */
 /** 반복 1(2026-10-05) — 주식은 `stock_open`(원주가 시가) → `stock_adjusted_close`(분할만 반영한 수정 종가). */
-export type PriceKind = "stock_adjusted_close" | "crypto_open" | "deposit_rate" | "apt_average";
+/** 011 — `installment_rate`(적금 시계열 — 그 달 발표 정기적금 금리). */
+export type PriceKind = "stock_adjusted_close" | "crypto_open" | "deposit_rate" | "apt_average" | "installment_rate";
 
 /**
  * 가격이 없는 사유(010 FR-011) — `unpublished`(예금 — 아직 발표되지 않은 달), `missing`(예금 — 발표 기간 안인데 통계가 빈 달, 주식 — 그 날 원주가 종가 없음), `no_trades`(부동산 —
@@ -647,9 +652,13 @@ export interface SimulationHistoryEntry {
   id: string;
   stock: StockSearchResult;
   start: string;
+  /** 일시금이면 원금, 적립식이면 한 번 납입액(011). */
   principal: DecimalString;
   principalCurrency: PrincipalCurrency;
   reinvest: boolean;
+  /** 011 — 적립식 항목에만. 없으면 일시금이다(011 전 항목). */
+  mode?: "recurring";
+  frequency?: Frequency;
   savedAt: string;
 }
 
@@ -801,8 +810,12 @@ export interface CryptoHistoryEntry {
   id: string;
   coin: Omit<CoinRef, "rank">;
   start: string;
+  /** 일시금이면 원금, 적립식이면 한 번 납입액(011). */
   principal: DecimalString;
   principalCurrency: PrincipalCurrency;
+  /** 011 — 적립식 항목에만. 없으면 일시금이다. */
+  mode?: "recurring";
+  frequency?: Frequency;
   savedAt: string;
 }
 
@@ -820,7 +833,22 @@ export interface DepositInstitution {
   firstMonth: string | null;
   latestMonth: string | null;
   checkedOn: string | null;
+  /** 011 — 정기 적금으로 고를 수 있는지. 출처에 적금 항목이 없는 투자처는 `available: false`와 사유다(FR-029). */
+  installment?: InstallmentAvailability;
 }
+
+/** 011 — 투자처의 적금. 받기 전에는 범위·시작 가능 날짜가 `null`이다. */
+export type InstallmentAvailability =
+  | {
+      available: true;
+      description: string;
+      firstMonth: string | null;
+      latestMonth: string | null;
+      checkedOn: string | null;
+      /** 적금 첫 달과 (정기예금 첫 달 − 1년) 가운데 늦은 날. 두 계열을 다 받았을 때만. */
+      startableFrom: string | null;
+    }
+  | { available: false; reason: string };
 
 export interface DepositInstitutionsResponse {
   institutions: DepositInstitution[];
@@ -903,6 +931,8 @@ export interface DepositSimulationResponse {
 export interface DepositCollecting {
   status: "collecting";
   institution: DepositInstitutionKey;
+  /** 011 — 적금 실행에서 지금 받는 계열(적금 금리 또는 정기예금 금리). 정기예금 실행에는 없다. */
+  series?: "installment" | "deposit";
   jobId: number;
   missingFrom: string;
   missingThrough: string;
@@ -929,7 +959,10 @@ export interface DepositHistoryEntry {
   id: string;
   institution: DepositInstitutionKey;
   start: string;
+  /** 정기예금이면 원금, 적금이면 월 납입액(011). */
   principal: DecimalString;
+  /** 011 — 적금 항목에만. 없으면 정기예금이다(011 전 항목). */
+  product?: "installment";
   savedAt: string;
 }
 
@@ -1186,4 +1219,266 @@ export interface RealEstateHistoryEntry {
   buyDate: string;
   buyPrice: DecimalString | null;
   savedAt: string;
+}
+
+/* ───────────────────── 011: 적립식 투자 · 정기 적금 · 주식 매도 세금 설정 ───────────────────── */
+
+/** 납입 주기 — 시작일에 맞춘다(011 FR-003). 서버가 이 밖의 값을 막는다(FR-002). */
+export type Frequency = "daily" | "weekly" | "monthly" | "yearly";
+
+/** 투자 방식(주식·가상자산). `input`과 따로 둔다 — 일시금 입력 다섯 칸은 그대로다(research R11-11). */
+export interface InvestmentPlan {
+  mode: "lump_sum" | "recurring";
+  frequency: Frequency;
+}
+
+/** 적립식 표 행의 종류 — 같은 날의 사건은 행이 따로다(FR-014). `month_first`는 그날 납입이 없을 때만. */
+export type RecurringStockRowKind = "contribution" | "dividend" | "reinvest" | "month_first";
+
+/** 납입의 환율 — 환전(원화 원금, 현금 살 때 + 우대) 또는 평가(외화 원금, 매매기준율). */
+interface RecurringFx {
+  /** 그 행의 평가 환율(매매기준율)과 고시일 — 해외 자산만. */
+  fxRate?: DecimalString;
+  fxRateDate?: string;
+  /** 원화 원금 납입 행의 환전 환율과 고시일(FR-010). */
+  exchangeRate?: DecimalString;
+  exchangeRateDate?: string;
+}
+
+export interface RecurringStockRow extends RecurringFx {
+  date: string;
+  kind: RecurringStockRowKind;
+  openPrice: DecimalString;
+  closePrice: DecimalString;
+  /** 납입 행만 — 그 행의 납입액(원금 통화, 모인 예정일 수만큼). */
+  contribution?: DecimalString;
+  /** 그 행으로 미뤄진 원래 예정일(그날 예정분 제외). 없으면 키가 없다. */
+  deferred?: string[];
+  boughtShares: number;
+  heldShares: number;
+  /** 매수 대기금(종목 통화). */
+  pending: DecimalString;
+  /** 배당 현금 — 매수 대기금에 아직 들어가지 않은 세후 배당(종목 통화, 분석 B1). */
+  dividendCash: DecimalString;
+  /** 그때까지의 총 납입 원금(원금 통화)과 원화 분모. */
+  contributed: DecimalString;
+  contributedKrw: DecimalString;
+  /** 보유 × 종가(종목 통화). */
+  balance: DecimalString;
+  balanceKrw?: DecimalString;
+  /** 보유 중(원화). */
+  profit: DecimalString;
+  returnRate: DecimalString;
+  tradeFee?: DecimalString;
+  dividendPerShare?: DecimalString;
+  dividendTotal?: DecimalString;
+  dividendTax?: DecimalString;
+  dividendTotalNet?: DecimalString;
+}
+
+/** 적립식 보드(주식·가상자산 공통 칸). 금액은 원화 정수 문자열 — `contributed`·`pending`만 원금·종목 통화. */
+export interface RecurringSummaryBase {
+  contributed: DecimalString;
+  contributedKrw: DecimalString;
+  /** 넣은 납입 횟수(예정일 기준). */
+  contributions: number;
+  /** 계산 끝 뒤 거래일로 미뤄져 아직 넣지 않은 납입 횟수(FR-004). */
+  pendingAfterEnd: number;
+  pending: DecimalString;
+  totalKrw: DecimalString;
+  buyFeeTotal: DecimalString;
+  feeTotal: DecimalString;
+  /** 세금을 모르면(가상자산 과세 시행 뒤) `null`. */
+  taxTotal: DecimalString | null;
+  profit: DecimalString;
+  returnRate: DecimalString;
+  profitAfterSale: DecimalString | null;
+  returnRateAfterSale: DecimalString | null;
+  asOf: string;
+  isFinal: boolean;
+}
+
+export interface RecurringStockSummary extends RecurringSummaryBase {
+  heldShares: number;
+  dividendCash: DecimalString;
+  dividendTaxTotal: DecimalString;
+  saleCost: SaleCost;
+}
+
+export interface RecurringCondition {
+  mode: "recurring";
+  start: string;
+  amount: DecimalString;
+  principalCurrency: PrincipalCurrency;
+  frequency: Frequency;
+  tradeFeeRate: DecimalString;
+}
+
+export interface RecurringStockCondition extends RecurringCondition {
+  reinvest: boolean;
+  dividendTaxRate: DecimalString;
+}
+
+export interface RecurringStockResponse {
+  stock: StockSearchResult;
+  condition: RecurringStockCondition;
+  summary: RecurringStockSummary;
+  rows: RecurringStockRow[];
+  hasMore: boolean;
+  oldestReturned: string | null;
+}
+
+export type RecurringCryptoRowKind = "contribution" | "month_first";
+
+export interface RecurringCryptoRow extends RecurringFx {
+  date: string;
+  kind: RecurringCryptoRowKind;
+  openPrice: DecimalString;
+  contribution?: DecimalString;
+  deferred?: string[];
+  boughtQuantity: DecimalString;
+  heldQuantity: DecimalString;
+  pending: DecimalString;
+  contributed: DecimalString;
+  contributedKrw: DecimalString;
+  balance: DecimalString;
+  balanceKrw?: DecimalString;
+  profit: DecimalString;
+  returnRate: DecimalString;
+  tradeFee?: DecimalString;
+  /** 그 달 1일 일봉이 출처에 없어 다른 날이 그 달의 행이면 그 1일(007과 같다). */
+  firstDayMissing?: string;
+}
+
+/** 가상자산 매도 비용 — 과세 시행(2027-01-01) 전이면 세금 0, 그 뒤면 `null`(세법 미반영 — 0으로 메우지 않는다). */
+export interface CryptoSaleCost {
+  fee: DecimalString;
+  tax: DecimalString | null;
+  total: DecimalString | null;
+  taxKind: "not_yet_taxed" | "outside_rules";
+}
+
+export interface RecurringCryptoSummary extends RecurringSummaryBase {
+  heldQuantity: DecimalString;
+  saleCost: CryptoSaleCost;
+}
+
+export interface RecurringCryptoResponse {
+  coin: { coinId: number; symbol: string; name: string; nameKo: string | null; currency: string };
+  condition: RecurringCondition;
+  summary: RecurringCryptoSummary;
+  rows: RecurringCryptoRow[];
+  hasMore: boolean;
+  oldestReturned: string | null;
+}
+
+/** 예금 상품(011 FR-022). `input`과 따로 둔다. */
+export type DepositProduct = "deposit" | "installment";
+
+export type InstallmentRowKind = "installment" | "month" | "installment_maturity" | "deposit_maturity" | "deposit_join";
+
+/** 적금 표의 행. 금액은 원 단위 정수 문자열, 금리는 출처 문자열(`"3.1"`), `rateMonth`는 `YYYY-MM`(잠정이면 대신 쓴 달). */
+export interface InstallmentRow {
+  date: string;
+  kind: InstallmentRowKind;
+  contractNo: number | null;
+  /** 납입 행만 — 회차 1..12. */
+  installmentNo?: number;
+  amount?: DecimalString;
+  rate?: DecimalString;
+  rateMonth?: string;
+  provisional: boolean;
+  interest?: DecimalString;
+  tax?: DecimalString;
+  afterTax?: DecimalString;
+  /** 정기예금 가입 행만 — 원금의 구성. */
+  fromDeposit?: DecimalString;
+  fromInstallment?: DecimalString;
+  contributed: DecimalString;
+  installmentValue: DecimalString;
+  depositValue: DecimalString;
+  balance: DecimalString;
+  profit: DecimalString;
+  returnRate: DecimalString;
+}
+
+export interface InstallmentContract {
+  no: number;
+  joinedOn: string;
+  maturesOn: string;
+  rate: DecimalString;
+  rateMonth: string;
+  provisional: boolean;
+  monthly: DecimalString;
+  paid: number;
+  interest: DecimalString | null;
+  tax: DecimalString | null;
+  afterTax: DecimalString | null;
+  amount: DecimalString | null;
+}
+
+export interface LadderDeposit {
+  no: number;
+  joinedOn: string;
+  maturesOn: string;
+  rate: DecimalString;
+  rateMonth: string;
+  provisional: boolean;
+  principal: DecimalString;
+  fromDeposit: DecimalString;
+  fromInstallment: DecimalString;
+  interest: DecimalString | null;
+  tax: DecimalString | null;
+  afterTax: DecimalString | null;
+}
+
+export interface InstallmentSummary {
+  contributed: DecimalString;
+  /** 낸 회차 수 — 총 납입 원금 = 월 납입액 × 이 값. */
+  installments: number;
+  interestTotal: DecimalString;
+  taxTotal: DecimalString;
+  afterTaxTotal: DecimalString;
+  installmentValue: DecimalString;
+  depositValue: DecimalString;
+  balance: DecimalString;
+  profit: DecimalString;
+  returnRate: DecimalString;
+  asOf: string;
+  isFinal: boolean;
+  currentInstallment: (Omit<InstallmentContract, "interest" | "tax" | "afterTax" | "amount" | "monthly">) | null;
+  currentDeposit: (Omit<LadderDeposit, "interest" | "tax" | "afterTax" | "fromDeposit" | "fromInstallment">) | null;
+  provisionalFrom: string | null;
+  stopped: { date: string; reason: "rate_missing"; month: string } | null;
+  recheckFailed: { kind: DepositFailureKind; reason: string } | null;
+}
+
+export interface InstallmentCondition {
+  product: "installment";
+  start: string;
+  amount: DecimalString;
+  interestTaxRate: DecimalString;
+  installmentItem: string;
+  depositItem: string;
+}
+
+export interface InstallmentResponse {
+  institution: { key: DepositInstitutionKey; name: string };
+  condition: InstallmentCondition;
+  summary: InstallmentSummary;
+  contracts: InstallmentContract[];
+  deposits: LadderDeposit[];
+  rows: InstallmentRow[];
+}
+
+/** 주식 매도 세금 설정(011 FR-035) — 비율 문자열. 기본값은 0.20%·22%·2,500,000원. */
+export interface SaleTaxValues {
+  saleTaxRateDomestic: DecimalString;
+  capitalGainsRateForeign: DecimalString;
+  capitalGainsDeductionForeign: DecimalString;
+}
+
+export interface SaleTaxSettings extends SaleTaxValues {
+  isDefault: boolean;
+  defaults: SaleTaxValues;
 }

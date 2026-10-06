@@ -43,6 +43,7 @@ export const PRICE_NAME: Record<PriceKind, string> = {
   crypto_open: "시세",
   deposit_rate: "금리",
   apt_average: "실거래가 평균",
+  installment_rate: "적금 금리",
 };
 
 const MISSING_TEXT: Record<PriceMissing, string> = {
@@ -58,27 +59,40 @@ const DASH = "—";
 /** 커서에서 상자까지(px). */
 const HOVER_OFFSET = 12;
 
-type Field = "price" | "balance" | "profit" | "returnRate";
+type Field = "price" | "balance" | "principal" | "profit" | "returnRate" | "depositRate";
 
-/** 자산군마다 줄의 순서(ui-wireframes F2). 가격이 없는 응답(005~009)은 잔고·수익률만. */
-function fields(kind: PriceKind | undefined): Field[] {
-  switch (kind) {
-    case "stock_adjusted_close":
-    case "crypto_open":
-      return ["price", "balance", "returnRate"];
-    case "deposit_rate":
-      return ["balance", "returnRate", "price"];
-    case "apt_average":
-      return ["balance", "profit", "returnRate", "price"];
-    default:
-      return ["balance", "returnRate"];
-  }
+/**
+ * 자산군마다 줄의 순서(ui-wireframes F2). 가격이 없는 응답(005~009)은 잔고·수익률만.
+ *
+ * 011 — 적립식·적금 응답(점에 `principal`)은 잔고 다음에 누적 납입 원금을 둔다. 적금은 그 달 정기예금 금리를 끝에 둔다.
+ */
+function fields(kind: PriceKind | undefined, withPrincipal: boolean): Field[] {
+  const base = ((): Field[] => {
+    switch (kind) {
+      case "stock_adjusted_close":
+      case "crypto_open":
+        return ["price", "balance", "returnRate"];
+      case "deposit_rate":
+        return ["balance", "returnRate", "price"];
+      case "installment_rate":
+        return ["balance", "returnRate", "price", "depositRate"];
+      case "apt_average":
+        return ["balance", "profit", "returnRate", "price"];
+      default:
+        return ["balance", "returnRate"];
+    }
+  })();
+  if (!withPrincipal) return base;
+  const at = base.indexOf("balance") + 1;
+  return [...base.slice(0, at), "principal", ...base.slice(at)];
 }
 
 function label(field: Field, kind: PriceKind | undefined): string {
   // 반복 1 — 주식 주가는 표의 시작가(원주가)와 다른 값이라 이름에 "수정 종가"를 밝힌다.
   if (field === "price") return kind === undefined ? "" : kind === "stock_adjusted_close" ? "주가(수정 종가)" : PRICE_NAME[kind];
   if (field === "balance") return kind === "apt_average" ? "평가액" : "잔고";
+  if (field === "principal") return "누적 납입 원금";
+  if (field === "depositRate") return "정기예금 금리";
   if (field === "profit") return "투자 수익";
   return "수익률";
 }
@@ -97,6 +111,7 @@ function priceText(kind: PriceKind, price: string, currency: string | null | und
     case "crypto_open":
       return withSymbol(formatPrice(price), currency);
     case "deposit_rate":
+    case "installment_rate":
       return `연 ${formatAnnualRate(price)}`;
     case "apt_average":
       return formatMoneyWithSymbol(price, "KRW");
@@ -114,6 +129,8 @@ function priceKindOf(series: SimulationSeriesResponse): PriceKind | undefined {
 export function hoverView(series: SimulationSeriesResponse, time: string): HoverView | null {
   const kind = priceKindOf(series);
   const monthly = kind === "apt_average";
+  // 011 — 적립식·적금 응답은 점에 `principal`이 있다. 키가 없으면 줄 목록이 010과 같다.
+  const withPrincipal = series.points.some((p) => p.principal !== undefined);
   const index = series.points.findIndex((p) => p.date === time);
 
   if (index < 0) {
@@ -123,16 +140,22 @@ export function hoverView(series: SimulationSeriesResponse, time: string): Hover
     const day = (d: string) => (monthly ? d.slice(0, 7) : d);
     return {
       title: `${day(slot.from)} ~ ${day(slot.to)}`,
-      lines: fields(kind).map((field) => ({ label: label(field, kind), value: DASH })),
+      lines: fields(kind, withPrincipal).map((field) => ({ label: label(field, kind), value: DASH })),
       reason: SLOT_REASON[slot.reason],
     };
   }
 
   const point = series.points[index];
   const edge = index === 0 || index === series.points.length - 1;
-  const lines = fields(kind).map((field): HoverLine => {
+  const lines = fields(kind, withPrincipal).map((field): HoverLine => {
     const name = label(field, kind);
     if (field === "balance") return { label: name, value: formatMoneyWithSymbol(point.balance, series.basisCurrency) };
+    if (field === "principal") {
+      return { label: name, value: point.principal === undefined ? DASH : formatMoneyWithSymbol(point.principal, series.basisCurrency) };
+    }
+    if (field === "depositRate") {
+      return { label: name, value: point.depositRate === undefined ? DASH : `연 ${formatAnnualRate(point.depositRate)}` };
+    }
     if (field === "returnRate") return { label: name, value: formatPercent(point.returnRate) };
     if (field === "profit") {
       return { label: name, value: point.profit === undefined ? DASH : formatMoneyWithSymbol(point.profit, "KRW") };

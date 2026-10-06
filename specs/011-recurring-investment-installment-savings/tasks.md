@@ -166,10 +166,10 @@ description: "Task list for 011-recurring-investment-installment-savings"
 
 ### Implementation for Foundational
 
-- [ ] T010 `backend/src/simulation/contribution_schedule.py` — `Frequency`·`scheduled_dates`·`ScheduledContribution`·`assign`·`Contribution`·`fund` (data-model 2.1)
+- [X] T010 `backend/src/simulation/contribution_schedule.py` — `Frequency`·`scheduled_dates`·`ScheduledContribution`·`assign`·`Contribution`·`fund` (data-model 2.1)
   - 순수 함수다. `fx_convert`의 `exchange_rate`·`to_foreign`·`to_principal`·`resolve_rate`를 쓴다.
   - 머리 주석에 R11-3·R11-5 규칙을 적는다(가드 낱말 금지). (FR-003~FR-005, FR-010, FR-018)
-- [ ] T011 매도 세금 계산 기반 (FR-013, FR-035, FR-037, FR-039)
+- [X] T011 매도 세금 계산 기반 (FR-013, FR-035, FR-037, FR-039)
   - `backend/src/db/models.py`(`StockSetting`에 열 셋)
     - `sale_tax_rate_domestic: Mapped[Decimal | None] = mapped_column(SPREAD, nullable=True)`
     - `capital_gains_rate_foreign` 같음
@@ -186,7 +186,7 @@ description: "Task list for 011-recurring-investment-installment-savings"
   - `backend/src/api/services/stock_simulation.py`(`Prepared.sale_tax`, `prepare`가 `get_sale_tax`로 읽는다)
   - `backend/src/api/routes/stock_simulation.py`(`summary_json(…, sale_tax=…)`)
   - 개발 DB에 `alembic upgrade head`를 올리고 quickstart 0에 적는다.
-- [ ] T012 [P] 화면 형식 — `frontend/src/lib/types.ts` (FR-002, FR-015, FR-022, FR-035, data-model 3·4, contracts/rest-api)
+- [X] T012 [P] 화면 형식 — `frontend/src/lib/types.ts` (FR-002, FR-015, FR-022, FR-035, data-model 3·4, contracts/rest-api)
   - `Frequency = "daily" | "weekly" | "monthly" | "yearly"`
   - `SimulationPoint.principal?: DecimalString`("적립식·적금 시계열에만"), `depositRate?: DecimalString`("적금만")
   - `PriceKind`에 `"installment_rate"`
@@ -198,7 +198,7 @@ description: "Task list for 011-recurring-investment-installment-savings"
     - `DepositInstitution.installment?: {available: true; description; firstMonth; latestMonth; checkedOn; startableFrom} | {available: false; reason}`
     - `SaleTaxSettings`
   - 모두 새 형식이거나 선택 키다 — 기존 테스트가 `npx tsc --noEmit`을 그대로 통과해야 한다.
-- [ ] T013 공유 차트 — `frontend/src/components/stock/PerformanceChart.tsx`·`frontend/src/lib/chartSeries.ts`·`frontend/src/lib/chartHover.ts` (FR-015, FR-019, FR-032)
+- [X] T013 공유 차트 — `frontend/src/components/stock/PerformanceChart.tsx`·`frontend/src/lib/chartSeries.ts`·`frontend/src/lib/chartHover.ts` (FR-015, FR-019, FR-032)
   - `toPerformanceData`의 필드에 `"principal"`
   - 점에 `principal` 키가 있을 때만 잔고 축 점선(`lineStyle: 1`) 시리즈 — 결측·잠정 분할은 잔고와 같은 경로
   - 범례·상자 줄(`principal`·`depositRate`)
@@ -747,4 +747,6 @@ Task: "T022 stockStoreRecurring.test.ts — 경로·plan·비움·다시 실행�
   tsc·eslint 통과
 - **2026-10-06 T003**: ECOS 적금 두 시계열 본문을 받았다 — 시중은행 정기적금(1-2년) 284행(2003-01~2026-08), 상호금융 정기적금 176행(2012-01~2026-08).
   항목 목록 픽스처(2026-10-04)에 적금 항목과 걸리면 안 되는 이웃이 모두 있다. 키가 본문에 없음을 저장 전에 확인했다
+- **2026-10-06 Phase 2 체크포인트**: 백엔드 2,478 passed(T002의 2,458 + 새 20 — T009 승인 변경 포함), 커버리지 96.07%, mypy 209 파일·ruff 통과 /
+  프론트엔드 134 파일·1,183 passed(1,172 + 새 11), tsc·eslint 통과. 개발 DB에 `f4c2a8e19d35`(주식 매도 세금 설정 열 셋)를 올렸다
 - (T059 결과를 여기에 적는다.)

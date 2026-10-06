@@ -30,6 +30,7 @@ from src.api.services.stock_simulation import (
     require_stock,
 )
 from src.db.session import get_session
+from src.repository.stock_setting import SaleTaxSettings
 from src.simulation.money import quantize_rate
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
@@ -83,7 +84,7 @@ def row_json(converted: ConvertedRow) -> Json:
 
 
 def summary_json(result: SimulationResult, principal: Decimal, *, market: str | None = None,
-                 fee_rate: Decimal | None = None) -> Json:
+                 fee_rate: Decimal | None = None, sale_tax: SaleTaxSettings | None = None) -> Json:
     """성과 요약 (FR-031).
 
     `asOf`는 계산이 어느 날짜까지인지다. `isFinal`은 **항상 명시한다** — "확인했고
@@ -105,8 +106,9 @@ def summary_json(result: SimulationResult, principal: Decimal, *, market: str | 
     }
     if result.principal_krw is not None:
         body["principalKrw"] = str(result.principal_krw)
-    if market is not None and fee_rate is not None and latest is not None:
+    if market is not None and fee_rate is not None and sale_tax is not None and latest is not None:
         body.update(_sale_json(result, latest.profit, market=market, fee_rate=fee_rate,
+                               sale_tax=sale_tax,
                                basis=result.principal_krw if result.principal_krw is not None
                                else principal))
     return body
@@ -117,11 +119,11 @@ def _text(value: Decimal | None) -> str | None:
 
 
 def _sale_json(result: SimulationResult, profit: Decimal, *, market: str, fee_rate: Decimal,
-               basis: Decimal) -> Json:
+               sale_tax: SaleTaxSettings, basis: Decimal) -> Json:
     """010 반복 4(FR-030) — 기준일에 모두 판다고 가정한 매도 수수료·세금과 그것을 뺀 투자
     수익·수익률. **더하는 키**다 — `profit`·`returnRate`(보유 중)는 그대로다. 세금을 모르면(세율 표
     밖) 순수익이 `null`."""
-    cost = sale_cost_for(result, market=market, fee_rate=fee_rate)
+    cost = sale_cost_for(result, market=market, fee_rate=fee_rate, sale_tax=sale_tax)
     if cost is None:
         return {}
     after = None if cost.total is None else profit - cost.total
@@ -194,7 +196,7 @@ async def get_simulation(
             "dividendTaxRate": str(prepared.dividend_tax_rate),
         },
         "summary": summary_json(result, amount, market=stock.market,
-                                fee_rate=settings.trade_fee_rate),
+                                fee_rate=settings.trade_fee_rate, sale_tax=prepared.sale_tax),
         **({"exchange": {
             "rate": str(result.exchange.rate),
             "rateDate": result.exchange.rate_date.isoformat(),

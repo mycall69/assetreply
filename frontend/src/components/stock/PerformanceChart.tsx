@@ -38,6 +38,10 @@
  * 마지막 값이 남으면 지금 값처럼 읽힌다. 차트 아래 한 줄 표시는 없앴다(같은 값을 두 곳에 보이지 않는다). 점이 없는 출처 결측·시세 없음
  * 구간에는 커서가 놓일 자리가 없어, 구간마다 값 없는 자리(whitespace) 하나를 두고 그 자리의 상자가 구간과 사유를 보인다(`gapSlots`).
  * 터치는 라이브러리 기본 추적 모드(길게 누르면 따라가고 다음 탭에 풀린다)가 같은 콜백을 부른다 — 새 API를 부르지 않는다.
+ *
+ * **누적 납입 원금은 잔고 축의 점선이다**(011 FR-015, research R11-12). 적립식·적금 점에만 있는 `principal`을 잔고와 같은 구간·같은 잠정
+ * 경계로 끊어 그린다 — 한쪽만 끊기면 두 선이 다른 구간을 말한다. **점에 `principal` 키가 없으면 시리즈를 만들지 않는다** — 일시금·정기예금·
+ * 부동산 차트는 010과 같다.
  */
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -66,9 +70,12 @@ const NO_DECIMAL_CURRENCIES = new Set(["KRW", "JPY"]);
 
 /** 선 색. 잠정 구간은 같은 선의 연한 색이다(008). */
 const COLORS = {
-  confirmed: { balance: "#1f2937", returnRate: "#b45309", price: "#2563eb" },
-  provisional: { balance: "#9ca3af", returnRate: "#fcd34d", price: "#93c5fd" },
+  confirmed: { balance: "#1f2937", returnRate: "#b45309", price: "#2563eb", principal: "#059669" },
+  provisional: { balance: "#9ca3af", returnRate: "#fcd34d", price: "#93c5fd", principal: "#6ee7b7" },
 } as const;
+
+/** 011 — 누적 납입 원금 선은 점선이다. 라이브러리 열거형(`LineStyle`)을 실행 중에 읽지 않는다 — 기존 테스트 모의 모듈에 없다. */
+const DOTTED = 1;
 
 
 /** 추정 표식 — 테두리 원과 그 위의 배경색 작은 원. 둘을 겹쳐 속이 빈 원으로 보인다(라이브러리에 빈 원 모양이 없다). */
@@ -211,6 +218,21 @@ export function PerformanceChart({
           time: d.time, value: d.value,
         })),
       );
+
+      // 011 — 누적 납입 원금. 잔고와 같은 구간·같은 잠정 경계(키가 없으면 만들지 않는다).
+      const principal = toPerformanceData(segment, "principal");
+      if (principal.length > 0) {
+        const line = instance.addSeries(LineSeries, {
+          color: COLORS[tone].principal,
+          lineWidth: 1,
+          lineStyle: DOTTED,
+          priceScaleId: BALANCE_AXIS,
+          priceFormat: balanceFormat,
+          priceLineVisible: false,
+          lastValueVisible: false,
+        });
+        line.setData(principal.map((d) => ({ time: d.time, value: d.value })));
+      }
     }
 
     // 009 — 추정 시세 점에만 표식. 평가액 축 위에 점만 그리고, 확정·잠정 구간의 선 색을 따른다. 추정 점이 없으면 만들지 않는다.
@@ -312,8 +334,10 @@ export function PerformanceChart({
   const hasEstimated = series.points.some((p) => p.estimated === true);
   // 010 — 가격 선의 이름과 단위(FR-005). 단위가 없으면 USD 시세를 KRW 잔고와 같은 통화로 읽는다.
   const priceLegend = series.priceKind !== undefined && series.points.some((p) => p.price !== undefined)
-    ? `${PRICE_NAME[series.priceKind]} (${series.priceKind === "deposit_rate" ? "연 %" : (series.priceCurrency ?? "")})`
+    ? `${PRICE_NAME[series.priceKind]} (${series.priceKind === "deposit_rate" || series.priceKind === "installment_rate" ? "연 %" : (series.priceCurrency ?? "")})`
     : null;
+  // 011 — 적립식·적금 응답만 누적 납입 원금 선이 있다.
+  const hasPrincipal = series.points.some((p) => p.principal !== undefined);
 
   return (
     <section className="rounded-lg border border-gray-200 p-4">
@@ -354,6 +378,7 @@ export function PerformanceChart({
       >
         {/* FR-041 — 기준 통화를 밝히지 않으면 어느 통화를 보는지 알 수 없다. */}
         <span>─ 잔고 ({series.basisCurrency})</span>
+        {hasPrincipal && <span className="text-emerald-700">┄ 누적 납입 원금 ({series.basisCurrency})</span>}
         <span className="text-amber-700">╌ 수익률 (%)</span>
         {priceLegend !== null && <span className="text-blue-600">─ {priceLegend}</span>}
         {notCollected > 0 && <span>╌╌ 미수집 {notCollected}구간</span>}

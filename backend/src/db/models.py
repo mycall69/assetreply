@@ -437,6 +437,14 @@ class StockSetting(Base):
     #: 해외 배당 소득세(KRX 밖, 006 FR-055). 기본 15%.
     dividend_tax_rate_foreign: Mapped[Decimal] = mapped_column(
         SPREAD, server_default=text("0.150000"))
+    #: 011 — 매도 세금(보드가 기준일에 모두 판다고 가정할 때). **NULL이면 기본값**이다(국내
+    #: 0.20%·해외 22%·공제 2,500,000원 — `repository/stock_setting`의 상수). 수수료·배당 세율만
+    #: 저장한 행도 그대로 읽힌다(010 반복 5 `residence_ratio`와 같은 규칙).
+    sale_tax_rate_domestic: Mapped[Decimal | None] = mapped_column(SPREAD, nullable=True)
+    capital_gains_rate_foreign: Mapped[Decimal | None] = mapped_column(SPREAD, nullable=True)
+    #: 원 단위 정수 — 009의 `WON`과 같은 형(그 정의는 이 아래에 있다).
+    capital_gains_deduction_foreign: Mapped[Decimal | None] = mapped_column(
+        Numeric(15, 0, asdecimal=True), nullable=True)
     updated_at: Mapped[dt.datetime] = mapped_column(
         TS, server_default=func.now(), onupdate=func.now())
 
