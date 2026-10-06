@@ -4,7 +4,9 @@
 이용 전제의 잠정 결정이다(헌법 원칙 II 이탈, 010 plan Complexity Tracking). 출처가 막히는 것은
 "언젠가"가 아니라 "언제"의 문제로 전제한다 — 막히면 단지 링크가 네이버 검색으로 물러난다.
 
-- **기본 사용자 에이전트는 403이다.** 설정의 브라우저형 문자열과 `Referer`를 모든 요청에 싣는다
+- **기본 사용자 에이전트는 403이다.** 설정의 브라우저형 문자열과 `Referer`·`Accept-Language`를 모든
+  요청에
+  싣는다 — `Accept-Language`가 없으면 곧바로 429다(T067 실측)
 - **403은 차단이다** — 재시도로 풀리지 않으므로 바로 실패한다. 429·5xx·연결 오류만 지수 백오프 +
   지터로 다시
   시도한다. 429가 끝까지 이어지면 요청 제한이다
@@ -102,6 +104,9 @@ class NaverLandClient:
             headers["User-Agent"] = self._settings.naver_land_user_agent
         if self._settings.naver_land_referer:
             headers["Referer"] = self._settings.naver_land_referer
+        # 없으면 곧바로 429다 — 요청 제한이 아니라 브라우저답지 않은 요청을 거른다(T067 실측).
+        if self._settings.naver_land_accept_language:
+            headers["Accept-Language"] = self._settings.naver_land_accept_language
         return headers
 
     async def _get(self, url: str, params: dict[str, str]) -> tuple[str, int]:

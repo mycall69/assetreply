@@ -418,7 +418,9 @@ JS가 배치 — 코드가 늘고 첫 그림에서 깜박인다. 이력 칸을 �
 - 검색 칸이 입력마다 부르는 내부 요청: `GET https://fin.land.naver.com/front-api/v1/search/autocomplete/complexes?keyword={q}&size=10&page=0` →
   `{"isSuccess": true, "result": {"list": [{"complexNumber", "complexName", "type", "legalDivisionName", "legalDivisionNumber", "coordinates", …}]}}`.
   `legalDivisionNumber`는 **법정동 코드 10자리** — 우리 `apt_complex.umd_code`와 같은 체계다.
-- 브라우저 밖(aiohttp): 기본 사용자 에이전트는 403(nginx). 브라우저형 사용자 에이전트·`Accept`·`Referer`로 200. 짧은 시간에 여러 번 부르면 429(`TOO_MANY_REQUESTS`) —
+- 브라우저 밖(aiohttp): 기본 사용자 에이전트는 403(nginx). 브라우저형 사용자 에이전트·`Accept`·`Referer`·`Accept-Language`로 200.
+  **`Accept-Language`가 없으면 곧바로 429다**(T067 실측 — 같은 검색어를 6초 간격으로 있음·없음·있음 → 200·429·200). 429가 늘 요청 제한은 아니다 —
+  브라우저답지 않은 요청을 거르는 응답이기도 하다. 처음 구현은 이 헤더를 빠뜨려 개발 서버에서 세 단지가 모두 `rate_limited`였다(테스트 먼저 고침). 짧은 시간에 여러 번 부르면 429(`TOO_MANY_REQUESTS`) —
   관찰 중 연속 요청 뒤 첫 요청이 429였고 90초 뒤 200. 헤드리스 표시 사용자 에이전트로는 화면 자체가 404로 돌려진다.
 - 참조 단지(검색어 `{법정동} {단지명 — '아파트' 뺌}`, 같은 법정동 코드만):
 

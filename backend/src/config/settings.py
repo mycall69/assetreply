@@ -294,6 +294,8 @@ class Settings:
     naver_land_base_url: str = "https://fin.land.naver.com/front-api/v1"
     naver_land_user_agent: str = INVESTING_DEFAULT_USER_AGENT
     naver_land_referer: str = "https://fin.land.naver.com/map"
+    # 없으면 출처가 곧바로 429를 준다(T067 실측 — 브라우저답지 않은 요청을 거른다).
+    naver_land_accept_language: str = "ko-KR,ko;q=0.9"
     naver_land_min_interval_ms: int = 2000
     # 한 요청의 최대 시도 횟수(첫 시도 포함). 429·5xx·연결 오류만 다시 시도한다 — 403은 차단이다.
     naver_land_max_retries: int = 2
@@ -452,6 +454,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
         naver_land_user_agent=_env_user_agent(
             "NAVER_LAND_USER_AGENT", INVESTING_DEFAULT_USER_AGENT),
         naver_land_referer=_env_str("NAVER_LAND_REFERER", "https://fin.land.naver.com/map"),
+        naver_land_accept_language=_env_str("NAVER_LAND_ACCEPT_LANGUAGE", "ko-KR,ko;q=0.9"),
         naver_land_min_interval_ms=_env_seconds_ms("NAVER_LAND_MIN_INTERVAL_SECONDS", "2"),
         naver_land_max_retries=_env_int("NAVER_LAND_MAX_RETRIES", 2, minimum=1),
         naver_land_backoff_base_ms=_env_seconds_ms("NAVER_LAND_BACKOFF_BASE_SECONDS", "3"),

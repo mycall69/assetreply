@@ -504,9 +504,9 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 ### 반복 3 마무리
 
-- [ ] T067 개발 DB에 마이그레이션 적용(`alembic upgrade head`), quickstart 14·15를 실행하고 기록한다 — AAPL·삼성전자 표의 종가·잔고 대조, 1440px 표 가로 스크롤,
+- [X] T067 개발 DB에 마이그레이션 적용(`alembic upgrade head`), quickstart 14·15를 실행하고 기록한다 — AAPL·삼성전자 표의 종가·잔고 대조, 1440px 표 가로 스크롤,
   참조 단지 셋이 Npay 부동산 단지 화면으로 열림·두 번째는 출처 요청 0·출처를 막으면 검색 (FR-028, FR-029, SC-009, SC-010)
-- [ ] T068 `README.md`·`CLAUDE.md`(010 행, 원칙 II 이탈 목록에 Npay 부동산, 출처 표), 품질 게이트, 계산 불변 대조(가상자산·예금·부동산 표 응답이 `010-iter1`과
+- [X] T068 `README.md`·`CLAUDE.md`(010 행, 원칙 II 이탈 목록에 Npay 부동산, 출처 표), 품질 게이트, 계산 불변 대조(가상자산·예금·부동산 표 응답이 `010-iter1`과
   같다, 주식은 새 정의로) (FR-021, SC-009)
 
 **Checkpoint**: 주식 표가 종가와 종가 평가 잔고를 보이고, 부동산 단지 이름이 Npay 부동산 단지 화면을 연다(못 찾으면 검색)
@@ -622,4 +622,10 @@ Task: "T012 PerformanceChartPrice.test.tsx — 겹침 축·끊김·표식·범�
 - **2026-10-05 반복 1 실측이 바꾼 것**: T047 — 수정 종가 함수 이름 `adjusted_close` → `split_restated_close`(005 가드 `test_no_adjusted_price`에
   걸렸다 — 가드는 그대로, R10-13). T051 — 외환 기간 단위 전환이 표의 처음으로 가지 않았다(새로 붙은 `DailyTable`이 직전 `resetKey`를 모른다) →
   화면이 표의 차례를 기억해 옮기고 기간 전환 동안에도 높이를 붙잡는다(R10-16). 둘 다 테스트를 먼저 고치고 구현했다
+- **2026-10-06 T068 품질 게이트(반복 3)**: 백엔드 2,416 passed, 커버리지 96.01%, mypy 203 파일·ruff(`--no-cache`) 통과 / 프론트엔드 129 파일·
+  1,148 passed, tsc·eslint 통과. `73077aa`와 견준 기존 테스트 파일 변경은 승인 목록 안 — T029의 둘, 반복 3의 백엔드 11개(`DayBar` 종가 인자 —
+  계획의 12개 중 `test_no_interpolation`은 그대로)·프론트엔드 7개(열 목록·`closePrice` 픽스처)
+- **2026-10-06 반복 3 실측이 바꾼 것**: T064 — `Row.close_price`에 기본값(행을 직접 만드는 005 `test_stock_series_build`가 승인 목록 밖이라).
+  T066 — 화면은 응답의 `url`을 쓴다(`externalLinks.naverComplexLink` 두지 않음). T067 — Npay 부동산은 `Accept-Language`가 없으면 곧바로 429였다 →
+  설정으로 싣는다(테스트 먼저)
 

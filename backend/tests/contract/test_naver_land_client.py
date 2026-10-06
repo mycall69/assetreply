@@ -169,8 +169,8 @@ class Test요청:
         assert params == {"keyword": "가락동 헬리오시티", "size": "10", "page": "0"}
         assert (headers["User-Agent"], headers["Referer"]) == (UA, REFERER)
         assert "application/json" in headers["Accept"]
-        # Accept-Language가 없으면 출처가 곧바로 429를 준다(2026-10-06 실측 — 요청 제한이 아니라 브라우저답지 않은
-        # 요청을 거르는 것이다). 설정값을 싣는다.
+        # Accept-Language가 없으면 출처가 곧바로 429를 준다(2026-10-06 실측 — 요청 제한이 아니라
+        # 브라우저답지 않은 요청을 거르는 것이다). 설정값을 싣는다.
         assert headers["Accept-Language"] == "ko-KR,ko;q=0.9"
         assert [c.number for c in got.candidates] == [111515]
         assert (got.raw, got.status, got.keyword) == (
