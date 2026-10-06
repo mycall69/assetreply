@@ -469,12 +469,12 @@ description: "Task list for 012-period-tables-history-db"
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T061 [P] [US4] `frontend/tests/principalDefault.test.ts` — 세 스토어 (FR-016, SC-008, data-model 5.4)
+- [X] T061 [P] [US4] `frontend/tests/principalDefault.test.ts` — 세 스토어 (FR-016, SC-008, data-model 5.4)
   - `vi.resetModules()` 뒤 새로 불러온 스토어의 `input.principal`이 `"10000000"`이고 통화가 `KRW`다(주식·가상자산).
   - 방식(적립식)·상품(적금)·원금 통화를 바꿔도 `"10000000"`이다.
   - 사용자가 고친 값은 화면을 오가도 남는다.
   - 이력 다시 실행은 항목의 값(`"3000000"`)을 넣는다.
-- [ ] T062 [P] [US4] `frontend/tests/PrincipalDefaultPages.test.tsx` — 세 화면 (FR-016, SC-008, F8)
+- [X] T062 [P] [US4] `frontend/tests/PrincipalDefaultPages.test.tsx` — 세 화면 (FR-016, SC-008, F8)
   - `lightweight-charts`를 모의한다.
   - 원금 칸이 "10,000,000"이고 이름표만 방식·상품에 따라 바뀐다.
   - 종목·코인·투자처를 고르면 실행 단추가 켜진다.
