@@ -26,7 +26,12 @@ const row = (over: Partial<RecurringStockRow>): RecurringStockRow => ({
 const base = { principalCurrency: "KRW", stockCurrency: "KRW", hasMore: false, loadingMore: false, loadError: null,
   onLoadMore: vi.fn() };
 
-const header = () => screen.getAllByRole("columnheader").map((h) => h.textContent?.replace(/\(.*\)/, "").trim());
+/** 열 이름 — 아래 줄의 단위 표시(작은 글자)만 뺀다. 열 이름 자체의 괄호("배당(세후)")는 남긴다(사용자 승인 2026-10-06 — 처음엔 괄호를 모두 지웠다). */
+const header = () => screen.getAllByRole("columnheader").map((h) => {
+  const copy = h.cloneNode(true) as HTMLElement;
+  copy.querySelectorAll("span").forEach((s) => s.remove());
+  return copy.textContent?.trim();
+});
 
 describe("적립식 표", () => {
   it("배당이 없는 국내 종목은 배당·환율 열이 없다", () => {

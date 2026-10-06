@@ -319,12 +319,12 @@ description: "Task list for 011-recurring-investment-installment-savings"
 
 ### Implementation for User Story 1
 
-- [ ] T024 [US1] `backend/src/simulation/recurring_stock.py` — `RecurringCondition`(`reinvest_lag_days` 기본값 없음)·`RecurringRow`·`RecurringOutcome`·`simulate_recurring_stock` (FR-006~FR-011, FR-014)
+- [X] T024 [US1] `backend/src/simulation/recurring_stock.py` — `RecurringCondition`(`reinvest_lag_days` 기본값 없음)·`RecurringRow`·`RecurringOutcome`·`simulate_recurring_stock` (FR-006~FR-011, FR-014)
   - research R11-4의 하루 순서·두 칸·행 규칙을 따른다. 재투자 켬의 배당은 재투자일까지 배당 현금에 두고, 재투자일에 그 배당 금액만 매수 대기금으로 옮긴다
     (배당마다 재투자일과 금액을 기억한다 — 분석 B1).
   - `money`의 `buy_quantity`·`spend_for`·`apply_split`·`quantize_rate`를 쓴다.
   - `reinvest.py`는 고치지 않는다.
-- [ ] T025 [US1] `backend/src/api/services/stock_recurring.py` (FR-002, FR-004, FR-005, FR-010~FR-013, FR-016)
+- [X] T025 [US1] `backend/src/api/services/stock_recurring.py` (FR-002, FR-004, FR-005, FR-010~FR-013, FR-016)
   - `parse_frequency`(밖이면 `InvalidQuery` — "주기는 daily · weekly · monthly · yearly 중 하나여야 합니다")
   - `prepare_recurring`
     - 종목·설정·매도 세금 설정을 읽는다(`require_stock`·`check_principal_currency`·`get_settings`·`get_sale_tax`).
@@ -338,21 +338,21 @@ description: "Task list for 011-recurring-investment-installment-savings"
     - `feeTotal`·`taxTotal`·`profitAfterSale`·`returnRateAfterSale`
   - `page`(커서)
   - 계산 결과를 저장하지 않는다.
-- [ ] T026 [US1] 라우트 — `backend/src/api/routes/stock_recurring.py`(`GET /api/stocks/recurring-simulation`·`/recurring-simulation/series`)·`backend/src/api/services/recurring_series.py`·`backend/src/api/main.py`(라우터 등록) (FR-015, FR-016, contracts/rest-api §1)
+- [X] T026 [US1] 라우트 — `backend/src/api/routes/stock_recurring.py`(`GET /api/stocks/recurring-simulation`·`/recurring-simulation/series`)·`backend/src/api/services/recurring_series.py`·`backend/src/api/main.py`(라우터 등록) (FR-015, FR-016, contracts/rest-api §1)
   - 검증·판정 순서는 일시금 라우트와 같다 — `check_principal_currency`(형식) → `require_stock` → 조합 → `require_start_available` → `collecting_body` → `prepare_recurring`.
   - `recurring_series.py`
     - 날마다 마지막 상태 하나, 점 `principal`·`price`(010 `split_restated_close`)
     - LTTB 다운샘플
     - 결측 구간은 일시금과 같은 `compute_gaps`
   - 행 JSON — 해당 없는 키는 두지 않는다.
-- [ ] T027 [P] [US1] 화면 부품
+- [X] T027 [P] [US1] 화면 부품
   - `frontend/src/lib/recurringText.ts`(`frequencyNote`)
   - `frontend/src/components/recurring/InvestmentModeFields.tsx`
   - `frontend/src/components/recurring/RecurringBoard.tsx`(주식·가상자산 공유 — `asset: "stock" | "crypto"`)
   - `frontend/src/components/recurring/RecurringStockTable.tsx`
   - 서식 함수는 지금 것(`formatMoney`·`formatMoneyWithSymbol`·`formatRate`·`formatPercent`·`formatPrice`)을 쓴다.
   - ui-wireframes §1~§3 (FR-001~FR-003, FR-012, FR-014, SC-009, SC-010)
-- [ ] T028 [US1] 이력과 스토어 (FR-001, FR-033, FR-034)
+- [X] T028 [US1] 이력과 스토어 (FR-001, FR-033, FR-034)
   - `frontend/src/lib/simulationHistory.ts` — 선택 칸·식별자
   - `frontend/src/stores/stockStore.ts`
     - `plan`·`setPlan`(결과 비움)·`recurring`
@@ -360,7 +360,7 @@ description: "Task list for 011-recurring-investment-installment-savings"
     - `rerunHistory`(빠진 칸 기본값)·`compareSelected`(적립식 경로·`label`)
   - `frontend/src/components/stock/SimulationHistory.tsx` — 적립식 행 표기
   - 일시금 갈래의 조회 문자열·`input`은 바꾸지 않는다.
-- [ ] T029 [US1] `frontend/src/app/stocks/page.tsx` — `InvestmentModeFields`를 `SimulationForm` 위에 둔다 (FR-001, FR-012, FR-014, FR-015)
+- [X] T029 [US1] `frontend/src/app/stocks/page.tsx` — `InvestmentModeFields`를 `SimulationForm` 위에 둔다 (FR-001, FR-012, FR-014, FR-015)
   - 금액 칸 이름은 `SimulationForm`의 선택 속성 `principalLabel`로 넘긴다. 기본은 지금 문구다 — 기존 폼 테스트 그대로.
   - `recurring`이 있으면 `RecurringBoard`·`RecurringStockTable`을, 없으면 지금 부품을 그린다.
   - 차트는 같은 `PerformanceChart`다.
@@ -749,4 +749,8 @@ Task: "T022 stockStoreRecurring.test.ts — 경로·plan·비움·다시 실행�
   항목 목록 픽스처(2026-10-04)에 적금 항목과 걸리면 안 되는 이웃이 모두 있다. 키가 본문에 없음을 저장 전에 확인했다
 - **2026-10-06 Phase 2 체크포인트**: 백엔드 2,478 passed(T002의 2,458 + 새 20 — T009 승인 변경 포함), 커버리지 96.07%, mypy 209 파일·ruff 통과 /
   프론트엔드 134 파일·1,183 passed(1,172 + 새 11), tsc·eslint 통과. 개발 DB에 `f4c2a8e19d35`(주식 매도 세금 설정 열 셋)를 올렸다
+- **2026-10-06 US1 구현 중 테스트 기대값 고침(모두 사용자 승인)**: 셋 다 테스트를 처음 쓸 때 잘못 적은 것이고, 구현은 바꾸지 않았다.
+  - `test_recurring_stock` 재투자 끔 — 보유 6 → 5주(손계산 오류)
+  - `test_stock_recurring_api`·`_series_api` — 값을 DB 자릿수 문자열 대신 Decimal로 비교하고, `before_listing`은 400(일시금 처리기 그대로)이다. rest-api.md도 고쳤다
+  - `RecurringBoard` 외화 원금 표기 `$12,000`, `RecurringStockTable` 열 이름 도우미
 - (T059 결과를 여기에 적는다.)

@@ -12,8 +12,9 @@
  */
 
 import { ExternalLink } from "@/components/ExternalLink";
+import { FREQUENCY_TEXT } from "@/components/recurring/InvestmentModeFields";
 import { stockLink } from "@/lib/externalLinks";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatMoneyWithSymbol } from "@/lib/format";
 import { isAllowedPrincipal, principalRule } from "@/lib/principalCurrency";
 import type { SimulationHistoryEntry } from "@/lib/types";
 
@@ -82,10 +83,18 @@ export function SimulationHistory({
                 </ExternalLink>
               </span>
               <span className="tabular-nums text-gray-600">{entry.start}</span>
-              <span className="tabular-nums text-gray-600">
-                {formatMoney(entry.principal, entry.principalCurrency)}{" "}
-                {entry.principalCurrency}
-              </span>
+              {entry.mode === "recurring" ? (
+                // 011 FR-033 — 방식·주기·한 번 납입액. 같은 조건의 일시금 행과 구별된다.
+                <span className="tabular-nums text-gray-600">
+                  적립식 · {FREQUENCY_TEXT[entry.frequency ?? "monthly"]}{" "}
+                  {formatMoneyWithSymbol(entry.principal, entry.principalCurrency)}
+                </span>
+              ) : (
+                <span className="tabular-nums text-gray-600">
+                  {formatMoney(entry.principal, entry.principalCurrency)}{" "}
+                  {entry.principalCurrency}
+                </span>
+              )}
               {/* FR-036 — 재투자 여부가 안 보이면 같은 종목의 두 조건이 같은 줄이다. */}
               <span className="text-gray-600">
                 재투자 {entry.reinvest ? "O" : "X"}

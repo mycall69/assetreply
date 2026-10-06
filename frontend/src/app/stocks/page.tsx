@@ -17,16 +17,20 @@ import {
   FxUnavailableNotice,
 } from "@/components/stock/CollectingNotice";
 import { ComparisonChart } from "@/components/stock/ComparisonChart";
+import { InvestmentModeFields } from "@/components/recurring/InvestmentModeFields";
+import { RecurringBoard } from "@/components/recurring/RecurringBoard";
+import { RecurringStockTable } from "@/components/recurring/RecurringStockTable";
 import { SimulationHistory } from "@/components/stock/SimulationHistory";
 import { SimulationForm } from "@/components/stock/SimulationForm";
 import { StockSearch } from "@/components/stock/StockSearch";
 import { useEffect, useMemo } from "react";
+import { amountLabel } from "@/lib/recurringText";
 import { localYesterday } from "@/lib/startDate";
 import { useStockStore } from "@/stores/stockStore";
 
 export default function StocksPage() {
   const {
-    input, rows, summary, exchange, hasMore, collecting,
+    input, plan, recurring, setPlan, rows, summary, exchange, hasMore, collecting,
     series, seriesError, loading, loadingMore, error, loadMoreError,
     history, historySaveError, selectedHistory, comparison, comparing,
     comparisonError, progress, selecting, selectionError, fxBlocked, listedOn, startable,
@@ -58,7 +62,7 @@ export default function StocksPage() {
       <header>
         <h2 className="text-2xl font-bold tracking-tight">주식 투자 시뮬레이션</h2>
         <p className="mt-1 text-sm text-gray-500">
-          배당 재투자를 포함한 투자 성과
+          {plan.mode === "recurring" ? "정해진 주기로 사 모은 투자 성과(배당 재투자 선택)" : "배당 재투자를 포함한 투자 성과"}
         </p>
       </header>
 
@@ -76,7 +80,16 @@ export default function StocksPage() {
             {selectionError}
           </p>
         )}
+        {/* 011 FR-001 — 투자 방식. 바꾸면 결과가 빈다(조건은 남는다). */}
+        <InvestmentModeFields
+          value={plan}
+          start={input.start}
+          asset="stock"
+          disabled={loading || selecting}
+          onChange={setPlan}
+        />
         <SimulationForm
+          principalLabel={amountLabel(plan.mode)}
           values={{
             start: input.start,
             principal: input.principal,
@@ -123,6 +136,29 @@ export default function StocksPage() {
         <p className="py-8 text-center text-sm text-gray-500">계산하는 중…</p>
       )}
 
+      {recurring !== null && (
+        // 011 FR-012 — 적립식 보드(다섯 칸).
+        <RecurringBoard
+          asset="stock"
+          summary={recurring.summary}
+          principalCurrency={input.principalCurrency}
+          quoteCurrency={currency}
+        />
+      )}
+
+      {recurring !== null && (
+        <section>
+          <h3 className="mb-2 text-sm font-semibold">성과 추이</h3>
+          {recurring.seriesError !== null ? (
+            <p role="alert" className="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {recurring.seriesError}
+            </p>
+          ) : (
+            <PerformanceChart series={recurring.series} collecting={collecting} loading={loading} />
+          )}
+        </section>
+      )}
+
       {summary !== null && (
         <PerformanceBoard
           summary={summary}
@@ -151,7 +187,20 @@ export default function StocksPage() {
 
       {/* 010 FR-015~FR-017 — 넓은 창이면 성과 표 오른쪽(sticky), 좁으면 지금처럼 표 아래. 경계는 표의 실제 폭이다. */}
       <TableWithHistory
-        table={summary !== null ? (
+        table={recurring !== null ? (
+          <section>
+            <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
+            <RecurringStockTable
+              rows={recurring.rows}
+              principalCurrency={input.principalCurrency}
+              stockCurrency={currency}
+              hasMore={recurring.hasMore}
+              loadingMore={loadingMore}
+              loadError={loadMoreError}
+              onLoadMore={() => void loadMore()}
+            />
+          </section>
+        ) : summary !== null ? (
           <section>
             <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
             <PerformanceTable

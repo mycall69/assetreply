@@ -80,7 +80,8 @@ describe("적립식 보드 — 주식", () => {
   it("외화 원금은 원금 통화 다음에 원화를 괄호로 둔다", () => {
     render(<RecurringBoard asset="stock" principalCurrency="USD" quoteCurrency="USD"
       summary={{ ...STOCK, contributed: "12000", contributedKrw: "16500000", pending: "12.34" }} />);
-    expect(cell("총 납입 원금")).toHaveTextContent("$12,000.00 (₩16,500,000)");
+    // 일시금 보드와 같은 공용 서식 — "$12,000"(사용자 승인 2026-10-06 — 처음 "$12,000.00"으로 잘못 썼다)
+    expect(cell("총 납입 원금")).toHaveTextContent("$12,000 (₩16,500,000)");
     expect(screen.getByTestId("recurring-holding")).toHaveTextContent("매수 대기금 $12.34");
   });
 

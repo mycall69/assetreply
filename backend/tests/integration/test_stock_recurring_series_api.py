@@ -62,7 +62,8 @@ async def test_점은_표의_날짜이고_총자산과_누적_납입_원금이�
 
 async def test_주가는_수정_종가다(client: AsyncClient) -> None:
     _, series = await both(client, KRX_MONTHLY)
-    assert series["points"][0]["price"] == str(krx_price("2026-01-02")[1])
+    # DB 자릿수의 문자열 — 값으로 비교한다(사용자 승인 2026-10-06)
+    assert Decimal(series["points"][0]["price"]) == krx_price("2026-01-02")[1]
     assert series["priceCurrency"] == "KRW"
 
 

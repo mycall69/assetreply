@@ -12,6 +12,7 @@
 
 import type {
   DecimalString,
+  Frequency,
   PrincipalCurrency,
   SimulationHistoryEntry,
   StockSearchResult,
@@ -24,9 +25,13 @@ export const HISTORY_KEY = "assetreplay:stock-history:v1";
 export interface HistoryCondition {
   stock: StockSearchResult;
   start: string;
+  /** 일시금이면 원금, 적립식이면 한 번 납입액(011). */
   principal: DecimalString;
   principalCurrency: PrincipalCurrency;
   reinvest: boolean;
+  /** 011 — 적립식만 담는다. 없으면 일시금이다(011 전 항목과 같은 모양 — research R11-11). */
+  mode?: "recurring";
+  frequency?: Frequency;
 }
 
 export type SaveResult = { ok: true } | { ok: false; reason: string };
@@ -40,10 +45,12 @@ export type SaveResult = { ok: true } | { ok: false; reason: string };
  */
 export function conditionId(condition: HistoryCondition): string {
   const { stock, start, principal, principalCurrency, reinvest } = condition;
-  return [
+  const base = [
     stock.market, stock.symbol, start, principal, principalCurrency,
     reinvest ? "R" : "N",
   ].join("|");
+  // 011 — 같은 조건의 일시금과 적립식이 한 항목으로 뭉치지 않게 방식·주기를 붙인다. 일시금 식별자는 011 전과 같다.
+  return condition.mode === "recurring" ? `${base}|recurring:${condition.frequency ?? "monthly"}` : base;
 }
 
 function read(): SimulationHistoryEntry[] {
@@ -87,6 +94,7 @@ export function saveHistory(condition: HistoryCondition): SaveResult {
     principal: condition.principal,
     principalCurrency: condition.principalCurrency,
     reinvest: condition.reinvest,
+    ...(condition.mode === "recurring" ? { mode: "recurring" as const, frequency: condition.frequency } : {}),
     savedAt: new Date().toISOString(),
   };
   // 실패하면 기존 이력은 그대로 남는다 — 저장소에 쓰지 못했을 뿐이다.

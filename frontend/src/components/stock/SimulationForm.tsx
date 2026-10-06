@@ -37,6 +37,7 @@ export function SimulationForm({
   listedOn = null,
   startable = null,
   stockCurrency = null,
+  principalLabel = "투자 원금",
   onChange,
   onSubmit,
 }: {
@@ -50,6 +51,8 @@ export function SimulationForm({
   startable?: Startable | null;
   /** 고른 종목의 통화. 원금 통화의 선택지를 정한다 (006 FR-050). */
   stockCurrency?: string | null;
+  /** 011 — 금액 칸 이름. 적립식이면 "한 번 납입액"이다. 기본은 지금 문구 그대로다(기존 폼 테스트). */
+  principalLabel?: string;
   onChange: (next: FormValues) => void;
   onSubmit: () => void;
 }) {
@@ -95,7 +98,7 @@ export function SimulationForm({
       />
 
       <label className="text-sm">
-        <span className="mb-1 block text-gray-500">투자 원금</span>
+        <span className="mb-1 block text-gray-500">{principalLabel}</span>
         <input
           type="text"
           inputMode="numeric"

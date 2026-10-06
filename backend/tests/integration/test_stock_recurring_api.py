@@ -81,8 +81,9 @@ class Test국내_매달:
         open_, close = krx_price("2026-01-02")
         fee = Decimal("1.00015")
         shares = int(Decimal("1000000") / (open_ * fee))
-        assert (first["openPrice"], first["closePrice"], first["boughtShares"]) == (
-            str(open_), str(close), shares)
+        # 값은 DB 자릿수의 문자열이다("50000.000000") — 값으로 비교한다(사용자 승인 2026-10-06)
+        got = (Decimal(first["openPrice"]), Decimal(first["closePrice"]), first["boughtShares"])
+        assert got == (open_, close, shares)
         assert Decimal(first["pending"]) == Decimal("1000000") - shares * open_ * fee
         assert Decimal(first["balance"]) == shares * close
 
@@ -144,7 +145,7 @@ class Test해외_원화_매주:
         assert [(r["date"], r["contribution"], len(r.get("deferred", []))) for r in rows] == [
             ("2026-03-03", "2000000", 4), ("2026-02-02", "2000000", 4), ("2026-01-02", "500000", 0)]
         for r in rows:
-            assert (r["fxRate"], r["fxRateDate"]) == (FX[r["date"]], r["date"])
+            assert (Decimal(r["fxRate"]), r["fxRateDate"]) == (Decimal(FX[r["date"]]), r["date"])
             assert r["exchangeRateDate"] == r["date"]
             assert Decimal(r["exchangeRate"]) > Decimal(r["fxRate"])
         open_ = aapl_price("2026-01-02")[0]
@@ -189,9 +190,10 @@ class Test오류:
         assert response.status_code == 400
         assert response.json()["status"] == status
 
-    async def test_상장_전_시작일은_409(self, client: AsyncClient) -> None:
+    async def test_상장_전_시작일은_400(self, client: AsyncClient) -> None:
+        # 일시금과 같은 처리기 — 400 `before_listing`(사용자 승인 2026-10-06 — 처음 409로 잘못 썼다)
         response = await client.get(PATH, params={**KRX_MONTHLY, "start": "1970-01-02"})
-        assert (response.status_code, response.json()["status"]) == (409, "before_listing")
+        assert (response.status_code, response.json()["status"]) == (400, "before_listing")
 
     async def test_환율_출처가_늦게_시작하면_수집_전에_409(self, client: AsyncClient,
                                                 session_factory) -> None:  # type: ignore[no-untyped-def]

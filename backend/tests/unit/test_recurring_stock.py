@@ -174,10 +174,11 @@ class Test배당:
                                        condition(reinvest=False, fee=M("0")))
         assert all(r.kind != "reinvest" for r in out.rows)
         assert out.latest is not None
+        # 닷새 × 하루 1주 = 5주(사용자 승인 2026-10-06 — 처음 기대값 6주·60,846원은 손계산 오류였다)
         assert (out.latest.pending, out.latest.dividend_cash, out.latest.held_shares) == (
-            M("0"), M("846"), 6)
-        # 총자산 = 6 × 10,000 + 0 + 846
-        assert out.latest.total == M("60846")
+            M("0"), M("846"), 5)
+        # 총자산 = 5 × 10,000 + 0 + 846
+        assert out.latest.total == M("50846")
 
     def test_재투자일이_계산_끝_뒤면_배당_현금으로_남는다(self) -> None:
         bars = self.BARS[:4]

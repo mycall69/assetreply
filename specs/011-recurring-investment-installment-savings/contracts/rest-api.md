@@ -23,7 +23,7 @@
 | `reinvest` | | 기본 `true`(일시금과 같다) |
 | `end`, `before`, `limit` | | 일시금과 같다(끝 기본 어제, 커서 페이지, 1~200 기본 30) |
 
-검증·판정 순서는 일시금과 같다. 원금 통화 형식 → 종목 → 조합 → 수집 전 시작 가능 날짜(`before_listing` 409) → 수집 판정(202, 일시금의 `collecting_body`
+검증·판정 순서는 일시금과 같다. 원금 통화 형식 → 종목 → 조합 → 수집 전 시작 가능 날짜(`before_listing` 400 — 일시금의 처리기 그대로) → 수집 판정(202, 일시금의 `collecting_body`
 그대로) → 계산.
 
 **200**:
@@ -79,7 +79,7 @@
   - 종목 통화 원금의 납입 행은 원화 분모에 그날 매매기준율을 쓰며, 그 값이 `fxRate`다.
 - `saleCost`는 일시금 보드와 **같은 함수·같은 설정**이다(§5). 세금은 늘 값이 있다.
 - 오류: 일시금과 같다(분석 F1 — 환율 오류는 둘이다).
-  - `before_listing`(409)
+  - `before_listing`(400 — 일시금 처리기 그대로. 처음 409로 잘못 적었다, T026 구현 중 고침)
   - `fx_not_available_before`(409) — **수집 전 판정**: 환율 출처의 시작이 시작일보다 늦다(일시금의 `collecting_body`가 내는 것 그대로)
   - `fx_unavailable`(409) — **계산 중**: 어느 납입일에든 그날 이전의 확정 환율이 하나도 없다(`FxUnavailable` — 그 납입을 빼고 계산하지 않는다)
   - `currency_pair_not_allowed`(400), `unknown_stock`(404), `invalid_query`(400)

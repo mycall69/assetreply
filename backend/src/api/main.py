@@ -437,6 +437,7 @@ def create_app() -> FastAPI:
     from src.api.routes import series as series_routes
     from src.api.routes import spreads as spread_routes
     from src.api.routes import stock_progress as stock_progress_routes
+    from src.api.routes import stock_recurring as stock_recurring_routes
     from src.api.routes import stock_search as stock_search_routes
     from src.api.routes import stock_selection as stock_selection_routes
     from src.api.routes import stock_series as stock_series_routes
@@ -462,6 +463,8 @@ def create_app() -> FastAPI:
     app.include_router(stock_simulation_routes.router)
     app.include_router(stock_series_routes.router)
     app.include_router(stock_settings_routes.router)
+    # 011 — 주식 적립식(일시금 경로와 따로 — research R11-10)
+    app.include_router(stock_recurring_routes.router)
     # 007 — 가상자산 투자 시뮬레이션
     app.include_router(crypto_search_routes.router)
     app.include_router(crypto_list_progress_routes.router)
