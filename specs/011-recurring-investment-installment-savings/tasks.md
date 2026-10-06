@@ -222,7 +222,7 @@ description: "Task list for 011-recurring-investment-installment-savings"
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T014 [P] [US1] `backend/tests/unit/test_recurring_stock.py` — `simulate_recurring_stock` (FR-006~FR-011, FR-014, SC-001~SC-004)
+- [X] T014 [P] [US1] `backend/tests/unit/test_recurring_stock.py` — `simulate_recurring_stock` (FR-006~FR-011, FR-014, SC-001~SC-004)
   - 머리 주석에 손계산을 적는다. 참조값:
     - 국내 매달 6개월(휴장 포함) — 행마다 매수 수·수수료·매수 대기금·총자산
     - 1주가 비싼 종목 매주 — 모이다 사는 날·이월
@@ -235,7 +235,7 @@ description: "Task list for 011-recurring-investment-installment-savings"
     - 배당락일 당일 납입 매수분에는 배당이 붙지 않는다
   - 행 종류·`month_first`는 그날 납입 행이 없을 때만 둔다. 같은 날 사건은 행이 따로다. 최신순이다.
   - 불변식 — 모든 매수 뒤 `pending < 1주 × 시가 × (1 + 수수료율)`, `pending ≥ 0`, `contributed` 끝값 = 납입액 × 넣은 예정일 수
-- [ ] T015 [P] [US1] `backend/tests/integration/test_stock_recurring_api.py` — `GET /api/stocks/recurring-simulation` (FR-002, FR-004, FR-005, FR-010~FR-014, FR-016, SC-002)
+- [X] T015 [P] [US1] `backend/tests/integration/test_stock_recurring_api.py` — `GET /api/stocks/recurring-simulation` (FR-002, FR-004, FR-005, FR-010~FR-014, FR-016, SC-002)
   - 준비는 `test_stock_sale_cost_api.py`와 같다(시드 시세·환율). 확인할 것:
   - 수집 판정
     - 미수집이면 202이고, 일시금 `collecting_body`와 같은 본문이다.
@@ -256,21 +256,21 @@ description: "Task list for 011-recurring-investment-installment-savings"
   - 해외 매도 세금
     - `saleCost`가 `capital_gains_tax`·`deduction "2500000"`이다.
     - 취득가는 매수마다 그 행의 매매기준율이다.
-- [ ] T016 [P] [US1] `backend/tests/integration/test_stock_recurring_series_api.py` — `/series` (FR-015, FR-016)
+- [X] T016 [P] [US1] `backend/tests/integration/test_stock_recurring_series_api.py` — `/series` (FR-015, FR-016)
   - 점의 날짜 집합 = 표의 날짜 집합(날마다 하나 — 같은 날 여러 행이면 마지막 상태)
   - 점 `principal` = 그 날 표의 `contributedKrw`
   - `balance` = 원화 총자산
   - `price` = 010 수정 종가
   - `maxPoints` 다운샘플의 점마다 값이 원래 점과 같다
-- [ ] T017 [P] [US1] `frontend/tests/recurringText.test.ts` — `lib/recurringText.frequencyNote(frequency, start)` (FR-003, ui-wireframes §1)
+- [X] T017 [P] [US1] `frontend/tests/recurringText.test.ts` — `lib/recurringText.frequencyNote(frequency, start)` (FR-003, ui-wireframes §1)
   - 매일 "매일(거래일)", 매주 "매주 월요일", 매달 "매달 15일", 29~31일 "매달 31일(없는 달은 말일)", 매년 "매년 1월 15일" + 공통 "(휴장이면 다음 거래일)"
   - 날짜 계산이 없다(`Date` 산술 없이 문자열 분해 — `startDate.ts`와 같은 방식)
-- [ ] T018 [P] [US1] `frontend/tests/InvestmentModeFields.test.tsx` (FR-001, FR-002, SC-009, ui-wireframes §1)
+- [X] T018 [P] [US1] `frontend/tests/InvestmentModeFields.test.tsx` (FR-001, FR-002, SC-009, ui-wireframes §1)
   - "투자 방식" fieldset/legend, 라디오 둘(방향키 이동)
   - 적립식이면 주기 select(aria-label "납입 주기", 넷)와 안내 문장
   - 금액 칸 이름이 "투자 원금" ↔ "한 번 납입액"으로 바뀐다
   - 바꾸면 `onChange({mode, frequency})`
-- [ ] T019 [P] [US1] `frontend/tests/RecurringBoard.test.tsx` (FR-012, FR-020, SC-009, ui-wireframes §2)
+- [X] T019 [P] [US1] `frontend/tests/RecurringBoard.test.tsx` (FR-012, FR-020, SC-009, ui-wireframes §2)
   - 다섯 칸(`role="group" aria-label`)과 각 칸의 메모
     - 매수 ₩…(n회)·매도 ₩…
     - 배당 소득세 ₩…·매도 세금 ₩…
@@ -282,19 +282,19 @@ description: "Task list for 011-recurring-investment-installment-savings"
   - 외화 원금 "$… (₩…)"
   - 매도할 주식 없음
   - 가상자산 `not_yet_taxed`("₩0 · 가상자산 과세 시행 전") / `outside_rules`("—", "세법 미반영", 투자 수익·수익률 "—" + 보유 중 값)
-- [ ] T020 [P] [US1] `frontend/tests/RecurringStockTable.test.tsx` (FR-014, SC-010, ui-wireframes §3)
+- [X] T020 [P] [US1] `frontend/tests/RecurringStockTable.test.tsx` (FR-014, SC-010, ui-wireframes §3)
   - 열과 단위
   - 행 구분("＋" — 매수 0이면 회색, "◆", "⟳ 재투자")과 키 `${date}:${kind}`
   - `deferred` 표시("+2회(08-15·08-16)")
   - 배당 현금 열은 배당 행이 하나라도 있으면 있다. 재투자 켬이면 배당락일 ~ 재투자일 사이의 행에만 값이 있다(분석 B1)
   - 환율 칸 — 환전·평가
   - 끝없는 스크롤 센티널·상태 줄(기존 표와 같은 `useInfiniteScroll`)
-- [ ] T021 [P] [US1] `frontend/tests/simulationHistoryRecurring.test.ts` — `lib/simulationHistory` (FR-033, SC-006, data-model 3)
+- [X] T021 [P] [US1] `frontend/tests/simulationHistoryRecurring.test.ts` — `lib/simulationHistory` (FR-033, SC-006, data-model 3)
   - 적립식 항목의 선택 칸(`mode "recurring"`·`frequency`)과 식별자 `…|recurring:monthly`
   - 같은 조건의 일시금·적립식이 따로 항목
   - 일시금 항목의 식별자는 지금과 같다(기존 `simulationHistory.test.ts` 그대로)
   - 옛 항목(선택 칸 없음)을 읽으면 그대로다
-- [ ] T022 [P] [US1] `frontend/tests/stockStoreRecurring.test.ts` — `stores/stockStore` (FR-001, FR-016, FR-033, FR-034)
+- [X] T022 [P] [US1] `frontend/tests/stockStoreRecurring.test.ts` — `stores/stockStore` (FR-001, FR-016, FR-033, FR-034)
   - `plan` 기본 `{mode: "lump_sum", frequency: "monthly"}`
   - 적립식 `run()`은 `GET /api/stocks/recurring-simulation?market=…&symbol=…&start=…&amount=…&principalCurrency=…&frequency=…&reinvest=…`(정확한 문자열)
     → 결과가 `recurring`에 들어가고 일시금 칸은 빈다
@@ -310,7 +310,7 @@ description: "Task list for 011-recurring-investment-installment-savings"
     - 적립식 항목은 `/api/stocks/recurring-simulation/series`
     - `label`에 " · 적립식 매달"
   - **기존 `stockStoreRerun.test.ts`를 고치지 않는다**
-- [ ] T023 [US1] `frontend/tests/StocksPageRecurring.test.tsx` — 실행 주체 검사(006 D1) (FR-001, FR-012, FR-014, FR-015, FR-033)
+- [X] T023 [US1] `frontend/tests/StocksPageRecurring.test.tsx` — 실행 주체 검사(006 D1) (FR-001, FR-012, FR-014, FR-015, FR-033)
   - 화면에서 "적립식" 라디오를 누르고, 주기를 고르고, 금액을 넣고, "시뮬레이션"을 누른다.
   - **적립식 경로**가 불린다(누르지 않으면 불리지 않는다).
   - 다섯 칸 보드·적립식 표가 보이고 일시금 보드(네 칸)는 없다.
