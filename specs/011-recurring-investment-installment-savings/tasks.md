@@ -446,7 +446,7 @@ description: "Task list for 011-recurring-investment-installment-savings"
     가져와 쓴다(같은 규칙, 그리고 T034가 그 모듈의 `utc_yesterday`를 바꿔 시계를 정한다)
   - `recurring_series.py`에 가상자산 조립(일봉마다)
   - `main.py` 등록
-- [ ] T039 [US2] 화면 (FR-017, FR-019, FR-020, FR-033, FR-034)
+- [X] T039 [US2] 화면 (FR-017, FR-019, FR-020, FR-033, FR-034)
   - `frontend/src/components/recurring/RecurringCryptoTable.tsx`
   - `frontend/src/lib/cryptoHistory.ts`
   - `frontend/src/stores/cryptoStore.ts`(`plan`·`recurring`·`run` 갈래·`loadMore`·`rerunHistory`·`compareSelected`)

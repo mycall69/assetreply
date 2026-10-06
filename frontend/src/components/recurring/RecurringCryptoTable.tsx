@@ -5,6 +5,8 @@
  *
  * - 행은 납입(매수 0이어도)과 그 달 첫 일봉(그날 납입이 없을 때만)이다. 하루에 행이 많아야 하나라 키는 날짜다
  * - 수량은 소수 8자리(`formatQuantity`), 시가는 유효 숫자를 잃지 않게(`formatPrice` — 007 FR-040)
+ * - 외화 시세의 수수료·대기금·잔고도 유효 숫자를 잃지 않는다. 적립식은 한 번 납입액이 작아 수수료가 1센트에 못 미친다 — "0.00"이면
+ *   수수료가 없다고 읽힌다(T039 실측). 원화 시세는 원 단위 그대로다
  * - "◇ 1일 결측" = 그 달 1일 일봉이 출처에 없어 다른 날이 그 달의 첫 행이다(007 FR-030). 기호만으로 전달하지 않는다
  * - 미뤄진 납입은 원래 날짜를 잃지 않는다 — "+n회(원래 날짜)"
  * - 환율 열은 환율이 있는 행이 있을 때만 둔다(원화 시세 코인이면 빈 열을 남기지 않는다). 원화 원금 납입 행은 환전 환율이다
@@ -44,6 +46,7 @@ export function RecurringCryptoTable({
   const sentinel = useInfiniteScroll(onLoadMore, open);
   const showFx = rows.some((r) => r.fxRate !== undefined || r.exchangeRate !== undefined);
   const foreign = quoteCurrency !== "KRW";
+  const quoteMoney = (value: string) => (foreign ? formatPrice(value) : formatMoney(value, quoteCurrency));
 
   const columns: { name: string; unit: string | null }[] = [
     { name: "날짜", unit: null },
@@ -128,13 +131,13 @@ export function RecurringCryptoTable({
                   <td className={CELL}>{formatPrice(row.openPrice)}</td>
                   <td className={CELL}>{bought ? formatQuantity(row.boughtQuantity) : "—"}</td>
                   <td className={CELL}>
-                    {row.tradeFee === undefined ? "—" : formatMoney(row.tradeFee, quoteCurrency)}
+                    {row.tradeFee === undefined ? "—" : quoteMoney(row.tradeFee)}
                   </td>
                   <td className={CELL}>{formatQuantity(row.heldQuantity)}</td>
-                  <td className={CELL}>{formatMoney(row.pending, quoteCurrency)}</td>
+                  <td className={CELL}>{quoteMoney(row.pending)}</td>
                   <td className={CELL}>{formatMoney(row.contributed, principalCurrency)}</td>
                   <td className={`whitespace-nowrap ${CELL}`}>
-                    {formatMoney(row.balance, quoteCurrency)}
+                    {quoteMoney(row.balance)}
                     {row.balanceKrw !== undefined && (
                       <span className="block text-gray-500">{formatMoneyWithSymbol(row.balanceKrw, "KRW")}</span>
                     )}

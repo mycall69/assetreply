@@ -9,10 +9,12 @@
  * - 투자 수익·수익률은 기준일 매도 비용을 뺀 값이다. 매수 수수료와 배당 소득세는 이미 총자산에서 빠져 있다 — 다시 빼면 두 번 차감된다(FR-012)
  * - 수익률은 단순 수익률이고 곁의 도움말이 일시금과의 비교 한계를 말한다(명확화)
  * - 가상자산 과세가 시행된 뒤의 기준일은 세금을 0으로 메우지 않고 "—"와 "세법 미반영"이다(FR-020)
+ * - 가상자산의 외화 매수 대기금은 유효 숫자를 잃지 않는다 — 소수 8자리로 사고 남은 돈이라 1센트에 못 미친다. "$0.00"이면 없다고
+ *   읽힌다(T039 실측, 007 FR-040과 같은 이유)
  */
 
 import { useId } from "react";
-import { formatMoneyWithSymbol, formatPercent, formatQuantity } from "@/lib/format";
+import { currencySymbol, formatMoneyWithSymbol, formatPercent, formatPrice, formatQuantity } from "@/lib/format";
 import type {
   CryptoSaleCost,
   RecurringCryptoSummary,
@@ -23,6 +25,11 @@ import type {
 const HELP = "나중에 넣은 돈은 시장에 머문 기간이 짧아, 같은 기간의 일시금 수익률과 단순 비교하기 어렵습니다.";
 
 const won = (v: string) => formatMoneyWithSymbol(v, "KRW");
+/** `formatMoneyWithSymbol`과 같은 앞붙임 — 기호가 없는 통화는 코드와 빈칸이다. */
+const symbolPrefix = (currency: string) => {
+  const symbol = currencySymbol(currency);
+  return symbol === currency ? `${symbol} ` : symbol;
+};
 const minusWon = (v: string) => formatMoneyWithSymbol(v.startsWith("-") ? v : `-${v}`, "KRW");
 const percent = (v: string | null, digits: number) => (v === null ? "" : `${formatPercent(v, digits).replace("+", "")} `);
 
@@ -101,7 +108,9 @@ export function RecurringBoard(props: Props) {
         {" "}· 매도 비용: 기준일에 모두 판다고 가정한 값 — 일자별 표는 보유 중 평가
       </p>
       <p data-testid="recurring-holding" className="border-t border-gray-100 px-4 py-2 text-xs text-gray-500">
-        매수 대기금 {formatMoneyWithSymbol(summary.pending, quoteCurrency)}
+        매수 대기금 {props.asset === "crypto" && quoteCurrency !== "KRW"
+          ? `${symbolPrefix(quoteCurrency)}${formatPrice(summary.pending)}`
+          : formatMoneyWithSymbol(summary.pending, quoteCurrency)}
         {props.asset === "stock" && <> · 배당 현금 {formatMoneyWithSymbol(props.summary.dividendCash, quoteCurrency)}</>}
         {" "}· 보유 {props.asset === "stock"
           ? `${props.summary.heldShares.toLocaleString("en-US")}주`
