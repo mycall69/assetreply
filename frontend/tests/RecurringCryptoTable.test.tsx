@@ -4,6 +4,7 @@
  * - 열: 날짜 · 납입액 · 환율 · 시가 · 구매 수량 · 매매 수수료 · 보유 수량 · 매수 대기금 · 총 납입 원금 · 잔고 · 투자 수익 · 수익률. 환율 열은
  *   환율이 있는 행이 있을 때만이다(원화 시세 코인이면 빈 열을 남기지 않는다)
  * - 수량은 `formatQuantity`(소수 8자리)다. 사지 않은 행의 구매 수량·수수료는 "—"이다
+ * - 외화 시세의 수수료·대기금·잔고는 유효 숫자를 잃지 않는다(`formatPrice` — 1센트 미만이 "0.00"이면 없다고 읽힌다)
  * - 납입은 "＋", 그 달 1일 일봉이 없어 다른 날이 그 달의 행이면 "◇ 1일 결측"이다(007 FR-030 — 기호만으로 전달하지 않는다)
  * - 미뤄진 납입은 "+n회(원래 날짜)"로 보인다 — 원래 날짜를 잃지 않는다
  * - 원화 원금이면 납입 행은 환전 환율("환전 …")과 고시일이다
@@ -76,6 +77,18 @@ describe("가상자산 적립식 표", () => {
     expect(line).toHaveTextContent("환전 1,353.56");
     expect(line).toHaveTextContent("01-05");
     expect(line).toHaveTextContent("₩20,619");
+  });
+
+  it("1센트 미만의 수수료·대기금은 유효 숫자를 잃지 않는다", () => {
+    // T039 실측 — 1만 원 매일 적립의 달러 수수료(약 $0.0073)가 "0.00"으로 보여 수수료가 없다고 읽혔다(007 FR-040과 같은 이유)
+    render(<RecurringCryptoTable {...base} principalCurrency="KRW" quoteCurrency="USD" rows={[
+      row({ openPrice: "86531.91406250000000", tradeFee: "0.00734309822734375", pending: "0.000258110002265625",
+        balance: "2831.3623021671875" }),
+    ]} />);
+    const cells = screen.getAllByRole("row")[1].querySelectorAll("td");
+    expect(cells[4]).toHaveTextContent("0.007343");
+    expect(cells[6]).toHaveTextContent("0.0002581");
+    expect(cells[8]).toHaveTextContent("2,831.36");
   });
 
   it("끝에 닿으면 상태 줄이 알리고 더 받을 것이 있으면 센티널을 둔다", () => {

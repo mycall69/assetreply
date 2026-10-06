@@ -115,6 +115,13 @@ describe("적립식 보드 — 가상자산", () => {
     expect(screen.getByTestId("recurring-basis")).not.toHaveTextContent("배당 소득세");
   });
 
+  it("1센트 미만의 매수 대기금은 유효 숫자를 잃지 않는다", () => {
+    // T039 실측 — "$0.00"이면 대기금이 없다고 읽힌다(007 FR-040과 같은 이유)
+    render(<RecurringBoard asset="crypto" principalCurrency="KRW" quoteCurrency="USD"
+      summary={{ ...CRYPTO, pending: "0.000258110002265625" }} />);
+    expect(screen.getByTestId("recurring-holding")).toHaveTextContent("매수 대기금 $0.0002581");
+  });
+
   it("과세 시행 뒤면 세금·투자 수익·수익률을 비우고 세법 미반영을 말한다", () => {
     render(<RecurringBoard asset="crypto" principalCurrency="KRW" quoteCurrency="USD" summary={{
       ...CRYPTO, saleCost: { fee: "4000", tax: null, total: null, taxKind: "outside_rules" },
