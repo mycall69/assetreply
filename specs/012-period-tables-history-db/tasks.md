@@ -491,13 +491,13 @@ description: "Task list for 012-period-tables-history-db"
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T065 성능을 잰다 (SC-004, research R12-16, quickstart 3-6)
+- [X] T065 성능을 잰다 (SC-004, research R12-16, quickstart 3-6)
   - 20년 일 단위 첫 쪽·다음 쪽을 각각 잰다.
     - 국내 주식 일시금
     - 비트코인 일시금
     - 매일 적립 주식
   - 3초 넘으면 멈추고 보고한다(하루하루 상태의 원화 환산이 쪽 크기만인지 먼저 본다).
-- [ ] T066 문서를 갱신한다
+- [X] T066 문서를 갱신한다
   - `CLAUDE.md` "현재 상태" 표에 012 한 줄을 더한다.
   - 주의 문단을 더한다.
     - 표의 `period`(`daily`이면 보내지 않음)
@@ -508,10 +508,10 @@ description: "Task list for 012-period-tables-history-db"
   - 외환 스크롤 문단의 "기간 전환 뒤 표의 처음으로"를 012 동작으로 고친다.
   - `README.md` 기능 설명, 개발 DB 마이그레이션 안내
   - `spec.md` Status
-- [ ] T067 품질 게이트를 돌린다(서버를 내린 채) — 백엔드 `pytest -q --cov=src`(커버리지 80% 이상)·`mypy src`·`ruff check --no-cache src tests`, 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .` (헌법 품질 게이트)
+- [X] T067 품질 게이트를 돌린다(서버를 내린 채) — 백엔드 `pytest -q --cov=src`(커버리지 80% 이상)·`mypy src`·`ruff check --no-cache src tests`, 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .` (헌법 품질 게이트)
   - 통과 수와 종료 코드를 Notes에 적는다.
   - 이 기능 전 커밋과 견주어 바뀐 기존 테스트 파일이 승인 목록(T005·T011·T038)과 `tests/setup.ts`(더하기만)뿐인지 `git diff --stat --diff-filter=MD`로 확인한다.
-- [ ] T068 불변 대조 (FR-017, SC-009, quickstart 3-7)
+- [X] T068 불변 대조 (FR-017, SC-009, quickstart 3-7)
   - 서버를 띄우고 T001의 응답을 같은 입력으로 다시 받아 `summary`·`condition`·`/series`를 비교한다. 표 `rows`는 비교하지 않는다.
   - 다른 키·값이 있으면 멈추고 보고한다.
 
@@ -625,7 +625,13 @@ Task: "T025 화면 테스트 — 탭·창 그대로"
   저장 실패 알림 → T047, 011 전 형식 → T039·T040). 안내 문구 검사 다섯은 새 문구로, 키에 심고 읽던 열은 이력 대역으로 바꿨다 — `SimulationHistoryBlocked`·
   `StocksPageRerun`은 옛 키(`LEGACY_KEYS.stock`)에 그대로 심어 옮기기를 거치게 했다. 고친 줄 위에 `012 승인 2026-10-07` 주석
 - **2026-10-07 T037**: 개발 DB 머리 리비전이 `f4c2a8e19d35`였다(`alembic upgrade head`가 `f4c2a8e19d35 -> a6d2f9c41b83`을 올렸다)
-- (T067 결과와 승인 날짜를 여기에 적는다.)
+- **2026-10-07 T065 성능**: `period=daily` 첫 쪽·다음 쪽 각 세 번(받아 둔 뒤) — 국내 주식 일시금 20년 0.05~0.09초, 비트코인 일시금(출처 2010-07-18부터,
+  약 16년) 0.11~0.15초, 매일 적립 주식 20년 0.10~0.15초. 모두 3초 안(SC-004)
+- **2026-10-07 T067 품질 게이트(서버를 내린 채)**: 백엔드 2,820 passed(커버리지 96.34%, 9분 4초), mypy 230 파일·ruff(`--no-cache`) 통과 / 프론트엔드
+  163 파일·1,406 passed, tsc·eslint — 모두 종료 코드 0. 이 기능 전 커밋(`b46b606`)과 견주어 바뀌거나 지워진 기존 테스트 48개 파일은 승인 목록(T005·T011·T038)
+  안이고, 더하기만 한 둘(`PeriodTabs.test.tsx` — T019, `tests/setup.ts` — T043)뿐이다
+- **2026-10-07 T068 불변 대조**: T001의 입력 8개를 다시 받아 16개 파일(표 머리·`/series`)을 견줬다. 14개가 바이트까지 같다. 부동산 헬리오시티 둘만
+  `asOf`·시계열 마지막 점 날짜가 10-06 → 10-07이다 — 부동산 경로는 `end`를 받지 않고 오늘(한국 시간)까지 계산한다. 날짜를 맞춰 넣으면 같다(값 변화 없음)
 
 ## 요구사항 ↔ 태스크
 
