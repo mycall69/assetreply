@@ -31,7 +31,10 @@ _ISO_DATE = re.compile(r"\b[12]\d{3}-\d{2}-\d{2}\b")
 #: 사실**이다. 출처의 시작일은 여전히 상수가 아니라 발견한다(부동산은 설정
 #: `APT_TRADE_PROBE_START`부터 탐색). 이 파일에 출처의 시작일을 넣지 않는다 — 넣으면 이 예외가
 #: 사고를 가린다.
-_LEGAL_DATE_MODULES = frozenset({"simulation/apt_tax_rules.py"})
+#: 010 반복 4 — 주식 매도 세금(증권거래세·해외주식 양도소득세)의 시행일 표도 같은 종류다
+#: (2026-10-06 D2 승인, 010 research R10-20). 역시 출처의 시작일을 넣지 않는다.
+_LEGAL_DATE_MODULES = frozenset({
+    "simulation/apt_tax_rules.py", "simulation/stock_sale_cost.py"})
 
 
 def _python_files() -> list[pathlib.Path]:
