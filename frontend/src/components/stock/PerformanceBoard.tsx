@@ -133,6 +133,8 @@ function saleNotes(sale: SaleCost): string[] {
   } else {
     lines.push("세금 — 세율 표 밖(2023-01-01 앞)");
   }
+  // 011 FR-037 — 세율·공제는 법령 표가 아니라 사용자가 바꿀 수 있는 설정값이다. 기존 문장은 그대로 두고 끝에 더한다.
+  lines.push("세율·공제: 설정값(설정 > 주식 매도 세금)");
   return lines;
 }
 

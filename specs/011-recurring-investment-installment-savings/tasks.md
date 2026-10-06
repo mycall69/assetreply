@@ -619,10 +619,11 @@ description: "Task list for 011-recurring-investment-installment-savings"
 
 ### Implementation for User Story 4
 
-- [ ] T053 [US4] `backend/src/api/routes/stock_settings.py` — `GET/PUT /api/stocks/settings/sale-tax` (FR-035, FR-036, contracts/rest-api §5)
+- [X] T053 [US4] `backend/src/api/routes/stock_settings.py` — `GET/PUT /api/stocks/settings/sale-tax` (FR-035, FR-036, contracts/rest-api §5)
   - 검증: 세율은 0 ≤ x < 1·소수 6자리 이하, 공제는 정수·0 이상·15자리 이하. 빠진 키를 기본값으로 채우지 않는다.
   - `save_sale_tax`(T011) → `session.commit()` → 다시 읽어 돌려준다.
-- [ ] T054 [US4] 화면 (FR-035~FR-037)
+  - 저장소 `get_sale_tax`는 기본값과 같은 저장값을 기본값 상수로 돌려준다 — 되돌린 뒤의 응답 문자열이 처음과 같다(SC-007).
+- [X] T054 [US4] 화면 (FR-035~FR-037)
   - `frontend/src/components/settings/StockSaleTaxForm.tsx` — `CryptoSettingsForm`의 문자열 `toPercent`·`toRate`, 공제는 `normalizePrincipal`·`formatPrincipal`
   - `frontend/src/app/settings/page.tsx` — `StockSaleTaxSection`, `key`로 다시 그림
   - `frontend/src/components/stock/PerformanceBoard.tsx` — 매도 칸 메모 끝 한 줄. 기존 문장은 글자 그대로 둔다.

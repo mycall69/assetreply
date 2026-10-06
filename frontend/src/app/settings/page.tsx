@@ -14,6 +14,7 @@ import { RealEstateResidenceForm } from "@/components/settings/RealEstateResiden
 import { RealEstateSettingsForm } from "@/components/settings/RealEstateSettingsForm";
 import { RestoreDefaultsDialog } from "@/components/settings/RestoreDefaultsDialog";
 import { SpreadForm } from "@/components/settings/SpreadForm";
+import { StockSaleTaxForm } from "@/components/settings/StockSaleTaxForm";
 import {
   StockSettingsForm,
   type StockSettingsChange,
@@ -25,6 +26,8 @@ import type {
   DerivedRates,
   RealEstateResidenceSetting,
   RealEstateSettings,
+  SaleTaxSettings,
+  SaleTaxValues,
   SpreadRow,
   StockSettings,
 } from "@/lib/types";
@@ -91,6 +94,9 @@ export default function SettingsPage() {
 
       {/* 005 — 주식 매매 조건. 002의 스프레드 설정과 같은 자리에 둔다 (FR-015). */}
       <StockSettingsSection />
+
+      {/* 011 — 주식 매도 세금. 매매 조건과 따로 저장한다(FR-035) — 기존 구역은 그대로다. */}
+      <StockSaleTaxSection />
 
       {/* 007 — 가상자산 거래 조건. 주식 설정과 따로 저장한다(FR-032). */}
       <CryptoSettingsSection />
@@ -356,6 +362,56 @@ function RealEstateSettingsSection() {
       {value !== null && (
         // 저장 뒤 값이 바뀌면 폼을 새로 그린다 — 칸에 이전 값이 남지 않게 한다.
         <RealEstateSettingsForm key={value.holdingTaxBaseRatio} value={value} onSave={(r) => void save(r)} />
+      )}
+    </div>
+  );
+}
+
+
+/**
+ * 주식 매도 세금 구역 (011 T054) — FR-035~FR-037.
+ *
+ * 주식 매매 조건과 **상태를 공유하지 않는다** — 한쪽의 실패가 다른 쪽을 가리면 무엇이 저장됐는지 알 수 없다(005·007과 같은 이유).
+ */
+function StockSaleTaxSection() {
+  const [value, setValue] = useState<SaleTaxSettings | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        setValue(await apiClient.get<SaleTaxSettings>("/api/stocks/settings/sale-tax"));
+      } catch (err) {
+        setFailure(err instanceof ApiError ? err.message : "주식 매도 세금 설정을 불러오지 못했습니다.");
+      }
+    })();
+  }, []);
+
+  const save = async (next: SaleTaxValues) => {
+    try {
+      setValue(await apiClient.put<SaleTaxSettings>("/api/stocks/settings/sale-tax", next));
+      setNotice("저장했습니다. 주식 화면으로 돌아가면 새 값으로 다시 계산합니다.");
+      setFailure(null);
+    } catch (err) {
+      setFailure(err instanceof ApiError ? err.message : "주식 매도 세금 설정을 저장하지 못했습니다.");
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <h2 className="text-xl font-bold tracking-tight">주식 매도 세금</h2>
+      {failure !== null && (
+        <p role="alert" className="rounded border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {failure}
+        </p>
+      )}
+      {notice !== null && <p className="text-sm text-gray-600">{notice}</p>}
+      {value !== null && (
+        // 저장 뒤 값이 바뀌면 폼을 새로 그린다 — 칸에 이전 값이 남지 않게 한다.
+        <StockSaleTaxForm
+          key={`${value.saleTaxRateDomestic}|${value.capitalGainsRateForeign}|${value.capitalGainsDeductionForeign}`}
+          value={value} onSave={(next) => void save(next)} />
       )}
     </div>
   );

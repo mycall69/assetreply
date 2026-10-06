@@ -111,6 +111,12 @@ class SaleTaxSettings:
     is_default: bool
 
 
+def _or_default(stored: Decimal | None, default: Decimal) -> Decimal:
+    """NULL이거나 기본값과 같으면 기본값 상수다. 기본값으로 되돌린 뒤에도 응답 문자열이 처음과 같다
+    (SC-007) — DB 자릿수(`"0.002000"`)로 돌아오면 보드의 `taxRate`가 `"0.0020"`과 달라진다."""
+    return default if stored is None or stored == default else stored
+
+
 async def get_sale_tax(session: AsyncSession) -> SaleTaxSettings:
     """매도 세금 설정. 행이 없거나 열이 NULL이면 기본값이다 — 0으로 떨어지면 세금이 없는 결과가
     그럴듯하게 나온다."""
@@ -121,12 +127,10 @@ async def get_sale_tax(session: AsyncSession) -> SaleTaxSettings:
     rate = DEFAULT_CAPITAL_GAINS_RATE
     deduction = DEFAULT_CAPITAL_GAINS_DEDUCTION
     if row is not None:
-        if row.sale_tax_rate_domestic is not None:
-            domestic = row.sale_tax_rate_domestic
-        if row.capital_gains_rate_foreign is not None:
-            rate = row.capital_gains_rate_foreign
-        if row.capital_gains_deduction_foreign is not None:
-            deduction = row.capital_gains_deduction_foreign
+        domestic = _or_default(row.sale_tax_rate_domestic, DEFAULT_SALE_TAX_DOMESTIC)
+        rate = _or_default(row.capital_gains_rate_foreign, DEFAULT_CAPITAL_GAINS_RATE)
+        deduction = _or_default(row.capital_gains_deduction_foreign,
+                                DEFAULT_CAPITAL_GAINS_DEDUCTION)
     return SaleTaxSettings(
         domestic=domestic, foreign_rate=rate, foreign_deduction=deduction,
         is_default=(domestic == DEFAULT_SALE_TAX_DOMESTIC and rate == DEFAULT_CAPITAL_GAINS_RATE
