@@ -1,0 +1,97 @@
+# Quickstart: 011 검증 안내
+
+**Date**: 2026-10-06 | **Plan**: [plan.md](./plan.md)
+
+구현이 spec을 만족하는지 끝에서 끝까지 확인하는 절차다. 계약은 [contracts/rest-api.md](./contracts/rest-api.md)·[contracts/ui-wireframes.md](./contracts/ui-wireframes.md),
+칸의 뜻은 [data-model.md](./data-model.md)를 본다.
+
+## 0. 준비
+
+- `.env`(저장소 루트)에 `ECOS_API_KEY`가 있다. 값을 출력하거나 셸 인자로 넘기지 않는다.
+- 새 열이 있으므로 개발 DB에 마이그레이션을 올린다: `cd backend && .venv/bin/alembic upgrade head`(`stock_setting`의 매도 세금 열 셋).
+- 품질 게이트(서버를 멈추고 — 통합 테스트가 같은 MySQL 스키마를 다시 만든다):
+
+  ```bash
+  ./stop.sh
+  cd backend && .venv/bin/python -m pytest -q --cov=src && .venv/bin/python -m mypy src && .venv/bin/python -m ruff check --no-cache src tests
+  cd frontend && npm test && npx tsc --noEmit && npx eslint .
+  ./start.sh
+  ```
+
+## 1. 적금 금리 실측 (R11-1 — 계획 단계에서 한 번 했다)
+
+ECOS 화면(통계표 1.3.3.1.1·1.3.4.1)에서 항목 계층을 눈으로 확인한다. `BEBB` 계열이 상호금융 아래에 있는지, 예금은행 「정기적금(1-2년)」이 「정기적금」 아래에 있는지
+본다. 다르면 research R11-1을 고치고 멈춘다.
+
+## 2. 단위 참조값 (SC-001~SC-005)
+
+`backend/tests/unit/`의 새 테스트가 손계산과 1원(수량 소수 8자리) 단위로 같다. 각 테스트 파일 머리에 손계산 과정을 적는다(010 반복 4·5와 같다).
+
+| 참조 실행 | 확인하는 것 |
+|-----------|-------------|
+| 국내 종목 매달(휴장 포함 6개월) | 예정일·실제 납입일, 납입마다 정수 매수·수수료·매수 대기금, 총자산·수익률 |
+| 1주가 납입액보다 비싼 종목 매주 | 모이다가 사는 날, 남은 돈의 이월(SC-003 — 살 수 있는데 안 산 행 0) |
+| 미국 종목 원화 매주(재투자 켬·끔) | 납입마다 환전 환율·고시일, 원화 분모, 배당 현금이 매수에 쓰이지 않음 — 끔은 계속, 켬은 재투자일까지(SC-004, 분석 B1) |
+| 재투자 켬 + 매일 납입(배당락 다음 날 납입) | 그 납입 매수가 배당을 쓰지 않고, 재투자일에 납입 매수 뒤 `reinvest` 행이 다시 산다(분석 B1) |
+| 긴 연휴(매주 납입일이 둘 겹침) | 두 납입이 한 날에 합쳐짐, `deferred`, 합계 불변(SC-002) |
+| 계산 끝이 휴장일인 매일 납입 | 계산 끝 뒤로 미뤄진 납입은 넣지 않음(`pending_after_end`) |
+| 코인 매일 원화(출처 결측 이틀) | 결측일 납입이 다음 일봉으로, 수량 소수 8자리 버림 |
+| 적금 세 주기(시중은행, 2015-01-15, 월 1,000,000원) | 회차 이자(78/12), 세금 버림, 만기 금액 → 정기예금, 둘째 만기의 합침, 만기일 평가 = 만기 금액(SC-005) |
+| 적금 잠정·결측 | 새 가입 달 미발표 → 잠정, 둘째 가입 달 결측 → 멈춤, 첫 가입 결측 → `RateMissing` |
+| 매도 세금 설정 | 국내 0.15%, 해외 공제 0·세율 20% — 원 미만 버림, 공제는 원화 |
+
+## 3. API 끝에서 끝까지 (개발 서버)
+
+`curl`로 부른다. 202면 진행 URL을 따라가 끝난 뒤 다시 부른다.
+
+1. 주식 국내 적립식
+   - 요청: `GET /api/stocks/recurring-simulation?market=KRX&symbol=005930.KS&start=2024-01-15&amount=500000&principalCurrency=KRW&frequency=monthly&reinvest=true`
+   - 확인:
+     - 납입 행이 매달 15일(휴장이면 다음 거래일)에 있다.
+     - `summary.contributions` × 500,000 = `contributed`다.
+     - `feeTotal` = `buyFeeTotal` + `saleCost.fee`다.
+     - `profitAfterSale` = `profit` − `saleCost.total`이다.
+2. 주식 해외 원화 매주
+   - 요청: `…symbol=AAPL&market=NASDAQ&frequency=weekly&principalCurrency=KRW`
+   - 확인: 납입 행마다 `exchangeRate`·`exchangeRateDate`가 있고, `saleCost.taxKind`가 `capital_gains_tax`, `deduction`이 `"2500000"`이다.
+3. 일시금 불변(SC-006)
+   - 기본 설정에서 같은 종목·같은 시작일의 일시금 `GET /api/stocks/simulation`과 `/series`를 부른다. 011 전(010 머지 시점)과 응답이 같다.
+   - 010의 기존 통합 테스트(승인한 변경 밖)가 그대로 통과한다.
+4. 가상자산 매일
+   - 요청: `GET /api/crypto/recurring-simulation?coinId=…&start=2025-10-01&amount=10000&principalCurrency=KRW&frequency=daily`
+   - 확인: `saleCost.taxKind`가 `not_yet_taxed`, `tax`가 `"0"`이다.
+5. 적금
+   - 요청: `GET /api/deposit/installment-simulation?institution=commercial_bank&start=2015-01-15&amount=1000000`
+   - 첫 요청은 202다(`series: "installment"` → 끝나면 `"deposit"`일 수 있다). 그 뒤 200이다.
+   - `contracts[0].amount` = `deposits[0].fromInstallment`이고, `deposits[1].principal` = `deposits[0]` 만기 금액 + `contracts[1].amount`다.
+   - `institution=savings_bank`는 400 `installment_not_available`이다.
+   - `start=2010-01-15`는 409 `before_first_month`(`startableFrom: "2011-01-01"`)다.
+6. 투자처 목록: `GET /api/deposit/institutions` — `installment.available`이 시중은행·상호금융만 `true`다.
+7. 매도 세금 설정
+   - `PUT /api/stocks/settings/sale-tax`로 국내 0.0015를 저장한 뒤 1·3을 다시 부른다. 국내 매도 세금 = floor(매도금액 × 0.0015)이다.
+   - 잘못된 값(`"-0.1"`, `"1"`, `"abc"`, 공제 `"100.5"`)은 422이고 값이 그대로다.
+   - 기본값을 보내 되돌리면 3의 응답이 다시 같아진다(SC-007).
+8. 성능(SC-008): 매일 적립 20년(예: 국내 종목 `start=2006-10-02&frequency=daily`)을 받아 둔 뒤 표 첫 쪽·시계열 응답 시간을 잰다. 각각 3초 미만이어야 한다.
+
+## 4. 브라우저 (CDP 스크립트 또는 직접 — 1440px 창)
+
+1. 주식에서 투자 방식 적립식 → 매달 → 한 번 납입액으로 실행한다.
+   - 보드 다섯 칸, 표의 납입 행, 차트의 누적 납입 원금 점선과 상자 값을 본다.
+   - 일시금으로 되돌리면 결과가 비고, 다시 실행하면 지금 보드(네 칸)가 나온다.
+2. 1주가 비싼 종목을 매주로 실행한다. 회색 "＋"(매수 0) 행이 이어지다가 매수 행이 나온다.
+3. 표 폭: 주식·가상자산 적립식 표가 1440px에서 잘리거나 가로 스크롤이 생기지 않는다(SC-010). 표 고유 폭을 재어 이 문서에 적는다.
+4. 가상자산 매일 적립식: 세금 칸 "₩0 · 가상자산 과세 시행 전"을 본다.
+5. 예금에서 상품을 정기 적금으로 바꾼다.
+   - 저축은행·신협·새마을금고가 비활성이고 사유가 보인다.
+   - 저축은행을 고른 채 바꾸면 시중은행으로 바뀌었다는 알림이 나온다.
+   - 실행하면 보드 여섯 칸, 표의 납입·만기·가입 행, 차트의 적금 금리 선·상자의 정기예금 금리를 본다.
+6. 이력:
+   - 적립식·적금 항목이 "적립식 · 매달 ₩…"/"정기 적금 · 월 ₩…"으로 남는다. 다시 실행하면 같은 결과다.
+   - 일시금 항목과 함께 골라 비교하면 범례가 방식을 구별한다.
+   - 011 전에 남은 항목은 그대로 열리고 다시 실행된다(SC-006 — `localStorage`에 옛 항목을 넣어 확인).
+7. 설정: 주식 매도 세금 세 칸의 기본값·근거를 확인한다. 값을 바꾸면 "변경됨"이 되고, 기본값으로 되돌릴 수 있다. 잘못된 값은 알림이 뜨고 저장되지 않는다.
+8. SC-009: 처음 보는 사람 기준으로 적립식·적금 조건을 각각 1분 안에 넣을 수 있는지 본다. 칸에 단위와 기본값이 보인다.
+
+## 실행 기록
+
+(구현 뒤 각 항목의 결과·잰 값·날짜를 적는다.)
