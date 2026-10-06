@@ -8,10 +8,12 @@
  *
  * 010 반복 1 — 다른 네 화면처럼 왼쪽에서 시작한다(FR-022). 통화를 바꾸면 요약·차트·표가 "불러오는 중"으로 바뀌어 문서가 창보다 짧아지고, 브라우저가
  * 스크롤을 끌어내렸다(R10-16 실측). 그래서 바꾸기 **직전** 본문 높이를 최소 높이로 붙잡고, 새 통화가 다 오면 놓는다(FR-023).
- * 기간 단위 전환도 높이를 붙잡되, 새 표가 붙으면 표의 처음으로 옮긴다(004 FR-005b 그대로 — T051 실측).
+ * 기간 단위 전환도 높이를 붙잡는다. **012 FR-001** — 새 표가 붙어도 창을 옮기지 않는다(004 FR-005b를 기간 전환에 한해 대체). 단위 탭이 누른 자리에
+ * 남는다. 새 표가 짧아 지금 스크롤을 받치지 못하면 놓을 때 바닥을 남긴다(`useHeightHold`). 먼 날짜를 골라 표를 새로 받는 경우(FR-005a)만 표의
+ * 처음으로 간다.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { CurrencyTabs } from "@/components/fx/CurrencyTabs";
 import { PeriodTabs } from "@/components/fx/PeriodTabs";
 import { DailyTable } from "@/components/fx/DailyTable";
@@ -21,6 +23,7 @@ import { TodayRefresh } from "@/components/fx/TodayRefresh";
 import { TrendChart } from "@/components/fx/TrendChart";
 import { PeriodPresets } from "@/components/fx/PeriodPresets";
 import { EmptyState } from "@/components/EmptyState";
+import { useHeightHold } from "@/hooks/useHeightHold";
 import type { CurrencyCode } from "@/lib/types";
 import { PRESETS, useFxWorkspaceStore } from "@/stores/fxWorkspaceStore";
 
@@ -38,22 +41,12 @@ export default function FxPage() {
 
   const noData = latest?.status === "no_data";
 
-  // FR-023 — 다시 받는 동안 붙잡는 본문 높이(px). 빠르게 두 번 바꾸면 늦게 끝난 앞 전환이 뒤 전환의 높이를 놓지 않게 차례를 센다.
-  const workspace = useRef<HTMLDivElement>(null);
-  const [reserve, setReserve] = useState<number | null>(null);
-  const turn = useRef(0);
-  function holdWhile(reload: () => Promise<void>): void {
-    const height = workspace.current?.getBoundingClientRect().height ?? 0;
-    const mine = ++turn.current;
-    setReserve(height > 0 ? height : null);
-    void reload().finally(() => {
-      if (turn.current === mine) setReserve(null);
-    });
-  }
+  // FR-023 — 통화·기간 단위를 다시 받는 동안 바꾸기 직전 본문 높이를 붙잡는다(012 — 훅으로 뽑았다. 놓을 때 바닥을 남긴다).
+  const { ref: workspace, style: holdStyle, hold: holdWhile } = useHeightHold<HTMLDivElement>();
 
-  // 004 FR-005b — 기간 단위를 바꾸면 표가 떨어졌다 새로 붙는다. 새로 붙은 `DailyTable`은 직전 `resetKey`를 모르므로 화면이 마지막으로 그린
-  // 표의 차례를 기억해 표의 처음으로 옮긴다. 통화 전환은 차례를 올리지 않아 창이 그대로다(FR-023). 표가 붙은 채 바뀌는 경우(먼 날짜)는
-  // `DailyTable`도 같은 자리로 옮긴다 — 표를 바로 감싼 자리라 두 번 옮겨도 같다.
+  // 004 FR-005a·FR-005b — 먼 날짜를 골라 표를 새로 받으면 표의 처음으로 옮긴다. 표가 떨어진 동안 골랐으면 새로 붙은 `DailyTable`은 직전
+  // `resetKey`를 모르므로 화면이 마지막으로 그린 표의 차례를 기억해 옮긴다. 통화·기간 단위 전환은 차례를 올리지 않아 창이 그대로다(FR-023,
+  // 012 FR-001). 표가 붙은 채 바뀌는 경우는 `DailyTable`도 같은 자리로 옮긴다 — 표를 바로 감싼 자리라 두 번 옮겨도 같다.
   const tableTop = useRef<HTMLDivElement>(null);
   const shownEpoch = useRef(tableEpoch);
   useEffect(() => {
@@ -63,8 +56,7 @@ export default function FxPage() {
   }, [daily, tableEpoch]);
 
   return (
-    <div ref={workspace} className="max-w-5xl space-y-5"
-      style={reserve === null ? undefined : { minHeight: `${reserve}px` }}>
+    <div ref={workspace} className="max-w-5xl space-y-5" style={holdStyle}>
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight">외환 데이터 분석</h2>

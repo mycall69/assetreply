@@ -136,10 +136,10 @@ description: "Task list for 012-period-tables-history-db"
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] `frontend/src/stores/fxWorkspaceStore.ts` (FR-001, FR-002)
+- [X] T008 [US1] `frontend/src/stores/fxWorkspaceStore.ts` (FR-001, FR-002)
   - `setPeriod`가 `tableEpoch`를 올리지 않는다. 주석의 "FR-005b" 설명을 "먼 날짜(FR-005a)만의 신호"로 고친다.
   - `loadAll`이 요청을 시작한 때의 통화·단위와 응답을 받을 때의 값이 다르면 `daily`를 쓰지 않는다.
-- [ ] T009 [US1] `frontend/src/app/fx/page.tsx` — 통화·기간 전환을 `useHeightHold`(T004)로 감싼다 (FR-001, SC-001)
+- [X] T009 [US1] `frontend/src/app/fx/page.tsx` — 통화·기간 전환을 `useHeightHold`(T004)로 감싼다 (FR-001, SC-001)
   - 화면의 `tableEpoch` 효과(`:54-63`)는 그대로 둔다 — 이제 먼 날짜에만 돈다.
 - [ ] T010 [US1] 브라우저 확인 — quickstart 4-1 (SC-001)
   - 1440px 창, CDP로 단위 탭의 `getBoundingClientRect().top`을 전환 전후에 잰다.

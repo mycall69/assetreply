@@ -174,8 +174,10 @@ interface FxWorkspaceState {
    */
   loadMoreError: string | null;
   /**
-   * 표가 통째로 바뀔 때마다 증가한다. 화면은 이 값이 바뀌면 스크롤을 처음으로
-   * 되돌린다 (FR-005b). 상태에 두는 이유는 표를 바꾸는 경로가 여럿이기 때문이다.
+   * 먼 날짜를 골라 표를 통째로 새로 받을 때 증가한다. 화면은 이 값이 바뀌면 스크롤을 표의 처음으로 되돌린다(004 FR-005a·FR-005b).
+   *
+   * **기간 단위 전환은 올리지 않는다**(012 FR-001 — 004 FR-005b를 기간 전환에 한해 대체). 올리면 새 표가 붙은 뒤 창이 표의 처음으로 끌려가 사용자가
+   * 누른 단위 탭이 화면 밖으로 밀려난다("화면이 위로 쑥 올라간다").
    */
   tableEpoch: number;
 
@@ -257,6 +259,11 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
         ),
       ]);
 
+      // 012 FR-002 — 늦게 온 응답이 그 사이 바뀐 통화·단위의 화면을 덮지 않는다. 통화가 바뀌었으면 새 통화의 다시 받기가 모두 채운다.
+      // 단위만 바뀌었으면 표는 기간 전환(`setPeriod`)의 몫이다 — 이 응답의 표는 이전 단위의 것이다.
+      if (get().currency !== currency) return;
+      const sameUnit = daily.period === get().period;
+
       const collecting =
         "status" in series && series.status === "collecting"
           ? (series as SeriesCollecting)
@@ -266,7 +273,7 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
         coverage: cov.coverage,
         presetNotice,
         latest,
-        daily,
+        ...(sameUnit ? { daily } : {}),
         series: collecting ? null : (series as SeriesResponse),
         collecting,
         // 진입 시 선택 날짜는 가장 최근 고시일이다 (spec Assumptions).
@@ -274,6 +281,7 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
         loading: false,
       });
     } catch (err) {
+      if (get().currency !== currency) return;
       set({ error: message(err, "화면을 불러오지 못했습니다."), loading: false });
     }
   },
@@ -338,20 +346,20 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
   setPeriod: async (period) => {
     const { currency } = get();
     // 1겹: 전환 즉시 비운다. 한 프레임도 이전 단위가 남지 않는다 (FR-010, SC-010).
+    // `tableEpoch`는 올리지 않는다 — 창을 표의 처음으로 옮기지 않는다(012 FR-001). 표가 떨어진 동안의 높이는 화면이 붙잡는다(`useHeightHold`).
     set({
       period,
       daily: null,
       loadingMore: false,
       loadMoreError: null,
       error: null,
-      tableEpoch: get().tableEpoch + 1,
     });
     try {
       const body = await apiClient.get<DailyResponse>(
         `/api/fx/daily?currency=${currency}&period=${period}`,
       );
-      // 2겹: 도착한 응답의 단위를 현재 선택과 대조한다 (FR-011, research R4-8).
-      if (body.period !== get().period) return;
+      // 2겹: 도착한 응답의 단위·통화를 현재 선택과 대조한다 (FR-011, research R4-8, 012 FR-002).
+      if (body.period !== get().period || body.currency !== get().currency) return;
       set({ daily: body });
     } catch (err) {
       set({ error: message(err, "표를 불러오지 못했습니다.") });
