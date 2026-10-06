@@ -483,7 +483,7 @@ description: "Task list for 012-period-tables-history-db"
 ### Implementation for User Story 4
 
 - [X] T063 [US4] `frontend/src/lib/principalFormat.ts`(`DEFAULT_PRINCIPAL = "10000000"`)·`frontend/src/stores/stockStore.ts`·`cryptoStore.ts`·`depositStore.ts`의 처음 `input.principal` (FR-016)
-- [ ] T064 [US4] 브라우저 확인 — quickstart 4-6 (SC-008)
+- [X] T064 [US4] 브라우저 확인 — quickstart 4-6 (SC-008)
 
 **Checkpoint**: US4 완결.
 
