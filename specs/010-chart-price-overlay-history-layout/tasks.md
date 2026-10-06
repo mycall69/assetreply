@@ -530,6 +530,26 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 ---
 
+## Phase 12: 반복 5 (2026-10-06) — 부동산 보드의 매도비용
+
+**Purpose**: 부동산 보드에 매도비용(중개 보수 + 양도소득세 — 1세대 1주택, 부부 5:5)을 더하고 투자 수익·수익률에서 뺀다. 거주 기간 비율 설정(기본 100%) (FR-031).
+
+- [ ] T075 [P] [US1] `backend/tests/unit/test_apt_sale_cost.py` — 비과세(12억 이하 0), 고가주택 비율 과세, 장특공 표2(보유·거주 연 4%)·표1(거주 2년 미만), 단기 60%·70%,
+  부부 5:5(각자 기본공제·누진세율·지방소득세), 차익 없음, 중개 보수(매수와 같은 규칙), 거주 비율, 표 밖 (FR-031)
+- [ ] T076 [P] [US1] `backend/tests/integration/test_realestate_sale_cost_api.py` — 헬리오시티 시드로 `summary.saleCost`가 손 계산과 같고 `profitAfterSale` = `profit` − 합계,
+  거주 비율 설정이 결과를 바꾼다, 기존 요약 키 그대로 (FR-031, SC-012)
+- [ ] T077 [P] [US1] `backend/tests/integration/test_realestate_residence_setting_api.py` — `GET/PUT /api/realestate/settings/residence`(기본 1.000000, 0~1, 그 밖 400),
+  기존 `/api/realestate/settings` 응답 그대로 (FR-031)
+- [ ] T078 [P] [US1] 프론트엔드 — `frontend/tests/RealEstateBoardSaleCost.test.tsx`(일곱 칸, 매도비용 내역, 매도비용을 뺀 값과 보유 중 값, 표 밖, `saleCost` 없으면 여섯 칸),
+  `frontend/tests/RealEstateResidenceForm.test.tsx`(0~100% 입력·저장·기본값) (FR-031)
+- [ ] T079 [US1] 백엔드 계산 — `simulation/apt_tax_rules.py`(`TransferRule`), `simulation/apt_sale_cost.py`(신규) (FR-031)
+- [ ] T080 [US1] 백엔드 연결 — `db/models.py`·마이그레이션(`apt_setting.residence_ratio`), `repository/apt_setting.py`(거주 비율), `api/services/realestate_simulation.py`
+  (`summary` 키·`condition.residenceRatio`), 설정 경로(`/api/realestate/settings/residence`) (FR-031)
+- [ ] T081 [US1] 프론트엔드 — `lib/types.ts`, `components/realestate/RealEstateBoard.tsx`(일곱 칸), `components/settings/RealEstateResidenceForm.tsx`(신규)·설정 화면 연결 (FR-031)
+- [ ] T082 마이그레이션 적용, quickstart 17 실행·기록(손 계산 대조·캡처), 품질 게이트, README·CLAUDE.md (FR-031, SC-012)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

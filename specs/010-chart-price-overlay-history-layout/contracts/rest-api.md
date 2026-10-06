@@ -158,3 +158,22 @@
 - 기준일이 세율 표 밖: `taxKind "outside_table"`, `tax`·`total`·`profitAfterSale`·`returnRateAfterSale`이 `null`(`fee`는 있다).
 - `profit`·`returnRate`(보유 중)와 표의 행·시계열은 그대로다.
 
+## 반복 5 (2026-10-06) — 부동산 매도비용·거주 기간 비율 (FR-031)
+
+### `GET /api/realestate/simulation`의 `summary`
+
+```json
+"saleCost": {"brokerage": "…", "incomeTax": "…", "localTax": "…", "total": "…", "kind": "high_price",
+             "gain": "…", "taxableGain": "…", "ltsdRate": "0.400000", "holdingYears": 5, "residenceYears": 5, "basePerOwner": "…"},
+"profitAfterSale": "…", "returnRateAfterSale": "…"
+```
+
+- `kind`: `exempt`(12억 이하 비과세 — 세금 0), `high_price`(12억 초과분만 과세), `taxed`(비과세 요건 밖 — 2년 이상 보유했으나 거주 2년 미만), `short_term`(2년 미만 — 60%·70%),
+  `no_gain`(차익 0 이하 — 세금 0), `outside_table`(기준일이 규칙 밖 — `incomeTax`·`localTax`·`total`·`profitAfterSale`·`returnRateAfterSale`이 `null`).
+- 평가액(`value`·`profit`)을 모르면(시세 없음) `saleCost`·`profitAfterSale`·`returnRateAfterSale` 키가 없다. 기존 키는 그대로다. `condition.residenceRatio`를 더한다.
+
+### `GET`·`PUT /api/realestate/settings/residence`
+
+- `GET` → `{"residenceRatio": "1.000000", "isDefault": true}`. `PUT {"residenceRatio": "0.5"}` → 저장한 값. 0 이상 1 이하의 소수 문자열(소수 6자리까지), 그 밖은 400
+  `invalid_setting`(보유세 기준 비율과 같은 꼴). 기존 `/api/realestate/settings`는 바뀌지 않는다.
+

@@ -184,3 +184,24 @@ simulation/stock_sale_cost.py                     # 순수 함수 — DB·HTTP �
   - `profitAfterSale` = `profit` − `saleCost.total`, `returnRateAfterSale` = 그 값 ÷ 수익률 분모. 세금을 모르면 둘 다 `null`
 - 프론트엔드 `SimulationSummary.saleCost?`·`profitAfterSale?`·`returnRateAfterSale?`(선택 — 없으면 보드는 반복 4 전처럼 세 칸).
 
+## 10. 반복 5 (2026-10-06) — 부동산 보드의 매도비용 (FR-031, research R10-21)
+
+```text
+simulation/apt_tax_rules.py   += TransferRule(effective_from 2023-01-01, effective_to None,
+                                   exemption_ceiling 1,200,000,000, basic_deduction 2,500,000, local_rate 0.10,
+                                   brackets (과세표준 상한, 세율, 누진공제) 8구간, short_term (<1년 0.70, <2년 0.60),
+                                   ltsd_general (보유 3년 6%, 연 2%, 최대 30%), ltsd_home (보유 연 4% 최대 40% + 거주 연 4% 최대 40%))
+                                 transfer_rule(on) -> TransferRule            # 표 밖이면 RuleNotCovered
+simulation/apt_sale_cost.py    sale_cost(*, sale_price, buy_price, acquisition_total, buy_date, sale_date, residence_ratio)
+                                 -> AptSaleCost(brokerage, income_tax | None, local_tax | None, total | None, kind,
+                                                gain, taxable_gain, ltsd_rate, holding_years, residence_years, base_per_owner)
+                                 kind ∈ exempt | high_price | taxed | short_term | no_gain | outside_table
+```
+
+- 원화 정수(원 미만 버림). 세금은 부부 각자 계산한 값의 합. `outside_table`이면 세금·합계 `None`(중개 보수는 있다).
+- 응답 `summary`에 **더한다**(기존 키 그대로): `saleCost` `{"brokerage", "incomeTax", "localTax", "total", "kind", "gain", "taxableGain", "ltsdRate", "holdingYears",
+  "residenceYears", "basePerOwner"}`, `profitAfterSale`(= `profit` − `total`), `returnRateAfterSale`(÷ `invested`). 평가액이 없으면(시세 없음) 셋 다 없다.
+  `condition.residenceRatio`.
+- 설정: `apt_setting.residence_ratio DECIMAL(9,6) NULL`(NULL = 1.000000). `GET/PUT /api/realestate/settings/residence` `{"residenceRatio": "1.000000", "isDefault": true}`.
+- 프론트엔드: `RealEstateSummary.saleCost?`·`profitAfterSale?`·`returnRateAfterSale?`(선택 — 없으면 여섯 칸), 설정 화면 부동산 부분에 `RealEstateResidenceForm`.
+
