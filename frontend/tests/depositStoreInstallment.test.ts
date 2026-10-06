@@ -9,11 +9,12 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, apiClient } from "@/lib/apiClient";
-import { loadDepositHistory } from "@/lib/depositHistory";
 import type { DepositProgressHandlers } from "@/lib/depositProgressStream";
 import type { DepositHistoryEntry, SimulationSeriesResponse } from "@/lib/types";
 import { useDepositStore } from "@/stores/depositStore";
 import { RESULT } from "./support/depositFixtures";
+// 012 승인 2026-10-07 — 012부터 이력은 로컬 DB에 있다. 브라우저 lib 대신 이력 대역에서 읽는다(research R12-12).
+import { historyStub } from "./support/historyStub";
 import {
   DEPOSIT_COLLECTING,
   INSTALLMENT_COLLECTING,
@@ -106,7 +107,7 @@ describe("적금 실행", () => {
     progress.handlers?.onCompleted();
     await vi.waitFor(() => expect(useDepositStore.getState().installment).not.toBeNull());
     expect(useDepositStore.getState().collecting).toBeNull();
-    expect(loadDepositHistory()).toHaveLength(1);
+    await vi.waitFor(() => expect(historyStub.entries("deposit")).toHaveLength(1)); // 012 승인 2026-10-07
   });
 
   it("상품을 바꾸면 두 결과를 모두 비운다", async () => {
@@ -154,7 +155,8 @@ describe("적금 실행", () => {
     mockGet();
     useDepositStore.getState().setProduct("installment");
     await useDepositStore.getState().run();
-    expect(loadDepositHistory()[0]).toMatchObject({ product: "installment", principal: "1000000",
+    // 012 승인 2026-10-07
+    expect(historyStub.entries("deposit")[0]).toMatchObject({ product: "installment", principal: "1000000",
       institution: "commercial_bank" });
   });
 });

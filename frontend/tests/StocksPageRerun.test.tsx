@@ -8,7 +8,8 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import StocksPage from "@/app/stocks/page";
 import { apiClient } from "@/lib/apiClient";
-import { HISTORY_KEY } from "@/lib/simulationHistory";
+// 012 승인 2026-10-07 — 012부터 옛 브라우저 키는 화면을 열 때 로컬 DB로 옮겨진다. 옮겨진 항목으로 다시 실행한다(FR-013).
+import { LEGACY_KEYS } from "@/lib/legacyHistory";
 import type { SimulationHistoryEntry, SimulationResponse, SimulationSeriesResponse } from "@/lib/types";
 import { useStockStore } from "@/stores/stockStore";
 
@@ -38,7 +39,7 @@ const SERIES: SimulationSeriesResponse = {
 beforeEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
-  localStorage.setItem(HISTORY_KEY, JSON.stringify([ENTRY]));
+  localStorage.setItem(LEGACY_KEYS.stock, JSON.stringify([ENTRY])); // 012 승인 2026-10-07
   useStockStore.setState({
     input: { stock: null, start: "2024-01-02", principal: "1000000", principalCurrency: "KRW", reinvest: true },
     history: [], selectedHistory: [], summary: null, rows: [], series: null, error: null, collecting: null,

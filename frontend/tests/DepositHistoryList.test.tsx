@@ -35,7 +35,8 @@ describe("예금 이력", () => {
 
   it("보관 위치와 다른 자산군 이력과 따로라는 사실을 알린다", () => {
     renderHistory();
-    expect(screen.getByTestId("history-notice").textContent).toContain("이 브라우저에만 저장됩니다");
+    // 012 승인 2026-10-07 — 보관 위치는 이 기기의 로컬 DB다(FR-015).
+    expect(screen.getByTestId("history-notice").textContent).toContain("이 기기의 로컬 DB에 저장됩니다");
     expect(screen.getByTestId("history-notice").textContent).toContain("주식·가상자산 이력과 따로입니다");
   });
 

@@ -13,7 +13,6 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "@/lib/apiClient";
-import { HISTORY_KEY, loadHistory } from "@/lib/simulationHistory";
 import type {
   RecurringStockResponse,
   SimulationHistoryEntry,
@@ -21,6 +20,8 @@ import type {
   SimulationSeriesResponse,
 } from "@/lib/types";
 import { useStockStore } from "@/stores/stockStore";
+// 012 승인 2026-10-07 — 012부터 이력은 로컬 DB에 있다. 브라우저 lib 대신 이력 대역에서 읽는다(research R12-12).
+import { historyStub } from "./support/historyStub";
 
 vi.mock("@/lib/stockProgressStream", () => ({ subscribeStockProgress: () => () => undefined }));
 vi.mock("@/lib/collectionStream", () => ({ subscribeCollection: () => () => undefined }));
@@ -110,7 +111,7 @@ describe("적립식 실행", () => {
     const state = useStockStore.getState();
     expect(state.collecting).toMatchObject({ status: "collecting", jobId: 7 });
     expect(state.recurring).toBeNull();
-    expect(loadHistory()).toEqual([]);
+    expect(historyStub.entries("stock")).toEqual([]); // 012 승인 2026-10-07
   });
 
   it("방식이나 주기를 바꾸면 두 결과를 모두 비운다", async () => {
@@ -137,7 +138,8 @@ describe("적립식 실행", () => {
     mockGet();
     useStockStore.getState().setPlan({ mode: "recurring", frequency: "monthly" });
     await useStockStore.getState().run();
-    expect(loadHistory()[0]).toMatchObject({ mode: "recurring", frequency: "monthly", principal: "500000" });
+    // 012 승인 2026-10-07
+    expect(historyStub.entries("stock")[0]).toMatchObject({ mode: "recurring", frequency: "monthly", principal: "500000" });
   });
 });
 
@@ -170,7 +172,7 @@ describe("적립식 이력", () => {
 
   it("비교는 적립식 시계열 경로를 쓰고 범례에 방식을 붙인다", async () => {
     const get = mockGet();
-    localStorage.setItem(HISTORY_KEY, JSON.stringify([RECURRING, OLD]));
+    historyStub.seed("stock", [RECURRING, OLD]); // 012 승인 2026-10-07 — 브라우저 키 대신 대역에 심는다
     useStockStore.setState({ history: [RECURRING, OLD], selectedHistory: [RECURRING.id, OLD.id] });
     await useStockStore.getState().compareSelected();
     const paths = get.mock.calls.map((c) => c[0]);

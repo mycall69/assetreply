@@ -8,10 +8,11 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, apiClient } from "@/lib/apiClient";
-import { loadDepositHistory, saveDepositHistory } from "@/lib/depositHistory";
 import type { SimulationSeriesResponse } from "@/lib/types";
 import { useDepositStore } from "@/stores/depositStore";
 import { COLLECTING, RESULT } from "./support/depositFixtures";
+// 012 승인 2026-10-07 — 012부터 이력은 로컬 DB에 있다. 브라우저 lib 대신 이력 대역에 심고 읽는다(research R12-12).
+import { historyStub } from "./support/historyStub";
 
 vi.mock("@/lib/depositProgressStream", () => ({ subscribeDepositProgress: () => () => undefined }));
 
@@ -42,7 +43,8 @@ describe("이력", () => {
       path.startsWith("/api/deposit/simulation/series") ? SERIES
         : path.startsWith("/api/deposit/simulation?") ? RESULT : { institutions: [], source: "", basis: "" });
     await useDepositStore.getState().run();
-    expect(loadDepositHistory().map((e) => [e.institution, e.start, e.principal])).toEqual([
+    // 012 승인 2026-10-07
+    expect(historyStub.entries("deposit").map((e) => [e.institution, e.start, e.principal])).toEqual([
       ["commercial_bank", "2020-01-15", "10000000"]]);
     expect(useDepositStore.getState().history).toHaveLength(1);
   });
@@ -50,12 +52,13 @@ describe("이력", () => {
   it("수집 중이면 남기지 않는다", async () => {
     vi.spyOn(apiClient, "get").mockResolvedValue(COLLECTING);
     await useDepositStore.getState().run();
-    expect(loadDepositHistory()).toEqual([]);
+    expect(historyStub.entries("deposit")).toEqual([]); // 012 승인 2026-10-07
   });
 
   it("다시 실행은 조건을 넣고 곧바로 실행한다", async () => {
-    saveDepositHistory({ institution: "saemaul", start: "2019-01-15", principal: "5000000" });
-    useDepositStore.getState().restoreHistory();
+    // 012 승인 2026-10-07 — 대역에 심고 목록을 받는다.
+    historyStub.seed("deposit", [{ institution: "saemaul", start: "2019-01-15", principal: "5000000" }]);
+    await useDepositStore.getState().restoreHistory();
     const get = vi.spyOn(apiClient, "get").mockResolvedValue(RESULT);
     const [entry] = useDepositStore.getState().history;
     await useDepositStore.getState().rerunHistory(entry.id);
@@ -65,30 +68,32 @@ describe("이력", () => {
       institution: "saemaul", start: "2019-01-15", principal: "5000000" });
   });
 
-  it("지우면 비교 선택과 비교 선에서도 빠진다", () => {
-    saveDepositHistory({ institution: "saemaul", start: "2019-01-15", principal: "5000000" });
-    useDepositStore.getState().restoreHistory();
+  // 012 승인 2026-10-07 — 대역에 심고 목록을 받는다. 지우기는 서버 요청이라 기다린다.
+  it("지우면 비교 선택과 비교 선에서도 빠진다", async () => {
+    historyStub.seed("deposit", [{ institution: "saemaul", start: "2019-01-15", principal: "5000000" }]);
+    await useDepositStore.getState().restoreHistory();
     const [entry] = useDepositStore.getState().history;
     useDepositStore.setState({ selectedHistory: [entry.id],
       comparison: [{ id: entry.id, label: "새마을금고", start: "2019-01-15", series: SERIES }] });
-    useDepositStore.getState().removeHistoryEntry(entry.id);
+    await useDepositStore.getState().removeHistoryEntry(entry.id);
     const state = useDepositStore.getState();
     expect([state.history, state.selectedHistory, state.comparison]).toEqual([[], [], []]);
   });
 });
 
 describe("비교", () => {
-  function seed(): string[] {
-    saveDepositHistory({ institution: "savings_bank", start: "2020-01-15", principal: "10000000" });
-    saveDepositHistory({ institution: "commercial_bank", start: "2020-01-15", principal: "10000000" });
-    useDepositStore.getState().restoreHistory();
+  // 012 승인 2026-10-07 — 대역에 심고 목록을 받는다(나중에 심은 것이 맨 앞이다).
+  async function seed(): Promise<string[]> {
+    historyStub.seed("deposit", [{ institution: "savings_bank", start: "2020-01-15", principal: "10000000" },
+      { institution: "commercial_bank", start: "2020-01-15", principal: "10000000" }]);
+    await useDepositStore.getState().restoreHistory();
     const ids = useDepositStore.getState().history.map((e) => e.id);
     useDepositStore.setState({ selectedHistory: ids });
     return ids;
   }
 
   it("고른 이력을 지금 다시 계산해 겹치고 범례에 투자처를, 잠정이면 (잠정)을 쓴다", async () => {
-    seed();
+    await seed();
     const get = vi.spyOn(apiClient, "get").mockImplementation(async (path: string) =>
       query(path).institution === "savings_bank" ? { ...SERIES, provisionalFrom: "2026-01-15" } : SERIES);
     await useDepositStore.getState().compareSelected();
@@ -100,9 +105,9 @@ describe("비교", () => {
   });
 
   it("받지 않은 구간이 있거나 모르는 투자처면 이름과 사유를 말하고 나머지로 비교한다", async () => {
-    seed();
-    saveDepositHistory({ institution: "kakao_bank" as never, start: "2020-01-15", principal: "1000" });
-    useDepositStore.getState().restoreHistory();
+    await seed();
+    historyStub.seed("deposit", [{ institution: "kakao_bank", start: "2020-01-15", principal: "1000" }]); // 012 승인 2026-10-07
+    await useDepositStore.getState().restoreHistory();
     useDepositStore.setState({ selectedHistory: useDepositStore.getState().history.map((e) => e.id) });
     vi.spyOn(apiClient, "get").mockImplementation(async (path: string) => {
       const { institution } = query(path);

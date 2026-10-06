@@ -33,18 +33,20 @@ const base = {
 };
 
 describe("최근 시뮬레이션", () => {
-  it("이 브라우저에만 저장된다는 사실을 알린다", () => {
+  // 012 승인 2026-10-07 — 012부터 이력은 이 기기의 로컬 DB에 있다(FR-015). 보관 위치와 보관 기간을 알린다.
+  it("이 기기의 로컬 DB에 저장된다는 사실을 알린다", () => {
     // FR-037a, SC-018 — 알리지 않으면 사용자는 계정에 딸린 기록으로 여겨,
     // 다른 기기에서 열었을 때 사라진 것으로 오해한다.
     render(<SimulationHistory {...base} />);
     expect(screen.getByTestId("history-notice").textContent).toMatch(
-      /이 브라우저/,
+      /이 기기의 로컬 DB에 저장됩니다/,
     );
   });
 
-  it("브라우저 데이터를 지우면 함께 사라진다는 점도 알린다", () => {
-    render(<SimulationHistory {...base} />);
-    expect(screen.getByTestId("history-notice").textContent).toMatch(/지우면/);
+  // 012 승인 2026-10-07 — "브라우저 데이터를 지우면 사라진다" 대신 보관 기간이 지나면 지워진다는 점을 알린다(FR-012).
+  it("보관 기간이 지나면 지워진다는 점도 알린다", () => {
+    render(<SimulationHistory {...base} retentionDays={30} />);
+    expect(screen.getByTestId("history-notice").textContent).toMatch(/30일이 지나면 지워집니다/);
   });
 
   it("항목마다 종목·시작일·원금·재투자 여부를 보인다", () => {

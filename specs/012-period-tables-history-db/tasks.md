@@ -320,16 +320,16 @@ description: "Task list for 012-period-tables-history-db"
 
 ### Preparation for User Story 3
 
-- [ ] T037 [US3] 개발 DB 상태를 확인한다 — 머리 리비전이 `f4c2a8e19d35`인지(`alembic current`). 다르면 멈추고 보고한다 (data-model 1)
+- [X] T037 [US3] 개발 DB 상태를 확인한다 — 머리 리비전이 `f4c2a8e19d35`인지(`alembic current`). 다르면 멈추고 보고한다 (data-model 1)
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T038 [US3] 기존 테스트 변경 승인을 받는다 — research R12-15 US3의 목록 (FR-011, FR-013, FR-015)
+- [X] T038 [US3] 기존 테스트 변경 승인을 받는다 — research R12-15 US3의 목록 (FR-011, FR-013, FR-015)
   - lib 테스트 일곱은 삭제·옮김이다. 어느 검사가 서버 테스트(T039·T040)나 옮기기 테스트(T044·T046)로 가는지 짝을 보인다.
   - 안내 문구 검사 다섯은 새 문구로 바꾼다.
   - 브라우저 키에 심는 스토어·화면 테스트는 대역(T043)에 심게 바꾼다.
   - 승인 날짜를 Notes에 적는다.
-- [ ] T039 [P] [US3] `backend/tests/unit/test_history_conditions.py` — `api/services/history_conditions` (FR-011, FR-013, data-model 2)
+- [X] T039 [P] [US3] `backend/tests/unit/test_history_conditions.py` — `api/services/history_conditions` (FR-011, FR-013, data-model 2)
   - 식별자 대조
     - 지금 화면 lib 테스트에 나오는 식별자 예시(자산군 넷 — 일시금·적립식·적금·`buyPrice: null`)를 서버 함수가 글자까지 같게 낸다
     - 011 전 형식(`mode`·`frequency`·`product` 없음)은 일시금·정기예금의 식별자다
@@ -342,7 +342,7 @@ description: "Task list for 012-period-tables-history-db"
   - 직렬화가 칸 차례와 무관하게 같은 글이다. 원금 `"10000000"`이 글자 그대로 돌아온다(수로 바뀌지 않는다).
   - `history_conditions`·`history`·`repository/simulation_history`에 곱셈·나눗셈·`quantize`가 없다(덧셈·뺄셈은 보관 기간의 시각 계산에만) — 원금은 검증의 `Decimal(…)` 읽기뿐이다
     (원칙 VI 해석의 장치, plan Complexity Tracking — 사용자 확인 2026-10-06).
-- [ ] T040 [P] [US3] `backend/tests/integration/test_history_api.py` — 이력 경로 넷 (FR-011, FR-013, FR-014, SC-006, contracts/rest-api.md 2~5·7)
+- [X] T040 [P] [US3] `backend/tests/integration/test_history_api.py` — 이력 경로 넷 (FR-011, FR-013, FR-014, SC-006, contracts/rest-api.md 2~5·7)
   - 목록·저장·삭제
     - 빈 목록 GET은 `{"entries": [], "retentionDays": 30}`이다
     - PUT 뒤 GET, 같은 조건 다시 PUT이면 항목 하나·맨 앞이고 `lastRunAt`이 바뀐다
@@ -359,7 +359,7 @@ description: "Task list for 012-period-tables-history-db"
     - 같은 조건 합치기는 늦은 쪽이다
     - 본문이 배열이 아니면 400 `invalid_query`
   - 결과(평가·수익률)를 저장하지 않는다 — 조건 칸 밖의 키는 버린다.
-- [ ] T041 [P] [US3] `backend/tests/integration/test_history_retention.py` — 보관 기간 (FR-012, SC-007, contracts/rest-api.md 6)
+- [X] T041 [P] [US3] `backend/tests/integration/test_history_retention.py` — 보관 기간 (FR-012, SC-007, contracts/rest-api.md 6)
   - `history.utc_now`를 바꾼다.
   - 30일에서 보관 기준이 30일 + 1초 전이면 목록에 없고 DB에서도 지워졌다. **정확히 30일 전은 남는다**(`retain_from < 지금 − 기간` — data-model 1.1). 29일
     전도 남는다.
@@ -370,24 +370,24 @@ description: "Task list for 012-period-tables-history-db"
     - `PUT {"retentionDays": 7}` 직후 네 자산군 모두에서 8일 된 항목이 지워졌다
     - `10`·`"30"`·`true`·`30.0`은 422 `invalid_setting`이다
   - `GET /api/history/settings`가 자산군 경로로 잡히지 않는다.
-- [ ] T042 [P] [US3] `backend/tests/integration/test_history_schema.py` — 마이그레이션 (data-model 1)
+- [X] T042 [P] [US3] `backend/tests/integration/test_history_schema.py` — 마이그레이션 (data-model 1)
   - 두 테이블과 기본 키 `(asset_class, condition_key)`·`ix_simulation_history_list`가 있다. `history_setting.retention`이 비원생 열거다.
   - 내렸다 다시 올리기를 한다(`test_deposit_schema.py`와 같은 방식).
   - 기존 일반 검사(`test_migrations.py`)는 그대로 통과해야 한다.
-- [ ] T043 [US3] `frontend/tests/setup.ts` — `/api/history` 경로만 받는 메모리 안 대역을 **더한다** (research R12-12)
+- [X] T043 [US3] `frontend/tests/setup.ts` — `/api/history` 경로만 받는 메모리 안 대역을 **더한다** (research R12-12)
   - `fetch`를 감싸 목록·저장·삭제·옮기기·설정을 흉내 낸다. 식별자는 조건 칸을 정렬해 이은 글이다. 단, **옮기기로 받은 항목에 `id`가
     있으면 그것을 쓴다** — 옛 키에 `id`를 넣어 둔 기존 화면 테스트(`StocksPageRerun` 등)가 그 `id`로 항목을 찾는다. 서버 식별자 규칙과의 일치는 T039가 따로
     확인한다.
   - 테스트마다 비운다. 그 밖의 경로는 지금처럼 원래 `fetch`로 넘긴다.
-  - 심기·읽기·실패 만들기 도우미를 `frontend/tests/helpers/historyStub.ts`로 둔다.
-- [ ] T044 [P] [US3] `frontend/tests/legacyHistory.test.ts` — `lib/legacyHistory` (FR-013, data-model 5.3)
+  - 심기·읽기·실패 만들기 도우미를 `frontend/tests/support/historyStub.ts`로 둔다(다른 테스트 도우미와 같은 자리).
+- [X] T044 [P] [US3] `frontend/tests/legacyHistory.test.ts` — `lib/legacyHistory` (FR-013, data-model 5.3)
   - 키 넷이 글자까지 같다 — `assetreplay:stock-history:v1`·`assetreplay:crypto-history:v1`·`assetreplay.depositHistory.v1`·`assetreplay:realestate-history:v1`.
   - 읽기는 `none`·`unreadable`(JSON 아님)·`entries`로 나뉜다.
   - `clearLegacy`는 그 키만 지운다.
-- [ ] T045 [P] [US3] `frontend/tests/historyApi.test.ts` — `lib/historyApi`·`apiClient.delete` (contracts/rest-api.md 2~6)
+- [X] T045 [P] [US3] `frontend/tests/historyApi.test.ts` — `lib/historyApi`·`apiClient.delete` (contracts/rest-api.md 2~6)
   - 경로·방법·본문이 계약대로다. `id`는 질의로 인코딩한다(`|`·`:` 포함).
   - 오류는 `ApiError`다.
-- [ ] T046 [P] [US3] `frontend/tests/historyStoreMigration.test.ts` — 네 스토어의 `restoreHistory` (FR-013, FR-014a, SC-006, data-model 5.2)
+- [X] T046 [P] [US3] `frontend/tests/historyStoreMigration.test.ts` — 네 스토어의 `restoreHistory` (FR-013, FR-014a, SC-006, data-model 5.2)
   - 자산군마다 매개변수로 돈다.
   - 차례: 옛 키 → 옮기기 → 2xx면 키 삭제 → 목록. 다른 자산군의 키는 그대로다.
   - 실패
@@ -396,14 +396,14 @@ description: "Task list for 012-period-tables-history-db"
     - 다시 시도가 같은 차례를 한다
   - `unreadable` 키는 옮기지도 지우지도 않는다.
   - `historyLoading`은 첫 목록 전까지 참이다. `skipped > 0`이면 `historyNotice`다.
-- [ ] T047 [P] [US3] `frontend/tests/historyStoreSave.test.ts` — 네 스토어의 저장·삭제 (FR-011, FR-014)
+- [X] T047 [P] [US3] `frontend/tests/historyStoreSave.test.ts` — 네 스토어의 저장·삭제 (FR-011, FR-014)
   - 200 결과 뒤 `PUT`의 `condition`이 지금 항목 모양(`id`·`savedAt` 없음)이다. 202 뒤에는 저장하지 않는다.
   - 저장이 실패하면 결과는 그대로이고 `historySaveError`가 F6 문구다. 삭제가 실패하면 "이력을 지우지 못했습니다."다.
   - 다시 실행·비교가 서버 `id`로 항목을 찾는다.
   - 저장 응답 목록으로 `history`가 바뀌고 `retentionDays`가 실린다.
   - 목록이 새로 와서 선택한 항목이 빠지면(보관 기간 정리), `selectedHistory`에서 그 `id`가 빠지고 이미 받은 `comparison`은 그대로다(spec Edge Cases — 비교에
     쓰인 항목이 기간 지나 지워짐). 비교 단추는 남은 선택 수로 판단한다.
-- [ ] T048 [P] [US3] `frontend/tests/HistoryPanelStates.test.tsx` — 이력 부품 넷 (FR-014, FR-014a, FR-015, contracts/ui-wireframes.md F6)
+- [X] T048 [P] [US3] `frontend/tests/HistoryPanelStates.test.tsx` — 이력 부품 넷 (FR-014, FR-014a, FR-015, contracts/ui-wireframes.md F6)
   - 안내
     - "ⓘ 이 기기의 로컬 DB에 저장됩니다. 마지막 실행 뒤 30일이 지나면 지워집니다 — 기간은 설정에서 바꿉니다." + 자산군 구별 문구(지금 그대로)
     - 무기한이면 "기한 없이 남습니다."다
@@ -413,11 +413,11 @@ description: "Task list for 012-period-tables-history-db"
     - 불러오기 실패는 `role="alert"`와 다시 시도 단추이고, 누르면 `onRetry`다
     - 옮기지 못한 수를 알린다
   - 지금 속성만으로 그려도 그대로 그린다(선택 속성).
-- [ ] T049 [P] [US3] `frontend/tests/HistoryRetentionSection.test.tsx` — 설정 절 (FR-012, F7)
+- [X] T049 [P] [US3] `frontend/tests/HistoryRetentionSection.test.tsx` — 설정 절 (FR-012, F7)
   - GET으로 값을 보이고, 선택지는 여섯(7일·30일·90일·180일·365일·무기한)이다. 줄이면 곧바로 지워진다는 안내가 있다.
   - 저장은 `PUT {"retentionDays": …}`이고 무기한은 `null`이다.
   - 성공하면 "저장했습니다. 기간이 지난 항목은 곧바로 지웠습니다."다. 실패하면 붉은 `role="alert"`에 서버 메시지다.
-- [ ] T050 [US3] T038에서 승인된 프론트엔드 기존 테스트를 고친다 (FR-011, FR-015)
+- [X] T050 [US3] T038에서 승인된 프론트엔드 기존 테스트를 고친다 (FR-011, FR-015)
   - lib 테스트 일곱을 삭제한다. 그 검사는 T039·T040·T044·T046으로 옮겨졌는지 T038의 짝으로 확인한다.
   - 안내 문구 검사를 새 문구로 바꾼다.
   - 키에 심는 테스트를 대역 도우미로 바꾼다. 고친 줄 위에 `// 012 승인 <날짜>` 주석을 단다.
@@ -443,10 +443,12 @@ description: "Task list for 012-period-tables-history-db"
   - 비동기 `restoreHistory`, `historyLoading`·`historyLoadError`·`historyNotice`·`retentionDays`
   - 저장 `PUT`·삭제 `DELETE`
   - `frontend/src/lib/simulationHistory.ts`·`cryptoHistory.ts`·`depositHistory.ts`·`realEstateHistory.ts`를 지운다.
+  - 넷이 같은 흐름(불러오기·옮기기·저장·삭제와 실패 문구)은 `frontend/src/lib/historyFlow.ts` 한 곳에 둔다 — 한 자산군만 실패를 삼키지 않게 한다.
 - [ ] T057 [US3] 이력 부품 넷 — `components/stock/SimulationHistory.tsx`·`components/crypto/CryptoHistory.tsx`·`components/deposit/DepositHistory.tsx`·`components/realestate/RealEstateHistory.tsx` (FR-014, FR-014a, FR-015, F6)
   - 선택 속성: `loading`·`loadError`·`onRetry`·`notice`·`retentionDays`
   - 안내 문구를 바꾼다.
-- [ ] T058 [US3] `frontend/src/components/settings/HistoryRetentionForm.tsx`·`frontend/src/app/settings/page.tsx`(맨 아래 절) (FR-012, F7)
+  - 안내·상태는 `frontend/src/components/history/HistoryStates.tsx`(`HistoryNotice`·`HistoryContent`)를 넷이 함께 쓴다.
+- [ ] T058 [US3] `frontend/src/components/settings/HistoryRetentionSection.tsx`(불러오기·저장·알림을 함께 가진 절 — T049가 홀로 그린다)·`frontend/src/app/settings/page.tsx`(맨 아래 절) (FR-012, F7)
 - [ ] T059 [US3] 화면 넷 — `frontend/src/app/{stocks,crypto,deposit,realestate}/page.tsx` — 이력 부품에 새 속성을 넘긴다. 마운트 효과의 주석("이력은 브라우저에 있다")을 고친다 (FR-014a, FR-015)
 - [ ] T060 [US3] 검증 — quickstart 2·3-4·3-5(API)·4-3~4-5(브라우저) (FR-011~FR-015, SC-006, SC-007)
   - 012 전 형식 옛 키가 있는 브라우저 프로필에서 네 화면을 연다.
@@ -618,6 +620,11 @@ Task: "T025 화면 테스트 — 탭·창 그대로"
   화면 런타임 2건(◇)·tsc 15곳(고정 행 `month_first`·`firstDayMissing`). 바꾸는 이유 다섯(① 첫 쪽의 매수 행 ② 월 행 → 말일 기준·그날 행 ③ ◇ → 결측
   구간 행 ④ 적립식 표의 기간 행 ⑤ 차트-표 날짜 묶음). R12-15 목록 밖 6건도 같은 이유였고 결함이 아니다(research R12-15에 더했다). 고친 줄 위에
   `012 승인 2026-10-06` 주석
+- **2026-10-07 T038 승인(사용자)**: 구현을 작업 트리에 둔 채 전체 스위트를 돌려 **실제로 실패한** 기존 테스트로 목록을 만들었다 — 백엔드 0건(2,820 passed),
+  화면 20개 파일. 모두 research R12-15 US3 목록 안이다. lib 테스트 일곱은 지웠다(식별자·중복·차례·결과 미저장·삭제 → T039·T040, 키·깨진 저장소 → T044,
+  저장 실패 알림 → T047, 011 전 형식 → T039·T040). 안내 문구 검사 다섯은 새 문구로, 키에 심고 읽던 열은 이력 대역으로 바꿨다 — `SimulationHistoryBlocked`·
+  `StocksPageRerun`은 옛 키(`LEGACY_KEYS.stock`)에 그대로 심어 옮기기를 거치게 했다. 고친 줄 위에 `012 승인 2026-10-07` 주석
+- **2026-10-07 T037**: 개발 DB 머리 리비전이 `f4c2a8e19d35`였다(`alembic upgrade head`가 `f4c2a8e19d35 -> a6d2f9c41b83`을 올렸다)
 - (T067 결과와 승인 날짜를 여기에 적는다.)
 
 ## 요구사항 ↔ 태스크

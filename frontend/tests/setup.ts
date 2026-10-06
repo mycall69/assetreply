@@ -50,3 +50,17 @@ if (typeof Storage === "function" && typeof localStorage?.clear !== "function") 
     value: Object.create(Storage.prototype) as Storage,
   });
 }
+
+// 012 T043 — `/api/history` 대역(research R12-12). 이력은 시뮬레이션과 실패 영역이 다르고, 화면은 공통 요청 함수로 `fetch`를 부른다. 이력이 주제가
+// 아닌 테스트는 빈 이력과 성공하는 저장을 본다. 그 밖의 경로는 원래 `fetch`로 넘긴다(지금과 같다). 테스트마다 비운다.
+import { beforeEach } from "vitest";
+import { handleHistory, resetHistoryStub } from "./support/historyStub";
+
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  const answered = await handleHistory(input, init);
+  return answered ?? originalFetch(input, init);
+};
+beforeEach(() => {
+  resetHistoryStub();
+});

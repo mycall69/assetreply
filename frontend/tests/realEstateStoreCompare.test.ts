@@ -16,18 +16,15 @@
  *   `comparison: ComparisonItem[]`(`@/components/stock/ComparisonChart`), `comparing: boolean`, `comparisonError: string | null`
  * - 동작: `restoreHistory()`, `toggleHistory(id)`, `removeHistoryEntry(id)`, `rerunHistory(id): Promise<void>`,
  *   `compareSelected(): Promise<void>`
- * - 실행이 200이면 `saveRealEstateHistory`로 조건(응답의 단지 id·이름과 평형 키·이름, 고른 동 코드, 매입일, 매입가 또는 `null`)을 남긴다
+ * - 실행이 200이면 조건(응답의 단지 id·이름과 평형 키·이름, 고른 동 코드, 매입일, 매입가 또는 `null`)을 남긴다 — 012부터 로컬 DB(이력 대역)다
  * - 다시 실행은 동 코드로 시·도(앞 2자리 + `00000000`)·시·군·구(앞 5자리 + `00000`)를 정해 고르기와 같은 요청으로 목록을 채운다
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/apiClient";
-import {
-  type RealEstateHistoryCondition,
-  loadRealEstateHistory,
-  saveRealEstateHistory,
-} from "@/lib/realEstateHistory";
-import type { SimulationSeriesResponse } from "@/lib/types";
+import type { RealEstateHistoryEntry, SimulationSeriesResponse } from "@/lib/types";
 import { useRealEstateStore } from "@/stores/realEstateStore";
+// 012 승인 2026-10-07 — 012부터 이력은 로컬 DB에 있다. 브라우저 lib 대신 이력 대역에 심고 읽는다(research R12-12).
+import { historyStub } from "./support/historyStub";
 import {
   GARAK,
   GARAK_COMPLEXES,
@@ -72,6 +69,9 @@ const PROVISIONAL_SERIES: SimulationSeriesResponse = {
     { date: "2026-10-05", balance: "2450000000", returnRate: "0.146780", estimated: true, provisional: true }],
 };
 
+// 012 승인 2026-10-07 — 조건 모양은 012 전 lib의 조건과 같다(식별자·시각 없음).
+type RealEstateHistoryCondition = Omit<RealEstateHistoryEntry, "id" | "savedAt" | "lastRunAt">;
+
 const helio: RealEstateHistoryCondition = {
   complexId: HELIO_ID, complexName: "헬리오시티", umd: GARAK, area: "30k", areaLabel: "30평대(국평)",
   buyDate: "2021-03-15", buyPrice: null,
@@ -100,7 +100,8 @@ describe("이력", () => {
     routeRealEstate((path) => splitPath(path).base === SIMULATION ? SIM_RESULT
       : splitPath(path).base === SERIES_PATH ? SERIES : realEstateRoutes(path));
     await state().run();
-    expect(loadRealEstateHistory().map((e) => [e.complexId, e.complexName, e.umd, e.area, e.areaLabel, e.buyDate,
+    // 012 승인 2026-10-07
+    expect((historyStub.entries("realestate") as unknown as RealEstateHistoryEntry[]).map((e) => [e.complexId, e.complexName, e.umd, e.area, e.areaLabel, e.buyDate,
       e.buyPrice])).toEqual([[HELIO_ID, "헬리오시티", GARAK, "30k", "30평대(국평)", "2021-03-15", null]]);
     expect(state().history).toHaveLength(1);
   });
@@ -110,14 +111,14 @@ describe("이력", () => {
     routeRealEstate((path) => splitPath(path).base === SIMULATION ? SIM_RESULT : realEstateRoutes(path));
     state().setInput({ buyPrice: "2000000000" });
     await state().run();
-    expect(loadRealEstateHistory()[0].buyPrice).toBe("2000000000");
+    expect(historyStub.entries("realestate")[0].buyPrice).toBe("2000000000"); // 012 승인 2026-10-07
   });
 
   it("수집 중이면 남기지 않는다", async () => {
     chooseForRun();
     routeRealEstate((path) => splitPath(path).base === SIMULATION ? SIM_COLLECTING : realEstateRoutes(path));
     await state().run();
-    expect(loadRealEstateHistory()).toEqual([]);
+    expect(historyStub.entries("realestate")).toEqual([]); // 012 승인 2026-10-07
   });
 
   it("거절되면 남기지 않는다", async () => {
@@ -126,12 +127,12 @@ describe("이력", () => {
       ? new ApiError(409, "no_trades_in_area", "거래가 없습니다.", { status: "no_trades_in_area", message: "거래가 없습니다." })
       : realEstateRoutes(path));
     await state().run();
-    expect(loadRealEstateHistory()).toEqual([]);
+    expect(historyStub.entries("realestate")).toEqual([]); // 012 승인 2026-10-07
   });
 
   it("다시 실행 — 지역 풀다운까지 그 단지의 지역으로 맞추고 조건을 넣어 곧바로 실행한다", async () => {
-    saveRealEstateHistory({ ...helio, buyDate: "2022-06-15", buyPrice: "2100000000" });
-    state().restoreHistory();
+    historyStub.seed("realestate", [{ ...helio, buyDate: "2022-06-15", buyPrice: "2100000000" }]); // 012 승인 2026-10-07
+    await state().restoreHistory();
     // 지금은 다른 지역(경기도)을 보고 있다.
     useRealEstateStore.setState({
       regions: { sido: null, sgg: GYEONGGI_SGGS.items, umd: null },
@@ -155,8 +156,8 @@ describe("이력", () => {
   });
 
   it("그 달 시세로 산 이력을 다시 실행하면 매입가 칸이 빈다", async () => {
-    saveRealEstateHistory(helio);
-    state().restoreHistory();
+    historyStub.seed("realestate", [helio]); // 012 승인 2026-10-07
+    await state().restoreHistory();
     useRealEstateStore.setState({ input: { buyDate: "2020-01-01", buyPrice: "999" } });
     const get = routeRealEstate((path) => splitPath(path).base === SIMULATION ? SIM_RESULT : realEstateRoutes(path));
     await state().rerunHistory(state().history[0].id);
@@ -164,21 +165,22 @@ describe("이력", () => {
     expect(params(paths(get, SIMULATION)[0])).not.toHaveProperty("buyPrice");
   });
 
-  it("지우면 비교 선택과 비교 선에서도 빠진다", () => {
-    saveRealEstateHistory(helio);
-    state().restoreHistory();
+  // 012 승인 2026-10-07 — 대역에 심고 목록을 받는다. 지우기는 서버 요청이라 기다린다.
+  it("지우면 비교 선택과 비교 선에서도 빠진다", async () => {
+    historyStub.seed("realestate", [helio]);
+    await state().restoreHistory();
     const [entry] = state().history;
     useRealEstateStore.setState({ selectedHistory: [entry.id],
       comparison: [{ id: entry.id, label: "헬리오시티 30평대(국평)", start: "2021-03-15", series: SERIES }] });
-    state().removeHistoryEntry(entry.id);
+    await state().removeHistoryEntry(entry.id);
     const s = state();
     expect([s.history, s.selectedHistory, s.comparison]).toEqual([[], [], []]);
-    expect(loadRealEstateHistory()).toEqual([]);
+    expect(historyStub.entries("realestate")).toEqual([]);
   });
 
-  it("고르기는 켜고 끈다", () => {
-    saveRealEstateHistory(helio);
-    state().restoreHistory();
+  it("고르기는 켜고 끈다", async () => {
+    historyStub.seed("realestate", [helio]); // 012 승인 2026-10-07
+    await state().restoreHistory();
     const [entry] = state().history;
     state().toggleHistory(entry.id);
     expect(state().selectedHistory).toEqual([entry.id]);
@@ -188,16 +190,17 @@ describe("이력", () => {
 });
 
 describe("비교 (FR-033)", () => {
-  function seed(...conditions: RealEstateHistoryCondition[]): void {
-    for (const c of conditions) saveRealEstateHistory(c);
-    state().restoreHistory();
+  // 012 승인 2026-10-07 — 대역에 심고 목록을 받는다(나중에 심은 것이 맨 앞이다).
+  async function seed(...conditions: RealEstateHistoryCondition[]): Promise<void> {
+    historyStub.seed("realestate", conditions);
+    await state().restoreHistory();
     useRealEstateStore.setState({ selectedHistory: state().history.map((e) => e.id) });
   }
 
   const twenty: RealEstateHistoryCondition = { ...helio, area: "20", areaLabel: "20평대", buyPrice: "1500000000" };
 
   it("고른 이력을 지금 다시 계산해 겹친다 — 범례는 단지·평형, 시작은 매입일, 잠정 선이면 (잠정)", async () => {
-    seed(twenty, helio);
+    await seed(twenty, helio);
     const get = routeRealEstate((path) => params(path).area === "30k" ? PROVISIONAL_SERIES : SERIES);
     await state().compareSelected();
     const sent = get.mock.calls.map(([p]) => String(p));
@@ -214,7 +217,7 @@ describe("비교 (FR-033)", () => {
   });
 
   it("하나만 골랐으면 비교하지 않는다", async () => {
-    seed(helio);
+    await seed(helio);
     const get = routeRealEstate(() => SERIES);
     await state().compareSelected();
     expect(get).not.toHaveBeenCalled();
@@ -223,7 +226,7 @@ describe("비교 (FR-033)", () => {
 
   it("받지 않은 구간이 있거나 모르는 단지면 이름과 사유를 말하고 나머지로 비교한다", async () => {
     const gone = { ...helio, complexId: 987654, complexName: "옛 단지" };
-    seed(twenty, gone, helio);
+    await seed(twenty, gone, helio);
     routeRealEstate((path) => {
       const { complexId, area } = params(path);
       if (complexId === "987654") {
@@ -240,7 +243,7 @@ describe("비교 (FR-033)", () => {
   });
 
   it("그 밖의 실패는 서버의 사유를 이름과 함께 말한다", async () => {
-    seed(twenty, helio);
+    await seed(twenty, helio);
     routeRealEstate((path) => params(path).area === "20"
       ? new ApiError(409, "region_retired", "시·군·구 코드가 바뀌었습니다.",
         { status: "region_retired", message: "시·군·구 코드가 바뀌었습니다.", lawdCd: "11710" })

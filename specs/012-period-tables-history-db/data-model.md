@@ -151,7 +151,7 @@ TableEntry(kind, date, shifted_from: date | None, is_ongoing: bool, date_to: dat
 | `historyLoadError` | `null` | 옮기기·목록 실패(spec FR-014a) |
 | `historySaveError` | `null` | 저장·삭제 실패(지금 칸 — 문구만 바뀐다) |
 | `historyNotice` | `null` | 옮기지 못한 항목 수 알림 |
-| `retentionDays` | `null` | 목록 응답의 보관 기간(안내 문구 — `null`이면 무기한) |
+| `retentionDays` | `undefined` | 목록 응답의 보관 기간(안내 문구 — `null`이면 무기한, `undefined`면 아직 몰라 기간을 말하지 않는다) |
 
 **행동**
 - `restoreHistory()`(비동기)는 옮기기 → 목록이다(research R12-11). 다시 시도도 같은 행동이다.

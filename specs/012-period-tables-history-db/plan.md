@@ -144,16 +144,18 @@ frontend/
 ├── src/lib/types.ts                         # 행 kind(buy·period·missing), shiftedFrom·isOngoing·dateTo, 응답 period, 이력 응답
 ├── src/lib/apiClient.ts                     # request 공개, delete
 ├── src/lib/historyApi.ts · legacyHistory.ts # (신규) 이력 경로, 옛 키 읽기·지우기
+├── src/lib/historyFlow.ts                   # (신규) 네 스토어가 함께 쓰는 불러오기·옮기기·저장·삭제와 실패 문구
 ├── src/lib/simulationHistory.ts · cryptoHistory.ts · depositHistory.ts · realEstateHistory.ts   # (삭제) 저장·식별자는 서버로
 ├── src/lib/principalFormat.ts               # DEFAULT_PRINCIPAL
 ├── src/stores/stockStore.ts · cryptoStore.ts   # tablePeriod·tableSeq·setTablePeriod, 이력 비동기, 원금 처음 값
 ├── src/stores/depositStore.ts · realEstateStore.ts   # 이력 비동기(+ 예금 원금 처음 값)
 ├── src/components/stock/SimulationHistory.tsx · crypto/CryptoHistory.tsx · deposit/DepositHistory.tsx
 │   · realestate/RealEstateHistory.tsx       # 안내 문구, 불러오는 중·불러오기 실패·다시 시도, 옮기지 못한 수
-├── src/components/settings/HistoryRetentionForm.tsx · src/app/settings/page.tsx   # (신규 절)
+├── src/components/history/HistoryStates.tsx # (신규) 넷이 함께 쓰는 안내·상태(HistoryNotice·HistoryContent)
+├── src/components/settings/HistoryRetentionSection.tsx · src/app/settings/page.tsx   # (신규 절)
 ├── src/app/{stocks,crypto,deposit,realestate}/page.tsx   # 단위 탭·붙잡기(주식·가상자산), 이력 속성
 └── tests/             # 새 파일 — 스크롤 위치, 단위 탭·표시·결측 행, 늦은 응답, 이력 상태·옮기기, 설정 절, 원금 처음 값
-                       # setup.ts — /api/history 대역
+                       # setup.ts — /api/history 대역(도우미는 tests/support/historyStub.ts)
 
 CLAUDE.md · README.md   # 현재 상태 표에 012, 이력 DB·보관 기간·period 질의 주의
 ```

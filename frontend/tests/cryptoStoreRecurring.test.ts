@@ -10,7 +10,6 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "@/lib/apiClient";
-import { loadCryptoHistory } from "@/lib/cryptoHistory";
 import type {
   CryptoHistoryEntry,
   CryptoSimulationResponse,
@@ -18,6 +17,8 @@ import type {
   SimulationSeriesResponse,
 } from "@/lib/types";
 import { useCryptoStore } from "@/stores/cryptoStore";
+// 012 승인 2026-10-07 — 012부터 이력은 로컬 DB에 있다. 브라우저 lib 대신 이력 대역에서 읽는다(research R12-12).
+import { historyStub } from "./support/historyStub";
 import { BTC } from "./support/coinSearchFixtures";
 
 vi.mock("@/lib/cryptoProgressStream", () => ({ subscribeCryptoProgress: () => () => undefined }));
@@ -105,7 +106,7 @@ describe("가상자산 적립식 실행", () => {
     const state = useCryptoStore.getState();
     expect(state.collecting).toMatchObject({ status: "collecting", jobId: 7 });
     expect(state.recurring).toBeNull();
-    expect(loadCryptoHistory()).toEqual([]);
+    expect(historyStub.entries("crypto")).toEqual([]); // 012 승인 2026-10-07
   });
 
   it("방식이나 주기를 바꾸면 두 결과를 모두 비운다", async () => {
@@ -132,7 +133,8 @@ describe("가상자산 적립식 실행", () => {
     mockGet();
     useCryptoStore.getState().setPlan({ mode: "recurring", frequency: "daily" });
     await useCryptoStore.getState().run();
-    expect(loadCryptoHistory()[0]).toMatchObject({ mode: "recurring", frequency: "daily", principal: "10000" });
+    // 012 승인 2026-10-07
+    expect(historyStub.entries("crypto")[0]).toMatchObject({ mode: "recurring", frequency: "daily", principal: "10000" });
   });
 
   it("설정이 바뀐 뒤 다시 받기는 적립식 결과에도 한다", async () => {

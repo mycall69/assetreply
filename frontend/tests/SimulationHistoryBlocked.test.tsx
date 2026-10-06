@@ -8,9 +8,11 @@ import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SimulationHistory } from "@/components/stock/SimulationHistory";
 import { apiClient } from "@/lib/apiClient";
-import { HISTORY_KEY, loadHistory } from "@/lib/simulationHistory";
+// 012 승인 2026-10-07 — 012부터 옛 브라우저 키는 화면을 열 때 로컬 DB로 옮겨진다. 막힌 조합 항목도 옮겨져 남아야 한다(FR-013).
+import { LEGACY_KEYS } from "@/lib/legacyHistory";
 import type { SimulationHistoryEntry } from "@/lib/types";
 import { useStockStore } from "@/stores/stockStore";
+import { historyStub } from "./support/historyStub";
 
 vi.mock("@/lib/stockProgressStream", () => ({
   subscribeStockProgress: () => () => undefined,
@@ -38,16 +40,17 @@ const SERIES = {
 beforeEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
-  localStorage.setItem(HISTORY_KEY, JSON.stringify([APPLE_EUR, SAMSUNG_KRW]));
+  localStorage.setItem(LEGACY_KEYS.stock, JSON.stringify([APPLE_EUR, SAMSUNG_KRW])); // 012 승인 2026-10-07
   useStockStore.setState({ history: [], selectedHistory: [], comparison: [],
     comparisonError: null });
 });
 
 describe("막힌 조합 이력", () => {
-  it("지우지 않고 남긴다", () => {
-    useStockStore.getState().restoreHistory();
+  // 012 승인 2026-10-07 — 불러오기는 옮기기·목록 요청이라 기다린다. 남는 곳은 로컬 DB(이력 대역)다.
+  it("지우지 않고 남긴다", async () => {
+    await useStockStore.getState().restoreHistory();
     expect(useStockStore.getState().history.map((e) => e.id)).toEqual(["eur", "ok"]);
-    expect(loadHistory()).toHaveLength(2);
+    expect(historyStub.entries("stock")).toHaveLength(2);
   });
 
   it("목록에서 사유와 함께 보인다", () => {
@@ -61,7 +64,7 @@ describe("막힌 조합 이력", () => {
 
   it("비교에 고르면 조용히 빼지 않고 사유를 보인다", async () => {
     const get = vi.spyOn(apiClient, "get").mockResolvedValue(SERIES);
-    useStockStore.getState().restoreHistory();
+    await useStockStore.getState().restoreHistory(); // 012 승인 2026-10-07
     useStockStore.setState({ selectedHistory: ["eur", "ok"] });
     await useStockStore.getState().compareSelected();
 

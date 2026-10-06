@@ -11,11 +11,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CryptoHistory } from "@/components/crypto/CryptoHistory";
 import { ComparisonChart } from "@/components/stock/ComparisonChart";
 import { ApiError, apiClient } from "@/lib/apiClient";
-import { loadCryptoHistory, saveCryptoHistory } from "@/lib/cryptoHistory";
 import type { CryptoHistoryEntry } from "@/lib/types";
 import { useCryptoStore } from "@/stores/cryptoStore";
 import { BTC, MAX_TOKEN } from "./support/coinSearchFixtures";
 import { RESULT } from "./support/cryptoFixtures";
+// 012 승인 2026-10-07 — 012부터 이력은 로컬 DB에 있다. 브라우저 lib 대신 이력 대역에 심고 읽는다(research R12-12).
+import { historyStub } from "./support/historyStub";
 
 vi.mock("@/lib/cryptoProgressStream", () => ({ subscribeCryptoProgress: () => () => undefined }));
 vi.mock("@/lib/collectionStream", () => ({ subscribeCollection: () => () => undefined }));
@@ -70,7 +71,8 @@ describe("이력 줄", () => {
     expect(row).toContain("BTC");
     expect(row).toContain("2020-01-15");
     expect(row).toContain("10,000 USD");
-    expect(screen.getByTestId("history-notice").textContent).toContain("이 브라우저에만");
+    // 012 승인 2026-10-07 — 보관 위치는 이 기기의 로컬 DB다(FR-015).
+    expect(screen.getByTestId("history-notice").textContent).toContain("이 기기의 로컬 DB에");
   });
 
   it("한글 이름이 없으면 영문 이름이다", () => {
@@ -98,7 +100,7 @@ describe("저장소 — 이력", () => {
   it("결과가 나오면 조건을 이력에 남긴다", async () => {
     vi.spyOn(apiClient, "get").mockResolvedValueOnce(RESULT).mockResolvedValueOnce(SERIES);
     await useCryptoStore.getState().run();
-    const [saved] = loadCryptoHistory();
+    const [saved] = historyStub.entries("crypto") as unknown as CryptoHistoryEntry[]; // 012 승인 2026-10-07
     expect(saved.coin.coinId).toBe(BTC.coinId);
     expect(useCryptoStore.getState().history).toHaveLength(1);
   });
@@ -106,13 +108,14 @@ describe("저장소 — 이력", () => {
   it("수집 중(202)이면 남기지 않는다", async () => {
     vi.spyOn(apiClient, "get").mockResolvedValue({ status: "collecting", coinId: BTC.coinId, jobId: 3 });
     await useCryptoStore.getState().run();
-    expect(loadCryptoHistory()).toEqual([]);
+    expect(historyStub.entries("crypto")).toEqual([]); // 012 승인 2026-10-07
   });
 
   it("다시 실행하면 그 조건으로 실행하고, 코인이 없으면 다시 고르라고 한다", async () => {
-    saveCryptoHistory({ coin: { ...BTC, coinId: 404 }, start: "2019-05-01", principal: "500",
-      principalCurrency: "USD" });
-    useCryptoStore.getState().restoreHistory();
+    // 012 승인 2026-10-07 — 대역에 심고 목록을 받는다.
+    historyStub.seed("crypto", [{ coin: { ...BTC, coinId: 404 }, start: "2019-05-01", principal: "500",
+      principalCurrency: "USD" }]);
+    await useCryptoStore.getState().restoreHistory();
     const get = vi.spyOn(apiClient, "get").mockRejectedValue(new ApiError(404, "unknown_coin",
       "목록에서 찾을 수 없는 코인입니다(id 404).", { status: "unknown_coin", action: "reselect" }));
     await useCryptoStore.getState().rerunHistory(useCryptoStore.getState().history[0].id);
@@ -124,10 +127,11 @@ describe("저장소 — 이력", () => {
 
 describe("저장소 — 비교", () => {
   it("고른 이력을 지금 다시 계산해 겹치고 기준은 모두 KRW다", async () => {
-    saveCryptoHistory({ coin: BTC, start: "2020-01-15", principal: "10000", principalCurrency: "USD" });
-    saveCryptoHistory({ coin: MAX_TOKEN, start: "2021-06-01", principal: "10000000",
-      principalCurrency: "KRW" });
-    useCryptoStore.getState().restoreHistory();
+    // 012 승인 2026-10-07 — 대역에 심고 목록을 받는다. 나중에 심은 것이 맨 앞이다(마지막 실행 내림차순).
+    historyStub.seed("crypto", [{ coin: BTC, start: "2020-01-15", principal: "10000", principalCurrency: "USD" }]);
+    historyStub.seed("crypto", [{ coin: MAX_TOKEN, start: "2021-06-01", principal: "10000000",
+      principalCurrency: "KRW" }]);
+    await useCryptoStore.getState().restoreHistory();
     for (const e of useCryptoStore.getState().history) useCryptoStore.getState().toggleHistory(e.id);
     const get = vi.spyOn(apiClient, "get").mockResolvedValue(SERIES);
     await useCryptoStore.getState().compareSelected();
@@ -141,11 +145,12 @@ describe("저장소 — 비교", () => {
   });
 
   it("코인이 없거나 막힌 조합이면 빼되 사유를 말한다", async () => {
-    saveCryptoHistory({ coin: BTC, start: "2020-01-15", principal: "10000", principalCurrency: "USD" });
-    saveCryptoHistory({ coin: { ...MAX_TOKEN, coinId: 404 }, start: "2021-06-01", principal: "1",
-      principalCurrency: "USD" });
-    saveCryptoHistory({ coin: MAX_TOKEN, start: "2021-06-01", principal: "1", principalCurrency: "JPY" });
-    useCryptoStore.getState().restoreHistory();
+    // 012 승인 2026-10-07 — 대역에 심고 목록을 받는다.
+    historyStub.seed("crypto", [
+      { coin: BTC, start: "2020-01-15", principal: "10000", principalCurrency: "USD" },
+      { coin: { ...MAX_TOKEN, coinId: 404 }, start: "2021-06-01", principal: "1", principalCurrency: "USD" },
+      { coin: MAX_TOKEN, start: "2021-06-01", principal: "1", principalCurrency: "JPY" }]);
+    await useCryptoStore.getState().restoreHistory();
     for (const e of useCryptoStore.getState().history) useCryptoStore.getState().toggleHistory(e.id);
     vi.spyOn(apiClient, "get").mockImplementation(((path: string) => path.includes("coinId=404")
       ? Promise.reject(new ApiError(404, "unknown_coin", "목록에서 찾을 수 없는 코인입니다(id 404).",

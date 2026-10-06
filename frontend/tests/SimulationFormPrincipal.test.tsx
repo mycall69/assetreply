@@ -10,9 +10,10 @@ import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SimulationForm, type FormValues } from "@/components/stock/SimulationForm";
 import { apiClient } from "@/lib/apiClient";
-import { loadHistory } from "@/lib/simulationHistory";
 import type { SimulationResponse } from "@/lib/types";
 import { useStockStore } from "@/stores/stockStore";
+// 012 승인 2026-10-07 — 012부터 이력은 로컬 DB에 있다. 브라우저 lib 대신 이력 대역에서 읽는다(research R12-12).
+import { historyStub } from "./support/historyStub";
 
 const VALUES: FormValues = {
   start: "2021-08-02", principal: "10000000", principalCurrency: "KRW", reinvest: true,
@@ -112,6 +113,6 @@ describe("요청과 이력에는 쉼표가 없다 (SC-018)", () => {
       .find((path) => path.startsWith("/api/stocks/simulation?"));
     expect(table).toContain("principal=10000000");
     expect(table).not.toMatch(/principal=[^&]*%2C/);
-    expect(loadHistory()[0].principal).toBe("10000000");
+    expect(historyStub.entries("stock")[0].principal).toBe("10000000"); // 012 승인 2026-10-07
   });
 });

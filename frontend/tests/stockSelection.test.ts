@@ -7,10 +7,11 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, apiClient } from "@/lib/apiClient";
-import { loadHistory } from "@/lib/simulationHistory";
 import type { LocalStockResult, SelectionResponse, SimulationResponse } from "@/lib/types";
 import { useStockStore } from "@/stores/stockStore";
 import { SAMSUNG, TOYOTA } from "./support/stockSearchFixtures";
+// 012 승인 2026-10-07 — 012부터 이력은 로컬 DB에 있다. 브라우저 lib 대신 이력 대역에서 읽는다(research R12-12).
+import { historyStub } from "./support/historyStub";
 
 const REGISTERED: SelectionResponse = {
   market: "KRX", symbol: "005930.KS", name: "삼성전자", currency: "KRW",
@@ -128,7 +129,7 @@ describe("등록 뒤", () => {
 
     expect(get.mock.calls[0][0]).toContain("market=AMEX");
     expect(get.mock.calls[0][0]).toContain("symbol=SPY");
-    expect(loadHistory()[0].stock).toEqual({
+    expect(historyStub.entries("stock")[0].stock).toEqual({ // 012 승인 2026-10-07
       market: "AMEX", symbol: "SPY", name: "SPDR S&P 500", currency: "USD" });
   });
 
