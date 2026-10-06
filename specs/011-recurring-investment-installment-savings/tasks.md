@@ -113,7 +113,7 @@ description: "Task list for 011-recurring-investment-installment-savings"
 
 ### Tests for Foundational ⚠️
 
-- [ ] T004 [P] `backend/tests/unit/test_contribution_schedule.py` — `simulation/contribution_schedule` (FR-003~FR-005, FR-010, FR-018, SC-002)
+- [X] T004 [P] `backend/tests/unit/test_contribution_schedule.py` — `simulation/contribution_schedule` (FR-003~FR-005, FR-010, FR-018, SC-002)
   - `scheduled_dates(start, end, frequency, trading_days=…)`
     - 매주 = 시작일 + 7k
     - 매달 = 시작일 날짜, 없는 달은 말일(1-31 → 2-28/29·3-31·4-30)이고 늘 시작일에서 센다(4-30 다음이 5-31)
@@ -132,28 +132,29 @@ description: "Task list for 011-recurring-investment-installment-savings"
     - USD 원금 → 금액 그대로, `basis_krw = to_principal(금액, 그날 매매기준율, "KRW")`, `fx_kind "base"`
     - 예정일 n개가 모인 납입의 금액 = 납입액 × n
     - 그날 이전 환율이 없으면 예외
-- [ ] T005 [P] `backend/tests/integration/test_stock_sale_tax_setting.py` — `repository/stock_setting`의 `get_sale_tax`·`save_sale_tax` (FR-035, FR-037, data-model 1.1)
+- [X] T005 [P] `backend/tests/integration/test_stock_sale_tax_setting.py` — `repository/stock_setting`의 `get_sale_tax`·`save_sale_tax` (FR-035, FR-037, data-model 1.1)
   - 통합 DB 세션 fixture(`session_factory`)를 쓰는 저장소 검사다.
   - 행 없음 → 기본값 `Decimal("0.0020")`·`Decimal("0.22")`·`Decimal("2500000")`, `str()` 결과가 `"0.0020"`·`"0.22"`·`"2500000"`, `is_default True`
   - 수수료·배당 세율만 저장한 기존 행 → 세 열 NULL → 기본값
   - 저장한 뒤 → DB 6자리(`"0.001500"`), `is_default False`
   - 기존 `get_settings`·`save_settings` 결과 불변
-- [ ] T006 [P] `frontend/tests/PerformanceChartPrincipal.test.tsx` — 파일 안의 인라인 모의 객체(기존 차트 테스트와 같은 방식) (FR-015, FR-019, FR-032)
+- [X] T006 [P] `frontend/tests/PerformanceChartPrincipal.test.tsx` — 파일 안의 인라인 모의 객체(기존 차트 테스트와 같은 방식) (FR-015, FR-019, FR-032)
   - 점에 `principal`이 있으면 잔고 축(`left`)에 점선 시리즈가 하나 더 생긴다(`lineStyle` 숫자 리터럴). 값 = `Number(principal)`, 날짜 = 점.
   - 결측 `gaps`·`provisionalFrom`에서 잔고 선과 같이 끊고 구별한다.
   - 범례 "┄ 누적 납입 원금 (KRW)"
   - 커서 상자에 "누적 납입 원금 ₩…"(표와 같은 `formatMoneyWithSymbol`), `depositRate`가 있으면 "정기예금 금리 2.9%"(`formatAnnualRate`)
   - **같은 응답에서 `principal`·`depositRate` 키를 지우면 시리즈 수·옵션·범례가 지금과 같다**
-- [ ] T007 [P] `frontend/tests/chartHoverPrincipal.test.ts` — `lib/chartHover` (FR-015, FR-032)
+- [X] T007 [P] `frontend/tests/chartHoverPrincipal.test.ts` — `lib/chartHover` (FR-015, FR-032)
   - `hoverView`가 `principal` 키가 있는 점에서 "누적 납입 원금" 줄을 잔고 다음에 둔다.
   - 적금 시계열(`priceKind "installment_rate"`)에서 "적금 금리"·"정기예금 금리" 줄을 둔다.
   - 키가 없으면 기존 줄 목록과 같다(기존 `chartHover.test.ts` 그대로).
-- [ ] T008 **기존 테스트 변경 승인을 받는다**(A1·A2 — research R11-7, plan 설계 후 재평가)
+- [X] T008 **기존 테스트 변경 승인을 받는다**(A1·A2 — research R11-7, plan 설계 후 재평가)
   - 사용자에게 두 파일의 바뀔 검사(이름·이유·바뀐 기대값)를 보이고 승인을 받는다.
     - `backend/tests/unit/test_stock_sale_cost.py`: 시행일 표·`transaction_tax_rate`·표 밖 검사 셋 → 세율 인자 검사
     - `backend/tests/integration/test_stock_sale_cost_api.py::test_세율_표_밖_기준일은_세금을_비운다` → 2021 기준일도 설정 세율
   - 승인 전에는 T009를 시작하지 않는다. (FR-037, 006 D2)
-- [ ] T009 승인된 변경(T008 뒤) — `backend/tests/unit/test_stock_sale_cost.py` (FR-013, FR-037)
+  - **2026-10-06 승인**: A1·A2·A3 셋 다(A3는 T037에서 바꾼다)
+- [X] T009 승인된 변경(T008 뒤) — `backend/tests/unit/test_stock_sale_cost.py` (FR-013, FR-037)
   - 세율 인자 검사로 바꾼다 — `domestic_sale_cost(sale_krw, fee_rate=…, tax_rate=…)`, `foreign_sale_cost(…, rate=…, deduction=…)`.
   - 원 미만 버림·공제 이하·손실의 기대값은 지금 그대로다.
   - 새 검사
