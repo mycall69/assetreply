@@ -68,3 +68,22 @@ describe("기간 단위 선택기", () => {
     expect(screen.getByRole("tablist")).toHaveAccessibleName("기간 단위 선택");
   });
 });
+
+/**
+ * 012 T019 — 주식·가상자산 표가 같은 탭을 쓴다(FR-010). 탭 제목만 그 표의 말로 바꾼다 — 기본값은 지금 외환 문구다(위 검사들이 그대로 돈다).
+ */
+describe("탭 제목 (012 FR-010)", () => {
+  it("titles를 주면 세 탭의 제목이 그 값이다", () => {
+    const titles = { daily: "시세가 있는 날마다", weekly: "그 주의 금요일", monthly: "그 달의 말일" };
+    render(<PeriodTabs value="daily" onChange={vi.fn()} titles={titles} />);
+    expect(screen.getByRole("tab", { name: "일" })).toHaveAttribute("title", "시세가 있는 날마다");
+    expect(screen.getByRole("tab", { name: "주" })).toHaveAttribute("title", "그 주의 금요일");
+    expect(screen.getByRole("tab", { name: "월" })).toHaveAttribute("title", "그 달의 말일");
+  });
+
+  it("titles를 주지 않으면 외환 문구 그대로다", () => {
+    render(<PeriodTabs value="daily" onChange={vi.fn()} />);
+    expect(screen.getByRole("tab", { name: "일" })).toHaveAttribute("title", "모든 고시일");
+    expect(screen.getByRole("tab", { name: "주" })).toHaveAttribute("title", "그 주의 금요일 (없으면 그 주의 마지막 고시일)");
+  });
+});

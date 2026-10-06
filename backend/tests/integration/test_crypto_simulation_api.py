@@ -115,9 +115,10 @@ class Test결과:
     async def test_매수_행(self, client, btc) -> None:
         """research R7-7의 손계산 사례 — 2020-01-01 시가 7,196.39111328125, 원금 10,000달러, 수수료
         0.1%."""
-        body = await simulate(client, btc)
-        bought = body["rows"][-1]
-        assert bought["date"] == "2020-01-01" and bought["kind"] == "month_first"
+        # 012 승인 2026-10-06 — 매수 행은 `buy`다. 기본 단위가 일이라 첫 쪽에 없어 월 단위로 받는다.
+        body = await simulate(client, btc, period="monthly")
+        [bought] = [r for r in body["rows"] if r["kind"] == "buy"]
+        assert bought["date"] == "2020-01-01" and bought["kind"] == "buy"
         assert bought["openPrice"] == "7196.39111328125000"
         assert bought["boughtQuantity"] == "1.38819719"
         assert bought["heldQuantity"] == "1.38819719"
@@ -126,14 +127,15 @@ class Test결과:
         assert "firstDayMissing" not in bought
 
     async def test_매수가_없는_행에는_수수료가_없다(self, client, btc) -> None:
-        body = await simulate(client, btc)
+        # 012 승인 2026-10-06 — 월 행은 그 달 말일 기준(기간 행)이다. 24개월의 기간 행 + 매수 행.
+        body = await simulate(client, btc, period="monthly")
         latest = body["rows"][0]
-        assert latest["date"] == "2021-12-01"
+        assert latest["date"] == "2021-12-31" and latest["kind"] == "period"
         assert latest["boughtQuantity"] == "0.00000000"
         assert latest["heldQuantity"] == "1.38819719"
         assert "tradeFee" not in latest
-        assert len(body["rows"]) == 24
-        assert {r["kind"] for r in body["rows"]} == {"month_first"}
+        assert len(body["rows"]) == 25
+        assert {r["kind"] for r in body["rows"]} == {"period", "buy"}
 
     async def test_열별_통화(self, client, btc) -> None:
         """잔고·예수금·수수료는 시세 통화, 잔고 KRW는 그 행의 매매기준율, 투자 수익·수익률은 KRW
@@ -169,25 +171,33 @@ class Test결과:
         assert "exchange" not in body
 
     async def test_요약은_마지막_일봉의_평가다(self, client, btc) -> None:
+        # 012 승인 2026-10-06 — 일 단위 표의 맨 위 행이 마지막 일봉(기준일)이라 요약과 같다. 월 단위
+        # 맨 위 행도 그 달의 마지막 일봉이다.
         body = await simulate(client, btc)
-        assert body["summary"]["profit"] != body["rows"][0]["profit"]
+        assert body["rows"][0]["date"] == body["summary"]["asOf"]
+        assert body["summary"]["profit"] == body["rows"][0]["profit"]
 
     async def test_스크롤로_이어_본다(self, client, btc) -> None:
-        first = await simulate(client, btc, limit="5")
+        # 012 승인 2026-10-06 — 월 단위는 그 달 말일 기준이다.
+        first = await simulate(client, btc, limit="5", period="monthly")
         assert (len(first["rows"]), first["hasMore"], first["oldestReturned"]) == (
-            5, True, "2021-08-01")
-        rest = await simulate(client, btc, limit="50", before=first["oldestReturned"])
-        assert rest["rows"][0]["date"] == "2021-07-01" and rest["hasMore"] is False
+            5, True, "2021-08-31")
+        rest = await simulate(client, btc, limit="50", before=first["oldestReturned"],
+                              period="monthly")
+        assert rest["rows"][0]["date"] == "2021-07-31" and rest["hasMore"] is False
 
-    async def test_1일이_결측이면_그_달의_첫_일봉이_행이다(self, session_factory, client) -> None:
+    async def test_1일이_결측이면_일_단위에_결측_구간_행이다(self, session_factory, client) -> None:
+        # 012 승인 2026-10-06 — ◇(firstDayMissing) 대신 일 단위의 결측 구간 행이다(FR-004b·FR-008).
         coin_id = await add_coin(session_factory)
         await seed_daily(session_factory, coin_id, "btc_2020_2021.json",
                          covered=(D("2020-01-01"), D("2021-12-31")), drop=[D("2021-03-01")])
         await seed_usd(session_factory, D("2019-12-01"), D("2022-12-31"))
-        body = await simulate(client, coin_id)
-        march = next(r for r in body["rows"] if r["date"].startswith("2021-03"))
-        assert (march["date"], march["firstDayMissing"]) == ("2021-03-02", "2021-03-01")
-        assert sum("firstDayMissing" in r for r in body["rows"]) == 1
+        body = await simulate(client, coin_id, before="2021-03-03", limit="3")
+        assert [(r["date"], r["kind"], r.get("dateTo")) for r in body["rows"]] == [
+            ("2021-03-02", "period", None), ("2021-03-01", "missing", "2021-03-01"),
+            ("2021-02-28", "period", None)]
+        monthly = await simulate(client, coin_id, period="monthly")
+        assert all("firstDayMissing" not in r for r in monthly["rows"] + body["rows"])
 
     async def test_일봉이_끊기면_마지막_일봉까지이고_최종이_아니다(
         self, session_factory, client
@@ -207,7 +217,9 @@ class Test결과:
                          covered=(D("2026-09-01"), D("2026-10-02")))
         await seed_usd(session_factory, D("2026-08-01"), D("2026-10-02"))
         body = await simulate(client, coin_id, start="2026-09-13", end="2026-10-02")
-        bought = body["rows"][-1]
+        # 012 승인 2026-10-06 — 맨 아래 행은 시작 월 1일부터의 결측 구간 행이다(FR-004b). 매수 행은
+        # `buy`로 찾는다.
+        [bought] = [r for r in body["rows"] if r["kind"] == "buy"]
         assert bought["date"] == "2026-09-13"
         assert bought["openPrice"] == "0.00000529999988"
         assert P(bought["boughtQuantity"]) > P("1000000000")
@@ -340,10 +352,13 @@ class Test실행_주체:
             with tc.stream("GET", first.json()["progressUrl"]) as response:
                 text = "".join(response.iter_text())
             assert "event: completed" in text, text
-            second = tc.get("/api/crypto/simulation", params=params(coin_id))
+            # 012 승인 2026-10-06 — 매수 행은 월 단위로 받아 `buy`로 찾는다(기본 단위가 일이라 첫
+            # 쪽에 없다).
+            second = tc.get("/api/crypto/simulation", params=params(coin_id, period="monthly"))
 
         assert second.status_code == 200, second.text
-        assert second.json()["rows"][-1]["boughtQuantity"] == "1.38819719"
+        [bought] = [r for r in second.json()["rows"] if r["kind"] == "buy"]
+        assert bought["boughtQuantity"] == "1.38819719"
         assert fake.calls == [("2020-01-01", "2021-12-30"), ("2021-12-31", "2021-12-31")]
         async with session_factory() as s:
             coverage = await s.get(CryptoCoverage, coin_id)

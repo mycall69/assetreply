@@ -60,10 +60,11 @@ describe("적립식 표", () => {
       row({ date: "2026-09-16", kind: "reinvest", contribution: undefined }),
       row({ date: "2026-09-15", kind: "contribution", boughtShares: 0, tradeFee: undefined }),
       row({ date: "2026-09-15", kind: "dividend", contribution: undefined, dividendTotalNet: "846" }),
-      row({ date: "2026-09-01", kind: "month_first", contribution: undefined, boughtShares: 0, tradeFee: undefined }),
+      row({ date: "2026-09-01", kind: "period", contribution: undefined, boughtShares: 0, tradeFee: undefined }),
     ]} />);
     const rows = screen.getAllByRole("row").slice(1);
-    expect(rows.map((r) => r.getAttribute("data-kind"))).toEqual(["reinvest", "contribution", "dividend", "month_first"]);
+    // 012 승인 2026-10-06 — 그 달 첫 거래일 행은 기간 행(period)이다(FR-008).
+    expect(rows.map((r) => r.getAttribute("data-kind"))).toEqual(["reinvest", "contribution", "dividend", "period"]);
     expect(rows[0]).toHaveTextContent("⟳ 재투자");
     expect(rows[1]).toHaveTextContent("＋");
     expect(rows[1].querySelector("[data-idle='true']")).not.toBeNull();
@@ -80,7 +81,7 @@ describe("적립식 표", () => {
     render(<RecurringStockTable {...base} stockCurrency="USD" rows={[
       row({ date: "2026-03-03", fxRate: "1460.8", fxRateDate: "2026-03-03", exchangeRate: "1463.356400",
         exchangeRateDate: "2026-03-03", balance: "1000.50", balanceKrw: "1461530" }),
-      row({ date: "2026-03-02", kind: "month_first", contribution: undefined, fxRate: "1455.1", fxRateDate: "2026-02-27" }),
+      row({ date: "2026-03-02", kind: "period", contribution: undefined, fxRate: "1455.1", fxRateDate: "2026-02-27" }),
     ]} />);
     expect(header()).toContain("환율");
     const [contribution, month] = screen.getAllByRole("row").slice(1);

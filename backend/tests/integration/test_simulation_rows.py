@@ -112,10 +112,11 @@ class Test키가_있는_행:
 
     async def test_매수가_있는_행에만_매매_수수료가_있다(self, client) -> None:
         all_rows = await rows(client)
-        assert isinstance(one(all_rows, "month_first", "2021-08-02")["tradeFee"], str)
+        # 012 승인 2026-10-06 — 월 행(month_first) 대신 매수 행(buy)·일 단위 기간 행(period)이다.
+        assert isinstance(one(all_rows, "buy", "2021-08-02")["tradeFee"], str)
         assert isinstance(one(all_rows, "reinvest")["tradeFee"], str)
         assert "tradeFee" not in one(all_rows, "dividend")
-        assert "tradeFee" not in one(all_rows, "month_first", "2021-10-01")
+        assert "tradeFee" not in one(all_rows, "period", "2021-10-01")
 
 
 class Test종목_통화로_남는다:

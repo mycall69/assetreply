@@ -12,7 +12,7 @@ import { PerformanceTable } from "@/components/stock/PerformanceTable";
 import type { SimulationRow } from "@/lib/types";
 
 const monthRow: SimulationRow = {
-  date: "2024-08-01", kind: "month_first", openPrice: "201500.000000", closePrice: "201500.000000",
+  date: "2024-08-01", kind: "period", openPrice: "201500.000000", closePrice: "201500.000000",
   boughtShares: 0, heldShares: 1, cash: "6274", principal: "86997",
   balance: "201500", profit: "120777", returnRate: "1.388300",
 };
@@ -72,7 +72,8 @@ describe("성과 표", () => {
     const dividend = screen.getByText("2024-06-27").closest("tr") as HTMLElement;
     expect(dividend).toHaveAttribute("data-kind", "dividend");
     const month = screen.getByText("2024-08-01").closest("tr") as HTMLElement;
-    expect(month).toHaveAttribute("data-kind", "month_first");
+    // 012 승인 2026-10-06 — 월 행은 기간 행(period)이다(FR-008).
+    expect(month).toHaveAttribute("data-kind", "period");
   });
 
   it("수익이 음수면 부호로도 드러난다", () => {

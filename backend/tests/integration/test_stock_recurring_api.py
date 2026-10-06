@@ -62,7 +62,13 @@ async def simulate(http: AsyncClient, params: dict[str, str]) -> dict:  # type: 
 class Test국내_매달:
     async def test_예정일이_휴장이면_다음_거래일로_미뤄_넣는다(self, client: AsyncClient) -> None:
         body = await simulate(client, KRX_MONTHLY)
-        rows = body["rows"]
+        # 012 승인 2026-10-06 — 일 단위에는 납입 없는 시세일의 기간 행이 끼어 있다. 납입 단언은 납입
+        # 행만 본다.
+        assert [(r["date"], r["kind"]) for r in body["rows"]] == [
+            ("2026-03-03", "contribution"), ("2026-02-03", "period"),
+            ("2026-02-02", "contribution"), ("2026-01-05", "period"),
+            ("2026-01-02", "contribution")]
+        rows = [r for r in body["rows"] if r["kind"] == "contribution"]
         assert [(r["date"], r["kind"], r.get("deferred")) for r in rows] == [
             ("2026-03-03", "contribution", ["2026-03-02"]),
             ("2026-02-02", "contribution", None),
@@ -129,18 +135,25 @@ class Test국내_매달:
         assert (late["summary"]["contributions"], late["summary"]["pendingAfterEnd"]) == (4, 1)
 
     async def test_쪽을_나눠도_같은_날의_행이_갈리지_않는다(self, client: AsyncClient) -> None:
+        # 012 승인 2026-10-06 — 일 단위의 쪽이다(납입 없는 시세일의 기간 행 포함).
         first = (await client.get(PATH, params={**KRX_MONTHLY, "limit": "2"})).json()
-        assert [r["date"] for r in first["rows"]] == ["2026-03-03", "2026-02-02"]
-        assert (first["hasMore"], first["oldestReturned"]) == (True, "2026-02-02")
+        assert [r["date"] for r in first["rows"]] == ["2026-03-03", "2026-02-03"]
+        assert (first["hasMore"], first["oldestReturned"]) == (True, "2026-02-03")
         second = (await client.get(PATH, params={**KRX_MONTHLY, "limit": "2",
-                                                 "before": "2026-02-02"})).json()
-        assert [r["date"] for r in second["rows"]] == ["2026-01-02"]
-        assert second["hasMore"] is False
+                                                 "before": "2026-02-03"})).json()
+        assert [r["date"] for r in second["rows"]] == ["2026-02-02", "2026-01-05"]
+        assert (second["hasMore"], second["oldestReturned"]) == (True, "2026-01-05")
+        third = (await client.get(PATH, params={**KRX_MONTHLY, "limit": "2",
+                                                "before": "2026-01-05"})).json()
+        assert [r["date"] for r in third["rows"]] == ["2026-01-02"]
+        assert third["hasMore"] is False
 
 
 class Test해외_원화_매주:
     async def test_납입마다_그날_환전하고_평가_환율이_따로다(self, client: AsyncClient) -> None:
-        rows = (await simulate(client, AAPL_WEEKLY))["rows"]
+        # 012 승인 2026-10-06 — 납입 행만 본다(일 단위에는 기간 행이 끼어 있다).
+        body = await simulate(client, AAPL_WEEKLY)
+        rows = [r for r in body["rows"] if r["kind"] == "contribution"]
         # 예정 1-02·1-09 … 2-27(매주) → 시세가 있는 날 1-02, 2-02(1-09~1-30), 3-03(2-06~2-27)
         assert [(r["date"], r["contribution"], len(r.get("deferred", []))) for r in rows] == [
             ("2026-03-03", "2000000", 4), ("2026-02-02", "2000000", 4), ("2026-01-02", "500000", 0)]

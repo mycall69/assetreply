@@ -7,13 +7,14 @@
  *
  * jsdom은 배치를 재지 못해 **폭 규칙만** 본다. 실제 폭은 브라우저 실측이 검사다(quickstart 35).
  */
+// 012 승인 2026-10-06 — 고정 행의 종류 이름 month_first → period(012 FR-008). 단언은 그대로다.
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PerformanceTable } from "@/components/stock/PerformanceTable";
 import type { SimulationRow } from "@/lib/types";
 
 const row: SimulationRow = {
-  date: "2026-10-01", kind: "month_first", openPrice: "2670.000000", closePrice: "2670.000000",
+  date: "2026-10-01", kind: "period", openPrice: "2670.000000", closePrice: "2670.000000",
   boughtShares: 0, heldShares: 3164, cash: "703", principal: "20000000",
   balance: "8447880", profit: "-11551416", returnRate: "-0.577500",
 };

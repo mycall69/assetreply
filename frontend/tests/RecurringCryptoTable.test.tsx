@@ -5,7 +5,7 @@
  *   환율이 있는 행이 있을 때만이다(원화 시세 코인이면 빈 열을 남기지 않는다)
  * - 수량은 `formatQuantity`(소수 8자리)다. 사지 않은 행의 구매 수량·수수료는 "—"이다
  * - 외화 시세의 수수료·대기금·잔고는 유효 숫자를 잃지 않는다(`formatPrice` — 1센트 미만이 "0.00"이면 없다고 읽힌다)
- * - 납입은 "＋", 그 달 1일 일봉이 없어 다른 날이 그 달의 행이면 "◇ 1일 결측"이다(007 FR-030 — 기호만으로 전달하지 않는다)
+ * - 납입은 "＋"다. 012 승인 2026-10-06 — "◇ 1일 결측"은 없어졌다(결측 구간 행이 대신한다 — FR-004b·FR-008)
  * - 미뤄진 납입은 "+n회(원래 날짜)"로 보인다 — 원래 날짜를 잃지 않는다
  * - 원화 원금이면 납입 행은 환전 환율("환전 …")과 고시일이다
  * - 끝없는 스크롤·상태 줄·센티널은 주식 적립식 표와 같다
@@ -48,15 +48,16 @@ describe("가상자산 적립식 표", () => {
     expect(line).toHaveTextContent("0.00098002");
   });
 
-  it("그 달 첫 일봉 행은 사지 않았으면 —이고, 1일이 없으면 ◇ 1일 결측이다", () => {
+  it("기간 행은 사지 않았으면 —이고, ◇ 1일 결측이 없다", () => {
+    // 012 승인 2026-10-06 — 그 달 첫 일봉 행은 기간 행(period)이고, ◇(1일 결측)는 결측 구간 행이 대신한다(FR-004b·FR-008).
     render(<RecurringCryptoTable {...base} rows={[
-      row({ date: "2024-03-02", kind: "month_first", contribution: undefined, boughtQuantity: "0.00000000",
-        tradeFee: undefined, firstDayMissing: "2024-03-01" }),
+      row({ date: "2024-03-02", kind: "period", contribution: undefined, boughtQuantity: "0.00000000",
+        tradeFee: undefined }),
     ]} />);
     const [line] = screen.getAllByRole("row").slice(1);
-    expect(line.getAttribute("data-kind")).toBe("month_first");
-    expect(line).toHaveTextContent("◇ 1일 결측");
-    expect(screen.getByTitle("2024-03-01 일봉이 없어 03-02 일봉을 썼습니다")).toBeInTheDocument();
+    expect(line.getAttribute("data-kind")).toBe("period");
+    expect(line).not.toHaveTextContent("1일 결측");
+    expect(line).not.toHaveTextContent("◇");
     expect(line).not.toHaveTextContent("＋");
     expect(line.querySelectorAll("td")[3]).toHaveTextContent("—");
     expect(line.querySelectorAll("td")[4]).toHaveTextContent("—");

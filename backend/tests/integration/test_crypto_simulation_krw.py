@@ -69,7 +69,9 @@ class Test환전:
         self, session_factory, client, btc
     ) -> None:
         await seed_usd(session_factory, D("2019-12-01"), D("2022-12-31"))
-        body = await simulate(client, btc)
+        # 012 승인 2026-10-06 — 매수 행은 월 단위로 받아 `buy`로 찾는다(기본 단위가 일이라 첫 쪽에
+        # 없다).
+        body = await simulate(client, btc, period="monthly")
         base = P(usd_rate(D("2020-01-01")))
         rate = exchange_rate(base, await cash_buy(session_factory))
         assert body["exchange"] == {"rate": str(rate), "rateDate": "2020-01-01",
@@ -79,7 +81,8 @@ class Test환전:
         # 환전한 달러로 산다
         working = to_foreign(P("10000000"), rate, "USD")
         expected = buy_fraction(working, P("7196.39111328125"), P("0.001"))
-        assert body["rows"][-1]["boughtQuantity"] == format(expected, ".8f")
+        [bought] = [r for r in body["rows"] if r["kind"] == "buy"]
+        assert bought["boughtQuantity"] == format(expected, ".8f")
 
     async def test_첫_매수일에_고시가_없으면_이전_고시일과_그_날짜다(
         self, session_factory, client, btc
@@ -117,7 +120,9 @@ class Test확정_환율만:
         없다."""
         await seed_usd(session_factory, D("2019-12-01"), D("2022-12-31"),
                        provisional=[D("2021-03-01")])
-        body = await simulate(client, btc)
+        # 012 승인 2026-10-06 — 3-01은 월 행이 아니라 일 단위의 그날 행이다. 그 날짜까지 쪽을 넘겨
+        # 받는다.
+        body = await simulate(client, btc, before="2021-03-02", limit="1")
         march = next(r for r in body["rows"] if r["date"] == "2021-03-01")
         assert (march["fxRate"], march["fxRateDate"]) == (usd_rate(D("2021-02-28")), "2021-02-28")
 

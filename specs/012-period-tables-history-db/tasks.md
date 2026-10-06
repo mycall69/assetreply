@@ -157,11 +157,11 @@ description: "Task list for 012-period-tables-history-db"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T011 [US2] 기존 테스트 변경 승인을 받는다 — research R12-15 US2의 목록 (FR-003, FR-005, FR-008)
+- [X] T011 [US2] 기존 테스트 변경 승인을 받는다 — research R12-15 US2의 목록 (FR-003, FR-005, FR-008)
   - 목록의 테스트를 하나씩 읽어 바뀐 요구(월 행 → 기간 행, 기본 단위 일, `buy` 행, ◇ → 결측 구간 행, 차트-표 끝점 짝)를 단언하는지 가린다.
   - 바뀐 요구를 단언하지 않는 것은 목록에서 뺀다.
   - 남은 목록을 테스트마다 "지금 단언 → 새 단언"으로 보이고 승인을 받는다. 승인 날짜를 Notes에 적는다.
-- [ ] T012 [P] [US2] `backend/tests/unit/test_period_table.py` — `simulation/period_table` (FR-004, FR-004a, FR-004b, FR-005, FR-009, SC-002, SC-003)
+- [X] T012 [P] [US2] `backend/tests/unit/test_period_table.py` — `simulation/period_table` (FR-004, FR-004a, FR-004b, FR-005, FR-009, SC-002, SC-003)
   - quickstart 1의 표를 그대로 고정한다(손으로 만든 날짜 목록 — 2026-10 달력).
     - 금요일 휴장 주
     - 대체공휴일 계산 끝
@@ -187,18 +187,18 @@ description: "Task list for 012-period-tables-history-db"
     - `before` 미만만 돌려준다
     - `has_more`
   - 달력 함수 `period_bounds`·`anchor_of`·`is_ongoing`(data-model 3.1)
-- [ ] T013 [P] [US2] `backend/tests/unit/test_reinvest_daily.py` — `reinvest.Outcome.daily` (FR-004, FR-017, data-model 4)
+- [X] T013 [P] [US2] `backend/tests/unit/test_reinvest_daily.py` — `reinvest.Outcome.daily` (FR-004, FR-017, data-model 4)
   - 첫 매수일부터 일봉마다 하나, 오름차순이다.
   - 월 행이 있는 날의 상태는 그 월 행과 값이 같다.
   - 마지막은 `latest`와 값이 같다.
   - 매수일에만 `bought_shares`·`trade_fee`가 있다.
   - 배당락·재투자·분할 날은 그날 사건을 모두 처리한 뒤의 상태다.
   - `rows`·`latest`가 `daily`를 더하기 전과 같다(기존 단위 테스트가 그대로 통과하는 것과 함께).
-- [ ] T014 [P] [US2] `backend/tests/unit/test_recurring_stock_daily.py` — `recurring_stock.RecurringOutcome.daily` (FR-004, FR-005, FR-017)
+- [X] T014 [P] [US2] `backend/tests/unit/test_recurring_stock_daily.py` — `recurring_stock.RecurringOutcome.daily` (FR-004, FR-005, FR-017)
   - 첫 납입일부터 일봉마다 하나이고 `kind = "day"`다.
   - 납입·배당·재투자 날은 그날 마지막 사건 행과 값이 같다.
   - 월 행이 있는 날은 월 행과 같다. 마지막은 `latest`와 같다.
-- [ ] T015 [P] [US2] `backend/tests/integration/test_stock_table_period_api.py` — `GET /api/stocks/simulation`의 `period` (FR-003~FR-005, FR-007~FR-009, SC-002, SC-003, SC-005, contracts/rest-api.md 1)
+- [X] T015 [P] [US2] `backend/tests/integration/test_stock_table_period_api.py` — `GET /api/stocks/simulation`의 `period` (FR-003~FR-005, FR-007~FR-009, SC-002, SC-003, SC-005, contracts/rest-api.md 1)
   - 질의
     - `period` 없음 → `"period": "daily"`
     - `weekly`·`monthly` 응답에 `period`가 실린다
@@ -218,7 +218,7 @@ description: "Task list for 012-period-tables-history-db"
   - 쪽: 같은 날 배당락·재투자 행이 쪽 경계에서 갈리지 않는다(`limit=1`로 경계를 만든다). `oldestReturned`로 끝까지 받으면 일 단위 행 수가 시세일 수(사건 날
     포함)와 맞는다. `period=weekly`·`monthly`도 `before=oldestReturned`로 끝까지 받으면 행이 겹치지도 빠지지도 않는다(FR-009 — 같은 기간 행이 두 쪽에
     나오지 않고, 사건 행 수가 한 번에 받은 것과 같다).
-- [ ] T016 [P] [US2] `backend/tests/integration/test_crypto_table_period_api.py` — `GET /api/crypto/simulation`의 `period` (FR-004, FR-004b, FR-008, SC-002)
+- [X] T016 [P] [US2] `backend/tests/integration/test_crypto_table_period_api.py` — `GET /api/crypto/simulation`의 `period` (FR-004, FR-004b, FR-008, SC-002)
   - `period=daily`
     - 출처 결측 이틀 → `{"kind": "missing", "date", "dateTo"}` 행 하나, 값 키 없음
     - 결측 행 수 = `/series`의 `source_missing` 끊김 수
@@ -226,29 +226,29 @@ description: "Task list for 012-period-tables-history-db"
   - `weekly`·`monthly`에는 `missing` 행이 없다.
   - 주: 금요일 결측·토일 있음 → 대표일 목요일·`shiftedFrom` 금요일. 월~금 결측 → 일요일.
   - 표 행에 `firstDayMissing`이 없다. `buy` 행에 수수료가 있다. `summary`가 세 단위에서 같다.
-- [ ] T017 [P] [US2] `backend/tests/integration/test_recurring_table_period_api.py` — 적립식 두 경로의 `period` (FR-003~FR-005, SC-003)
+- [X] T017 [P] [US2] `backend/tests/integration/test_recurring_table_period_api.py` — 적립식 두 경로의 `period` (FR-003~FR-005, SC-003)
   - `contribution` 행(미뤄진 `deferred` 포함) 수가 세 단위에서 같다.
   - 납입이 있는 대표일에는 `period` 행이 없고 그날 마지막 사건 행이 표시를 진다.
   - 가상자산 적립식 일 단위의 결측 행 수 = 시계열 끊김 수(적립식은 시작일부터).
   - 응답 `condition`에 `period`가 없다(기존 정확 비교 보호). `summary`가 세 단위에서 같다.
-- [ ] T018 [US2] T011에서 승인된 백엔드 기존 테스트를 새 기대로 고친다 (FR-008)
+- [X] T018 [US2] T011에서 승인된 백엔드 기존 테스트를 새 기대로 고친다 (FR-008)
   - research R12-15 US2 백엔드 목록이다. 바뀐 요구를 단언하는 줄만 고치고, 고친 줄 위에 `# 012 승인 <날짜>` 주석을 단다.
-- [ ] T019 [P] [US2] `frontend/tests/PeriodTabs.test.tsx` — 선택 속성 `titles` (FR-010)
+- [X] T019 [P] [US2] `frontend/tests/PeriodTabs.test.tsx` — 선택 속성 `titles` (FR-010)
   - `titles`를 주면 세 탭의 `title`이 그 값이다. 주지 않으면 지금 외환 문구다(기존 검사 그대로).
-- [ ] T020 [P] [US2] `frontend/tests/PeriodMarks.test.tsx` — `components/period/PeriodMarks`·`PeriodLegend` (FR-004, FR-004a, FR-010, contracts/ui-wireframes.md F3)
+- [X] T020 [P] [US2] `frontend/tests/PeriodMarks.test.tsx` — `components/period/PeriodMarks`·`PeriodLegend` (FR-004, FR-004a, FR-010, contracts/ui-wireframes.md F3)
   - 📅·⏳의 `title`·`aria-label` 글자 설명이 F3 표와 글자까지 같다.
     - 주식은 "시세가 없어", 가상자산은 "일봉이 없어"다
     - 주는 "(금)", 월은 "(말일)"이다
   - 표시 없는 행·일 단위는 아무것도 그리지 않는다. 범례는 주·월에만 있다.
-- [ ] T021 [P] [US2] `frontend/tests/PerformanceTablePeriod.test.tsx` — 주식 일시금·적립식 표 (FR-004, FR-004a, FR-005, FR-010)
+- [X] T021 [P] [US2] `frontend/tests/PerformanceTablePeriod.test.tsx` — 주식 일시금·적립식 표 (FR-004, FR-004a, FR-005, FR-010)
   - `shiftedFrom`·`isOngoing` 행에 표시가 붙고 둘이 구별된다.
   - `buy`·`period` 행은 지금 월 행처럼 그린다. 배당락·재투자·납입 기호는 그대로다.
   - 범례가 주·월에만 있다.
-- [ ] T022 [P] [US2] `frontend/tests/CryptoTablePeriod.test.tsx` — 가상자산 일시금·적립식 표 (FR-004b, FR-008, F4)
+- [X] T022 [P] [US2] `frontend/tests/CryptoTablePeriod.test.tsx` — 가상자산 일시금·적립식 표 (FR-004b, FR-008, F4)
   - `missing` 행은 한 칸에 "MM-DD~MM-DD 출처 결측 — 값 없음"이고 값 칸이 없다.
   - ◇가 어디에도 없다.
   - 표시·범례는 T021과 같다.
-- [ ] T023 [P] [US2] `frontend/tests/stockStoreTablePeriod.test.ts` — `stockStore`의 표 단위 (FR-003, FR-006, FR-007, data-model 5.1)
+- [X] T023 [P] [US2] `frontend/tests/stockStoreTablePeriod.test.ts` — `stockStore`의 표 단위 (FR-003, FR-006, FR-007, data-model 5.1)
   - 처음 `tablePeriod`는 `"daily"`이고 요청 문자열에 `period`가 없다.
   - `setTablePeriod("weekly")`
     - 요청에 `&period=weekly`가 붙는다(일시금·적립식 각자의 경로)
@@ -259,15 +259,15 @@ description: "Task list for 012-period-tables-history-db"
     - 이어 받기도 같은 번호를 본다
   - 다시 실행해도 고른 단위가 남는다. 이력의 다시 실행도 같다.
   - 실패하면 고른 단위는 남고 표 자리에 오류가 있다.
-- [ ] T024 [P] [US2] `frontend/tests/cryptoStoreTablePeriod.test.ts` — `cryptoStore`의 같은 검사 (FR-003, FR-006, FR-007)
-- [ ] T025 [P] [US2] `frontend/tests/StocksCryptoPagePeriod.test.tsx` — 두 화면 (FR-003, FR-006, FR-010, SC-005)
+- [X] T024 [P] [US2] `frontend/tests/cryptoStoreTablePeriod.test.ts` — `cryptoStore`의 같은 검사 (FR-003, FR-006, FR-007)
+- [X] T025 [P] [US2] `frontend/tests/StocksCryptoPagePeriod.test.tsx` — 두 화면 (FR-003, FR-006, FR-010, SC-005)
   - `lightweight-charts`를 모의한다.
   - 표 머리에 `role="tablist"` 단위 탭이 있고 처음이 "일"이다. 탭 제목은 F2 문구다.
   - 탭을 바꾸면
     - `scrollIntoView`가 불리지 않는다
     - 바꾸는 동안 높이를 붙잡는다
     - 보드 글자가 그대로다
-- [ ] T026 [US2] T011에서 승인된 프론트엔드 기존 테스트를 고친다 (FR-008)
+- [X] T026 [US2] T011에서 승인된 프론트엔드 기존 테스트를 고친다 (FR-008)
   - 표 테스트의 고정 행 `kind: "month_first"` → `"period"`(단언은 그대로)
   - ◇ 검사 둘 → 결측 구간 행 검사
 
@@ -614,6 +614,10 @@ Task: "T025 화면 테스트 — 탭·창 그대로"
   155 파일·1,302 passed, tsc·eslint — 모두 종료 코드 0
 - **2026-10-06 T005 승인(사용자)**: `PeriodSwitch.test.ts` "전환하면 스크롤을 처음으로 되돌릴 신호를 낸다" → `tableEpoch` 그대로,
   `FxPageLayout.test.tsx` StrictMode 기간 전환 → `scrollIntoView` 불리지 않음(통화 부분·행 잔존 검사 그대로)
+- **2026-10-06 T011 승인(사용자)**: 구현을 작업 트리에 둔 채 전체 스위트를 돌려 **실제로 실패한** 기존 테스트로 목록을 만들었다 — 백엔드 29건(13개 파일),
+  화면 런타임 2건(◇)·tsc 15곳(고정 행 `month_first`·`firstDayMissing`). 바꾸는 이유 다섯(① 첫 쪽의 매수 행 ② 월 행 → 말일 기준·그날 행 ③ ◇ → 결측
+  구간 행 ④ 적립식 표의 기간 행 ⑤ 차트-표 날짜 묶음). R12-15 목록 밖 6건도 같은 이유였고 결함이 아니다(research R12-15에 더했다). 고친 줄 위에
+  `012 승인 2026-10-06` 주석
 - (T067 결과와 승인 날짜를 여기에 적는다.)
 
 ## 요구사항 ↔ 태스크

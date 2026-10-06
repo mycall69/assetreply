@@ -4,6 +4,7 @@
  * **보드의 수치와 표 마지막 행의 수치가 같아야 한다.** 어긋나면 사용자는 어느 쪽이
  * 맞는지 알 수 없다.
  */
+// 012 승인 2026-10-06 — 고정 행의 종류 이름 month_first → period(012 FR-008). 단언은 그대로다.
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
@@ -15,7 +16,7 @@ const summary: SimulationSummary = {
 };
 
 const latest: SimulationRow = {
-  date: "2024-08-01", kind: "month_first", openPrice: "201500", closePrice: "201500",
+  date: "2024-08-01", kind: "period", openPrice: "201500", closePrice: "201500",
   boughtShares: 0, heldShares: 1, cash: "6274", principal: "86997",
   balance: "201500", profit: "120777", returnRate: "1.388300",
 };

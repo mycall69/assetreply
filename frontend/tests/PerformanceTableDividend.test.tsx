@@ -5,6 +5,7 @@
  * **주당 배당금은 종목 통화 값이다.** 원금 통화(원화) 규칙으로 서식하면 소수를 버려, 원화 원금으로 VOO를 볼 때
  * `1.823`달러가 `1`로 보였다(2026-10-03 실측). 소수 3자리로 고정한다. 배당율은 소수 2자리로 채운다.
  */
+// 012 승인 2026-10-06 — 고정 행의 종류 이름 month_first → period(012 FR-008). 단언은 그대로다.
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PerformanceTable } from "@/components/stock/PerformanceTable";
@@ -16,7 +17,7 @@ const base = {
 };
 
 const initial: SimulationRow = {
-  ...base, date: "2026-08-03", kind: "month_first", openPrice: "590.000000", closePrice: "590.000000",
+  ...base, date: "2026-08-03", kind: "period", openPrice: "590.000000", closePrice: "590.000000",
   boughtShares: 12, tradeFee: "1.062000",
 };
 const dividend: SimulationRow = {
@@ -28,7 +29,7 @@ const reinvest: SimulationRow = {
   boughtShares: 1, heldShares: 13, tradeFee: "0.089250",
 };
 const month: SimulationRow = {
-  ...base, date: "2026-10-01", kind: "month_first", openPrice: "600.000000", closePrice: "600.000000", heldShares: 13,
+  ...base, date: "2026-10-01", kind: "period", openPrice: "600.000000", closePrice: "600.000000", heldShares: 13,
 };
 
 function setup(rows: SimulationRow[], stockCurrency = "USD") {

@@ -244,9 +244,10 @@ async def test_2023년_전_기준일도_설정_세율로_계산한다(client: As
     010에서 이 자리는 `test_세율_표_밖_기준일은_세금을_비운다`였다."""
     body = await simulate(client, KRX_2021)
     summary, newest = body["summary"], body["rows"][0]
-    # 기준일(2021-09-02)은 그 달 첫 거래일(09-01) 다음 날이라 표에 행이 없다 — 시드에 배당이 없어
-    # 보유 수는 09-01 행 그대로이고, 매도금액 = 보유 × 기준일 종가(시드)
-    assert summary["asOf"] == "2021-09-02" and newest["date"] == "2021-09-01"
+    # 012 승인 2026-10-06 — 일 단위 표의 맨 위가 기준일(2021-09-02) 행이다(전에는 그 달 첫 거래일
+    # 09-01 행이었다). 시드에 배당이
+    # 없어 보유 수는 그대로이고, 매도금액 = 보유 × 기준일 종가(시드)
+    assert summary["asOf"] == "2021-09-02" and newest["date"] == "2021-09-02"
     sale = newest["heldShares"] * krx_price("2021-09-02")[1]
     fee = floor(sale * Decimal(body["condition"]["tradeFeeRate"]))
     tax = floor(sale * Decimal("0.0020"))

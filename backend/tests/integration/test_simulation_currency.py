@@ -141,7 +141,8 @@ class Test해외_종목은_종목_통화로_남는다:
     async def test_예수금은_달러다(self, client, params) -> None:
         """배당락 행의 예수금 증가가 같은 행의 세후 배당금 총액(달러)과 같다."""
         body = await simulate(client, params)
-        before = one(body, "month_first", "2021-08-02")
+        # 012 승인 2026-10-06 — 월 행(month_first) 대신 매수 행(buy)·일 단위 기간 행(period)이다.
+        before = one(body, "buy", "2021-08-02")
         dividend = one(body, "dividend")
         assert dec(dividend, "cash") - dec(before, "cash") == dec(dividend, "dividendTotalNet")
 
@@ -204,7 +205,8 @@ class Test달러_원금:
 
     async def test_수익율은_KRW_기준이다(self, client) -> None:
         """달러 기준(달러 수익 ÷ 1,000)이면 환율 상승분이 빠진다."""
-        row = one(await simulate(client, USD_PRINCIPAL), "month_first", "2021-10-01")
+        # 012 승인 2026-10-06 — 월 행(month_first) 대신 매수 행(buy)·일 단위 기간 행(period)이다.
+        row = one(await simulate(client, USD_PRINCIPAL), "period", "2021-10-01")
         krw = dec(row, "profit") / Decimal("1150000")
         usd = (dec(row, "balance") + dec(row, "cash") - Decimal("1000")) / Decimal("1000")
         assert abs(dec(row, "returnRate") - krw) <= Decimal("0.000001")
@@ -213,7 +215,8 @@ class Test달러_원금:
     async def test_요약이_마지막_거래일의_KRW_값이다(self, client) -> None:
         """005 FR-032 — 보드와 표의 마지막 행은 같은 기준이다."""
         body = await simulate(client, USD_PRINCIPAL)
-        last = one(body, "month_first", "2021-10-01")
+        # 012 승인 2026-10-06 — 월 행(month_first) 대신 매수 행(buy)·일 단위 기간 행(period)이다.
+        last = one(body, "period", "2021-10-01")
         assert body["summary"]["profit"] == last["profit"]
         assert body["summary"]["returnRate"] == last["returnRate"]
 
@@ -228,7 +231,8 @@ class Test엔_원금:
         body = await simulate(client, {**BASE, "market": "TSE", "symbol": "7203.T",
                                        "principal": "100000", "principalCurrency": "JPY"})
         assert Decimal(body["summary"]["principalKrw"]) == Decimal("1045000")
-        row = one(body, "month_first", "2021-10-01")
+        # 012 승인 2026-10-06 — 월 행(month_first) 대신 매수 행(buy)·일 단위 기간 행(period)이다.
+        row = one(body, "period", "2021-10-01")
         assert row["fxRate"] == "10.200000"
         expected = ((dec(row, "balance") + dec(row, "cash")) * Decimal("10.2")
                     - Decimal("1045000"))

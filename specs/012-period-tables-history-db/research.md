@@ -303,6 +303,17 @@ Technical Context에 "NEEDS CLARIFICATION"으로 남은 항목은 없다. 아래
     - `RecurringCryptoTable.test.tsx` "그 달 첫 일봉 행은 … ◇ 1일 결측이다"
     - 결측 구간 행 검사로 바꾼다
 
+- **구현 뒤 실제 실패로 더해진 것(T011 승인 2026-10-06 — 목록을 만들 때 놓쳤다, 모두 위와 같은 이유)**
+  - `test_crypto_settings_api.py::test_바꾼_수수료가_다음_시뮬레이션에_쓰인다`(첫 쪽의 마지막 행 = 매수 행이라 여겼다)
+  - `test_crypto_simulation_api.py::test_아주_작은_가격을_원값_그대로_싣는다`(맨 아래가 시작 월 1일부터의 결측 구간 행)
+  - `test_crypto_simulation_api.py::Test실행_주체::test_수집_줄이_작업을_끝내고_다시_요청하면_200이다`(같은 이유)
+  - `test_stock_sale_cost_api.py::test_2023년_전_기준일도_설정_세율로_계산한다`(맨 위 행이 그 달 첫 거래일 → 기준일)
+  - `test_stock_series_adjusted_api.py::test_점의_가격은_그_날_수정_종가다` 둘(차트 점 날짜 = 표 날짜 → 점마다 같은 날짜의 표 행이 있다)
+  - 화면: `PerformanceTable.test.tsx`·`RecurringStockTable.test.tsx`의 `data-kind "month_first"` 단언, `tests/support/cryptoFixtures.ts`(매수 `buy`, ◇ 칸 제거)
+- 목록에 있었지만 바뀌지 않은 것(바뀐 요구를 단언하지 않아 그대로 통과): `test_simulation_api.py` `Test행_구조`의 셋·`Test페이지` 셋, `test_start_available.py`,
+  `test_reinvest_difference.py`, `test_settings_applied.py`, `test_stock_settings_tax.py`, `test_delisted.py`의 하나, `test_crypto_series_api.py`·
+  `test_crypto_series_price_api.py`·`test_crypto_recurring_series_api.py`의 표 대조, `test_stock_simulation_close_api.py`, `test_crypto_recurring_api.py`의 셋
+
 **US3 (이력의 보관 위치)**
 - lib 테스트(브라우저 저장소 기반) — 식별자·중복·차례 검사는 서버 테스트로 옮기고, 키 검사는 `legacyHistory` 옮기기 테스트로 바꾼다
   - `simulationHistory.test.ts`

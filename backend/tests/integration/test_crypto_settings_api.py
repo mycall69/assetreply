@@ -72,13 +72,17 @@ async def test_바꾼_수수료가_다음_시뮬레이션에_쓰인다(session_f
     await seed_daily(session_factory, coin_id, "btc_2020_2021.json",
                      covered=(D("2020-01-01"), D("2021-12-31")))
     await seed_usd(session_factory, D("2019-12-01"), D("2022-12-31"))
+    # 012 승인 2026-10-06 — 기본 단위가 일이라 첫 쪽에 매수 행이 없다. 월 단위로 받아 매수
+    # 행(`buy`)을 찾는다.
     params = {"coinId": str(coin_id), "start": "2020-01-15", "principal": "10000",
-              "principalCurrency": "USD", "end": "2021-12-31"}
+              "principalCurrency": "USD", "end": "2021-12-31", "period": "monthly"}
     before = (await client.get("/api/crypto/simulation", params=params)).json()
     await client.put("/api/crypto/settings", json={"tradeFeeRate": "0.002"})
     after = (await client.get("/api/crypto/simulation", params=params)).json()
     assert (before["condition"]["tradeFeeRate"], after["condition"]["tradeFeeRate"]) == (
         "0.001000", "0.002000")
-    assert before["rows"][-1]["tradeFee"] != after["rows"][-1]["tradeFee"]
+    [buy_before] = [r for r in before["rows"] if r["kind"] == "buy"]
+    [buy_after] = [r for r in after["rows"] if r["kind"] == "buy"]
+    assert buy_before["tradeFee"] != buy_after["tradeFee"]
     # 10,000 ÷ (7,196.39111328125 × 1.002) = 1.38681… → 1.38681… 8자리 버림 — 수수료가 크면 덜 산다
-    assert after["rows"][-1]["boughtQuantity"] < before["rows"][-1]["boughtQuantity"]
+    assert buy_after["boughtQuantity"] < buy_before["boughtQuantity"]

@@ -4,19 +4,20 @@
  * 잔고가 종가로 평가되므로(잔고 = 보유 주식 × 종가) 표에 그 종가가 보여야 표가 스스로 맞는다. 종가는 시작가 바로 뒤, 시작가와 같은 형식
  * (`formatRate`)·같은 통화 머리말이다. 시작가(매수 가격)는 그대로 남는다.
  */
+// 012 승인 2026-10-06 — 고정 행의 종류 이름 month_first → period(012 FR-008). 단언은 그대로다.
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PerformanceTable } from "@/components/stock/PerformanceTable";
 import type { SimulationRow } from "@/lib/types";
 
 const aapl: SimulationRow = {
-  date: "2026-10-01", kind: "month_first", openPrice: "330.000000", closePrice: "330.320007",
+  date: "2026-10-01", kind: "period", openPrice: "330.000000", closePrice: "330.320007",
   boughtShares: 0, heldShares: 119, cash: "235.980000", principal: "10000000",
   balance: "39308.080833", balanceKrw: "53286733", profit: "43610637", returnRate: "4.361063",
   fxRate: "1355.700000", fxRateDate: "2026-10-01",
 };
 const samsung: SimulationRow = {
-  date: "2026-10-01", kind: "month_first", openPrice: "84000.000000", closePrice: "85300.000000",
+  date: "2026-10-01", kind: "period", openPrice: "84000.000000", closePrice: "85300.000000",
   boughtShares: 0, heldShares: 120, cash: "51234.720000", principal: "10000000",
   balance: "10236000.000000", profit: "287235", returnRate: "0.028723",
 };

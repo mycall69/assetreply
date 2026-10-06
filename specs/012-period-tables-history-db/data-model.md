@@ -74,22 +74,24 @@ Alembic 리비전 하나(`down_revision = "f4c2a8e19d35"`, 파일 이름 `<rev>_
 ```text
 build_table(
   quote_days: Sequence[date],          # 계산 기간 안의 시세일(오름차순) — 첫 평가일 ~ 기준일
-  event_days: Mapping[date, int],      # 사건이 있는 날 → 그날 사건 행 수
+  event_days: Collection[date],        # 사건이 있는 날
   unit: PeriodUnit,
   end: date,                           # 계산 끝
   missing: Sequence[tuple[date, date]] = (),   # 가상자산 일 단위의 결측 구간(처음, 끝)
-) -> list[TableEntry]                  # 최신순
+) -> list[TableEntry]                  # 최신순, 날짜마다 하나
 
-TableEntry =
-  | Event(date, index)                              # 그날 index번째 사건 행. 마지막 사건 행에만 아래 표시가 붙을 수 있다
-      + shifted_from: date | None, is_ongoing: bool
-  | Period(date, shifted_from: date | None, is_ongoing: bool)   # 하루하루 상태의 그날 값
-  | Missing(date_from, date_to)
+TableEntry(kind, date, shifted_from: date | None, is_ongoing: bool, date_to: date | None)
+  kind = "events"   # 그날의 사건 행 묶음 — 서비스가 사건 행들로 펼친다. 표시는 그날의 마지막 사건 행이 진다
+       | "period"   # 하루하루 상태의 그날 값
+       | "missing"  # 결측 구간(date ~ date_to)
 ```
+
+사건 묶음을 날짜 하나로 두므로 쪽(3.3)이 같은 날의 사건 행을 가를 수 없다. 펼치기와 표시 붙이기는 `api/services/table_rows.table_page`가 한다 — 일시금은
+같은 날의 행이 처리 차례로 놓여 마지막 행이, 적립식은 늦은 사건이 위라 첫 행이 그날의 마지막 사건 행이다.
 
 **불변식** — 단위 테스트가 고정한다.
 - 모든 사건 행이 단위와 관계없이 한 번씩 나온다(SC-003).
-- 기간 하나에 대표 행은 하나다. 대표일에 사건이 있으면 기간 행은 없고, 표시는 그날의 마지막 사건 행이 진다(research R12-5).
+- 기간 하나에 대표 항목은 하나다. 대표일에 사건이 있으면 기간 행은 없고, 표시는 사건 묶음(펼치면 그날의 마지막 사건 행)이 진다(research R12-5).
 - `shifted_from`은 대표일 ≠ 기준일일 때만 있다(spec FR-004·SC-002).
 - 대표일은 주 단위에서 "금요일 이하의 마지막 시세일", 없으면 "그 주의 마지막 시세일"이다(research R12-3).
 - `is_ongoing`은 주·월에서 구간 끝 > 계산 끝일 때만이다.

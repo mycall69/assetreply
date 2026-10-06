@@ -86,10 +86,11 @@ class Test행_구조:
         dates = [r["date"] for r in body["rows"]]
         assert dates == sorted(dates, reverse=True)
 
-    async def test_행의_종류가_둘뿐이다(self, client) -> None:
-        """FR-025 — 월 첫 거래일 스냅샷과 배당락일."""
+    async def test_행의_종류는_매수_기간_배당락_재투자다(self, client) -> None:
+        """012 FR-003~FR-005(승인 2026-10-06) — 005 FR-025의 월 첫 거래일 스냅샷을 기간 행이
+        대체했다."""
         body = await fetch(client, limit=50)
-        assert {r["kind"] for r in body["rows"]} <= {"month_first", "dividend"}
+        assert {r["kind"] for r in body["rows"]} <= {"buy", "period", "dividend", "reinvest"}
 
     async def test_날짜가_실제_거래일이다(self, client) -> None:
         """FR-028 — "2021년 8월"이 아니라 "2021-08-02"다."""

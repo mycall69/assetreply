@@ -134,8 +134,10 @@ async def test_점의_가격은_그_날_수정_종가다(
         client: AsyncClient, params: dict[str, str]) -> None:
     table, series = await both(client, params)
     by_date = rows_by_date(table)
-    # 점의 날짜 = 표의 날짜(일별 아님 — spec FR-001)
-    assert sorted(by_date) == [p["date"] for p in series["points"]]
+    # 점의 날짜는 그대로 월 첫 거래일·사건 날이다(일별 아님 — spec FR-001). 012 승인 2026-10-06 —
+    # 표는 일 단위라 더 촘촘하다: 점마다 같은 날짜의
+    # 표 행이 있다.
+    assert {p["date"] for p in series["points"]} <= set(by_date)
     for point in series["points"]:
         assert Decimal(point["price"]) == expected(params, point["date"]), point["date"]
         assert "priceMissing" not in point

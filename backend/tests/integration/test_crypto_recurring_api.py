@@ -249,8 +249,12 @@ class Test결측일:
                          drop=[D("2021-01-10"), D("2021-01-11")])
         await seed_usd(session_factory, D("2019-12-01"), D("2022-12-31"))
         body = await run(client, coin_id)
-        dates = [r["date"] for r in body["rows"]]
-        assert "2021-01-10" not in dates and "2021-01-11" not in dates
+        # 012 승인 2026-10-06 — 결측일에는 값 행이 없고, 일 단위에는 그 자리에 결측 구간 행 하나가
+        # 있다(FR-004b).
+        values = [r["date"] for r in body["rows"] if r["kind"] != "missing"]
+        assert "2021-01-10" not in values and "2021-01-11" not in values
+        gaps = [(r["date"], r["dateTo"]) for r in body["rows"] if r["kind"] == "missing"]
+        assert gaps == [("2021-01-10", "2021-01-11")]
         row = next(r for r in body["rows"] if r["date"] == "2021-01-12")
         assert (row["contribution"], row["deferred"]) == ("30000", ["2021-01-10", "2021-01-11"])
         # 미뤄 합쳐도 넣은 예정일 수는 그대로다(SC-002)

@@ -4,7 +4,7 @@
  * - **배당 열이 없다**(FR-037) — 주식 표를 그대로 쓰면 빈 열 다섯이 1440px을 차지한다
  * - 통화는 열 이름 아래 줄(006 R6-26). 잔고 괄호는 KRW, 투자 수익·수익율은 KRW 기준(FR-035)
  * - 수량은 소수 8자리, 매매 수수료는 매수 행에만(FR-026, FR-027)
- * - `◇`는 그 달 1일 일봉이 없어 다른 날이 그 달의 행이라는 표시다 — 글자 설명을 함께 둔다(FR-030)
+ * - 012 승인 2026-10-06 — `◇`(그 달 1일 결측)는 없어졌다. 결측은 일 단위의 결측 구간 행이 드러낸다(FR-004b·FR-008)
  */
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
@@ -84,12 +84,13 @@ describe("행", () => {
     expect(cells[3]).toBe("");
   });
 
-  it("1일 결측 행에 ◇와 글자 설명이 있다", () => {
-    renderTable();
-    const mark = screen.getByRole("img", { name: "2021-03-01 일봉이 없어 03-02 일봉을 썼습니다" });
-    expect(mark.textContent).toBe("◇");
-    expect(mark.closest("tr")?.textContent).toContain(MISSING_ROW.date);
-    expect(screen.getAllByText("◇")).toHaveLength(1);
+  it("1일 결측은 결측 구간 행이 드러내고 ◇가 없다", () => {
+    // 012 승인 2026-10-06 — ◇(firstDayMissing) 대신 일 단위의 결측 구간 행이다(FR-004b·FR-008).
+    renderTable([LATEST_ROW, MISSING_ROW, { kind: "missing", date: "2021-03-01", dateTo: "2021-03-01" }, BUY_ROW]);
+    const gap = screen.getAllByRole("row").find((r) => r.getAttribute("data-kind") === "missing") as HTMLElement;
+    expect(gap).toHaveTextContent("2021-03-01 출처 결측 — 값 없음");
+    expect(gap.closest("tbody")?.textContent).toContain(MISSING_ROW.date);
+    expect(screen.queryAllByText("◇")).toHaveLength(0);
   });
 
   it("아주 작은 시가도 유효 숫자로 보인다", () => {

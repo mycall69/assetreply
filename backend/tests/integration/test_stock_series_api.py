@@ -122,10 +122,16 @@ async def table(client: AsyncClient, **over: object) -> dict:
 
 class Test표와의_일치:
     async def test_끝점이_표의_최신_행과_같은_날짜다(self, client) -> None:
-        """SC-032 — 표의 마지막 행과 차트 끝점이 어긋나면 안 된다."""
+        """SC-032 — 차트 끝점이 표와 어긋나면 안 된다. 012 승인 2026-10-06 — 차트는 그대로(월 첫
+        거래일·사건 날)이고 일 단위 표의 맨 위는
+        기준일이라, 끝점은 표의 맨 위보다 늦지 않고 그 날짜의 표 행과 같은 값이다(spec
+        Assumptions)."""
         body = await series(client)
         rows = (await table(client))["rows"]
-        assert body["points"][-1]["date"] == rows[0]["date"]
+        end = body["points"][-1]
+        assert end["date"] <= rows[0]["date"]
+        same_day = [r for r in rows if r["date"] == end["date"]]
+        assert same_day and end["returnRate"] == same_day[0]["returnRate"]
 
     async def test_모든_점의_수치가_표의_같은_날짜_행과_같다(self, client) -> None:
         """다른 계산 경로를 타면 **둘 다 그럴듯한 다른 숫자**가 나온다."""
@@ -236,8 +242,11 @@ class TestKRW_기준:
         body = await series(client, **USD_PRINCIPAL)
         result = await table(client, **USD_PRINCIPAL)
         last = body["points"][-1]
-        assert last["date"] == result["rows"][0]["date"]
-        assert last["returnRate"] == result["rows"][0]["returnRate"]
+        # 012 승인 2026-10-06 — 끝점은 같은 날짜의 표 행과 비교한다(일 단위 표의 맨 위는
+        # 기준일이다).
+        [row] = [r for r in result["rows"] if r["date"] == last["date"]][:1]
+        assert last["date"] <= result["rows"][0]["date"]
+        assert last["returnRate"] == row["returnRate"]
         # 달러 규모(1천 단위)가 아니라 KRW 규모다.
         assert Decimal(last["balance"]) > Decimal("100000")
 

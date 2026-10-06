@@ -4,6 +4,7 @@
  * 004가 세운 방식을 잇는다. `더 보기` 버튼이 사라진 만큼 **상태를 말로 알려야** 한다 —
  * 끝에 도달했는데 알리지 않으면 사용자는 아직 받는 중이라고 여겨 기다린다.
  */
+// 012 승인 2026-10-06 — 고정 행의 종류 이름 month_first → period(012 FR-008). 단언은 그대로다.
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -11,7 +12,7 @@ import { PerformanceTable } from "@/components/stock/PerformanceTable";
 import type { SimulationRow } from "@/lib/types";
 
 const row = (date: string): SimulationRow => ({
-  date, kind: "month_first", openPrice: "40000", closePrice: "40000", boughtShares: 0,
+  date, kind: "period", openPrice: "40000", closePrice: "40000", boughtShares: 0,
   heldShares: 2, cash: "6997", principal: "86997", balance: "80000",
   profit: "0", returnRate: "0.000000",
 });

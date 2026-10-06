@@ -4,6 +4,7 @@
  * **표에만 표시하고 보드가 "오늘까지"로 남으면 둘이 어긋난다**(FR-014b). 상장폐지는
  * 대개 큰 손실인데 알리지 않으면 화면에는 폐지 직전 수익률이 최종 성과처럼 남는다.
  */
+// 012 승인 2026-10-06 — 고정 행의 종류 이름 month_first → period(012 FR-008). 단언은 그대로다.
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
@@ -17,7 +18,7 @@ const CUT: SimulationSummary = {
 const LIVE: SimulationSummary = { ...CUT, asOf: "2026-10-01", isFinal: true };
 
 const ROWS: SimulationRow[] = [{
-  date: "2021-09-01", kind: "month_first", openPrice: "30000", closePrice: "30000",
+  date: "2021-09-01", kind: "period", openPrice: "30000", closePrice: "30000",
   boughtShares: 0, heldShares: 2, cash: "100", principal: "86997",
   balance: "60000", profit: "-26897", returnRate: "-0.309200",
 }];

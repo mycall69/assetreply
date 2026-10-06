@@ -51,7 +51,9 @@ async def test_점은_표의_날짜이고_총자산과_누적_납입_원금이�
     last_of_day: dict[str, dict] = {}  # type: ignore[type-arg]
     for row in reversed(table["rows"]):  # 오름차순 — 같은 날의 나중 행이 마지막 상태
         last_of_day[row["date"]] = row
-    assert [p["date"] for p in series["points"]] == sorted(last_of_day)
+    # 012 승인 2026-10-06 — 차트는 그대로(사건 날·그 달 첫 거래일)이고 일 단위 표가 더 촘촘하다.
+    # 점마다 같은 날짜의 표 행이 있다.
+    assert {p["date"] for p in series["points"]} <= set(last_of_day)
     for point in series["points"]:
         row = last_of_day[point["date"]]
         assert point["principal"] == row["contributedKrw"]

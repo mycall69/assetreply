@@ -117,8 +117,12 @@ class Test단절_표시:
         res = await client.get("/api/stocks/simulation/series", params=PARAMS)
         assert res.status_code == 200, res.text
         body = await fetch(client)
-        assert res.json()["points"][-1]["date"] == max(
-            r["date"] for r in body["rows"])
+        # 012 승인 2026-10-06 — 일 단위 표의 맨 위는 마지막 시세일이고, 차트는 그대로(월 첫
+        # 거래일·사건 날)라 그보다 늦지 않다. 둘 다 끊긴 날
+        # 뒤로 이어지지 않는다.
+        top = max(r["date"] for r in body["rows"])
+        assert top == LAST_TRADED
+        assert res.json()["points"][-1]["date"] <= top
 
     async def test_요약이_마지막_시세일_기준이다(self, client) -> None:
         """FR-014b — "09-02 기준"이라 적고 09-01 수치를 보이면 보드가 거짓말한다."""
