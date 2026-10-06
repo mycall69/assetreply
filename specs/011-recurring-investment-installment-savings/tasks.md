@@ -547,14 +547,17 @@ description: "Task list for 011-recurring-investment-installment-savings"
 
 ### Implementation for User Story 3
 
-- [ ] T046 [US3] 수집 (FR-029, FR-030)
+- [X] T046 [US3] 수집 (FR-029, FR-030)
   - `backend/src/ingestion/ecos/installment_items.py`(`INSTALLMENT_SERIES` — 키·통계표·알려진 코드·이름 패턴 `^정기적금\(1-2년\)$`·`^정기적금$`, `resolve_installment_items`)
   - `backend/src/ingestion/ecos/deposit_client.py`(`items_for(key)`가 계열 키를 안다 — 통계표 항목 캐시 공유, 기존 투자처 해석 불변)
   - 실행기·큐·저장소는 고치지 않는다.
-- [ ] T047 [US3] `backend/src/simulation/installment_ladder.py`(R11-8) (FR-024~FR-028, FR-030)
+  - 항목 목록 응답 읽기를 `deposit_items.monthly_items`·`pick_item`으로 꺼내 008 투자처와 함께 쓴다(동작 그대로 — 008 계약 테스트 통과).
+  - 클라이언트는 적금 항목을 처음 필요할 때 받아 둔 본문에서 찾는다 — 항목 목록을 받을 때 함께 찾으면 적금 항목의 변경이 정기예금 수집까지 멈춘다.
+- [X] T047 [US3] `backend/src/simulation/installment_ladder.py`(R11-8) (FR-024~FR-028, FR-030)
   - `backend/src/simulation/deposit_rollover.py`에서는 금리 해석기를 공개 이름으로 꺼내는 것만 한다(`_rate_resolver` → 공개 별칭, 동작·기존 테스트 불변).
   - `add_one_year`·`maturity_interest`·`accrued_interest`·`interest_tax`를 함께 쓴다.
-- [ ] T048 [US3] 서비스·라우트 (FR-022~FR-032, contracts/rest-api §3·§4)
+  - 회차일은 `contribution_schedule.months_later`(011 — `_add_months`를 공개 이름으로 바꿈, 같은 말일 규칙)다.
+- [X] T048 [US3] 서비스·라우트 (FR-022~FR-032, contracts/rest-api §3·§4)
   - `backend/src/api/services/deposit_installment.py`
     - (투자처, 상품) → 계열 키
     - 고를 수 있는 투자처와 설명 — 시중은행 "예금은행 정기적금(1~2년 만기) 평균", 상호금융 "상호금융 정기적금 평균 — 만기 구분 없음"
@@ -564,7 +567,7 @@ description: "Task list for 011-recurring-investment-installment-savings"
   - `recurring_series.py`의 적금 조립(점 `principal`·`price` 적금 금리·`depositRate`)
   - `backend/src/api/routes/deposit_institutions.py`(`installment` 객체)
   - `backend/src/api/errors.py`·`main.py`(`InstallmentNotAvailable` 400 처리기, 라우터 등록)
-- [ ] T049 [US3] 화면 (FR-022, FR-023, FR-029, FR-031~FR-034)
+- [X] T049 [US3] 화면 (FR-022, FR-023, FR-029, FR-031~FR-034)
   - `frontend/src/components/deposit/ProductPicker.tsx`
   - `frontend/src/components/deposit/InstitutionPicker.tsx`(선택 속성 `product` — 적금이면 비활성·사유, 기본은 지금 동작)
   - `frontend/src/components/deposit/InstallmentBoard.tsx`·`InstallmentTable.tsx`

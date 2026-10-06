@@ -3,12 +3,12 @@
 /**
  * 예금 최근 시뮬레이션 (T032) — 008 FR-037, ui-wireframes D6. 007 `CryptoHistory`와 같은 줄이다 — 고르기·다시 실행·삭제.
  *
- * - 한 줄은 **투자처·시작일·원금**이다
+ * - 한 줄은 **투자처·시작일·원금**이다. 011 — 적금 항목은 "정기 적금 · 월 ₩…"이다(같은 조건의 정기예금 줄과 구별된다)
  * - **보관 위치를 알린다** — 다른 기기에서 열었을 때 사라진 것으로 오해하지 않게 한다(005 FR-037a)
  * - **수익률을 줄에 적지 않는다** — 결과는 세율·금리가 바뀌면 달라진다(005 R5-9)
  */
 
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatMoneyWithSymbol } from "@/lib/format";
 import type { DepositHistoryEntry } from "@/lib/types";
 import { INSTITUTION_NAMES } from "@/stores/depositStore";
 
@@ -64,7 +64,14 @@ export function DepositHistory({
                   onChange={() => onToggle(entry.id)} aria-label={`${label} 비교 대상으로 선택`} />
                 <span className="min-w-24 font-medium">{label}</span>
                 <span className="tabular-nums text-gray-600">{entry.start}</span>
-                <span className="tabular-nums text-gray-600">{formatMoney(entry.principal, "KRW")}원</span>
+                {entry.product === "installment" ? (
+                  // 011 FR-033 — 상품과 월 납입액. 같은 조건의 정기예금 행과 구별된다.
+                  <span className="tabular-nums text-gray-600">
+                    정기 적금 · 월 {formatMoneyWithSymbol(entry.principal, "KRW")}
+                  </span>
+                ) : (
+                  <span className="tabular-nums text-gray-600">{formatMoney(entry.principal, "KRW")}원</span>
+                )}
                 <button type="button" onClick={() => onRerun(entry.id)}
                   aria-label={`${label} 다시 실행`}
                   className="rounded border border-gray-300 px-2 py-0.5 text-xs text-gray-700 hover:bg-gray-50">

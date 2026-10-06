@@ -22,6 +22,7 @@ export function DepositSimulationForm({
   disabled,
   limit,
   startable = null,
+  principalLabel = "투자 원금",
   onChange,
   onSubmit,
 }: {
@@ -30,6 +31,8 @@ export function DepositSimulationForm({
   /** 시작일의 마지막 날 — 오늘(한국 시간). */
   limit: string;
   startable?: Startable | null;
+  /** 011 — 금액 칸의 이름. 정기예금이면 "투자 원금", 정기 적금이면 "월 납입액"이다(값·쉼표 처리는 같다). */
+  principalLabel?: string;
   onChange: (next: DepositFormValues) => void;
   onSubmit: () => void;
 }) {
@@ -63,7 +66,7 @@ export function DepositSimulationForm({
         onChange={(start) => onChange({ ...values, start })} />
 
       <label className="text-sm">
-        <span className="mb-1 block text-gray-500">투자 원금</span>
+        <span className="mb-1 block text-gray-500">{principalLabel}</span>
         <span className="flex items-center gap-1.5">
           <input type="text" inputMode="numeric" ref={box}
             value={formatPrincipal(values.principal)}

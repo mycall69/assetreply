@@ -8,6 +8,9 @@
  *   (FR-016a) — 서버가 받아 둔 금리로 계산해 결과와 확인 실패(`recheckFailed`)를 준다. 받은 적 없는 투자처는 다시 요청하지 않는다 —
  *   같은 실패가 되풀이되며 출처 호출만 쓴다. 다시 요청은 한 실행에 한 번이다
  * - 투자처를 바꾸면 결과를 지운다(D2) — 이전 투자처의 결과가 새 이름 아래 남으면 그 수치를 새 투자처의 것으로 읽는다
+ * - 011 — 상품(`product`)이 정기 적금이면 따로 된 경로(`/api/deposit/installment-simulation`)를 부르고 결과는 `installment`에 둔다
+ *   (정기예금 칸과 한 번에 한쪽만 — research R11-11). 202는 금리 계열(적금 → 정기예금)마다 온다 — 끝날 때마다 다시 요청한다.
+ *   적금이 없는 투자처가 골라져 있는데 적금으로 바꾸면 시중은행으로 바꾸고 그 사실을 알린다(ui-wireframes §7)
  */
 
 import { create } from "zustand";
@@ -26,9 +29,16 @@ import type {
   DepositInstitution,
   DepositInstitutionKey,
   DepositInstitutionsResponse,
+  DepositProduct,
   DepositRow,
   DepositSimulationResponse,
   DepositSummary,
+  InstallmentCondition,
+  InstallmentContract,
+  InstallmentResponse,
+  InstallmentRow,
+  InstallmentSummary,
+  LadderDeposit,
   SimulationSeriesResponse,
 } from "@/lib/types";
 
@@ -39,8 +49,27 @@ export interface DepositInput {
   principal: string;
 }
 
+/** 011 — 적금 결과. 정기예금 칸과 **따로 둔다** — 한 번에 한쪽만 채운다(research R11-11). */
+export interface InstallmentResult {
+  rows: InstallmentRow[];
+  summary: InstallmentSummary;
+  condition: InstallmentCondition;
+  contracts: InstallmentContract[];
+  deposits: LadderDeposit[];
+  /** 결과의 투자처 이름 — 입력이 바뀌어도 결과가 어느 투자처의 것인지 남긴다. */
+  name: string;
+  series: SimulationSeriesResponse | null;
+  seriesError: string | null;
+}
+
 interface DepositState {
   input: DepositInput;
+  /** 011 — 상품. 기본은 정기예금이다(011 전과 같은 화면). 적금이면 `input.principal`이 월 납입액이다. */
+  product: DepositProduct;
+  /** 011 — 적금 결과. 정기예금이면 `null`이다. */
+  installment: InstallmentResult | null;
+  /** 011 — 적금으로 바꾸며 투자처를 바꿨다는 알림(적금이 없는 투자처였다). */
+  productNotice: string | null;
   /** 투자처 목록 — 설명과 받아 둔 범위. 받기 전에는 `null`이다(이름은 고정이라 화면이 먼저 그린다). */
   institutions: DepositInstitution[] | null;
   source: { name: string; basis: string } | null;
@@ -70,6 +99,8 @@ interface DepositState {
   comparisonError: string | null;
 
   setInput: (next: Partial<DepositInput>) => void;
+  /** 011 — 상품을 바꾼다. 결과를 비운다 — 다른 상품의 결과가 이 상품의 조건과 함께 보이지 않게(조건은 남는다). */
+  setProduct: (next: DepositProduct) => void;
   /** 투자처를 고른다. 결과를 지운다(D2) — 실행은 버튼으로 한다. */
   selectInstitution: (key: DepositInstitutionKey) => void;
   loadInstitutions: () => Promise<void>;
@@ -131,15 +162,47 @@ export function toQuery(input: DepositInput): string {
   }).toString();
 }
 
+/** 011 — 적금 질의. 금액은 `amount`(월 납입액, 문자열 그대로)다. */
+export function toInstallmentQuery(input: DepositInput): string {
+  return new URLSearchParams({
+    institution: input.institution, start: input.start, amount: input.principal,
+  }).toString();
+}
+
 const EMPTY_RESULT = {
   rows: [], summary: null, condition: null, resultName: null, series: null, seriesError: null,
-  collecting: null, progress: null, startable: null,
+  collecting: null, progress: null, startable: null, installment: null,
 } satisfies Partial<DepositState>;
 
+/** 받침이 있으면 `은`·`으로`, 없으면 `는`·`로`. 투자처 이름 다섯에만 쓴다. */
+function hasFinalConsonant(word: string): boolean {
+  const code = word.charCodeAt(word.length - 1) - 0xac00;
+  return code >= 0 && code <= 11171 && code % 28 !== 0;
+}
+
+function switchedNotice(from: DepositInstitutionKey, to: DepositInstitutionKey): string {
+  const a = INSTITUTION_NAMES[from];
+  const b = INSTITUTION_NAMES[to];
+  return `${a}${hasFinalConsonant(a) ? "은" : "는"} 적금이 없어 ${b}${hasFinalConsonant(b) ? "으로" : "로"} 바꿨습니다.`;
+}
+
 export const useDepositStore = create<DepositState>((set, get) => {
-  /** 금리를 받아 둔 투자처인가 — 투자처 목록의 `firstMonth`로 안다. 목록을 받지 못했으면 모른다(받지 않은 것으로 본다). */
-  function hasRates(key: DepositInstitutionKey): boolean {
-    return (get().institutions ?? []).some((i) => i.key === key && i.firstMonth !== null);
+  /**
+   * 금리를 받아 둔 투자처인가 — 투자처 목록의 `firstMonth`로 안다. 목록을 받지 못했으면 모른다(받지 않은 것으로 본다).
+   * 011 — 적금 계열이면 그 투자처의 적금 칸(`installment.firstMonth`)으로 본다.
+   */
+  function hasRates(key: DepositInstitutionKey, series?: "installment" | "deposit"): boolean {
+    return (get().institutions ?? []).some((i) => {
+      if (i.key !== key) return false;
+      if (series !== "installment") return i.firstMonth !== null;
+      return i.installment !== undefined && i.installment.available && i.installment.firstMonth !== null;
+    });
+  }
+
+  /** 적금을 고를 수 있는 투자처인가. 목록을 받기 전에는 모른다 — 막지 않고 서버가 사유와 함께 막는다. */
+  function installmentAvailable(key: DepositInstitutionKey): boolean {
+    const found = (get().institutions ?? []).find((i) => i.key === key);
+    return found?.installment === undefined || found.installment.available;
   }
 
   function rerunAutomatically(): void {
@@ -148,7 +211,8 @@ export const useDepositStore = create<DepositState>((set, get) => {
   }
 
   /** 진행을 구독한다. **완료에 다시 요청한다** — 부분 결과를 먼저 보여주지 않는 대신 끝난 시점을 알려야 한다. */
-  function watchProgress(jobId: number, institution: DepositInstitutionKey): void {
+  function watchProgress(jobId: number, institution: DepositInstitutionKey,
+    series?: "installment" | "deposit"): void {
     stopWatching();
     unwatch = subscribeDepositProgress(jobId, {
       onSnapshot: (progress) => set({ progress }),
@@ -159,7 +223,7 @@ export const useDepositStore = create<DepositState>((set, get) => {
       onFailed: (kind, reason) => {
         stopWatching();
         // FR-016a — 받아 둔 금리로 답할 수 있으면 그 "다음 실행"을 화면이 대신 한다. 한 실행에 한 번.
-        if (hasRates(institution) && !retriedAfterFailure) {
+        if (hasRates(institution, series) && !retriedAfterFailure) {
           retriedAfterFailure = true;
           rerunAutomatically();
           return;
@@ -169,8 +233,61 @@ export const useDepositStore = create<DepositState>((set, get) => {
     });
   }
 
+  /** 011 — 적금을 실행한다. 수집 대기·오류의 처리는 정기예금과 같다(같은 202 본문 + `series`, 같은 진행 구독). */
+  async function runInstallment(input: DepositInput): Promise<void> {
+    const query = toInstallmentQuery(input);
+    try {
+      const body = await apiClient.get<InstallmentResponse | DepositCollecting>(
+        `/api/deposit/installment-simulation?${query}`);
+      if ("status" in body && body.status === "collecting") {
+        // 부분 결과를 보이지 않고 이력에도 남기지 않는다(정기예금과 같다 — FR-011).
+        set({ collecting: body, progress: null, loading: false });
+        watchProgress(body.jobId, body.institution, body.series);
+        return;
+      }
+      const result = body as InstallmentResponse;
+      set({
+        installment: {
+          rows: result.rows, summary: result.summary, condition: result.condition, contracts: result.contracts,
+          deposits: result.deposits, name: result.institution.name, series: null, seriesError: null,
+        },
+      });
+      const saved = saveDepositHistory({
+        institution: input.institution, start: input.start, principal: input.principal, product: "installment" });
+      set({ history: loadDepositHistory(), historySaveError: saved.ok ? null : saved.reason });
+      try {
+        const series = await apiClient.get<SimulationSeriesResponse>(
+          `/api/deposit/installment-simulation/series?${query}`);
+        const current = get().installment;
+        set({ installment: current === null ? null : { ...current, series }, loading: false });
+      } catch (err) {
+        const current = get().installment;
+        set({
+          installment: current === null ? null
+            : { ...current, seriesError: message(err, "차트를 불러오지 못했습니다.") },
+          loading: false,
+        });
+      }
+      void get().loadInstitutions();
+    } catch (err) {
+      fail(err);
+    }
+  }
+
+  /** 실행이 실패한 사유를 상태로 옮긴다 — 정기예금과 적금이 같은 규칙이다(같은 오류 본문). */
+  function fail(err: unknown): void {
+    if (err instanceof ApiError && err.code === "before_first_month" && err.body) {
+      const { startableFrom, message: text } = err.body as unknown as BeforeFirstMonthBody;
+      set({ startable: { startableFrom, basis: "rate_start", message: text }, loading: false });
+      return;
+    }
+    set({ error: message(err, "시뮬레이션에 실패했습니다."), loading: false });
+  }
+
   return {
     input: { institution: "commercial_bank", start: DEFAULT_START, principal: "" },
+    product: "deposit",
+    productNotice: null,
     institutions: null,
     source: null,
     ...EMPTY_RESULT,
@@ -185,10 +302,24 @@ export const useDepositStore = create<DepositState>((set, get) => {
 
     setInput: (next) => set({ input: { ...get().input, ...next } }),
 
+    setProduct: (next) => {
+      stopWatching();
+      const input = get().input;
+      const blocked = next === "installment" && !installmentAvailable(input.institution);
+      // 적금이 없는 투자처면 첫 번째 고를 수 있는 투자처로 바꾸고 알린다 — 조용히 바꾸면 사용자는 고른 투자처의 결과로 읽는다.
+      const fallback: DepositInstitutionKey = "commercial_bank";
+      set({
+        product: next,
+        input: blocked ? { ...input, institution: fallback } : input,
+        productNotice: blocked ? switchedNotice(input.institution, fallback) : null,
+        ...EMPTY_RESULT, error: null, loading: false,
+      });
+    },
+
     selectInstitution: (key) => {
       if (key === get().input.institution) return;
       stopWatching();
-      set({ input: { ...get().input, institution: key }, ...EMPTY_RESULT, error: null });
+      set({ input: { ...get().input, institution: key }, ...EMPTY_RESULT, error: null, productNotice: null });
     },
 
     loadInstitutions: async () => {
@@ -201,7 +332,7 @@ export const useDepositStore = create<DepositState>((set, get) => {
     },
 
     refreshIfRan: async () => {
-      if (get().summary === null) return;
+      if (get().summary === null && get().installment === null) return;
       await get().run();
     },
 
@@ -209,13 +340,17 @@ export const useDepositStore = create<DepositState>((set, get) => {
     run: async () => {
       if (!automaticRun) retriedAfterFailure = false;
       automaticRun = false;
-      const { input } = get();
+      const { input, product } = get();
       if (input.principal === "") {
-        set({ error: "투자 원금을 입력하세요." });
+        set({ error: product === "installment" ? "월 납입액을 입력하세요." : "투자 원금을 입력하세요." });
         return;
       }
       stopWatching();
       set({ ...EMPTY_RESULT, loading: true, error: null });
+      if (product === "installment") {
+        await runInstallment(input);
+        return;
+      }
       try {
         const body = await apiClient.get<DepositSimulationResponse | DepositCollecting>(
           `/api/deposit/simulation?${toQuery(input)}`);
@@ -244,12 +379,7 @@ export const useDepositStore = create<DepositState>((set, get) => {
         // 받은 범위가 늘었을 수 있다 — 시작 가능 달을 새로 보인다.
         void get().loadInstitutions();
       } catch (err) {
-        if (err instanceof ApiError && err.code === "before_first_month" && err.body) {
-          const { startableFrom, message: text } = err.body as unknown as BeforeFirstMonthBody;
-          set({ startable: { startableFrom, basis: "rate_start", message: text }, loading: false });
-          return;
-        }
-        set({ error: message(err, "시뮬레이션에 실패했습니다."), loading: false });
+        fail(err);
       }
     },
 
@@ -278,6 +408,8 @@ export const useDepositStore = create<DepositState>((set, get) => {
       if (entry === undefined) return;
       stopWatching();
       set({ input: { institution: entry.institution, start: entry.start, principal: entry.principal },
+        // 011 — 빠진 칸은 정기예금이다(011 전 항목). `undefined`를 상품으로 옮기지 않는다.
+        product: entry.product === "installment" ? "installment" : "deposit", productNotice: null,
         ...EMPTY_RESULT, error: null });
       await get().run();
     },
@@ -291,17 +423,21 @@ export const useDepositStore = create<DepositState>((set, get) => {
       const failed: string[] = [];
       for (const entry of targets) {
         const name = (INSTITUTION_NAMES as Record<string, string>)[entry.institution] ?? entry.institution;
+        // 011 — 적금 항목은 적금 시계열 경로이고, 범례 이름에 상품을 붙인다(FR-034).
+        const installment = entry.product === "installment";
+        const path = installment ? `/api/deposit/installment-simulation/series?${toInstallmentQuery(entry)}`
+          : `/api/deposit/simulation/series?${toQuery(entry)}`;
+        const product = installment ? `${name} · 정기 적금` : name;
         try {
-          const body = await apiClient.get<SimulationSeriesResponse | DepositCollecting>(
-            `/api/deposit/simulation/series?${toQuery(entry)}`);
+          const body = await apiClient.get<SimulationSeriesResponse | DepositCollecting>(path);
           if ("status" in body && body.status === "collecting") {
             // 부분 결과를 완성된 선처럼 겹치지 않는다.
-            failed.push(`${name}(아직 받지 못한 구간이 있습니다 — 실행해서 받으세요)`);
+            failed.push(`${product}(아직 받지 못한 구간이 있습니다 — 실행해서 받으세요)`);
             continue;
           }
           const series = body as SimulationSeriesResponse;
           // FR-038 — 잠정 금리로 계산한 선이 섞여 있으면 범례가 말한다.
-          const label = series.provisionalFrom != null ? `${name} (잠정)` : name;
+          const label = series.provisionalFrom != null ? `${product} (잠정)` : product;
           items.push({ id: entry.id, label, start: entry.start, series });
         } catch (err) {
           // 조용히 빼지 않는다 — 빼고 비교하면 그 투자처가 진 것으로 읽힌다.

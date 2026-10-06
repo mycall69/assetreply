@@ -14,14 +14,19 @@ export const DEPOSIT_HISTORY_KEY = "assetreplay.depositHistory.v1";
 export interface DepositHistoryCondition {
   institution: DepositInstitutionKey;
   start: string;
+  /** 정기예금이면 원금, 적금이면 월 납입액(011). */
   principal: DecimalString;
+  /** 011 — 적금만 담는다. 없으면 정기예금이다(011 전 항목과 같은 모양 — research R11-11). */
+  product?: "installment";
 }
 
 export type SaveResult = { ok: true } | { ok: false; reason: string };
 
 /** 조건에서 식별자를 만든다. 같은 조건이면 같은 값 — 다시 돌릴 때마다 줄이 쌓이지 않게 한다. */
-export function depositConditionId({ institution, start, principal }: DepositHistoryCondition): string {
-  return [institution, start, principal].join("|");
+export function depositConditionId({ institution, start, principal, product }: DepositHistoryCondition): string {
+  const base = [institution, start, principal].join("|");
+  // 011 — 같은 조건의 정기예금과 적금이 한 항목으로 뭉치지 않게 상품을 붙인다. 정기예금 식별자는 011 전과 같다.
+  return product === "installment" ? `${base}|installment` : base;
 }
 
 function read(): DepositHistoryEntry[] {
@@ -55,6 +60,7 @@ export function saveDepositHistory(condition: DepositHistoryCondition): SaveResu
   const id = depositConditionId(condition);
   const entry: DepositHistoryEntry = {
     id, institution: condition.institution, start: condition.start, principal: condition.principal,
+    ...(condition.product === "installment" ? { product: "installment" as const } : {}),
     savedAt: new Date().toISOString(),
   };
   return write([entry, ...read().filter((e) => e.id !== id)]);

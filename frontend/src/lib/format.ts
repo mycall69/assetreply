@@ -25,6 +25,13 @@ export function formatAnnualRate(rate: DecimalString): string {
   return `${formatRate(rate)}%`;
 }
 
+/** 세율 `"0.154000"` → `15.4%` — 끝의 0을 지운다. 문자열로만 옮긴다(헌법 원칙 VI). 예금 보드·적금 보드가 함께 쓴다. */
+export function taxPercent(rate: string): string {
+  const shifted = shiftDecimal(rate, 2);
+  const trimmed = shifted.includes(".") ? shifted.replace(/0+$/, "").replace(/\.$/, "") : shifted;
+  return `${trimmed}%`;
+}
+
 /** 고시 단위 표기. JPY는 100엔당이므로 단위를 함께 보여준다 (FR-007). */
 export function unitLabel(quoteUnit: number): string {
   return quoteUnit === 100 ? "원 / 100엔" : "원";

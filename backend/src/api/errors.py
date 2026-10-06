@@ -96,6 +96,15 @@ class UnknownInstitution(Exception):
         self.allowed = allowed
 
 
+class InstallmentNotAvailable(Exception):
+    """출처에 그 투자처의 정기적금 금리 통계가 없다 (011 FR-029, 400 `installment_not_available`).
+    적금을 고를 수 있는 투자처를 함께 싣는다 — 정기예금 금리로 대신 계산하지 않는다."""
+
+    def __init__(self, message: str, allowed: list[str]) -> None:
+        super().__init__(message)
+        self.allowed = allowed
+
+
 class CurrencyNotAllowed(Exception):
     """예금 원금 통화가 원화가 아니다 (008 FR-004, 400 `currency_not_allowed`). 화면에는 통화 칸이
     없지만 이력·직접 요청이 다른 통화를 실어 올 수 있다 — 조용히 원화로 읽지 않는다."""

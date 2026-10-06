@@ -15,6 +15,7 @@ from src.api.errors import (
     CollectionInProgress,
     CurrencyNotAllowed,
     CurrencyPairNotAllowed,
+    InstallmentNotAvailable,
     InvalidQuery,
     InvalidSetting,
     InvalidSpread,
@@ -298,6 +299,12 @@ def create_app() -> FastAPI:
         return JSONResponse(status_code=400, content={
             "status": "unknown_institution", "message": str(exc), "allowed": exc.allowed})
 
+    @app.exception_handler(InstallmentNotAvailable)
+    async def _installment_not_available(_: Request, exc: InstallmentNotAvailable) -> JSONResponse:
+        # 011 FR-029 — 적금을 고를 수 있는 투자처를 함께 싣는다. 정기예금 금리로 대신하지 않는다.
+        return JSONResponse(status_code=400, content={
+            "status": "installment_not_available", "message": str(exc), "allowed": exc.allowed})
+
     @app.exception_handler(UnknownRegion)
     async def _unknown_region(_: Request, exc: UnknownRegion) -> JSONResponse:
         # 009 FR-002 — 사라진 코드도 "거래 없음"이 아니라 거절로 알린다.
@@ -421,6 +428,7 @@ def create_app() -> FastAPI:
     from src.api.routes import crypto_settings as crypto_settings_routes
     from src.api.routes import crypto_simulation as crypto_simulation_routes
     from src.api.routes import daily as daily_routes
+    from src.api.routes import deposit_installment as deposit_installment_routes
     from src.api.routes import deposit_institutions as deposit_institutions_routes
     from src.api.routes import deposit_progress as deposit_progress_routes
     from src.api.routes import deposit_series as deposit_series_routes
@@ -481,6 +489,8 @@ def create_app() -> FastAPI:
     app.include_router(deposit_series_routes.router)
     app.include_router(deposit_progress_routes.router)
     app.include_router(deposit_settings_routes.router)
+    # 011 — 정기 적금(정기예금 경로와 따로 — research R11-10)
+    app.include_router(deposit_installment_routes.router)
     app.include_router(realestate_regions_routes.router)
     app.include_router(realestate_complexes_routes.router)
     app.include_router(realestate_progress_routes.router)

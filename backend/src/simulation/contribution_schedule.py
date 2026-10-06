@@ -90,8 +90,11 @@ class Contribution:
     fx_kind: FxKind | None
 
 
-def _add_months(start: dt.date, months: int) -> dt.date:
-    """시작일의 `months`개월 뒤 같은 날. 없는 날이면 그 달 말일 — 늘 시작일의 날짜에서 센다."""
+def months_later(start: dt.date, months: int) -> dt.date:
+    """시작일의 `months`개월 뒤 같은 날. 없는 날이면 그 달 말일 — 늘 시작일의 날짜에서 센다.
+
+    적금의 회차일(`installment_ladder`)도 같은 규칙이다(FR-024).
+    """
     index = start.month - 1 + months
     year, month = start.year + index // 12, index % 12 + 1
     return dt.date(year, month, min(start.day, calendar.monthrange(year, month)[1]))
@@ -115,9 +118,9 @@ def scheduled_dates(start: dt.date, end: dt.date, frequency: Frequency, *,
         if frequency == "weekly":
             day = start + dt.timedelta(days=7 * k)
         elif frequency == "monthly":
-            day = _add_months(start, k)
+            day = months_later(start, k)
         else:
-            day = _add_months(start, 12 * k)
+            day = months_later(start, 12 * k)
         if day > end:
             return out
         out.append(day)

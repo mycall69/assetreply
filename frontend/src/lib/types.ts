@@ -1439,6 +1439,9 @@ export interface InstallmentSummary {
   interestTotal: DecimalString;
   taxTotal: DecimalString;
   afterTaxTotal: DecimalString;
+  /** 세후 이자 합계의 구성 — 만기된 적금 · 만기된 정기예금. 서버가 나눠 준다(화면은 더하지 않는다). */
+  installmentAfterTax: DecimalString;
+  depositAfterTax: DecimalString;
   installmentValue: DecimalString;
   depositValue: DecimalString;
   balance: DecimalString;

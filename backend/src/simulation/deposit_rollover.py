@@ -208,6 +208,12 @@ def _rate_resolver(rates: Mapping[dt.date, Decimal],
     return rate_for
 
 
+#: 011 — 적금 사다리(`installment_ladder`)가 적금·정기예금 금리를 **같은 해석기**로 읽는다
+#: (미발표 → 마지막 발표 달 잠정, 결측 → `RateMissing`). 공개 이름만 더했다 — 동작은 그대로다.
+ResolvedRate = _Rate
+rate_resolver = _rate_resolver
+
+
 def simulate_deposit(*, principal: Decimal, start: dt.date, end: dt.date,
                      rates: Mapping[dt.date, Decimal], first_month: dt.date,
                      latest_month: dt.date, tax_rate: Decimal) -> DepositOutcome:

@@ -85,17 +85,11 @@ def _month(raw: str) -> dt.date | None:
     return dt.date(year, month, 1) if 1 <= month <= 12 else None
 
 
-def resolve_deposit_items(body: str, table: str) -> dict[str, DepositItem]:
-    """항목 목록에서 그 통계표에 속한 투자처들의 항목을 확정한다.
+def monthly_items(body: str) -> list[tuple[str, str, dt.date]]:
+    """항목 목록 응답의 **월** 항목(코드, 이름, 시작 달). 오류 응답이면 그 종류의 예외를 낸다.
 
-    1. 알려진 코드의 월 항목이 이름 패턴과 맞으면 그것을 쓴다
-    2. 아니면 이름 패턴으로 월 항목을 다시 찾는다
-    3. 찾지 못하면 `ItemMappingChanged`(형식 오류)로 멈춘다
+    008 투자처와 011 적금 계열이 같은 응답을 읽는다 — 읽는 규칙이 갈라지지 않게 한 곳에 둔다.
     """
-    wanted = [inst for inst in INSTITUTIONS if TABLE_OF[inst] == table]
-    if not wanted:
-        raise ItemMappingChanged(f"예금 투자처가 없는 통계표입니다: {table}")
-
     try:
         payload = json.loads(body)
     except json.JSONDecodeError as exc:
@@ -117,17 +111,32 @@ def resolve_deposit_items(body: str, table: str) -> dict[str, DepositItem]:
         start = _month(str(row.get("START_TIME") or ""))
         if code and name and start is not None:
             monthly.append((code, name, start))
+    return monthly
 
-    items: dict[str, DepositItem] = {}
-    for inst in wanted:
-        pattern = NAME_PATTERNS[inst]
-        found = next(((c, n, s) for c, n, s in monthly
-                      if c == KNOWN_CODES[inst] and pattern.search(n)), None)
-        if found is None:
-            found = next(((c, n, s) for c, n, s in monthly if pattern.search(n)), None)
-        if found is None:
-            raise ItemMappingChanged(
-                f"{inst}의 항목을 찾지 못했습니다. 출처의 항목 체계가 바뀌었을 수 있습니다.")
-        code, name, start = found
-        items[inst] = DepositItem(inst, table, code, name, start)
-    return items
+
+def pick_item(monthly: list[tuple[str, str, dt.date]], key: str, table: str, known_code: str,
+              pattern: re.Pattern[str]) -> DepositItem:
+    """알려진 코드가 이름 패턴과 맞으면 그것, 아니면 이름 패턴으로 다시 찾는다. 못 찾으면 멈춘다."""
+    found = next(((c, n, s) for c, n, s in monthly if c == known_code and pattern.search(n)), None)
+    if found is None:
+        found = next(((c, n, s) for c, n, s in monthly if pattern.search(n)), None)
+    if found is None:
+        raise ItemMappingChanged(
+            f"{key}의 항목을 찾지 못했습니다. 출처의 항목 체계가 바뀌었을 수 있습니다.")
+    code, name, start = found
+    return DepositItem(key, table, code, name, start)
+
+
+def resolve_deposit_items(body: str, table: str) -> dict[str, DepositItem]:
+    """항목 목록에서 그 통계표에 속한 투자처들의 항목을 확정한다.
+
+    1. 알려진 코드의 월 항목이 이름 패턴과 맞으면 그것을 쓴다
+    2. 아니면 이름 패턴으로 월 항목을 다시 찾는다
+    3. 찾지 못하면 `ItemMappingChanged`(형식 오류)로 멈춘다
+    """
+    wanted = [inst for inst in INSTITUTIONS if TABLE_OF[inst] == table]
+    if not wanted:
+        raise ItemMappingChanged(f"예금 투자처가 없는 통계표입니다: {table}")
+    monthly = monthly_items(body)
+    return {inst: pick_item(monthly, inst, table, KNOWN_CODES[inst], NAME_PATTERNS[inst])
+            for inst in wanted}

@@ -9,10 +9,13 @@
  * - **확인 실패** — 오늘 금리를 확인하지 못해 받아 둔 금리로 계산했다는 사실과 사유(FR-016), 인증·형식이면 할 일(FR-016a, 반복 #2)
  *
  * 알림 역할(`role="status"`)이다 — 005~007의 보드 아래 줄과 같다.
+ *
+ * 011 — 적금 보드도 같은 줄을 쓴다(ui-wireframes §8). 잠정 문구의 "회차"는 지금 적금·지금 예금 가운데 **잠정인 쪽**의 대신 쓴 달과
+ * 금리다. 멈춤·확인 실패 문구는 그대로다.
  */
 
 import { formatAnnualRate } from "@/lib/format";
-import type { DepositFailureKind, DepositSummary } from "@/lib/types";
+import type { DepositFailureKind, DepositSummary, InstallmentSummary } from "@/lib/types";
 
 const LINE = "rounded border px-4 py-2 text-xs";
 
@@ -25,15 +28,30 @@ const RECHECK_ACTION: Partial<Record<DepositFailureKind, string>> = {
   format: "출처의 응답 형식이 바뀌었습니다 — 어댑터를 고쳐야 합니다.",
 };
 
-export function DepositNotice({ summary, start }: { summary: DepositSummary; start: string }) {
-  const { provisionalFrom, currentTerm, stopped, recheckFailed } = summary;
+/** 적금의 잠정 줄 — 잠정인 쪽(지금 적금·지금 예금)의 대신 쓴 달과 금리. 둘 다 잠정이 아니면 줄이 없다. */
+function installmentProvisional(summary: InstallmentSummary): string | null {
+  const used = [
+    summary.currentInstallment?.provisional ? ["지금 적금", summary.currentInstallment] as const : null,
+    summary.currentDeposit?.provisional ? ["지금 예금", summary.currentDeposit] as const : null,
+  ].flatMap((x) => (x === null ? [] : [`${x[0]} ${x[1].rateMonth} 금리(${formatAnnualRate(x[1].rate)})`]));
+  return summary.provisionalFrom === null || used.length === 0 ? null
+    : `ⓘ 잠정 — ${summary.provisionalFrom} 가입 금리가 아직 발표되지 않아 ${used.join("·")}로 계산했습니다. `
+      + "금리가 발표되면 값이 바뀝니다.";
+}
+
+export function DepositNotice({ summary, start }: { summary: DepositSummary | InstallmentSummary; start: string }) {
+  const { provisionalFrom, stopped, recheckFailed } = summary;
+  const provisional = "currentTerm" in summary
+    ? (provisionalFrom !== null && summary.currentTerm !== null
+      ? `ⓘ 잠정 — ${provisionalFrom} ${provisionalFrom === start ? "가입" : "재예치"} 금리가 아직 발표되지 않아 `
+        + `${summary.currentTerm.rateMonth} 금리(${formatAnnualRate(summary.currentTerm.rate)})로 계산했습니다. `
+        + "금리가 발표되면 값이 바뀝니다."
+      : null)
+    : installmentProvisional(summary);
   return (
     <>
-      {provisionalFrom !== null && currentTerm !== null && (
-        <p role="status" className={`${LINE} border-sky-200 bg-sky-50 text-sky-900`}>
-          ⓘ 잠정 — {provisionalFrom} {provisionalFrom === start ? "가입" : "재예치"} 금리가 아직 발표되지 않아{" "}
-          {currentTerm.rateMonth} 금리({formatAnnualRate(currentTerm.rate)})로 계산했습니다. 금리가 발표되면 값이 바뀝니다.
-        </p>
+      {provisional !== null && (
+        <p role="status" className={`${LINE} border-sky-200 bg-sky-50 text-sky-900`}>{provisional}</p>
       )}
       {stopped !== null && (
         <p role="status" className={`${LINE} border-amber-200 bg-amber-50 text-amber-800`}>

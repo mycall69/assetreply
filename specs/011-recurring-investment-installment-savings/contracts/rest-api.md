@@ -134,7 +134,7 @@
 
 수집 판정은 두 계열을 함께 본다(research R11-9).
 
-**202**: 008과 같은 모양에 `series`가 더해진다.
+**202**: 008과 같은 모양에 `series`가 더해진다. `institution`은 투자처 키다 — 수집은 금리 계열 키(`…_isav`)로 돌지만 응답에 그 키를 싣지 않는다(research R11-2).
 
 ```json
 {"status": "collecting", "institution": "commercial_bank", "series": "installment", "jobId": 41,
@@ -154,10 +154,13 @@
   "institution": {"key": "commercial_bank", "name": "시중은행"},
   "condition": {"product": "installment", "start": "2015-01-15", "amount": "1000000",
                 "interestTaxRate": "0.154000",
-                "installmentItem": "예금은행 정기적금(1~2년 만기) 평균", "depositItem": "예금은행 정기예금(1년) 평균"},
+                "installmentItem": "예금은행 정기적금(1~2년 만기) 평균",
+                "depositItem": "예금은행 정기예금(1년) 평균 — 일반·특수은행 포함"},   // 008 투자처 설명 그대로
   "summary": {
     "contributed": "141000000",       // 낸 회차 × 월 납입액(새 돈만)
+    "installments": 141,              // 낸 회차 수(T043 구현 때 더함)
     "interestTotal": "…", "taxTotal": "…", "afterTaxTotal": "…",   // 만기된 계약(적금 + 정기예금)의 합
+    "installmentAfterTax": "…", "depositAfterTax": "…",   // 세후 이자 합의 구성(적금 · 정기예금) — 보드가 더하지 않는다(T045 때 더함)
     "installmentValue": "…", "depositValue": "…", "balance": "…",   // 기준일 평가(경과 이자 포함)
     "profit": "…", "returnRate": "…", "asOf": "2026-10-06", "isFinal": true,
     "currentInstallment": {"no": 12, "joinedOn": "2026-01-15", "maturesOn": "2027-01-15", "rate": "3.1",
@@ -182,6 +185,9 @@
 
 - `rows.kind`: `installment` · `month` · `installment_maturity` · `deposit_maturity` · `deposit_join`. 만기 행에는 `interest`·`tax`·`afterTax`가 있다. 가입 행에는
   `fromDeposit`·`fromInstallment`가 있다. 모든 행을 한 번에 준다(008과 같다 — 20년 약 500행).
+  - `contractNo`는 그 행의 계약 번호다 — 적금 행(납입·적금 만기)은 적금, 정기예금 행(만기·가입)은 정기예금의 번호다. 월 행은 `null`이다.
+  - 월 행에는 `rate`·`amount`가 없다(두 상품의 금리가 다르다 — 적용 금리는 계약 행에 있다).
+- `contracts`·`deposits`는 **만기된** 계약만이다(008 `terms`와 같다). 진행 중인 것은 `summary.currentInstallment`·`currentDeposit`이다.
 - 위 예의 수치는 모양을 보이는 자리다. 기대값은 단위 테스트의 손계산이 정한다.
 
 ### `GET /api/deposit/installment-simulation/series`

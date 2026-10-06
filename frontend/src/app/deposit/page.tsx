@@ -6,6 +6,9 @@
  * 주식·가상자산 화면과 같은 구성이되 **종목 검색 대신 투자처 라디오 버튼 다섯**이고, 원금은 원화만이다 — 통화 칸·재투자 칸이
  * 없다. 시작일 상한은 **오늘(한국 시간)**이다(FR-005). 화면 아래에 출처(ECOS)를 밝힌다(약관 제7조 ②, research R8-2).
  * 경로 이름(`deposit`)은 미구현 자산군 가드(`noUnbuiltAssetRoutes.test.ts`)와 사이드바가 함께 전제한다.
+ *
+ * 011 — 상품(정기예금 · 정기 적금)을 고른다(FR-022). 적금이면 여섯 칸 보드(`InstallmentBoard`)·적금 표(`InstallmentTable`)·누적 납입
+ * 원금 점선과 적금 금리 선이 있는 차트를 그리고, 정기예금 보드·표는 없다(한 번에 한쪽만). 금액 칸은 "월 납입액"이다.
  */
 
 import { useEffect, useMemo } from "react";
@@ -14,25 +17,28 @@ import { DepositHistory } from "@/components/deposit/DepositHistory";
 import { DepositNotice } from "@/components/deposit/DepositNotice";
 import { DepositPerformanceTable } from "@/components/deposit/DepositPerformanceTable";
 import { DepositSimulationForm } from "@/components/deposit/DepositSimulationForm";
+import { InstallmentBoard } from "@/components/deposit/InstallmentBoard";
+import { InstallmentTable } from "@/components/deposit/InstallmentTable";
 import { InstitutionPicker } from "@/components/deposit/InstitutionPicker";
+import { ProductPicker } from "@/components/deposit/ProductPicker";
 import { CollectingNotice } from "@/components/stock/CollectingNotice";
 import { ComparisonChart } from "@/components/stock/ComparisonChart";
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
 import { PerformanceChart } from "@/components/stock/PerformanceChart";
-import { formatAnnualRate, shiftDecimal } from "@/lib/format";
+import { formatAnnualRate, taxPercent } from "@/lib/format";
 import { kstToday } from "@/lib/startDate";
 import { INSTITUTION_NAMES, useDepositStore } from "@/stores/depositStore";
 
-/** 세율 `"0.154000"` → `15.4%` — 끝의 0을 지운다. 문자열로만 옮긴다(헌법 원칙 VI). */
-export function taxPercent(rate: string): string {
-  const shifted = shiftDecimal(rate, 2);
-  const trimmed = shifted.includes(".") ? shifted.replace(/0+$/, "").replace(/\.$/, "") : shifted;
-  return `${trimmed}%`;
-}
+/** 적금 부제목(ui-wireframes §7). 정기예금 부제목은 지금 문장 그대로다(`DepositPage.test.tsx`). */
+const INSTALLMENT_SUBTITLE = "매달 정해진 돈을 1년 만기 정기 적금에 붓고, 만기 금액은 1년 정기예금에 넣으며 새 적금을 붓는 성과";
+
+/** 진행 안내의 받는 것 — 적금 실행은 계열(적금 금리 → 정기예금 금리)마다 받는다. */
+const COLLECTING_SUBJECT = { installment: "적금 금리", deposit: "정기예금 금리" } as const;
 
 export default function DepositPage() {
   const {
-    input, institutions, rows, summary, condition, resultName, series, seriesError, collecting,
+    input, product, installment, productNotice, setProduct,
+    institutions, rows, summary, condition, resultName, series, seriesError, collecting,
     progress, startable,
     loading, error, setInput, selectInstitution, loadInstitutions, run, refreshIfRan, dispose,
     history, historySaveError, selectedHistory, comparison, comparing, comparisonError,
@@ -73,14 +79,21 @@ export default function DepositPage() {
       <header>
         <h2 className="text-2xl font-bold tracking-tight">예금 투자 시뮬레이션</h2>
         <p className="mt-1 text-sm text-gray-500">
-          1년 만기 정기예금에 가입하고 만기마다 세후 이자를 더해 재예치한 성과
+          {product === "installment" ? INSTALLMENT_SUBTITLE
+            : "1년 만기 정기예금에 가입하고 만기마다 세후 이자를 더해 재예치한 성과"}
         </p>
       </header>
 
       <section className="space-y-3 rounded-lg border border-gray-200 p-4">
-        <InstitutionPicker institutions={institutions} value={input.institution}
+        {/* 011 FR-022 — 상품. 바꾸면 결과가 빈다(조건은 남는다). */}
+        <ProductPicker value={product} disabled={loading} onChange={setProduct} />
+        <InstitutionPicker institutions={institutions} value={input.institution} product={product}
           onChange={selectInstitution} />
+        {productNotice !== null && (
+          <p role="status" className="text-xs text-amber-800">ⓘ {productNotice}</p>
+        )}
         <DepositSimulationForm
+          principalLabel={product === "installment" ? "월 납입액" : "투자 원금"}
           values={{ start: input.start, principal: input.principal }}
           disabled={loading}
           limit={limit}
@@ -99,10 +112,34 @@ export default function DepositPage() {
       {collecting !== null && (
         // FR-011 — 진행을 보이되 부분 결과를 보여주지 않는다.
         <CollectingNotice collecting={collecting} stockName={INSTITUTION_NAMES[collecting.institution]}
-          progress={progress} subject="금리" unit="개월" />
+          progress={progress} subject={collecting.series === undefined ? "금리" : COLLECTING_SUBJECT[collecting.series]}
+          unit="개월" />
       )}
 
       {loading && <p className="py-8 text-center text-sm text-gray-500">계산하는 중…</p>}
+
+      {installment !== null && (
+        <div className="space-y-2">
+          {/* 011 FR-031 — 적금 보드(여섯 칸). 잠정·멈춤·확인 실패 줄은 정기예금과 같은 부품이다. */}
+          <InstallmentBoard summary={installment.summary} institutionName={installment.name}
+            taxRate={installment.condition.interestTaxRate} />
+          <DepositNotice summary={installment.summary} start={installment.condition.start} />
+        </div>
+      )}
+
+      {installment !== null && (
+        <section>
+          <h3 className="mb-2 text-sm font-semibold">성과 추이</h3>
+          {installment.seriesError !== null ? (
+            <p role="alert" className="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {installment.seriesError}
+            </p>
+          ) : (
+            // 평가액·수익률·누적 납입 원금 선과 그 달 적금 금리 선. 상자에 그 달 정기예금 금리도 보인다(FR-032).
+            <PerformanceChart series={installment.series} collecting={collecting} loading={loading} />
+          )}
+        </section>
+      )}
 
       {summary !== null && (
         <div className="space-y-2">
@@ -129,7 +166,12 @@ export default function DepositPage() {
 
       {/* 010 FR-015~FR-017 — 넓은 창이면 성과 표 오른쪽(sticky), 좁으면 지금처럼 표 아래. 경계는 표의 실제 폭이다. */}
       <TableWithHistory
-        table={summary !== null ? (
+        table={installment !== null ? (
+          <section>
+            <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
+            <InstallmentTable rows={installment.rows} />
+          </section>
+        ) : summary !== null ? (
           <section>
             <h3 className="mb-2 text-sm font-semibold">일자별 투자 성과</h3>
             <DepositPerformanceTable rows={rows} />
