@@ -592,7 +592,7 @@ description: "Task list for 011-recurring-investment-installment-savings"
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T051 [P] [US4] `backend/tests/integration/test_stock_sale_tax_settings_api.py` — `GET/PUT /api/stocks/settings/sale-tax` (FR-035~FR-038, SC-007)
+- [X] T051 [P] [US4] `backend/tests/integration/test_stock_sale_tax_settings_api.py` — `GET/PUT /api/stocks/settings/sale-tax` (FR-035~FR-038, SC-007)
   - GET 기본값
     - `"0.0020"`·`"0.22"`·`"2500000"`·`isDefault true`·`defaults`
   - PUT
@@ -606,7 +606,7 @@ description: "Task list for 011-recurring-investment-installment-savings"
     - 표·`profit`(보유 중)은 그대로
   - 기본값을 보내면 응답이 T001과 같다
   - 기존 `GET/PUT /api/stocks/settings`는 그대로
-- [ ] T052 [P] [US4] 화면 테스트 (FR-035~FR-037, SC-007, ui-wireframes §2a·§9)
+- [X] T052 [P] [US4] 화면 테스트 (FR-035~FR-037, SC-007, ui-wireframes §2a·§9)
   - `frontend/tests/StockSaleTaxForm.test.tsx`
     - 세 칸·기본값과 근거
     - 퍼센트 ↔ 비율 문자열 변환 — `"0.0020"` ↔ `"0.2"`, `"0.22"` ↔ `"22"`
