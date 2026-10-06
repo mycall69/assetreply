@@ -71,11 +71,17 @@ async def helio(http, source, session_factory) -> int:  # type: ignore[no-untype
     return next(int(i["complexId"]) for i in items if "헬리오시티" in i["name"])
 
 
-async def simulate(http: AsyncClient, complex_id: int) -> dict:  # type: ignore[type-arg]
-    response = await http.get(
-        "/api/realestate/simulation",
-        params={"complexId": str(complex_id), "area": "30k", "buyDate": "2021-03-15"},
-    )
+#: 매입가 직접 입력 — 시드의 그 달 시세(20.23억)로 사면 기준일 평가액(20.00억)이 낮아
+#: 양도차익이 없다(no_gain). 차익이 있어야 비과세·고가주택·거주 비율의 갈래가 보인다
+#: (T080 구현 중 확인 — 처음 이 파일은 시드에 차익이 있다고 가정했다).
+GAIN_PRICE = "1500000000"
+
+
+async def simulate(http: AsyncClient, complex_id: int, buy_price: str | None = GAIN_PRICE) -> dict:  # type: ignore[type-arg]
+    params = {"complexId": str(complex_id), "area": "30k", "buyDate": "2021-03-15"}
+    if buy_price is not None:
+        params["buyPrice"] = buy_price
+    response = await http.get("/api/realestate/simulation", params=params)
     assert response.status_code == 200, response.text
     return response.json()  # type: ignore[no-any-return]
 
@@ -119,9 +125,25 @@ async def test_매도비용은_평가액으로_판다고_가정한_중개_보수
     assert summary["returnRateAfterSale"] == str(
         quantize_rate(Decimal(after) / Decimal(summary["invested"]))
     )
-    # 보유 2년(2021-03-15 → 2023-10-05)·거주 2년 — 비과세 요건 안, 장특공은 보유 3년 전이라 없다
+    # 보유 2년(2021-03-15 → 2023-10-05)·거주 2년 — 비과세 요건 안, 평가액 12억 초과라 그 초과분만
+    # 과세, 장특공은 보유 3년 전이라 없다
     assert (summary["saleCost"]["holdingYears"], summary["saleCost"]["residenceYears"]) == (2, 2)
-    assert summary["saleCost"]["kind"] in ("exempt", "high_price")
+    assert (summary["saleCost"]["kind"], summary["saleCost"]["ltsdRate"]) == (
+        "high_price",
+        "0.000000",
+    )
+    assert int(summary["saleCost"]["incomeTax"]) > 0
+
+
+async def test_시드의_그_달_시세로_사면_양도차익이_없어_중개_보수만이다(
+    client, session_factory
+) -> None:  # type: ignore[no-untyped-def]
+    http, source = client
+    body = await simulate(http, await helio(http, source, session_factory), buy_price=None)
+    sale = body["summary"]["saleCost"]
+    assert sale == expected(body, "1")
+    assert (sale["kind"], sale["incomeTax"], sale["localTax"]) == ("no_gain", "0", "0")
+    assert sale["total"] == sale["brokerage"] and int(sale["gain"]) < 0
 
 
 async def test_거주_비율을_바꾸면_비과세_판정이_바뀐다(client, session_factory) -> None:  # type: ignore[no-untyped-def]
