@@ -450,7 +450,7 @@ description: "Task list for 012-period-tables-history-db"
   - 안내·상태는 `frontend/src/components/history/HistoryStates.tsx`(`HistoryNotice`·`HistoryContent`)를 넷이 함께 쓴다.
 - [X] T058 [US3] `frontend/src/components/settings/HistoryRetentionSection.tsx`(불러오기·저장·알림을 함께 가진 절 — T049가 홀로 그린다)·`frontend/src/app/settings/page.tsx`(맨 아래 절) (FR-012, F7)
 - [X] T059 [US3] 화면 넷 — `frontend/src/app/{stocks,crypto,deposit,realestate}/page.tsx` — 이력 부품에 새 속성을 넘긴다. 마운트 효과의 주석("이력은 브라우저에 있다")을 고친다 (FR-014a, FR-015)
-- [ ] T060 [US3] 검증 — quickstart 2·3-4·3-5(API)·4-3~4-5(브라우저) (FR-011~FR-015, SC-006, SC-007)
+- [X] T060 [US3] 검증 — quickstart 2·3-4·3-5(API)·4-3~4-5(브라우저) (FR-011~FR-015, SC-006, SC-007)
   - 012 전 형식 옛 키가 있는 브라우저 프로필에서 네 화면을 연다.
   - 다른 브라우저에서 같은 목록이 보인다.
   - 백엔드를 멈추면 불러오기 실패와 다시 시도가 보인다.
