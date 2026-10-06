@@ -11,6 +11,7 @@
  * 조건만 남아 있다(R5-9). 저장 당시 수치를 적어 두면 지금 값인 것처럼 읽힌다.
  */
 
+import { HistoryContent, HistoryNotice, type HistoryStateProps } from "@/components/history/HistoryStates";
 import { ExternalLink } from "@/components/ExternalLink";
 import { FREQUENCY_TEXT } from "@/components/recurring/InvestmentModeFields";
 import { stockLink } from "@/lib/externalLinks";
@@ -29,6 +30,11 @@ export function SimulationHistory({
   onRemove,
   onCompare,
   onRerun,
+  loading,
+  loadError,
+  onRetry,
+  notice,
+  retentionDays,
 }: {
   entries: SimulationHistoryEntry[];
   selected: string[];
@@ -39,15 +45,13 @@ export function SimulationHistory({
   onCompare: () => void;
   /** 010 FR-018 — 필수다. 선택이면 화면이 넘기기를 잊어도 버튼이 조용히 사라진다(주식에 처음부터 없던 결함의 모양). */
   onRerun: (id: string) => void;
-}) {
+} & HistoryStateProps) {
   return (
     <section className="rounded-lg border border-gray-200 p-4">
       <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold">최근 시뮬레이션</h3>
-        {/* FR-037a, SC-018 — 서버에 없다는 사실이 드러나야 한다. */}
-        <p data-testid="history-notice" className="text-xs text-gray-500">
-          ⓘ 이 브라우저에만 저장됩니다. 브라우저 데이터를 지우면 함께 사라집니다.
-        </p>
+        {/* 012 FR-015 — 보관 위치(이 기기의 로컬 DB)와 보관 기간을 말한다. */}
+        <HistoryNotice retentionDays={retentionDays} scope="" />
       </header>
 
       {saveError !== null && (
@@ -59,11 +63,8 @@ export function SimulationHistory({
         </p>
       )}
 
-      {entries.length === 0 ? (
-        <p className="py-6 text-center text-sm text-gray-500">
-          아직 실행한 시뮬레이션이 없습니다.
-        </p>
-      ) : (
+      <HistoryContent loading={loading} loadError={loadError} onRetry={onRetry} notice={notice}
+        empty={entries.length === 0}>
         <ul className="divide-y divide-gray-100">
           {entries.map((entry) => (
             <li
@@ -125,7 +126,7 @@ export function SimulationHistory({
             </li>
           ))}
         </ul>
-      )}
+      </HistoryContent>
 
       <div className="mt-3 flex justify-end">
         <button

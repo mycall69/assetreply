@@ -9,6 +9,7 @@
  * - 버튼·고르기의 이름은 단지·평형·매입일이다 — 같은 단지·평형을 다른 날 산 줄이 여럿일 수 있다
  */
 
+import { HistoryContent, HistoryNotice, type HistoryStateProps } from "@/components/history/HistoryStates";
 import { ComplexLink } from "@/components/realestate/ComplexLink";
 import { formatMoney } from "@/lib/format";
 import type { RealEstateHistoryEntry } from "@/lib/types";
@@ -25,6 +26,11 @@ export function RealEstateHistory({
   onCompare,
   onRerun,
   umdNames = {},
+  loading,
+  loadError,
+  onRetry,
+  notice,
+  retentionDays,
 }: {
   entries: RealEstateHistoryEntry[];
   selected: string[];
@@ -36,14 +42,13 @@ export function RealEstateHistory({
   onRerun: (id: string) => void;
   /** 받아 둔 법정동의 이름(코드 → 이름) — 단지 검색에 붙인다(010 FR-026). 모르는 코드면 단지명만으로 찾는다. */
   umdNames?: Record<string, string>;
-}) {
+} & HistoryStateProps) {
   return (
     <section className="rounded-lg border border-gray-200 p-4">
       <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold">최근 시뮬레이션</h3>
-        <p data-testid="history-notice" className="text-xs text-gray-500">
-          ⓘ 이 브라우저에만 저장됩니다. 브라우저 데이터를 지우면 함께 사라집니다. 다른 자산군 이력과 따로입니다.
-        </p>
+        {/* 012 FR-015 — 보관 위치(이 기기의 로컬 DB)와 보관 기간을 말한다. */}
+        <HistoryNotice retentionDays={retentionDays} scope=" 다른 자산군 이력과 따로입니다." />
       </header>
 
       {saveError !== null && (
@@ -52,9 +57,8 @@ export function RealEstateHistory({
         </p>
       )}
 
-      {entries.length === 0 ? (
-        <p className="py-6 text-center text-sm text-gray-500">아직 실행한 시뮬레이션이 없습니다.</p>
-      ) : (
+      <HistoryContent loading={loading} loadError={loadError} onRetry={onRetry} notice={notice}
+        empty={entries.length === 0}>
         <ul className="divide-y divide-gray-100">
           {entries.map((entry) => {
             const name = `${entry.complexName} ${entry.areaLabel}`;
@@ -86,7 +90,7 @@ export function RealEstateHistory({
             );
           })}
         </ul>
-      )}
+      </HistoryContent>
 
       <div className="mt-3 flex justify-end">
         <button type="button" onClick={onCompare}

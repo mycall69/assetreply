@@ -16,6 +16,7 @@ from src.api.errors import (
     CurrencyNotAllowed,
     CurrencyPairNotAllowed,
     InstallmentNotAvailable,
+    InvalidHistory,
     InvalidQuery,
     InvalidSetting,
     InvalidSpread,
@@ -23,6 +24,7 @@ from src.api.errors import (
     OutOfRange,
     RegionRetired,
     StartAfterEnd,
+    UnknownAsset,
     UnknownCoin,
     UnknownComplex,
     UnknownCurrency,
@@ -239,6 +241,15 @@ def create_app() -> FastAPI:
     async def _invalid_setting(_: Request, exc: InvalidSetting) -> JSONResponse:
         return _json(422, "invalid_setting", str(exc))
 
+    # 012 — 이력. 모르는 자산군은 404, 틀린 조건은 422(어느 칸인지 말한다).
+    @app.exception_handler(UnknownAsset)
+    async def _unknown_asset(_: Request, exc: UnknownAsset) -> JSONResponse:
+        return _json(404, "unknown_asset", str(exc))
+
+    @app.exception_handler(InvalidHistory)
+    async def _invalid_history(_: Request, exc: InvalidHistory) -> JSONResponse:
+        return _json(422, "invalid_history", str(exc))
+
     @app.exception_handler(FxUnavailable)
     async def _fx_unavailable(_: Request, exc: FxUnavailable) -> JSONResponse:
         # 환산할 수 없다는 사실이 드러나야 한다. 값을 만들어내지 않는다 (원칙 V).
@@ -434,6 +445,7 @@ def create_app() -> FastAPI:
     from src.api.routes import deposit_series as deposit_series_routes
     from src.api.routes import deposit_settings as deposit_settings_routes
     from src.api.routes import deposit_simulation as deposit_simulation_routes
+    from src.api.routes import history as history_routes
     from src.api.routes import jobs as job_routes
     from src.api.routes import latest as latest_routes
     from src.api.routes import rates as rates_routes
@@ -497,6 +509,7 @@ def create_app() -> FastAPI:
     app.include_router(realestate_simulation_routes.router)
     app.include_router(realestate_series_routes.router)
     app.include_router(realestate_settings_routes.router)
+    app.include_router(history_routes.router)
 
     return app
 

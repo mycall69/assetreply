@@ -9,12 +9,13 @@
 import { create } from "zustand";
 import { ApiError, apiClient } from "@/lib/apiClient";
 import type { ComparisonItem } from "@/components/stock/ComparisonChart";
-import {
-  loadHistory,
-  removeHistory,
-  saveHistory,
-} from "@/lib/simulationHistory";
 import { subscribeCollection } from "@/lib/collectionStream";
+import {
+  INITIAL_HISTORY,
+  removeHistoryFlow,
+  restoreHistoryFlow,
+  saveHistoryFlow,
+} from "@/lib/historyFlow";
 import { isAllowedPrincipal, principalRule } from "@/lib/principalCurrency";
 import { createSequence } from "@/lib/searchSequence";
 import { DEFAULT_START } from "@/lib/startDate";
@@ -140,9 +141,13 @@ interface StockState {
   /** 단위를 바꿨는데 표를 받지 못했다. 고른 단위는 남는다. */
   tableError: string | null;
 
-  /** 이력 (FR-035). **조건만 담긴다** — 결과는 설정·환율이 바뀌면 달라진다. */
+  /** 이력 (FR-035). **조건만 담긴다** — 결과는 설정·환율이 바뀌면 달라진다. 012부터 로컬 DB에 있다(`lib/historyFlow`). */
   history: SimulationHistoryEntry[];
+  historyLoading: boolean;
+  historyLoadError: string | null;
   historySaveError: string | null;
+  historyNotice: string | null;
+  retentionDays: number | null | undefined;
   selectedHistory: string[];
   comparison: ComparisonItem[];
   comparing: boolean;
@@ -177,9 +182,10 @@ interface StockState {
    * (006 research R6-10 "다시 요청하는 쪽은 화면이다").
    */
   dispose: () => void;
-  restoreHistory: () => void;
+  /** 012 — 옛 브라우저 이력을 옮긴 뒤 목록을 받는다. 다시 시도도 이것이다(FR-014a). */
+  restoreHistory: () => Promise<void>;
   toggleHistory: (id: string) => void;
-  removeHistoryEntry: (id: string) => void;
+  removeHistoryEntry: (id: string) => Promise<void>;
   compareSelected: () => Promise<void>;
   /**
    * 이력 항목의 조건을 입력에 넣고 곧바로 실행한다(010 FR-018~FR-020) — 가상자산·예금·부동산과 같은 동작. 등록 요청은 보내지 않는다:
@@ -393,12 +399,11 @@ async function runRecurring(
       },
     });
     if (input.stock !== null) {
-      const saved = saveHistory({
+      await saveHistoryFlow("stock", {
         stock: input.stock, start: input.start, principal: input.principal,
         principalCurrency: input.principalCurrency, reinvest: input.reinvest,
         mode: "recurring", frequency: plan.frequency,
-      });
-      set({ history: loadHistory(), historySaveError: saved.ok ? null : saved.reason });
+      }, get, set);
     }
     try {
       const series = await apiClient.get<SimulationSeriesResponse>(
@@ -508,9 +513,7 @@ export const useStockStore = create<StockState>((set, get) => ({
   tableSeq: 0,
   tableLoading: false,
   tableError: null,
-  history: [],
-  historySaveError: null,
-  selectedHistory: [],
+  ...INITIAL_HISTORY,
   comparison: [],
   comparing: false,
   comparisonError: null,
@@ -611,18 +614,14 @@ export const useStockStore = create<StockState>((set, get) => ({
         oldestReturned: result.oldestReturned,
       });
 
-      // FR-035 — 실행한 조건을 이력에 남긴다. **결과는 넣지 않는다**(R5-9).
-      const saved = saveHistory({
+      // FR-035 — 실행한 조건을 이력에 남긴다. **결과는 넣지 않는다**(R5-9). 저장이 실패해도 결과는 그대로다(012 FR-014).
+      await saveHistoryFlow("stock", {
         stock: input.stock,
         start: input.start,
         principal: input.principal,
         principalCurrency: input.principalCurrency,
         reinvest: input.reinvest,
-      });
-      set({
-        history: loadHistory(),
-        historySaveError: saved.ok ? null : saved.reason,
-      });
+      }, get, set);
 
       // **표가 수집 중이 아님을 확인한 뒤에 받는다.** 나란히 보내면 같은 구간에
       // 수집 요청이 두 번 나가고, 둘 다 작업을 만들려 해 하나는 점유에 걸린다.
@@ -747,8 +746,8 @@ export const useStockStore = create<StockState>((set, get) => ({
     }
   },
 
-  /** 저장소에서 이력을 읽는다. 첫 화면 진입에 한 번 부른다 (FR-037). */
-  restoreHistory: () => set({ history: loadHistory() }),
+  /** 이력을 받는다 — 첫 화면 진입에 한 번, 불러오기 실패 뒤 다시 시도에 부른다 (FR-037, 012 FR-013·FR-014a). */
+  restoreHistory: () => restoreHistoryFlow("stock", get, set),
 
   toggleHistory: (id) => {
     const selected = get().selectedHistory;
@@ -759,16 +758,11 @@ export const useStockStore = create<StockState>((set, get) => ({
     });
   },
 
-  removeHistoryEntry: (id) => {
-    const result = removeHistory(id);
-    set({
-      history: loadHistory(),
-      selectedHistory: get().selectedHistory.filter((x) => x !== id),
-      // 지운 항목이 비교에 올라가 있었으면 함께 내린다 — 남겨 두면 목록에 없는
-      // 선이 차트에 남아 사용자가 어느 조건인지 확인할 길이 없다.
-      comparison: get().comparison.filter((c) => c.id !== id),
-      historySaveError: result.ok ? null : result.reason,
-    });
+  removeHistoryEntry: async (id) => {
+    if (!(await removeHistoryFlow("stock", id, get, set))) return;
+    // 지운 항목이 비교에 올라가 있었으면 함께 내린다 — 남겨 두면 목록에 없는
+    // 선이 차트에 남아 사용자가 어느 조건인지 확인할 길이 없다.
+    set({ comparison: get().comparison.filter((c) => c.id !== id) });
   },
 
   /**

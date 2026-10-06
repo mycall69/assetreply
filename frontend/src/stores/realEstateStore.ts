@@ -33,7 +33,7 @@ import {
   type RealEstateProgressHandlers,
   type RealEstateProgressSnapshot,
 } from "@/lib/realEstateProgressStream";
-import { loadRealEstateHistory, removeRealEstateHistory, saveRealEstateHistory } from "@/lib/realEstateHistory";
+import { INITIAL_HISTORY, removeHistoryFlow, restoreHistoryFlow, saveHistoryFlow } from "@/lib/historyFlow";
 import { DEFAULT_START } from "@/lib/startDate";
 import type {
   RealEstateAcquisition,
@@ -144,16 +144,21 @@ interface RealEstateState {
    */
   refreshIfRan: () => Promise<void>;
 
-  /** 이력(FR-032). **조건만** 담긴다. 다른 자산군 이력과 따로다. */
+  /** 이력(FR-032). **조건만** 담긴다. 다른 자산군 이력과 따로다. 012부터 로컬 DB에 있다(`lib/historyFlow`). */
   history: RealEstateHistoryEntry[];
+  historyLoading: boolean;
+  historyLoadError: string | null;
   historySaveError: string | null;
+  historyNotice: string | null;
+  retentionDays: number | null | undefined;
   selectedHistory: string[];
   comparison: ComparisonItem[];
   comparing: boolean;
   comparisonError: string | null;
-  restoreHistory: () => void;
+  /** 012 — 옛 브라우저 이력을 옮긴 뒤 목록을 받는다. 다시 시도도 이것이다(FR-014a). */
+  restoreHistory: () => Promise<void>;
   toggleHistory: (id: string) => void;
-  removeHistoryEntry: (id: string) => void;
+  removeHistoryEntry: (id: string) => Promise<void>;
   /** 이력의 조건으로 지역 풀다운부터 평형까지 맞추고 곧바로 실행한다. */
   rerunHistory: (id: string) => Promise<void>;
   /** 고른 이력을 **지금 다시 계산해서** 겹친다(FR-033) — 저장된 결과가 없다. */
@@ -525,29 +530,22 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
 
     setInput: (next) => set({ input: { ...get().input, ...next } }),
 
-    history: [],
-    historySaveError: null,
-    selectedHistory: [],
+    ...INITIAL_HISTORY,
     comparison: [],
     comparing: false,
     comparisonError: null,
 
-    restoreHistory: () => set({ history: loadRealEstateHistory() }),
+    restoreHistory: () => restoreHistoryFlow("realestate", get, set),
 
     toggleHistory: (id) => {
       const selected = get().selectedHistory;
       set({ selectedHistory: selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id] });
     },
 
-    removeHistoryEntry: (id) => {
-      const result = removeRealEstateHistory(id);
-      set({
-        history: loadRealEstateHistory(),
-        selectedHistory: get().selectedHistory.filter((x) => x !== id),
-        // 지운 항목의 선을 남기면 목록에 없는 조건이 차트에 남는다.
-        comparison: get().comparison.filter((c) => c.id !== id),
-        historySaveError: result.ok ? null : result.reason,
-      });
+    removeHistoryEntry: async (id) => {
+      if (!(await removeHistoryFlow("realestate", id, get, set))) return;
+      // 지운 항목의 선을 남기면 목록에 없는 조건이 차트에 남는다.
+      set({ comparison: get().comparison.filter((c) => c.id !== id) });
     },
 
     rerunHistory: async (id) => {
@@ -633,12 +631,11 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
         });
         // FR-032 — 실행한 조건을 이력에 남긴다. **결과는 넣지 않는다.** 수집 중(202)·거절이면 남기지 않는다 — 아직 결과가 없다.
         if (selection.umd !== null) {
-          const saved = saveRealEstateHistory({
+          await saveHistoryFlow("realestate", {
             complexId: body.complex.complexId, complexName: body.complex.name, umd: selection.umd,
             area: body.area.key, areaLabel: body.area.label, buyDate: input.buyDate,
             buyPrice: input.buyPrice === "" ? null : input.buyPrice,
-          });
-          set({ history: loadRealEstateHistory(), historySaveError: saved.ok ? null : saved.reason });
+          }, get, set);
         }
         await loadSeries(query, seq);
       } catch (err) {

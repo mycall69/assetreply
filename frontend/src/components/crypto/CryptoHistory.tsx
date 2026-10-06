@@ -9,6 +9,7 @@
  * - **수익률을 줄에 적지 않는다** — 결과는 설정과 환율이 바뀌면 달라진다(005 R5-9)
  */
 
+import { HistoryContent, HistoryNotice, type HistoryStateProps } from "@/components/history/HistoryStates";
 import { ExternalLink } from "@/components/ExternalLink";
 import { FREQUENCY_TEXT } from "@/components/recurring/InvestmentModeFields";
 import { coinLink } from "@/lib/externalLinks";
@@ -29,6 +30,11 @@ export function CryptoHistory({
   onRemove,
   onCompare,
   onRerun,
+  loading,
+  loadError,
+  onRetry,
+  notice,
+  retentionDays,
 }: {
   entries: CryptoHistoryEntry[];
   selected: string[];
@@ -38,14 +44,13 @@ export function CryptoHistory({
   onRemove: (id: string) => void;
   onCompare: () => void;
   onRerun: (id: string) => void;
-}) {
+} & HistoryStateProps) {
   return (
     <section className="rounded-lg border border-gray-200 p-4">
       <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold">최근 시뮬레이션</h3>
-        <p data-testid="history-notice" className="text-xs text-gray-500">
-          ⓘ 이 브라우저에만 저장됩니다. 브라우저 데이터를 지우면 함께 사라집니다. 주식 이력과 따로입니다.
-        </p>
+        {/* 012 FR-015 — 보관 위치(이 기기의 로컬 DB)와 보관 기간을 말한다. */}
+        <HistoryNotice retentionDays={retentionDays} scope=" 주식 이력과 따로입니다." />
       </header>
 
       {saveError !== null && (
@@ -54,9 +59,8 @@ export function CryptoHistory({
         </p>
       )}
 
-      {entries.length === 0 ? (
-        <p className="py-6 text-center text-sm text-gray-500">아직 실행한 시뮬레이션이 없습니다.</p>
-      ) : (
+      <HistoryContent loading={loading} loadError={loadError} onRetry={onRetry} notice={notice}
+        empty={entries.length === 0}>
         <ul className="divide-y divide-gray-100">
           {entries.map((entry) => {
             const label = coinLabel(entry.coin);
@@ -97,7 +101,7 @@ export function CryptoHistory({
             );
           })}
         </ul>
-      )}
+      </HistoryContent>
 
       <div className="mt-3 flex justify-end">
         <button type="button" onClick={onCompare}

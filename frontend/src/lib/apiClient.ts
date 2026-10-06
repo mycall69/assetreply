@@ -40,7 +40,11 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * 공통 요청 함수. 012 — 이력 클라이언트(`lib/historyApi`)가 직접 쓴다(research R12-12) — 이력은 시뮬레이션과 실패 영역이 다르고, 시뮬레이션 응답을
+ * 모의하는 `apiClient.get` 모의가 이력 요청까지 가로채지 않게 한다. 오류 모양(`ApiError`)은 같다.
+ */
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...init?.headers },
@@ -66,4 +70,6 @@ export const apiClient = {
     request<T>(path, { method: "PUT", body: JSON.stringify(body) }),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
+  /** 012 — 이력 삭제(`DELETE /api/history/{asset}?id=`). */
+  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 };

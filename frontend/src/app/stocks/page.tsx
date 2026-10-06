@@ -37,7 +37,8 @@ export default function StocksPage() {
     input, plan, recurring, setPlan, rows, summary, exchange, hasMore, collecting,
     series, seriesError, loading, loadingMore, error, loadMoreError,
     tablePeriod, tableLoading, tableError, setTablePeriod,
-    history, historySaveError, selectedHistory, comparison, comparing,
+    history, historySaveError, historyLoading, historyLoadError, historyNotice, retentionDays,
+    selectedHistory, comparison, comparing,
     comparisonError, progress, selecting, selectionError, fxBlocked, listedOn, startable,
     setInput, selectStock, run, loadMore, refreshIfRan, dispose,
     restoreHistory, toggleHistory, removeHistoryEntry, compareSelected, rerunHistory,
@@ -56,9 +57,9 @@ export default function StocksPage() {
   // 006 — 화면을 떠나면 진행 구독을 끊는다. 남기면 떠난 화면이 다시 요청을 보낸다.
   useEffect(() => dispose, [dispose]);
 
-  // FR-037 — 이력은 브라우저에 있다. 서버에서 오지 않으므로 화면이 열릴 때 읽는다.
+  // FR-037 — 이력은 로컬 DB에 있다(012). 화면이 열릴 때 그 자산군의 옛 브라우저 이력을 옮긴 뒤 목록을 받는다(012 FR-013).
   useEffect(() => {
-    restoreHistory();
+    void restoreHistory();
   }, [restoreHistory]);
 
   const currency = input.stock?.currency ?? "KRW";
@@ -232,8 +233,13 @@ export default function StocksPage() {
             selected={selectedHistory}
             comparing={comparing}
             saveError={historySaveError}
+            loading={historyLoading}
+            loadError={historyLoadError}
+            onRetry={() => void restoreHistory()}
+            notice={historyNotice}
+            retentionDays={retentionDays}
             onToggle={toggleHistory}
-            onRemove={removeHistoryEntry}
+            onRemove={(id) => void removeHistoryEntry(id)}
             onCompare={() => void compareSelected()}
             onRerun={(id) => void rerunHistory(id)}
           />

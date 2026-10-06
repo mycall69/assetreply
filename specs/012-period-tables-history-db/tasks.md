@@ -424,32 +424,32 @@ description: "Task list for 012-period-tables-history-db"
 
 ### Implementation for User Story 3
 
-- [ ] T051 [US3] `backend/src/db/models.py`·`backend/src/db/migrations/versions/<rev>_시뮬레이션_이력.py` (`down_revision = "f4c2a8e19d35"`) (FR-011, FR-012, data-model 1)
+- [X] T051 [US3] `backend/src/db/models.py`·`backend/src/db/migrations/versions/<rev>_시뮬레이션_이력.py` (`down_revision = "f4c2a8e19d35"`) (FR-011, FR-012, data-model 1)
   - `simulation_history`: `asset_class Enum("stock","crypto","deposit","realestate", native_enum=False, length=16) PK`, `condition_key String(255) PK`,
     `condition Text NOT NULL`, `last_run_at DateTime(timezone=False) NOT NULL`, `retain_from DateTime(timezone=False) NOT NULL`,
     `ix_simulation_history_list (asset_class, last_run_at)`.
   - `history_setting`: `id SmallInteger PK 기본 1`, `retention Enum("days_7","days_30","days_90","days_180","days_365","unlimited", native_enum=False, length=16) NOT NULL`,
     `updated_at server_default now() onupdate`.
   - 개발 DB에 `alembic upgrade head`를 올린다.
-- [ ] T052 [US3] `backend/src/repository/simulation_history.py`·`history_setting.py` (FR-011~FR-013, data-model 1)
+- [X] T052 [US3] `backend/src/repository/simulation_history.py`·`history_setting.py` (FR-011~FR-013, data-model 1)
   - 목록(마지막 실행 내림차순)·upsert(`db/dialect.upsert`)·합치기(늦은 쪽)·삭제·정리(`retain_from < cutoff`)
   - `get_retention`·`save_retention` — 행이 없으면 `DEFAULT_RETENTION = "days_30"`
-- [ ] T053 [US3] `backend/src/api/services/history_conditions.py`·`history.py` (FR-011~FR-014, data-model 2, research R12-10·R12-11)
+- [X] T053 [US3] `backend/src/api/services/history_conditions.py`·`history.py` (FR-011~FR-014, data-model 2, research R12-10·R12-11)
   - 검증·직렬화·식별자와 `utc_now()`
   - 목록·저장·삭제·옮기기는 같은 거래 안에서 정리를 먼저 한다. 설정 저장은 모든 자산군을 정리한다.
-- [ ] T054 [US3] `backend/src/api/routes/history.py`·`backend/src/api/errors.py`(`UnknownAsset`·`InvalidHistory`)·`backend/src/api/main.py`(처리기·라우터 — 설정 경로 먼저) (contracts/rest-api.md 2~7)
-- [ ] T055 [US3] `frontend/src/lib/apiClient.ts`(`request` 공개, `delete`)·`frontend/src/lib/historyApi.ts`·`frontend/src/lib/legacyHistory.ts`·`frontend/src/lib/types.ts`(목록 응답·`lastRunAt`) (research R12-12)
-- [ ] T056 [US3] 스토어 넷 — `frontend/src/stores/stockStore.ts`·`cryptoStore.ts`·`depositStore.ts`·`realEstateStore.ts` (FR-011, FR-013, FR-014, FR-014a, data-model 5.2)
+- [X] T054 [US3] `backend/src/api/routes/history.py`·`backend/src/api/errors.py`(`UnknownAsset`·`InvalidHistory`)·`backend/src/api/main.py`(처리기·라우터 — 설정 경로 먼저) (contracts/rest-api.md 2~7)
+- [X] T055 [US3] `frontend/src/lib/apiClient.ts`(`request` 공개, `delete`)·`frontend/src/lib/historyApi.ts`·`frontend/src/lib/legacyHistory.ts`·`frontend/src/lib/types.ts`(목록 응답·`lastRunAt`) (research R12-12)
+- [X] T056 [US3] 스토어 넷 — `frontend/src/stores/stockStore.ts`·`cryptoStore.ts`·`depositStore.ts`·`realEstateStore.ts` (FR-011, FR-013, FR-014, FR-014a, data-model 5.2)
   - 비동기 `restoreHistory`, `historyLoading`·`historyLoadError`·`historyNotice`·`retentionDays`
   - 저장 `PUT`·삭제 `DELETE`
   - `frontend/src/lib/simulationHistory.ts`·`cryptoHistory.ts`·`depositHistory.ts`·`realEstateHistory.ts`를 지운다.
   - 넷이 같은 흐름(불러오기·옮기기·저장·삭제와 실패 문구)은 `frontend/src/lib/historyFlow.ts` 한 곳에 둔다 — 한 자산군만 실패를 삼키지 않게 한다.
-- [ ] T057 [US3] 이력 부품 넷 — `components/stock/SimulationHistory.tsx`·`components/crypto/CryptoHistory.tsx`·`components/deposit/DepositHistory.tsx`·`components/realestate/RealEstateHistory.tsx` (FR-014, FR-014a, FR-015, F6)
+- [X] T057 [US3] 이력 부품 넷 — `components/stock/SimulationHistory.tsx`·`components/crypto/CryptoHistory.tsx`·`components/deposit/DepositHistory.tsx`·`components/realestate/RealEstateHistory.tsx` (FR-014, FR-014a, FR-015, F6)
   - 선택 속성: `loading`·`loadError`·`onRetry`·`notice`·`retentionDays`
   - 안내 문구를 바꾼다.
   - 안내·상태는 `frontend/src/components/history/HistoryStates.tsx`(`HistoryNotice`·`HistoryContent`)를 넷이 함께 쓴다.
-- [ ] T058 [US3] `frontend/src/components/settings/HistoryRetentionSection.tsx`(불러오기·저장·알림을 함께 가진 절 — T049가 홀로 그린다)·`frontend/src/app/settings/page.tsx`(맨 아래 절) (FR-012, F7)
-- [ ] T059 [US3] 화면 넷 — `frontend/src/app/{stocks,crypto,deposit,realestate}/page.tsx` — 이력 부품에 새 속성을 넘긴다. 마운트 효과의 주석("이력은 브라우저에 있다")을 고친다 (FR-014a, FR-015)
+- [X] T058 [US3] `frontend/src/components/settings/HistoryRetentionSection.tsx`(불러오기·저장·알림을 함께 가진 절 — T049가 홀로 그린다)·`frontend/src/app/settings/page.tsx`(맨 아래 절) (FR-012, F7)
+- [X] T059 [US3] 화면 넷 — `frontend/src/app/{stocks,crypto,deposit,realestate}/page.tsx` — 이력 부품에 새 속성을 넘긴다. 마운트 효과의 주석("이력은 브라우저에 있다")을 고친다 (FR-014a, FR-015)
 - [ ] T060 [US3] 검증 — quickstart 2·3-4·3-5(API)·4-3~4-5(브라우저) (FR-011~FR-015, SC-006, SC-007)
   - 012 전 형식 옛 키가 있는 브라우저 프로필에서 네 화면을 연다.
   - 다른 브라우저에서 같은 목록이 보인다.

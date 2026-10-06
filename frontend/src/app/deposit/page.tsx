@@ -41,7 +41,8 @@ export default function DepositPage() {
     institutions, rows, summary, condition, resultName, series, seriesError, collecting,
     progress, startable,
     loading, error, setInput, selectInstitution, loadInstitutions, run, refreshIfRan, dispose,
-    history, historySaveError, selectedHistory, comparison, comparing, comparisonError,
+    history, historySaveError, historyLoading, historyLoadError, historyNotice, retentionDays,
+    selectedHistory, comparison, comparing, comparisonError,
     restoreHistory, toggleHistory, removeHistoryEntry, rerunHistory, compareSelected,
   } = useDepositStore();
 
@@ -55,9 +56,9 @@ export default function DepositPage() {
   useEffect(() => {
     void loadInstitutions();
   }, [loadInstitutions]);
-  // FR-037 — 이력은 브라우저에 있다. 화면이 열릴 때 읽는다.
+  // FR-037 — 이력은 로컬 DB에 있다(012). 화면이 열릴 때 그 자산군의 옛 브라우저 이력을 옮긴 뒤 목록을 받는다(012 FR-013).
   useEffect(() => {
-    restoreHistory();
+    void restoreHistory();
   }, [restoreHistory]);
 
   // 시작일의 마지막 날 — 오늘(한국 시간). 화면을 연 때로 정한다(서버도 계산 끝을 한국 시간 오늘로 잡는다).
@@ -183,8 +184,13 @@ export default function DepositPage() {
             selected={selectedHistory}
             comparing={comparing}
             saveError={historySaveError}
+            loading={historyLoading}
+            loadError={historyLoadError}
+            onRetry={() => void restoreHistory()}
+            notice={historyNotice}
+            retentionDays={retentionDays}
             onToggle={toggleHistory}
-            onRemove={removeHistoryEntry}
+            onRemove={(id) => void removeHistoryEntry(id)}
             onCompare={() => void compareSelected()}
             onRerun={(id) => void rerunHistory(id)}
           />

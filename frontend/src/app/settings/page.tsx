@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import { CryptoSettingsForm } from "@/components/settings/CryptoSettingsForm";
 import { DepositSettingsForm } from "@/components/settings/DepositSettingsForm";
+import { HistoryRetentionSection } from "@/components/settings/HistoryRetentionSection";
 import { RealEstateResidenceForm } from "@/components/settings/RealEstateResidenceForm";
 import { RealEstateSettingsForm } from "@/components/settings/RealEstateSettingsForm";
 import { RestoreDefaultsDialog } from "@/components/settings/RestoreDefaultsDialog";
@@ -107,6 +108,9 @@ export default function SettingsPage() {
       {/* 009 — 부동산 보유세 기준 비율. 다른 자산군 설정과 따로 저장한다(FR-034). */}
       <RealEstateSettingsSection />
       <RealEstateResidenceSection />
+
+      {/* 012 — 최근 시뮬레이션 이력의 보관 기간. 네 자산군이 함께 쓴다(FR-012). 맨 아래 절이다(F7). */}
+      <HistoryRetentionSection />
 
       {pending !== null && (
         <RestoreDefaultsDialog

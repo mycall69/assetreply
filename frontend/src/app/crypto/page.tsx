@@ -43,7 +43,8 @@ export default function CryptoPage() {
     progress, fxBlocked,
     startable, loading, loadingMore, error, loadMoreError,
     tablePeriod, tableLoading, tableError, setTablePeriod,
-    history, historySaveError, selectedHistory, comparison, comparing, comparisonError,
+    history, historySaveError, historyLoading, historyLoadError, historyNotice, retentionDays,
+    selectedHistory, comparison, comparing, comparisonError,
     setInput, selectCoin, run, loadMore, refreshIfRan, dispose,
     restoreHistory, toggleHistory, removeHistoryEntry, rerunHistory, compareSelected,
   } = useCryptoStore();
@@ -58,9 +59,9 @@ export default function CryptoPage() {
   }, [refreshIfRan]);
   // 화면을 떠나면 진행 구독을 끊는다.
   useEffect(() => dispose, [dispose]);
-  // FR-045 — 이력은 브라우저에 있다. 화면이 열릴 때 읽는다.
+  // FR-045 — 이력은 로컬 DB에 있다(012). 화면이 열릴 때 그 자산군의 옛 브라우저 이력을 옮긴 뒤 목록을 받는다(012 FR-013).
   useEffect(() => {
-    restoreHistory();
+    void restoreHistory();
   }, [restoreHistory]);
 
   // 시작일의 마지막 날 — UTC 어제. 화면을 연 때로 정한다(서버도 계산 끝을 UTC 어제로 잡는다).
@@ -195,8 +196,13 @@ export default function CryptoPage() {
             selected={selectedHistory}
             comparing={comparing}
             saveError={historySaveError}
+            loading={historyLoading}
+            loadError={historyLoadError}
+            onRetry={() => void restoreHistory()}
+            notice={historyNotice}
+            retentionDays={retentionDays}
             onToggle={toggleHistory}
-            onRemove={removeHistoryEntry}
+            onRemove={(id) => void removeHistoryEntry(id)}
             onCompare={() => void compareSelected()}
             onRerun={(id) => void rerunHistory(id)}
           />

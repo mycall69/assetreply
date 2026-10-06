@@ -688,7 +688,10 @@ export interface SimulationHistoryEntry {
   /** 011 — 적립식 항목에만. 없으면 일시금이다(011 전 항목). */
   mode?: "recurring";
   frequency?: Frequency;
-  savedAt: string;
+  /** 012 전 브라우저 항목의 저장 시각 — 옮기기에만 실린다. 012부터는 서버의 `lastRunAt`이다. */
+  savedAt?: string;
+  /** 012 — 마지막 실행 시각(UTC ISO). 서버 목록에만 있다. */
+  lastRunAt?: string;
 }
 
 // ─────────────────────────── 007: 가상자산 ───────────────────────────
@@ -850,7 +853,10 @@ export interface CryptoHistoryEntry {
   /** 011 — 적립식 항목에만. 없으면 일시금이다. */
   mode?: "recurring";
   frequency?: Frequency;
-  savedAt: string;
+  /** 012 전 브라우저 항목의 저장 시각 — 옮기기에만 실린다. 012부터는 서버의 `lastRunAt`이다. */
+  savedAt?: string;
+  /** 012 — 마지막 실행 시각(UTC ISO). 서버 목록에만 있다. */
+  lastRunAt?: string;
 }
 
 /* ───────────────────────── 008: 예금 투자 시뮬레이션 ───────────────────────── */
@@ -997,7 +1003,10 @@ export interface DepositHistoryEntry {
   principal: DecimalString;
   /** 011 — 적금 항목에만. 없으면 정기예금이다(011 전 항목). */
   product?: "installment";
-  savedAt: string;
+  /** 012 전 브라우저 항목의 저장 시각 — 옮기기에만 실린다. 012부터는 서버의 `lastRunAt`이다. */
+  savedAt?: string;
+  /** 012 — 마지막 실행 시각(UTC ISO). 서버 목록에만 있다. */
+  lastRunAt?: string;
 }
 
 /* ───────────────────────── 009: 부동산 투자 시뮬레이션 ───────────────────────── */
@@ -1252,7 +1261,10 @@ export interface RealEstateHistoryEntry {
   areaLabel: string;
   buyDate: string;
   buyPrice: DecimalString | null;
-  savedAt: string;
+  /** 012 전 브라우저 항목의 저장 시각 — 옮기기에만 실린다. 012부터는 서버의 `lastRunAt`이다. */
+  savedAt?: string;
+  /** 012 — 마지막 실행 시각(UTC ISO). 서버 목록에만 있다. */
+  lastRunAt?: string;
 }
 
 /* ───────────────────── 011: 적립식 투자 · 정기 적금 · 주식 매도 세금 설정 ───────────────────── */

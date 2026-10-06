@@ -135,3 +135,14 @@ class RegionRetired(Exception):
     def __init__(self, message: str, lawd_cd: str) -> None:
         super().__init__(message)
         self.lawd_cd = lawd_cd
+
+
+class UnknownAsset(Exception):
+    """모르는 자산군이다 (012, 404 `unknown_asset`). 이력 경로의 `{asset}`은 stock · crypto ·
+    deposit · realestate뿐이다."""
+
+
+class InvalidHistory(Exception):
+    """이력 조건이 틀렸다 (012, 422 `invalid_history`). 메시지가 어느 칸인지 말한다 — 빠진 칸을
+    기본값으로 채워 저장하면 다시 실행이 다른 조건으로
+    돈다."""

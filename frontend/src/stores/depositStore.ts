@@ -17,7 +17,7 @@ import { create } from "zustand";
 import type { ComparisonItem } from "@/components/stock/ComparisonChart";
 import type { Startable } from "@/components/stock/StartDateInput";
 import { ApiError, apiClient } from "@/lib/apiClient";
-import { loadDepositHistory, removeDepositHistory, saveDepositHistory } from "@/lib/depositHistory";
+import { INITIAL_HISTORY, removeHistoryFlow, restoreHistoryFlow, saveHistoryFlow } from "@/lib/historyFlow";
 import { subscribeDepositProgress, type DepositProgressSnapshot } from "@/lib/depositProgressStream";
 import { DEFAULT_START } from "@/lib/startDate";
 import type {
@@ -90,9 +90,13 @@ interface DepositState {
   loading: boolean;
   error: string | null;
 
-  /** 이력(FR-037). **조건만** 담긴다. 주식·가상자산 이력과 따로다. */
+  /** 이력(FR-037). **조건만** 담긴다. 주식·가상자산 이력과 따로다. 012부터 로컬 DB에 있다(`lib/historyFlow`). */
   history: DepositHistoryEntry[];
+  historyLoading: boolean;
+  historyLoadError: string | null;
   historySaveError: string | null;
+  historyNotice: string | null;
+  retentionDays: number | null | undefined;
   selectedHistory: string[];
   comparison: ComparisonItem[];
   comparing: boolean;
@@ -109,9 +113,10 @@ interface DepositState {
   refreshIfRan: () => Promise<void>;
   /** 화면을 떠날 때 진행 구독을 끊는다 — 남기면 떠난 화면이 다시 요청을 보낸다. */
   dispose: () => void;
-  restoreHistory: () => void;
+  /** 012 — 옛 브라우저 이력을 옮긴 뒤 목록을 받는다. 다시 시도도 이것이다(FR-014a). */
+  restoreHistory: () => Promise<void>;
   toggleHistory: (id: string) => void;
-  removeHistoryEntry: (id: string) => void;
+  removeHistoryEntry: (id: string) => Promise<void>;
   /** 이력의 조건을 입력에 넣고 곧바로 실행한다. */
   rerunHistory: (id: string) => Promise<void>;
   /** 고른 이력을 **지금 다시 계산해서** 겹친다(FR-038) — 저장된 결과가 없다. */
@@ -252,9 +257,9 @@ export const useDepositStore = create<DepositState>((set, get) => {
           deposits: result.deposits, name: result.institution.name, series: null, seriesError: null,
         },
       });
-      const saved = saveDepositHistory({
-        institution: input.institution, start: input.start, principal: input.principal, product: "installment" });
-      set({ history: loadDepositHistory(), historySaveError: saved.ok ? null : saved.reason });
+      await saveHistoryFlow("deposit", {
+        institution: input.institution, start: input.start, principal: input.principal, product: "installment" },
+      get, set);
       try {
         const series = await apiClient.get<SimulationSeriesResponse>(
           `/api/deposit/installment-simulation/series?${query}`);
@@ -293,9 +298,7 @@ export const useDepositStore = create<DepositState>((set, get) => {
     ...EMPTY_RESULT,
     loading: false,
     error: null,
-    history: [],
-    historySaveError: null,
-    selectedHistory: [],
+    ...INITIAL_HISTORY,
     comparison: [],
     comparing: false,
     comparisonError: null,
@@ -365,9 +368,8 @@ export const useDepositStore = create<DepositState>((set, get) => {
           resultName: result.institution.name,
         });
         // FR-037 — 실행한 조건을 이력에 남긴다. **결과는 넣지 않는다.** 수집 중(202)이면 남기지 않는다 — 아직 결과가 없다.
-        const saved = saveDepositHistory({
-          institution: input.institution, start: input.start, principal: input.principal });
-        set({ history: loadDepositHistory(), historySaveError: saved.ok ? null : saved.reason });
+        await saveHistoryFlow("deposit", {
+          institution: input.institution, start: input.start, principal: input.principal }, get, set);
         // **표가 수집 중이 아님을 확인한 뒤에 받는다** — 나란히 보내면 같은 구간에 수집 요청이 두 번 나간다(005와 같다).
         try {
           const series = await apiClient.get<SimulationSeriesResponse>(
@@ -385,22 +387,17 @@ export const useDepositStore = create<DepositState>((set, get) => {
 
     dispose: () => stopWatching(),
 
-    restoreHistory: () => set({ history: loadDepositHistory() }),
+    restoreHistory: () => restoreHistoryFlow("deposit", get, set),
 
     toggleHistory: (id) => {
       const selected = get().selectedHistory;
       set({ selectedHistory: selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id] });
     },
 
-    removeHistoryEntry: (id) => {
-      const result = removeDepositHistory(id);
-      set({
-        history: loadDepositHistory(),
-        selectedHistory: get().selectedHistory.filter((x) => x !== id),
-        // 지운 항목의 선을 남기면 목록에 없는 조건이 차트에 남는다.
-        comparison: get().comparison.filter((c) => c.id !== id),
-        historySaveError: result.ok ? null : result.reason,
-      });
+    removeHistoryEntry: async (id) => {
+      if (!(await removeHistoryFlow("deposit", id, get, set))) return;
+      // 지운 항목의 선을 남기면 목록에 없는 조건이 차트에 남는다.
+      set({ comparison: get().comparison.filter((c) => c.id !== id) });
     },
 
     rerunHistory: async (id) => {

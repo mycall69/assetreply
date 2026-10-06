@@ -1098,3 +1098,52 @@ class AptSetting(Base):
     residence_ratio: Mapped[Decimal | None] = mapped_column(SPREAD, nullable=True)
     updated_at: Mapped[dt.datetime] = mapped_column(
         TS, server_default=func.now(), onupdate=func.now())
+
+
+#: 012 — 이력의 자산군(`api/services/history_conditions.ASSET_CLASSES`와 같은 값).
+HISTORY_ASSET_CLASSES = ("stock", "crypto", "deposit", "realestate")
+#: 012 — 이력 보관 기간. NULL에 "기본값"과 "무기한" 두 뜻을 싣지 않으려 열거로 둔다(research R12-9).
+HISTORY_RETENTIONS = ("days_7", "days_30", "days_90", "days_180", "days_365", "unlimited")
+
+
+class SimulationHistory(Base):
+    """최근 시뮬레이션 이력 한 항목 (012 FR-011, data-model 1.1). **조건만** 담는다 — 결과를 담지
+    않는다(005 R5-9).
+
+    `(asset_class, condition_key)`가 기본 키다 — 같은 조건은 한 행이다. `db/dialect.upsert`가 기본
+    키로 충돌을 가른다. 조건은 서버가 정해진 차례로
+    직렬화한 JSON 글이다 — JSON 열은 키 차례·숫자 표기를 바꿔 돌려줄 수 있다(원금 문자열이 수로
+    바뀌는 길). 원금은 사용자가 친 입력의 기록이고 DB·서버가
+    그것으로 계산하지 않는다(원칙 VI 해석 — plan Complexity Tracking).
+    """
+
+    __tablename__ = "simulation_history"
+    __table_args__ = (Index("ix_simulation_history_list", "asset_class", "last_run_at"),)
+
+    asset_class: Mapped[str] = mapped_column(
+        Enum(*HISTORY_ASSET_CLASSES, native_enum=False, length=16, name="history_asset_class"),
+        primary_key=True,
+    )
+    #: 조건 식별자 — 서버가 조건에서 계산한다(012 전 화면 lib 규칙과 같다). API의 `id`다.
+    condition_key: Mapped[str] = mapped_column(String(255), primary_key=True)
+    condition: Mapped[str] = mapped_column(Text, nullable=False)
+    #: 마지막 실행 시각(UTC). 목록 차례다. 옮긴 항목은 브라우저의 `savedAt`이다.
+    last_run_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+    #: 보관 기준 시각(UTC) — 마지막 실행 시각, 옮긴 항목은 옮긴 시각(명확화 4). 보관 기간은 이것으로
+    #: 잰다.
+    retain_from: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+
+class HistorySetting(Base):
+    """이력 보관 기간 (012 FR-012). **전역 단일 행**이고 모든 자산군이 함께 쓴다. 행이 없으면 기본
+    30일이다."""
+
+    __tablename__ = "history_setting"
+
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, default=1)
+    retention: Mapped[str] = mapped_column(
+        Enum(*HISTORY_RETENTIONS, native_enum=False, length=16, name="history_retention"),
+        nullable=False,
+    )
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())

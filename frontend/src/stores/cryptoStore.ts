@@ -14,7 +14,7 @@ import { create } from "zustand";
 import type { ComparisonItem } from "@/components/stock/ComparisonChart";
 import { ApiError, apiClient } from "@/lib/apiClient";
 import { subscribeCollection } from "@/lib/collectionStream";
-import { loadCryptoHistory, removeCryptoHistory, saveCryptoHistory } from "@/lib/cryptoHistory";
+import { INITIAL_HISTORY, removeHistoryFlow, restoreHistoryFlow, saveHistoryFlow } from "@/lib/historyFlow";
 import { subscribeCryptoProgress, type CryptoProgressSnapshot } from "@/lib/cryptoProgressStream";
 import { isAllowedPrincipal, principalRule } from "@/lib/principalCurrency";
 import { DEFAULT_START } from "@/lib/startDate";
@@ -101,9 +101,13 @@ interface CryptoState {
   tableLoading: boolean;
   tableError: string | null;
 
-  /** 이력(FR-045). **조건만** 담긴다. 주식 이력과 따로다. */
+  /** 이력(FR-045). **조건만** 담긴다. 주식 이력과 따로다. 012부터 로컬 DB에 있다(`lib/historyFlow`). */
   history: CryptoHistoryEntry[];
+  historyLoading: boolean;
+  historyLoadError: string | null;
   historySaveError: string | null;
+  historyNotice: string | null;
+  retentionDays: number | null | undefined;
   selectedHistory: string[];
   comparison: ComparisonItem[];
   comparing: boolean;
@@ -122,9 +126,10 @@ interface CryptoState {
   refreshIfRan: () => Promise<void>;
   /** 화면을 떠날 때 진행 구독을 끊는다 — 남기면 떠난 화면이 다시 요청을 보낸다. */
   dispose: () => void;
-  restoreHistory: () => void;
+  /** 012 — 옛 브라우저 이력을 옮긴 뒤 목록을 받는다. 다시 시도도 이것이다(FR-014a). */
+  restoreHistory: () => Promise<void>;
   toggleHistory: (id: string) => void;
-  removeHistoryEntry: (id: string) => void;
+  removeHistoryEntry: (id: string) => Promise<void>;
   /** 이력의 조건을 입력에 넣고 실행한다. 코인이 없어졌으면 "검색에서 다시 고르세요"를 말한다. */
   rerunHistory: (id: string) => Promise<void>;
   /** 고른 이력을 **지금 다시 계산해서** 겹친다(FR-046) — 저장된 결과가 없다. */
@@ -141,6 +146,11 @@ const FAILURE_TEXT: Record<CryptoFailureKind, string> = {
 
 export function failureText(kind: CryptoFailureKind | null, reason: string): string {
   return kind === null ? reason : FAILURE_TEXT[kind];
+}
+
+/** 이력에 남기는 코인 — 검색 결과의 순위 같은 것은 남기지 않는다(012 전 lib와 같은 모양). */
+function coinRef({ coinId, symbol, name, nameKo, slug, currency }: CoinRef): Omit<CoinRef, "rank"> {
+  return { coinId, symbol, name, nameKo, slug, currency };
 }
 
 const message = (err: unknown, fallback: string): string =>
@@ -309,10 +319,9 @@ async function runRecurring(input: CryptoInput & { coin: CoinRef }, set: Setter,
         hasMore: result.hasMore, oldestReturned: result.oldestReturned, series: null, seriesError: null,
       },
     });
-    const saved = saveCryptoHistory({
-      coin: input.coin, start: input.start, principal: input.principal,
-      principalCurrency: input.principalCurrency, mode: "recurring", frequency: plan.frequency });
-    set({ history: loadCryptoHistory(), historySaveError: saved.ok ? null : saved.reason });
+    await saveHistoryFlow("crypto", {
+      coin: coinRef(input.coin), start: input.start, principal: input.principal,
+      principalCurrency: input.principalCurrency, mode: "recurring", frequency: plan.frequency }, get, set);
     try {
       const series = await apiClient.get<SimulationSeriesResponse>(
         `/api/crypto/recurring-simulation/series?${query}`);
@@ -355,9 +364,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   tableSeq: 0,
   tableLoading: false,
   tableError: null,
-  history: [],
-  historySaveError: null,
-  selectedHistory: [],
+  ...INITIAL_HISTORY,
   comparison: [],
   comparing: false,
   comparisonError: null,
@@ -412,10 +419,9 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
         oldestReturned: result.oldestReturned,
       });
       // FR-045 — 실행한 조건을 이력에 남긴다. **결과는 넣지 않는다.** 수집 중(202)이면 남기지 않는다 — 아직 결과가 없다.
-      const saved = saveCryptoHistory({
-        coin: input.coin, start: input.start, principal: input.principal,
-        principalCurrency: input.principalCurrency });
-      set({ history: loadCryptoHistory(), historySaveError: saved.ok ? null : saved.reason });
+      await saveHistoryFlow("crypto", {
+        coin: coinRef(input.coin), start: input.start, principal: input.principal,
+        principalCurrency: input.principalCurrency }, get, set);
       // **표가 수집 중이 아님을 확인한 뒤에 받는다** — 나란히 보내면 같은 구간에 수집 요청이 두 번 나간다(005와 같다).
       try {
         const series = await apiClient.get<SimulationSeriesResponse>(
@@ -431,22 +437,17 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
 
   dispose: () => stopWatching(),
 
-  restoreHistory: () => set({ history: loadCryptoHistory() }),
+  restoreHistory: () => restoreHistoryFlow("crypto", get, set),
 
   toggleHistory: (id) => {
     const selected = get().selectedHistory;
     set({ selectedHistory: selected.includes(id) ? selected.filter((x) => x !== id) : [...selected, id] });
   },
 
-  removeHistoryEntry: (id) => {
-    const result = removeCryptoHistory(id);
-    set({
-      history: loadCryptoHistory(),
-      selectedHistory: get().selectedHistory.filter((x) => x !== id),
-      // 지운 항목의 선을 남기면 목록에 없는 조건이 차트에 남는다.
-      comparison: get().comparison.filter((c) => c.id !== id),
-      historySaveError: result.ok ? null : result.reason,
-    });
+  removeHistoryEntry: async (id) => {
+    if (!(await removeHistoryFlow("crypto", id, get, set))) return;
+    // 지운 항목의 선을 남기면 목록에 없는 조건이 차트에 남는다.
+    set({ comparison: get().comparison.filter((c) => c.id !== id) });
   },
 
   rerunHistory: async (id) => {
