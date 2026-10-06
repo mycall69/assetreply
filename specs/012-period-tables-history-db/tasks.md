@@ -79,7 +79,7 @@ description: "Task list for 012-period-tables-history-db"
     - 정기예금 시중은행, 부동산 헬리오시티 30평대
     - 적립식 주식(국내 매달)·가상자산(매일), 적금 시중은행
   - `end`를 고정한다(날짜가 지나도 같은 입력). 받은 시각·조건을 `meta.json`에 적는다. 202면 수집이 끝난 뒤 다시 받는다.
-- [ ] T002 구현 전 기존 검사의 통과 상태를 기록한다 (SC-009)
+- [X] T002 구현 전 기존 검사의 통과 상태를 기록한다 (SC-009)
   - 서버를 내린다(`./stop.sh`).
   - 백엔드 `pytest -q --cov=src`·`mypy src`·`ruff check --no-cache src tests`, 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .`를 돌린다.
   - 통과 수를 이 파일 Notes에 적는다. 실패가 있으면 기능 전의 실패로 기록하고 멈추고 보고한다.
@@ -121,15 +121,15 @@ description: "Task list for 012-period-tables-history-db"
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T005 [US1] 기존 테스트 변경 승인을 받는다 — research R12-15 US1의 둘 (FR-001)
+- [X] T005 [US1] 기존 테스트 변경 승인을 받는다 — research R12-15 US1의 둘 (FR-001)
   - `frontend/tests/PeriodSwitch.test.ts` "전환하면 스크롤을 처음으로 되돌릴 신호를 낸다" → `tableEpoch`가 그대로다
   - `frontend/tests/FxPageLayout.test.tsx` "StrictMode — … 기간 단위 전환은 새 표가 붙은 뒤 표의 처음으로 옮긴다" → 기간 전환 뒤에도 `scrollIntoView`가
     불리지 않는다(통화 부분은 그대로)
   - 바꿀 단언을 그대로 보이고 승인 날짜를 Notes에 적는다. 승인 없이는 T006·T007을 커밋하지 않는다.
-- [ ] T006 [P] [US1] `frontend/tests/PeriodSwitch.test.ts` — T005의 승인된 변경 + 새 검사 (FR-001, FR-002)
+- [X] T006 [P] [US1] `frontend/tests/PeriodSwitch.test.ts` — T005의 승인된 변경 + 새 검사 (FR-001, FR-002)
   - 기간 전환은 `tableEpoch`를 올리지 않는다. 먼 날짜의 다시 받기는 지금처럼 올린다(`fxWorkspaceScroll.test.ts`는 그대로).
   - 통화 전환의 `loadAll`이 늦게 와도 그 사이 기간이 바뀌었으면 `daily`를 덮지 않는다. 통화가 바뀌었을 때도 같다(spec FR-002 — 기존 결함).
-- [ ] T007 [P] [US1] `frontend/tests/FxPageLayout.test.tsx` — T005의 승인된 변경 + 새 검사 (FR-001, SC-001)
+- [X] T007 [P] [US1] `frontend/tests/FxPageLayout.test.tsx` — T005의 승인된 변경 + 새 검사 (FR-001, SC-001)
   - StrictMode에서 일 → 주 → 월을 눌러도 `scrollIntoView`가 불리지 않는다. 바꾸는 동안 높이를 붙잡는 지금 검사는 그대로다.
   - 먼 날짜(쌓인 행 밖)를 고르면 `scrollIntoView`가 한 번 불린다(004 FR-005a 그대로).
   - 새 표가 짧으면 놓은 뒤에도 바닥 `minHeight`가 남는다(T003의 판정이 화면에 들어왔는지).
@@ -610,7 +610,11 @@ Task: "T025 화면 테스트 — 탭·창 그대로"
 - **2026-10-06 T001 기준 응답**: 저장소 밖 작업 폴더(`012-baseline/before/`)에 표 경로 첫 쪽의 머리(`summary`·`condition`·종목 — `rows` 제외)와 `/series`를
   저장했다(`end=2026-09-30` 고정). 주식 KRX 005930.KS·AAPL, 가상자산 BTC, 정기예금 시중은행, 부동산 헬리오시티 30평대, 적립식 주식(국내 매달)·가상자산(매일),
   적금 시중은행 — 8개. 11:44Z
-- (T002·T067 결과와 승인 날짜를 여기에 적는다.)
+- **2026-10-06 T002 기준 게이트(서버를 내린 채)**: 백엔드 2,663 passed(커버리지 96.25%, 8분 24초), mypy 222 파일·ruff(`--no-cache`) 통과 / 프론트엔드
+  155 파일·1,302 passed, tsc·eslint — 모두 종료 코드 0
+- **2026-10-06 T005 승인(사용자)**: `PeriodSwitch.test.ts` "전환하면 스크롤을 처음으로 되돌릴 신호를 낸다" → `tableEpoch` 그대로,
+  `FxPageLayout.test.tsx` StrictMode 기간 전환 → `scrollIntoView` 불리지 않음(통화 부분·행 잔존 검사 그대로)
+- (T067 결과와 승인 날짜를 여기에 적는다.)
 
 ## 요구사항 ↔ 태스크
 

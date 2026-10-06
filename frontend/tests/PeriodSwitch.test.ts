@@ -11,7 +11,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "@/lib/apiClient";
 import { useFxWorkspaceStore } from "@/stores/fxWorkspaceStore";
-import type { CoverageRow, DailyResponse, PeriodUnit } from "@/lib/types";
+import type { CoverageRow, CurrencyCode, DailyResponse, LatestResponse, PeriodUnit, SeriesResponse } from "@/lib/types";
 
 const DERIVED = { cashBuy: "1", cashSell: "1", remitSend: "1", remitReceive: "1" };
 
@@ -20,8 +20,8 @@ const COVERAGE: CoverageRow[] = [{
   firstAvailableDate: "1964-05-04", lastUpdatedAt: "2026-08-30T00:00:00Z",
 }];
 
-const page = (period: PeriodUnit, dates: string[]): DailyResponse => ({
-  currency: "USD", period, quoteUnit: 1, appliedSpread: DERIVED,
+const page = (period: PeriodUnit, dates: string[], currency: CurrencyCode = "USD"): DailyResponse => ({
+  currency, period, quoteUnit: 1, appliedSpread: DERIVED,
   spreadBasis: "current",
   rows: dates.map((date) => ({
     date, baseRate: "1356.100000", isProvisional: false, derived: DERIVED,
@@ -68,11 +68,12 @@ describe("기간 단위 전환", () => {
     expect(store().period).toBe("weekly");
   });
 
-  it("전환하면 스크롤을 처음으로 되돌릴 신호를 낸다", async () => {
+  it("전환해도 \"표의 처음으로\" 신호를 내지 않는다 — 창이 움직이지 않는다 (012 FR-001)", async () => {
+    // 012 승인 2026-10-06 — 004 FR-005b를 기간 전환에 한해 대체한다. 신호는 먼 날짜(FR-005a)에만 남는다(fxWorkspaceScroll.test.ts).
     vi.spyOn(apiClient, "get").mockResolvedValue(page("weekly", ["2026-08-28"]));
     const before = store().tableEpoch;
     await store().setPeriod("weekly");
-    expect(store().tableEpoch).toBeGreaterThan(before);
+    expect(store().tableEpoch).toBe(before);
   });
 
   it("단위를 바꿔도 선택 날짜는 그대로다", async () => {
@@ -105,5 +106,68 @@ describe("기간 단위 전환", () => {
     vi.spyOn(apiClient, "get").mockResolvedValue(page("daily", ["2026-08-27"]));
     await store().loadMoreDaily();
     expect(store().daily?.rows.map((r) => r.date)).toEqual(["2026-08-28"]);
+  });
+});
+
+/**
+ * 012 FR-002 — 통화 전환의 다시 받기(`loadAll`)가 늦게 오면 그 사이 바뀐 단위·통화의 표를 덮었다(기존 결함 — research R12-1). 표를 붙잡아 두는 동안에도
+ * 이전 단위·통화의 행이 섞이지 않는다.
+ */
+describe("통화 전환과 겹친 전환 (012 FR-002)", () => {
+  const latest = (currency: CurrencyCode): LatestResponse => ({
+    currency, quotePair: `${currency}/KRW`, date: "2026-08-29", baseRate: "1356.100000", quoteUnit: 1,
+    isProvisional: false, fetchedAt: null, change: null,
+  });
+  const series = (currency: CurrencyCode): SeriesResponse => ({
+    currency, quoteUnit: 1, from: "2025-08-29", to: "2026-08-29", downsampled: false, algorithm: "lttb",
+    sourcePointCount: 0, points: [], gaps: [],
+  } as unknown as SeriesResponse);
+  const coverage: CoverageRow[] = ["USD", "JPY"].map((currency) => ({ ...COVERAGE[0], currency: currency as CurrencyCode }));
+
+  /** 느린 요청이 **나간 뒤에** 다음 조작을 하도록 `requested`를 준다 — 조작이 먼저면 요청이 새 단위로 나가 경쟁이 생기지 않는다. */
+  function gatedApi(slow: (path: string) => boolean) {
+    let release: () => void = () => undefined;
+    let sent: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const requested = new Promise<void>((resolve) => { sent = resolve; });
+    vi.spyOn(apiClient, "get").mockImplementation(async (path: string) => {
+      const currency = (/currency=([A-Z]+)/.exec(path)?.[1] ?? "USD") as CurrencyCode;
+      if (slow(path)) { sent(); await gate; }
+      if (path.startsWith("/api/fx/coverage")) return { coverage } as never;
+      if (path.startsWith("/api/fx/latest")) return latest(currency) as never;
+      if (path.startsWith("/api/fx/series")) return series(currency) as never;
+      const period = (/period=([a-z]+)/.exec(path)?.[1] ?? "daily") as PeriodUnit;
+      return page(period, period === "daily" ? ["2026-08-29"] : ["2026-08-28"], currency) as never;
+    });
+    return { release: () => release(), requested };
+  }
+
+  it("늦게 온 통화 전환의 일 단위 표가 주 단위로 바꾼 표를 덮지 않는다", async () => {
+    useFxWorkspaceStore.setState({ coverage });
+    const { release, requested } = gatedApi((path) => path.includes("/api/fx/daily") && path.includes("period=daily"));
+    const loading = store().loadAll();
+    await requested;
+    await store().setPeriod("weekly");
+    expect(store().daily?.period).toBe("weekly");
+    release();
+    await loading;
+    expect(store().period).toBe("weekly");
+    expect(store().daily?.period).toBe("weekly");
+    expect(store().daily?.rows.map((r) => r.date)).toEqual(["2026-08-28"]);
+  });
+
+  it("통화를 다시 바꾼 뒤 늦게 온 이전 통화의 응답은 쓰지 않는다", async () => {
+    useFxWorkspaceStore.setState({ coverage });
+    const { release, requested } = gatedApi((path) => path.includes("currency=USD") && !path.startsWith("/api/fx/coverage"));
+    const first = store().loadAll();
+    await requested;
+    useFxWorkspaceStore.setState({ currency: "JPY" });
+    await store().loadAll();
+    expect(store().daily?.currency).toBe("JPY");
+    release();
+    await first;
+    expect(store().currency).toBe("JPY");
+    expect(store().daily?.currency).toBe("JPY");
+    expect(store().latest?.currency).toBe("JPY");
   });
 });

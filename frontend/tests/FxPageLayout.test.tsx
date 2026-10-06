@@ -9,6 +9,8 @@
  * - **기간 단위를 바꾸면 표가 떨어졌다 새로 붙는다**(T051 실측 — 창이 맨 위로 끌려가고 표의 처음으로 가지 않았다). 새로 붙은 표는 직전 `resetKey`를
  *   모르므로 화면이 마지막으로 그린 표의 차례를 기억해 표의 처음으로 옮긴다(FR-023 — 기간 단위 전환은 004 FR-005b 그대로). 바꾸는 동안 높이도 붙잡는다 —
  *   무너진 문서에 창이 맨 위로 튀었다 내려오지 않게
+ * - **012 FR-001** — 기간 단위를 바꿔도 창이 움직이지 않는다(004 FR-005b를 기간 전환에 한해 대체 — 사용자 승인 2026-10-06). 단위 탭이 누른 자리에
+ *   남는다. 먼 날짜를 골라 표를 새로 받는 경우(FR-005a)만 지금처럼 표의 처음으로 간다. 새 표가 짧아 지금 스크롤을 받치지 못하면 놓을 때 바닥을 남긴다
  */
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -110,7 +112,7 @@ describe("외환 화면 배치", () => {
   });
 });
 
-describe("기간 단위 전환은 표의 처음으로 (004 FR-005b 그대로)", () => {
+describe("기간 단위 전환은 창을 옮기지 않는다 (012 FR-001 — 004 FR-005b를 기간 전환에 한해 대체)", () => {
   const gated = () => {
     let release: () => void = () => undefined;
     const gate = new Promise<void>((resolve) => { release = resolve; });
@@ -121,7 +123,8 @@ describe("기간 단위 전환은 표의 처음으로 (004 FR-005b 그대로)", 
     return () => release();
   };
 
-  it("StrictMode — 통화 전환은 창을 옮기지 않고, 기간 단위 전환은 새 표가 붙은 뒤 표의 처음으로 옮긴다", async () => {
+  it("StrictMode — 통화 전환도 기간 단위 전환도 창을 옮기지 않는다", async () => {
+    // 012 승인 2026-10-06 — 기간 전환 뒤 "표의 처음으로"(004 FR-005b)를 하지 않는다. 단위 탭이 누른 자리에 남는다.
     vi.spyOn(apiClient, "get").mockImplementation(async (path: string) => answer(path) as never);
     const scroll = vi.fn();
     Element.prototype.scrollIntoView = scroll;
@@ -131,15 +134,49 @@ describe("기간 단위 전환은 표의 처음으로 (004 FR-005b 그대로)", 
     await screen.findByRole("table");
     expect(scroll).not.toHaveBeenCalled();
 
-    const release = gated();
-    await userEvent.click(screen.getByRole("tab", { name: "주" }));
-    expect(screen.queryByRole("table")).toBeNull();
-    expect(scroll).not.toHaveBeenCalled();  // 새 표가 오기 전에는 옮기지 않는다 — 옮길 표가 없다
-    await act(async () => { release(); });
+    for (const unit of ["주", "월", "일"]) {
+      const release = gated();
+      await userEvent.click(screen.getByRole("tab", { name: unit }));
+      expect(screen.queryByRole("table")).toBeNull();  // 이전 단위의 행은 남지 않는다(004 FR-010 그대로)
+      await act(async () => { release(); });
+      await screen.findByRole("table");
+      await act(async () => { await Promise.resolve(); });
+      expect(scroll).not.toHaveBeenCalled();
+    }
+  });
+
+  it("먼 날짜를 골라 표를 새로 받으면 지금처럼 표의 처음으로 간다 (004 FR-005a 그대로)", async () => {
+    vi.spyOn(apiClient, "get").mockImplementation(async (path: string) => answer(path) as never);
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    render(<StrictMode><FxPage /></StrictMode>);
     await screen.findByRole("table");
+    await act(async () => { await useFxWorkspaceStore.getState().selectDate("2020-01-02"); });
     await waitFor(() => expect(scroll).toHaveBeenCalled());
     const target = scroll.mock.contexts.at(-1) as Element;
     expect(target.contains(screen.getByRole("table"))).toBe(true);  // 표의 처음 — 표를 품은 자리
+  });
+
+  it("새 표가 짧아 지금 스크롤을 받치지 못하면 놓은 뒤에도 바닥 높이를 남긴다", async () => {
+    // FR-001 실패 양상 *다른 곳에서 일어남* — 놓는 순간 짧아진 문서를 브라우저가 당겨 창이 올라간다.
+    vi.spyOn(apiClient, "get").mockImplementation(async (path: string) => answer(path) as never);
+    Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      // 창이 본문 위 끝에서 1,000px 아래에 있다. 새 표의 칸(마지막 자식)은 본문 위 끝에서 1,300px에서 끝난다 — 창 아래 끝(1,800px)보다 위
+      const isWorkspace = this.querySelector?.("h2")?.textContent === "외환 데이터 분석";
+      const isTableSection = !isWorkspace && this.querySelector?.("h3")?.textContent === "일자별 환율 상세";
+      const [top, height] = isWorkspace ? [-1000, 2186] : isTableSection ? [-200, 500] : [0, 0];
+      return { width: 1000, height, top, left: 0, right: 1000, bottom: top + height, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+    });
+    Element.prototype.scrollIntoView = vi.fn();
+    render(<FxPage />);
+    await screen.findByRole("table");
+    const release = gated();
+    await userEvent.click(screen.getByRole("tab", { name: "월" }));
+    expect(workspace().style.minHeight).toBe("2186px");
+    await act(async () => { release(); });
+    await screen.findByRole("table");
+    await waitFor(() => expect(workspace().style.minHeight).toBe("1800px"));
   });
 
   it("기간 단위를 바꾸는 동안 바꾸기 직전 높이를 붙잡고, 새 표가 오면 놓는다", async () => {
