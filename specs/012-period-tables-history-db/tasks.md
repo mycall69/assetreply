@@ -303,7 +303,7 @@ description: "Task list for 012-period-tables-history-db"
   - 표 머리에 `PeriodTabs`(F2 제목)를 둔다.
   - 단위 전환을 `useHeightHold`로 감싼다.
   - 전환 중에는 "⟳ 불러오는 중…"을 보인다.
-- [ ] T036 [US2] 검증 — quickstart 3-1·3-2·3-3(API)·4-2(브라우저) (SC-002, SC-003, SC-005)
+- [X] T036 [US2] 검증 — quickstart 3-1·3-2·3-3(API)·4-2(브라우저) (SC-002, SC-003, SC-005)
   - 배당·재투자 행 수, 결측 행 수 = 끊김 수, 세 단위 `summary`, 창 위치, 이어 받기를 확인한다.
   - quickstart 실행 기록에 적는다.
 
