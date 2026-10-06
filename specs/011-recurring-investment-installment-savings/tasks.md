@@ -471,14 +471,14 @@ description: "Task list for 011-recurring-investment-installment-savings"
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T040 [P] [US3] `backend/tests/contract/test_ecos_installment_items.py` — `ingestion/ecos/installment_items` (FR-029, research R11-1·R11-2)
+- [X] T040 [P] [US3] `backend/tests/contract/test_ecos_installment_items.py` — `ingestion/ecos/installment_items` (FR-029, research R11-1·R11-2)
   - `resolve_installment_items(items_121Y002 본문, "121Y002")` → `{"commercial_bank_isav": 항목 BEABAA2122 "정기적금(1-2년)", 시작 2003-01}`
   - `121Y004` → `{"mutual_finance_isav": BEBB0200 "정기적금", 2012-01}`
   - 알려진 코드가 바뀌면 이름 패턴으로 다시 찾는다. `정기적금(3년만기)`·`정기적금(3-4년)`·`정기적금`(예금은행 전체)은 걸리지 않는다.
   - 못 찾으면 `ItemMappingChanged`
   - T003 픽스처를 008 `parse_monthly`로 읽어 행 수·첫 달·마지막 달을 확인한다.
   - **기존 `Test투자처_항목`은 고치지 않는다**(`resolve_deposit_items` 결과 그대로)
-- [ ] T041 [P] [US3] `backend/tests/unit/test_installment_ladder.py` — `simulate_installment_ladder` (FR-024~FR-028, FR-030, SC-001, SC-005)
+- [X] T041 [P] [US3] `backend/tests/unit/test_installment_ladder.py` — `simulate_installment_ladder` (FR-024~FR-028, FR-030, SC-001, SC-005)
   - 머리 주석에 손계산을 적는다. 참조값:
     - 세 주기(시중은행 실측 금리 일부를 상수로)
     - 회차 이자 Σ(12 − i)·만기 이자 trunc 한 번(12회 = 78/1200)·세금 trunc
@@ -499,13 +499,13 @@ description: "Task list for 011-recurring-investment-installment-savings"
     - 시작 < max(적금 첫 달, 정기예금 첫 달 − 1년) → `BeforeFirstMonth(startable_from)`
   - 계산 끝 이후 회차는 내지 않는다.
   - 같은 날 행 순서
-- [ ] T042 [P] [US3] `backend/tests/integration/test_deposit_installment_collection.py` (FR-030)
+- [X] T042 [P] [US3] `backend/tests/integration/test_deposit_installment_collection.py` (FR-030)
   - 008 실행기(`collect_institution`)가 계열 키 `commercial_bank_isav`로 적금 시계열을 받아 `deposit_rate`·`deposit_coverage`에 저장한다.
   - 원본(`deposit_raw_response`)은 본문만이다.
   - 다시 확인·겹쳐 받기·수정 사건(`deposit_rate_revised`)이 계열마다 성립한다.
   - 정기예금 키 `commercial_bank`의 저장은 그대로다.
   - `tests/integration/deposit_support.py`의 `SERIES`·스텁에 두 계열을 **더한다**(기존 값 그대로).
-- [ ] T043 [P] [US3] `backend/tests/integration/test_deposit_installment_api.py` — `GET /api/deposit/installment-simulation` (FR-022~FR-031, SC-005)
+- [X] T043 [P] [US3] `backend/tests/integration/test_deposit_installment_api.py` — `GET /api/deposit/installment-simulation` (FR-022~FR-031, SC-005)
   - 오류
     - `savings_bank` → 400 `installment_not_available`(`allowed`)
     - 모르는 키 → 400 `unknown_institution`
@@ -521,14 +521,14 @@ description: "Task list for 011-recurring-investment-installment-savings"
     - `installmentValue` + `depositValue` = `balance`
     - 확인 실패 `recheckFailed`
     - 계열 키가 응답 어디에도 없다
-- [ ] T044 [P] [US3] `backend/tests/integration/test_deposit_installment_series_api.py`·`test_deposit_institutions_installment.py` (FR-029, FR-032)
+- [X] T044 [P] [US3] `backend/tests/integration/test_deposit_installment_series_api.py`·`test_deposit_institutions_installment.py` (FR-029, FR-032)
   - 시계열
     - `priceKind "installment_rate"`, `price` = 그 달 적금 금리(`unpublished`·`missing`), `depositRate`, `principal`
     - 점 날짜 = 표 날짜
   - 투자처 목록
     - 투자처마다 `installment` — 시중은행·상호금융 `available true`(받기 전 null 칸, 받은 뒤 `startableFrom`), 나머지 셋 `available false`·`reason`
     - 기존 키·다섯 투자처 순서 그대로
-- [ ] T045 [P] [US3] 화면 테스트 (FR-022, FR-023, FR-029, FR-031~FR-034, SC-009)
+- [X] T045 [P] [US3] 화면 테스트 (FR-022, FR-023, FR-029, FR-031~FR-034, SC-009)
   - `frontend/tests/ProductPicker.test.tsx` — "상품" fieldset, 라디오 둘
   - `frontend/tests/InstitutionPickerInstallment.test.tsx` — 적금이면 셋 `disabled` + 사유(`aria-describedby`), 시작 가능 날짜 안내
   - `frontend/tests/InstallmentBoard.test.tsx` — 여섯 칸·구성 메모·기준 줄(지금 적금·지금 예금)
@@ -541,6 +541,9 @@ description: "Task list for 011-recurring-investment-installment-savings"
     - 다시 실행·비교 `label` " · 정기 적금"
   - `frontend/tests/DepositPageInstallment.test.tsx` — 실행 주체(006 D1): "정기 적금"을 눌러 실행하면 적금 경로·여섯 칸 보드·적금 부제목
     - 정기예금 부제목 검사(`DepositPage.test.tsx`)는 그대로
+  - **기존 테스트 변경(사용자 승인 2026-10-06)**: `DepositPage.test.tsx`의 "투자처는 라디오 다섯" 검사가 화면 전체의 라디오를 셌다 — 상품 라디오 둘이
+    더해지면 깨진다. 조회를 "투자처" 묶음 안(`within(group)`)으로 좁혔다. 기대값(다섯·순서·기본 시중은행)은 그대로다.
+  - 보드의 세후 이자 구성(적금 · 예금)은 서버가 나눠 준다(`summary.installmentAfterTax`·`depositAfterTax`) — 화면이 계약을 더하지 않는다(contracts §3에 더한다).
 
 ### Implementation for User Story 3
 

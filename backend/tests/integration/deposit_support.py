@@ -28,7 +28,10 @@ SERIES = {"commercial_bank": "series_commercial_bank.json",
           "savings_bank": "series_savings_bank.json",
           "credit_union": "series_credit_union.json",
           "mutual_finance": "series_mutual_finance.json",
-          "saemaul": "series_saemaul.json"}
+          "saemaul": "series_saemaul.json",
+          # 011 — 정기적금 계열(금리 계열 키, research R11-2). 008의 다섯 값은 그대로다.
+          "commercial_bank_isav": "series_commercial_bank_isav.json",
+          "mutual_finance_isav": "series_mutual_finance_isav.json"}
 
 
 def fixture(name: str) -> str:
@@ -53,15 +56,25 @@ class StubDepositSource:
     async def items_for(self, institution: str) -> ItemsLookup:
         if self.error is not None:
             raise self.error
-        table = TABLE_OF[institution]
+        table = TABLE_OF.get(institution)
+        if table is None:
+            # 011 — 적금 계열은 같은 통계표의 항목 목록을 함께 쓴다(클라이언트와 같다). 008 테스트가
+            # 이 갈래를 지나지 않게 안에서 가져온다.
+            from src.ingestion.ecos.installment_items import SERIES_TABLE
+
+            table = SERIES_TABLE[institution]
         cached = self._items.get(table)
-        if cached is not None:
-            return ItemsLookup(cached.items[institution], None)
-        self.items_calls.append(table)
-        body = fixture(f"items_{table}.json")
-        fetched = ItemsFetch(table, resolve_deposit_items(body, table), body, 200)
-        self._items[table] = fetched
-        return ItemsLookup(fetched.items[institution], fetched)
+        fetched: ItemsFetch | None = None
+        if cached is None:
+            self.items_calls.append(table)
+            body = fixture(f"items_{table}.json")
+            fetched = cached = ItemsFetch(table, resolve_deposit_items(body, table), body, 200)
+            self._items[table] = fetched
+        if institution in cached.items:
+            return ItemsLookup(cached.items[institution], fetched)
+        from src.ingestion.ecos.installment_items import resolve_installment_items
+
+        return ItemsLookup(resolve_installment_items(cached.raw_body, table)[institution], fetched)
 
     async def fetch_series(
         self, item: DepositItem, from_month: dt.date, to_month: dt.date

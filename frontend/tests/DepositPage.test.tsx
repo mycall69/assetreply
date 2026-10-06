@@ -4,7 +4,7 @@
  * 주식·가상자산과 같은 구성이되 **종목 검색 대신 투자처 라디오 버튼 다섯**이고, 원금은 **원화만**이다 — 통화 칸·재투자 칸이 없다.
  * 화면 아래에 출처(ECOS)를 밝힌다(약관 제7조 ②, research R8-2).
  */
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import DepositPage from "@/app/deposit/page";
 import { apiClient } from "@/lib/apiClient";
@@ -36,7 +36,8 @@ describe("예금 화면", () => {
   it("투자처는 라디오 다섯이고 기본은 시중은행이다", () => {
     render(<DepositPage />);
     const group = screen.getByRole("group", { name: "투자처" });
-    const radios = screen.getAllByRole("radio");
+    // 011 — 상품(정기예금·정기 적금) 라디오가 따로 있어 투자처 묶음 안에서만 센다(사용자 승인 2026-10-06 — 기대값은 그대로)
+    const radios = within(group).getAllByRole("radio");
     expect(radios.map((r) => r.getAttribute("aria-label") ?? r.closest("label")?.textContent))
       .toEqual(["시중은행", "저축은행", "신협", "상호금융", "새마을금고"]);
     expect(screen.getByRole("radio", { name: "시중은행" })).toBeChecked();
