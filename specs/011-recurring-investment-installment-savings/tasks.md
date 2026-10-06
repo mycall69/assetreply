@@ -576,7 +576,7 @@ description: "Task list for 011-recurring-investment-installment-savings"
   - `frontend/src/components/deposit/DepositHistory.tsx`(행 표기)
   - `frontend/src/components/deposit/DepositSimulationForm.tsx`(선택 속성 `principalLabel` "월 납입액" — 기본 지금 문구)
   - `frontend/src/app/deposit/page.tsx`(상품 라디오·부제목·적금 부품·`DepositNotice` 재사용)
-- [ ] T050 [US3] quickstart 3-5·3-6·4-5를 실행하고 기록한다 (SC-001, SC-005, SC-006)
+- [X] T050 [US3] quickstart 3-5·3-6·4-5를 실행하고 기록한다 (SC-001, SC-005, SC-006)
   - 개발 DB에 적금 계열을 실제로 받는다(진행 표시·수집 시간).
   - 손계산 대조, 정기예금 일시금이 T001과 같은지
 
