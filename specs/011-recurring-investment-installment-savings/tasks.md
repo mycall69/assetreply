@@ -653,12 +653,19 @@ description: "Task list for 011-recurring-investment-installment-savings"
   - 주의 문단 — 적금 계열 키 `{inst}_isav`, 적금은 시중은행·상호금융만, 매도 세금 설정 경로·기본값 문자열, 적립식 경로는 일시금과 따로, 가상자산 과세 시행일 모듈
   - `README.md` 기능 설명
   - `spec.md` Status
-- [ ] T059 품질 게이트를 돌린다(서버를 내린 채) — 백엔드 `pytest -q --cov=src`(커버리지 80% 이상)·`mypy src`·`ruff check --no-cache src tests`, 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .` (헌법 품질 게이트, SC-006)
+- [X] T059 품질 게이트를 돌린다(서버를 내린 채) — 백엔드 `pytest -q --cov=src`(커버리지 80% 이상)·`mypy src`·`ruff check --no-cache src tests`, 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .` (헌법 품질 게이트, SC-006)
   - 통과 수를 Notes에 적는다.
   - 이 기능 전 커밋과 견주어 바뀐 기존 테스트 파일이 승인한 셋(A1~A3)과 `deposit_support.py`(더하기만)뿐인지 `git diff --stat`으로 확인한다.
-- [ ] T060 불변 대조 (FR-039, SC-006)
+  - **2026-10-06 결과(서버를 내린 채)**: 백엔드 2,650 통과·커버리지 96.24%·mypy 221 파일·ruff 통과. 프론트엔드 155 파일 / 1,302 통과·tsc·eslint —
+    모두 종료 코드 0.
+  - 바뀐 기존 테스트 파일(`git diff --stat --diff-filter=M 72bda4b HEAD`): A1 `test_stock_sale_cost.py`, A2 `test_stock_sale_cost_api.py`,
+    A3 `test_no_hardcoded_dates.py`, `DepositPage.test.tsx`(승인 2026-10-06 — 라디오 조회 범위만), `deposit_support.py`, 픽스처 README(T003 — 더하기만).
+    `deposit_support.py`는 두 계열을 더했고, 스텁의 `items_for`가 계열 키를 찾도록 갈래를 나눴다 — 008 키의 동작은 그대로(008 테스트 통과)다.
+- [X] T060 불변 대조 (FR-039, SC-006)
   - 서버를 띄우고 T001의 응답(일시금 주식·가상자산·정기예금, 부동산, 외환)을 다시 받아 비교한다.
   - 다른 키·값이 있으면 멈추고 보고한다. 주식 `saleCost`도 기본 설정이면 같아야 한다.
+  - **2026-10-06 결과**: `011-baseline/before`(T001)과 응답 11개(주식 KRX·AAPL 표/시계열, 가상자산 BTC, 예금 시중은행, 부동산, 외환 USD)가 **모두 같다**
+    (`meta.json`의 받은 시각만 다르다). 기본 설정의 주식 `saleCost` 포함.
 
 ---
 
