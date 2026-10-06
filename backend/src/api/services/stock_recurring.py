@@ -37,6 +37,7 @@ from src.api.services.stock_simulation import (
     NoPriceData,
     _require_start_month_bar,
     check_principal_currency,
+    reaches_end,
     require_stock,
 )
 from src.db.models import Stock
@@ -255,7 +256,10 @@ async def prepare_recurring(
                                                   fee_rate=settings.trade_fee_rate,
                                                   sale_tax=sale_tax)
     result = RecurringResult(
-        views=views, latest=latest, as_of=as_of, is_final=as_of >= end,
+        views=views, latest=latest, as_of=as_of,
+        # 계산 끝이 휴장·주말이면 끊긴 것이 아니다 — 일시금과 같은 판정(버그
+        # stock-holiday-stale-warning).
+        is_final=await reaches_end(session, stock_id, as_of, end),
         pending_after_end=pending_after_end, quote_dates=frozenset(trading_days), splits=splits,
         buy_fee_total_krw=buy_fees, dividend_tax_total_krw=dividend_taxes, sale_cost=sale,
         dates=tuple(v.row.date for v in views))

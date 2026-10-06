@@ -29,6 +29,7 @@ from src.api.services.stock_fx import (
     load_rates,
 )
 from src.api.services.stock_selection import listing_for, register_from_price_symbol
+from src.config.settings import load_settings
 from src.db.models import Stock
 from src.repository import stock_price as price_repo
 from src.repository.stock import find_stock, find_us_stock
@@ -42,6 +43,7 @@ from src.simulation.fx_convert import (  # noqa: E501
     to_foreign,
     to_principal,
 )
+from src.simulation.quote_finality import is_final as quote_is_final
 from src.simulation.reinvest import (
     Condition,
     DayBar,
@@ -175,6 +177,20 @@ class BeforeListing(Exception):
         self.basis = basis
 
 
+async def reaches_end(session: AsyncSession, stock_id: int, as_of: dt.date, end: dt.date) -> bool:
+    """마지막 일봉(`as_of`)이 계산 끝(`end`)까지의 결과로 볼 수 있는가(FR-014a·FR-014b).
+
+    계산 끝이 휴장·주말이면 마지막 일봉이 그보다 이르러도 최종이다 — 시세가 빠진 것이 아니다(버그
+    stock-holiday-stale-warning). 같은 시장의 다른 종목이 그 뒤에 거래했으면 이 종목만 끊긴 것이다.
+    일시금과 적립식이 이 함수 하나를 쓴다 — 보드·표의 경고가 갈라지지 않는다.
+    """
+    if as_of >= end:
+        return True
+    market_last = await price_repo.market_last_quote_date(session, stock_id, end)
+    return quote_is_final(as_of, end, market_last=market_last,
+                          tolerance_weekdays=load_settings().stock_holiday_tolerance_weekdays)
+
+
 class NoPriceData(Exception):
     """시세를 얻을 수 없다 (FR-004).
 
@@ -243,8 +259,9 @@ async def run_simulation(
     rows = outcome.rows
 
     as_of = bars_rows[-1].quote_date
-    # 요청 끝(보통 어제)까지 시세가 있으면 최종이다. 끊겼으면 그 사실이 드러나야 한다.
-    is_final = as_of >= end
+    # 요청 끝(보통 어제)까지 시세가 있으면 최종이다. 끊겼으면 그 사실이 드러나야 한다 — 다만 계산
+    # 끝이 휴장·주말이면 끊긴 것이 아니다(버그 stock-holiday-stale-warning).
+    is_final = await reaches_end(session, stock_id, as_of, end)
 
     quote_dates = frozenset(r.quote_date for r in bars_rows)
     closes = {r.quote_date: r.close_raw for r in bars_rows}

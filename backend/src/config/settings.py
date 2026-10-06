@@ -242,6 +242,10 @@ class Settings:
     stock_retry_max_attempts: int = 4
     stock_retry_base_delay_ms: int = 2000
     stock_request_timeout_seconds: int = 20
+    #: 마지막 일봉 뒤 계산 끝까지 빈 **평일** 수가 이 값 이하면 휴장으로 본다 — 같은 시장의 다른
+    #: 종목도 그 뒤에 거래하지 않았을 때만 쓴다(버그 stock-holiday-stale-warning). 거래소 연휴(설·
+    #: 추석에 대체·임시공휴일이 겹친 경우)를 덮는 값이다. 넘으면 시세 단절로 알린다(005 FR-014a).
+    stock_holiday_tolerance_weekdays: int = 7
 
     # ── 검색용 종목 목록 — 키움증권 REST API (006 research R6-1·R6-3) ──
     #
@@ -424,6 +428,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
         stock_retry_base_delay_ms=_env_int("STOCK_RETRY_BASE_DELAY_MS", 2000),
         stock_request_timeout_seconds=_env_int(
             "STOCK_REQUEST_TIMEOUT_SECONDS", 20, minimum=1),
+        stock_holiday_tolerance_weekdays=_env_int("STOCK_HOLIDAY_TOLERANCE_WEEKDAYS", 7),
         kiwoom_mode=_env_choice("KIWOOM_MODE", "real", KIWOOM_MODES),
         kiwoom_app_key=_Secret(_env_str("KIWOOM_APP_KEY")),
         kiwoom_app_secret=_Secret(_env_str("KIWOOM_APP_SECRET")),

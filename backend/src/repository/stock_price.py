@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import datetime as dt
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.dialect import upsert
 from src.db.models import (
+    Stock,
     StockDividend,
     StockPrice,
     StockRawResponse,
@@ -139,6 +140,23 @@ async def last_quote_date(
         .where(StockPrice.stock_id == stock_id)
         .order_by(StockPrice.quote_date.desc())
         .limit(1)
+    )).scalar_one_or_none()
+
+
+async def market_last_quote_date(
+    session: AsyncSession, stock_id: int, end: dt.date
+) -> dt.date | None:
+    """그 종목과 **같은 시장**의 종목들(그 종목 포함)이 가진 일봉 가운데 `end` 이하의 가장 늦은
+    날짜.
+
+    시세 단절과 휴장을 가르는 근거다(버그 stock-holiday-stale-warning) — 그 시장의 다른 종목이 그
+    뒤에 거래했으면 이 종목만 끊긴 것이다.
+    """
+    market = select(Stock.market).where(Stock.id == stock_id).scalar_subquery()
+    return (await session.execute(
+        select(func.max(StockPrice.quote_date))
+        .join(Stock, Stock.id == StockPrice.stock_id)
+        .where(Stock.market == market, StockPrice.quote_date <= end)
     )).scalar_one_or_none()
 
 
