@@ -25,6 +25,7 @@ export function CryptoSimulationForm({
   limit,
   startable = null,
   quoteCurrency = null,
+  principalLabel = "투자 원금",
   onChange,
   onSubmit,
 }: {
@@ -35,6 +36,8 @@ export function CryptoSimulationForm({
   startable?: Startable | null;
   /** 고른 코인의 시세 통화. 원금 통화의 선택지를 정한다. */
   quoteCurrency?: string | null;
+  /** 011 — 금액 칸의 이름. 일시금이면 "투자 원금", 적립식이면 "한 번 납입액"이다(값·쉼표 처리는 같다). */
+  principalLabel?: string;
   onChange: (next: CryptoFormValues) => void;
   onSubmit: () => void;
 }) {
@@ -70,7 +73,7 @@ export function CryptoSimulationForm({
         onChange={(start) => set("start", start)} />
 
       <label className="text-sm">
-        <span className="mb-1 block text-gray-500">투자 원금</span>
+        <span className="mb-1 block text-gray-500">{principalLabel}</span>
         <input type="text" inputMode="numeric" ref={box}
           value={formatPrincipal(values.principal)}
           onChange={(e) => changePrincipal(e.target.value, e.target.selectionStart)}

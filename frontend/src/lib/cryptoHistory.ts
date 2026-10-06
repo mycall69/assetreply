@@ -5,7 +5,7 @@
  * 자산군의 항목을 다시 실행하려다 "없는 종목"이 된다. `localStorage`에 둔다 — 브라우저를 닫았다 열어도 남는다.
  */
 
-import type { CoinRef, CryptoHistoryEntry, DecimalString, PrincipalCurrency } from "./types";
+import type { CoinRef, CryptoHistoryEntry, DecimalString, Frequency, PrincipalCurrency } from "./types";
 
 /** 저장소 키. 형식이 바뀌면 뒤의 숫자를 올린다 — 낡은 형식을 읽어 깨지지 않도록. */
 export const CRYPTO_HISTORY_KEY = "assetreplay:crypto-history:v1";
@@ -13,8 +13,12 @@ export const CRYPTO_HISTORY_KEY = "assetreplay:crypto-history:v1";
 export interface CryptoHistoryCondition {
   coin: CoinRef;
   start: string;
+  /** 일시금이면 원금, 적립식이면 한 번 납입액(011). */
   principal: DecimalString;
   principalCurrency: PrincipalCurrency;
+  /** 011 — 적립식만 담는다. 없으면 일시금이다(011 전 항목과 같은 모양 — research R11-11). */
+  mode?: "recurring";
+  frequency?: Frequency;
 }
 
 export type SaveResult = { ok: true } | { ok: false; reason: string };
@@ -22,7 +26,9 @@ export type SaveResult = { ok: true } | { ok: false; reason: string };
 /** 조건에서 식별자를 만든다. 같은 조건이면 같은 값 — 다시 돌릴 때마다 줄이 쌓이지 않게 한다. 코인은 id로 가른다. */
 export function cryptoConditionId(condition: CryptoHistoryCondition): string {
   const { coin, start, principal, principalCurrency } = condition;
-  return [coin.coinId, start, principal, principalCurrency].join("|");
+  const base = [coin.coinId, start, principal, principalCurrency].join("|");
+  // 011 — 같은 조건의 일시금과 적립식이 한 항목으로 뭉치지 않게 방식·주기를 붙인다. 일시금 식별자는 011 전과 같다.
+  return condition.mode === "recurring" ? `${base}|recurring:${condition.frequency ?? "monthly"}` : base;
 }
 
 function read(): CryptoHistoryEntry[] {
@@ -61,6 +67,7 @@ export function saveCryptoHistory(condition: CryptoHistoryCondition): SaveResult
     start: condition.start,
     principal: condition.principal,
     principalCurrency: condition.principalCurrency,
+    ...(condition.mode === "recurring" ? { mode: "recurring" as const, frequency: condition.frequency } : {}),
     savedAt: new Date().toISOString(),
   };
   return write([entry, ...read().filter((e) => e.id !== id)]);

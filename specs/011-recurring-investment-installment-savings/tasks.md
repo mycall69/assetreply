@@ -432,9 +432,11 @@ description: "Task list for 011-recurring-investment-installment-savings"
 
 ### Implementation for User Story 2
 
-- [ ] T037 [US2] `backend/src/simulation/recurring_crypto.py`(R11-6)·`backend/src/simulation/crypto_sale_cost.py`(R11-7 — 시행일 상수 하나, 2027 세법은 계산하지 않음) (FR-017~FR-020)
+- [X] T037 [US2] `backend/src/simulation/recurring_crypto.py`(R11-6)·`backend/src/simulation/crypto_sale_cost.py`(R11-7 — 시행일 상수 하나, 2027 세법은 계산하지 않음) (FR-017~FR-020)
   - T033 승인 뒤 `backend/tests/unit/test_no_hardcoded_dates.py` 허용 목록을 바꾼다.
-- [ ] T038 [US2] 서비스·라우트 (FR-002, FR-017~FR-021, contracts/rest-api §2)
+  - 바꿨다(2026-10-06 승인 — `stock_sale_cost.py`를 빼고 `crypto_sale_cost.py`를 더함).
+  - 그 달 첫 일봉이 납입 행이어도 1일 결측(`first_day_missing`)을 싣는다 — 007의 "그 달의 행이 1일이 아니다"와 같은 뜻(T031이 고정).
+- [X] T038 [US2] 서비스·라우트 (FR-002, FR-017~FR-021, contracts/rest-api §2)
   - `backend/src/api/services/crypto_recurring.py`
     - 일시금 `crypto_simulation`의 검증 함수·`require_start_available`·`collecting_body`·`load_rates`를 함께 쓴다.
     - 일봉을 `start.replace(day=1)`부터 읽는다. 시작 월 일봉 판정은 일시금과 같다.

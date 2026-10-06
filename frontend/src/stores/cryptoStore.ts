@@ -6,6 +6,8 @@
  *
  * - **부분 결과를 보여주지 않는다**(FR-013). 202면 결과를 비우고 진행을 구독하고, 끝나면 다시 요청한다
  * - 수집이 실패하면 **종류마다 다른 말**로 사유를 보인다(FR-020)
+ * - 011 — 투자 방식(`plan`)이 적립식이면 따로 된 경로(`/api/crypto/recurring-simulation`)를 부르고 결과는 `recurring`에 둔다.
+ *   일시금 칸과 한 번에 한쪽만 채운다(research R11-11)
  */
 
 import { create } from "zustand";
@@ -27,10 +29,16 @@ import type {
   CryptoSimulationResponse,
   CryptoSummary,
   ExchangeInfo,
+  Frequency,
   FxCollecting,
   FxNotAvailableBefore,
+  InvestmentPlan,
   JobRow,
   PrincipalCurrency,
+  RecurringCondition,
+  RecurringCryptoResponse,
+  RecurringCryptoRow,
+  RecurringCryptoSummary,
   SimulationSeriesResponse,
 } from "@/lib/types";
 
@@ -41,8 +49,28 @@ export interface CryptoInput {
   principalCurrency: PrincipalCurrency;
 }
 
+/** 011 — 적립식 결과. 일시금 칸과 **따로 둔다** — 한 번에 한쪽만 채운다(research R11-11). */
+export interface CryptoRecurringResult {
+  rows: RecurringCryptoRow[];
+  summary: RecurringCryptoSummary;
+  condition: RecurringCondition;
+  hasMore: boolean;
+  oldestReturned: string | null;
+  series: SimulationSeriesResponse | null;
+  seriesError: string | null;
+}
+
+/** 이력 범례의 주기 이름(011). */
+const FREQUENCY_NAME: Record<Frequency, string> = { daily: "매일", weekly: "매주", monthly: "매달", yearly: "매년" };
+
 interface CryptoState {
   input: CryptoInput;
+  /**
+   * 011 — 투자 방식(일시금·적립식)과 주기. `input`(일시금 네 칸)과 따로 둔다. 적립식이면 `input.principal`이 한 번 납입액이다.
+   */
+  plan: InvestmentPlan;
+  /** 011 — 적립식 결과. 일시금이면 `null`이다. */
+  recurring: CryptoRecurringResult | null;
   /** 실행 뒤 서버가 알려 준 시작 가능 날짜(FR-008). 시작일은 바꾸지 않는다 — 옮기기는 눌러야 일어난다. */
   startable: Pick<BeforeListingBody, "startableFrom" | "basis" | "message"> | null;
   rows: CryptoRow[];
@@ -73,6 +101,8 @@ interface CryptoState {
   comparisonError: string | null;
 
   setInput: (next: Partial<CryptoInput>) => void;
+  /** 011 — 투자 방식·주기를 바꾼다. 두 결과를 모두 비운다 — 한쪽 결과가 다른 방식의 조건과 함께 보이지 않게(조건은 남는다). */
+  setPlan: (next: InvestmentPlan) => void;
   /** 검색에서 고른 코인. 시작일·원금은 그대로 둔다 — 같은 조건으로 두 코인을 비교하려던 사용자 몰래 바꾸지 않는다. */
   selectCoin: (coin: CoinRef) => void;
   run: () => Promise<void>;
@@ -129,8 +159,50 @@ export function toQuery(input: CryptoInput): string {
   }).toString();
 }
 
+/** 011 — 적립식 질의. 금액은 `amount`(한 번 납입액, 문자열 그대로)다. */
+export function toRecurringQuery(input: CryptoInput, plan: InvestmentPlan): string {
+  if (input.coin === null) return "";
+  return new URLSearchParams({
+    coinId: String(input.coin.coinId),
+    start: input.start,
+    amount: input.principal,
+    principalCurrency: input.principalCurrency,
+    frequency: plan.frequency,
+  }).toString();
+}
+
 type Setter = (partial: Partial<CryptoState>) => void;
 type Getter = () => CryptoState;
+
+/** 결과 칸을 모두 비운 상태 — 실행 시작과 방식 전환이 함께 쓴다. 매번 새 배열이다(상태 사이에 같은 배열을 나누지 않는다). */
+function cleared(): Partial<CryptoState> {
+  return {
+    rows: [], summary: null, condition: null, exchange: null, hasMore: false,
+    oldestReturned: null, series: null, seriesError: null, collecting: null, progress: null, fxBlocked: null, startable: null,
+    error: null, loadMoreError: null, recurring: null,
+  };
+}
+
+/** 실행이 실패한 사유를 상태로 옮긴다 — 일시금과 적립식이 같은 규칙이다(같은 오류 본문). */
+function failRun(err: unknown, set: Setter): void {
+  if (err instanceof ApiError && err.code === "before_listing" && err.body) {
+    const { startableFrom, basis, message: text } = err.body as unknown as BeforeListingBody;
+    set({ startable: { startableFrom, basis, message: text }, loading: false });
+    return;
+  }
+  if (err instanceof ApiError && err.code === "fx_not_available_before" && err.body) {
+    set({ fxBlocked: err.body as unknown as FxNotAvailableBefore, loading: false });
+    return;
+  }
+  if (err instanceof ApiError && err.code === "unknown_coin") {
+    // 이력의 코인이 지금 DB에 없다 — 할 일(다시 고르기)을 함께 말한다.
+    const text = err.message.includes("다시 고르세요") ? err.message
+      : `${err.message} 검색에서 다시 고르세요.`;
+    set({ error: text, loading: false });
+    return;
+  }
+  set({ error: message(err, "시뮬레이션에 실패했습니다."), loading: false });
+}
 
 function rerun(get: Getter): void {
   stopWatching();
@@ -203,7 +275,54 @@ function watchFx(fx: FxCollecting, set: Setter, get: Getter): void {
   };
 }
 
+/**
+ * 011 — 적립식을 실행한다. 수집 대기·오류의 처리는 일시금과 같다(같은 202 본문·같은 진행 구독). 결과는 `recurring`에만 넣는다.
+ */
+async function runRecurring(input: CryptoInput & { coin: CoinRef }, set: Setter, get: Getter): Promise<void> {
+  const plan = get().plan;
+  const query = toRecurringQuery(input, plan);
+  try {
+    const body = await apiClient.get<RecurringCryptoResponse | CryptoCollecting>(
+      `/api/crypto/recurring-simulation?${query}`);
+    if ("status" in body && body.status === "collecting") {
+      // 부분 결과를 보이지 않고 이력에도 남기지 않는다(일시금과 같다 — FR-013).
+      set({ collecting: body, progress: null, loading: false });
+      if (body.jobId !== undefined) watchProgress(body.jobId, set, get);
+      if (body.fx !== undefined) watchFx(body.fx, set, get);
+      return;
+    }
+    const result = body as RecurringCryptoResponse;
+    set({
+      recurring: {
+        rows: result.rows, summary: result.summary, condition: result.condition,
+        hasMore: result.hasMore, oldestReturned: result.oldestReturned, series: null, seriesError: null,
+      },
+    });
+    const saved = saveCryptoHistory({
+      coin: input.coin, start: input.start, principal: input.principal,
+      principalCurrency: input.principalCurrency, mode: "recurring", frequency: plan.frequency });
+    set({ history: loadCryptoHistory(), historySaveError: saved.ok ? null : saved.reason });
+    try {
+      const series = await apiClient.get<SimulationSeriesResponse>(
+        `/api/crypto/recurring-simulation/series?${query}`);
+      const current = get().recurring;
+      set({ recurring: current === null ? null : { ...current, series }, loading: false });
+    } catch (err) {
+      const current = get().recurring;
+      set({
+        recurring: current === null ? null
+          : { ...current, seriesError: message(err, "차트를 불러오지 못했습니다.") },
+        loading: false,
+      });
+    }
+  } catch (err) {
+    failRun(err, set);
+  }
+}
+
 export const useCryptoStore = create<CryptoState>((set, get) => ({
+  plan: { mode: "lump_sum", frequency: "monthly" },
+  recurring: null,
   input: { coin: null, start: DEFAULT_START, principal: "", principalCurrency: "KRW" },
   startable: null,
   rows: [],
@@ -230,10 +349,15 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
 
   setInput: (next) => set({ input: { ...get().input, ...next } }),
 
+  setPlan: (next) => {
+    stopWatching();
+    set({ plan: next, ...cleared(), loading: false });
+  },
+
   selectCoin: (coin) => set({ input: { ...get().input, coin }, startable: null, error: null }),
 
   refreshIfRan: async () => {
-    if (get().summary === null) return;
+    if (get().summary === null && get().recurring === null) return;
     await get().run();
   },
 
@@ -251,11 +375,11 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
       return;
     }
     stopWatching();
-    set({
-      rows: [], summary: null, condition: null, exchange: null, hasMore: false,
-      oldestReturned: null, series: null, seriesError: null, collecting: null, progress: null, fxBlocked: null, startable: null,
-      loading: true, error: null, loadMoreError: null,
-    });
+    set({ ...cleared(), loading: true });
+    if (get().plan.mode === "recurring") {
+      await runRecurring({ ...input, coin: input.coin }, set, get);
+      return;
+    }
     try {
       const body = await apiClient.get<CryptoSimulationResponse | CryptoCollecting>(
         `/api/crypto/simulation?${toQuery(input)}`);
@@ -285,23 +409,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
         set({ seriesError: message(err, "차트를 불러오지 못했습니다."), loading: false });
       }
     } catch (err) {
-      if (err instanceof ApiError && err.code === "before_listing" && err.body) {
-        const { startableFrom, basis, message: text } = err.body as unknown as BeforeListingBody;
-        set({ startable: { startableFrom, basis, message: text }, loading: false });
-        return;
-      }
-      if (err instanceof ApiError && err.code === "fx_not_available_before" && err.body) {
-        set({ fxBlocked: err.body as unknown as FxNotAvailableBefore, loading: false });
-        return;
-      }
-      if (err instanceof ApiError && err.code === "unknown_coin") {
-        // 이력의 코인이 지금 DB에 없다 — 할 일(다시 고르기)을 함께 말한다.
-        const text = err.message.includes("다시 고르세요") ? err.message
-          : `${err.message} 검색에서 다시 고르세요.`;
-        set({ error: text, loading: false });
-        return;
-      }
-      set({ error: message(err, "시뮬레이션에 실패했습니다."), loading: false });
+      failRun(err, set);
     }
   },
 
@@ -328,8 +436,12 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   rerunHistory: async (id) => {
     const entry = get().history.find((e) => e.id === id);
     if (entry === undefined) return;
-    set({ input: { coin: entry.coin, start: entry.start, principal: entry.principal,
-      principalCurrency: entry.principalCurrency } });
+    set({
+      input: { coin: entry.coin, start: entry.start, principal: entry.principal,
+        principalCurrency: entry.principalCurrency },
+      // 011 — 빠진 칸은 일시금·매달이다(011 전 항목). `undefined`를 방식으로 옮기지 않는다.
+      plan: { mode: entry.mode === "recurring" ? "recurring" : "lump_sum", frequency: entry.frequency ?? "monthly" },
+    });
     await get().run();
   },
 
@@ -341,17 +453,23 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
     const items: ComparisonItem[] = [];
     const failed: string[] = [];
     for (const entry of targets) {
-      const label = `${entry.coin.nameKo ?? entry.coin.name} (${entry.coin.symbol})`;
+      const name = `${entry.coin.nameKo ?? entry.coin.name} (${entry.coin.symbol})`;
+      // 011 — 적립식 항목은 적립식 시계열 경로이고, 범례 이름에 방식·주기를 붙인다(FR-034).
+      const recurring = entry.mode === "recurring";
+      const frequency = entry.frequency ?? "monthly";
+      const label = recurring ? `${name} · 적립식 ${FREQUENCY_NAME[frequency]}` : name;
       if (!isAllowedPrincipal(entry.principalCurrency, entry.coin.currency)) {
         // 조용히 빼지 않는다 — 빼고 비교하면 그 코인이 진 것으로 읽힌다.
         failed.push(`${label}(원금 ${entry.principalCurrency} — ${principalRule(entry.coin.currency)})`);
         continue;
       }
-      const query = toQuery({ coin: entry.coin, start: entry.start, principal: entry.principal,
-        principalCurrency: entry.principalCurrency });
+      const condition = { coin: entry.coin, start: entry.start, principal: entry.principal,
+        principalCurrency: entry.principalCurrency };
+      const path = recurring
+        ? `/api/crypto/recurring-simulation/series?${toRecurringQuery(condition, { mode: "recurring", frequency })}`
+        : `/api/crypto/simulation/series?${toQuery(condition)}`;
       try {
-        const body = await apiClient.get<SimulationSeriesResponse | CryptoCollecting>(
-          `/api/crypto/simulation/series?${query}`);
+        const body = await apiClient.get<SimulationSeriesResponse | CryptoCollecting>(path);
         if ("status" in body && body.status === "collecting") {
           // 부분 결과를 완성된 선처럼 겹치지 않는다.
           failed.push(`${label}(아직 받지 못한 구간이 있습니다 — 실행해서 받으세요)`);
@@ -372,6 +490,26 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
 
   /** 표를 이어 받는다. **기존 배열 끝에 덧붙인다** — 전체를 교체하면 보던 위치가 처음으로 튄다. */
   loadMore: async () => {
+    const recurring = get().recurring;
+    if (recurring !== null) {
+      // 011 — 적립식 표를 이어 받는다.
+      if (!recurring.hasMore || recurring.oldestReturned === null || get().loadingMore) return;
+      set({ loadingMore: true, loadMoreError: null });
+      try {
+        const body = await apiClient.get<RecurringCryptoResponse>(
+          `/api/crypto/recurring-simulation?${toRecurringQuery(get().input, get().plan)}&before=${recurring.oldestReturned}`);
+        const current = get().recurring;
+        if (current === null) return;
+        set({
+          recurring: { ...current, rows: [...current.rows, ...body.rows], hasMore: body.hasMore,
+            oldestReturned: body.oldestReturned },
+          loadingMore: false,
+        });
+      } catch (err) {
+        set({ loadingMore: false, loadMoreError: message(err, "이어서 불러오지 못했습니다.") });
+      }
+      return;
+    }
     const { hasMore, oldestReturned, loadingMore, input } = get();
     if (!hasMore || oldestReturned === null || loadingMore) return;
     set({ loadingMore: true, loadMoreError: null });

@@ -4,13 +4,15 @@
  * 가상자산 최근 시뮬레이션 (T044) — 007 FR-045, FR-046. 006의 `SimulationHistory`와 같은 규칙에 코인 표시와 다시 실행을 더했다.
  *
  * - 한 줄은 **코인 이름(한글이 있으면 한글)·심볼**·시작일·원금이다 — 같은 심볼의 다른 코인이 같은 줄로 보이면 안 된다(FR-004)
+ * - 011 — 적립식 항목은 원금 자리에 "적립식 · 주기 한 번 납입액"을 보인다. 같은 조건의 일시금 줄과 구별된다
  * - **보관 위치를 알린다** — 다른 기기에서 열었을 때 사라진 것으로 오해하지 않게 한다(005 FR-037a)
  * - **수익률을 줄에 적지 않는다** — 결과는 설정과 환율이 바뀌면 달라진다(005 R5-9)
  */
 
 import { ExternalLink } from "@/components/ExternalLink";
+import { FREQUENCY_TEXT } from "@/components/recurring/InvestmentModeFields";
 import { coinLink } from "@/lib/externalLinks";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, formatMoneyWithSymbol } from "@/lib/format";
 import { isAllowedPrincipal, principalRule } from "@/lib/principalCurrency";
 import type { CryptoHistoryEntry } from "@/lib/types";
 
@@ -67,9 +69,17 @@ export function CryptoHistory({
                 </span>
                 <span className="text-xs text-gray-500">{entry.coin.symbol}</span>
                 <span className="tabular-nums text-gray-600">{entry.start}</span>
-                <span className="tabular-nums text-gray-600">
-                  {formatMoney(entry.principal, entry.principalCurrency)} {entry.principalCurrency}
-                </span>
+                {entry.mode === "recurring" ? (
+                  // 011 FR-033 — 방식·주기·한 번 납입액. 같은 조건의 일시금 행과 구별된다.
+                  <span className="tabular-nums text-gray-600">
+                    적립식 · {FREQUENCY_TEXT[entry.frequency ?? "monthly"]}{" "}
+                    {formatMoneyWithSymbol(entry.principal, entry.principalCurrency)}
+                  </span>
+                ) : (
+                  <span className="tabular-nums text-gray-600">
+                    {formatMoney(entry.principal, entry.principalCurrency)} {entry.principalCurrency}
+                  </span>
+                )}
                 {!isAllowedPrincipal(entry.principalCurrency, entry.coin.currency) && (
                   // 지우지 않고 사유와 함께 남긴다 — 사용자가 고친 조건으로 다시 실행할 수 있다.
                   <span className="text-xs text-amber-700">막힌 조합 — {principalRule(entry.coin.currency)}</span>

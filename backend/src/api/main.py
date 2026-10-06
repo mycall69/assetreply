@@ -415,6 +415,7 @@ def create_app() -> FastAPI:
     from src.api.routes import coverage as coverage_routes
     from src.api.routes import crypto_list_progress as crypto_list_progress_routes
     from src.api.routes import crypto_progress as crypto_progress_routes
+    from src.api.routes import crypto_recurring as crypto_recurring_routes
     from src.api.routes import crypto_search as crypto_search_routes
     from src.api.routes import crypto_series as crypto_series_routes
     from src.api.routes import crypto_settings as crypto_settings_routes
@@ -472,6 +473,8 @@ def create_app() -> FastAPI:
     app.include_router(crypto_series_routes.router)
     app.include_router(crypto_progress_routes.router)
     app.include_router(crypto_settings_routes.router)
+    # 011 — 가상자산 적립식(일시금 경로와 따로 — research R11-10)
+    app.include_router(crypto_recurring_routes.router)
     # 008 — 예금 투자 시뮬레이션
     app.include_router(deposit_institutions_routes.router)
     app.include_router(deposit_simulation_routes.router)
