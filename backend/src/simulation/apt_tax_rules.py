@@ -509,6 +509,68 @@ COMPREHENSIVE_TAX_YEARS: dict[int, ComprehensiveTaxYear] = {
 }
 
 
+# ── 양도소득세(010 반복 5 — FR-031, research R10-21) ───────────────────────────────────────────
+
+@dataclass(frozen=True, slots=True)
+class YearlyRate:
+    """연수에 비례하는 공제율 — `from_years` 이상이면 연수 × `per_year`, `cap`까지."""
+
+    from_years: int
+    per_year: Decimal
+    cap: Decimal
+
+
+@dataclass(frozen=True, slots=True)
+class TransferRule:
+    """주택 양도소득세 — 1세대 1주택 비과세·고가주택·장기보유특별공제·세율·기본공제·지방소득세.
+
+    모델 규약(010 R10-21): 1세대 1주택, 부부 5:5 공동명의(인별 기본공제·세율), 비과세의 거주 요건은
+    늘 적용한다(취득 당시 조정대상지역 가정 — 보수적). 일시적 2주택·감면 특례는 넣지 않는다.
+    """
+
+    effective_from: dt.date
+    effective_to: dt.date | None
+    #: 고가주택 기준 양도가액 — 이하이면 비과세, 넘으면 그 초과 비율만 과세.
+    exemption_ceiling: int
+    exemption_holding_years: int
+    exemption_residence_years: int
+    #: 2년 이상 보유의 기본세율(과세표준 누진표).
+    brackets: tuple[Bracket, ...]
+    #: 단기 보유 세율 — (보유 연수 미만, 세율), 짧은 쪽부터.
+    short_term: tuple[tuple[int, Decimal], ...]
+    #: 장기보유특별공제 — 일반(표1)과 1세대 1주택(표2 — 보유분 + 거주분).
+    ltsd_general: YearlyRate
+    ltsd_home_holding: YearlyRate
+    ltsd_home_residence: YearlyRate
+    #: 양도소득 기본공제(인별, 연간).
+    basic_deduction: int
+    #: 지방소득세 — 양도소득세의 비율.
+    local_rate: Decimal
+    basis: str
+
+
+TRANSFER_RULES: tuple[TransferRule, ...] = (
+    TransferRule(
+        effective_from=dt.date.fromisoformat("2023-01-01"), effective_to=None,
+        exemption_ceiling=12 * _EOK, exemption_holding_years=2, exemption_residence_years=2,
+        brackets=(
+            Bracket(14_000_000, P("0.06"), 0), Bracket(50_000_000, P("0.15"), 1_260_000),
+            Bracket(88_000_000, P("0.24"), 5_760_000), Bracket(150_000_000, P("0.35"), 15_440_000),
+            Bracket(300_000_000, P("0.38"), 19_940_000),
+            Bracket(500_000_000, P("0.40"), 25_940_000),
+            Bracket(1_000_000_000, P("0.42"), 35_940_000), Bracket(None, P("0.45"), 65_940_000)),
+        short_term=((1, P("0.70")), (2, P("0.60"))),
+        ltsd_general=YearlyRate(3, P("0.02"), P("0.30")),
+        ltsd_home_holding=YearlyRate(3, P("0.04"), P("0.40")),
+        ltsd_home_residence=YearlyRate(2, P("0.04"), P("0.40")),
+        basic_deduction=2_500_000, local_rate=P("0.10"),
+        basis="소득세법 제89조(1세대 1주택 비과세)·제95조(장기보유특별공제 표1·표2)·"
+              "제103조(기본공제)·제104조(세율 — 2023-01-01 이후 양도분 과세표준 구간, 주택 단기 "
+              "70%·60%), 고가주택 12억 원(2021-12-08 이후 양도분), 지방세법(양도소득분 지방소득세 "
+              "10%). 출처 링크는 010 research R10-21"),
+)
+
+
 # ── 찾기 ────────────────────────────────────────────────────────────────────────────────────
 
 def acquisition_rule(on: dt.date) -> AcquisitionRule:
@@ -537,3 +599,13 @@ def comprehensive_tax_year(year: int) -> ComprehensiveTaxYear:
         return COMPREHENSIVE_TAX_YEARS[year]
     except KeyError:
         raise RuleNotCovered("comprehensive", dt.date(year, 6, 1)) from None
+
+
+def transfer_rule(on: dt.date) -> TransferRule:
+    """양도일의 주택 양도소득세 규칙. 표 밖이면 `RuleNotCovered`(가까운 규칙으로 대신하지
+    않는다)."""
+    for rule in TRANSFER_RULES:
+        if rule.effective_from <= on and (rule.effective_to is None or on <= rule.effective_to):
+            return rule
+    raise RuleNotCovered("transfer", on)
+

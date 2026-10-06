@@ -217,6 +217,12 @@ DB에 센다**(`apt_api_usage`, 한국 시간 날짜 — 다시 띄워도 이어
 **`Accept-Language`**가 없으면 403·429다(429가 늘 요청 제한은 아니다 — T067 실측). 같은 이름의 다른 지역 단지가 있어 **법정동 코드로 먼저 거른다**.
 클라이언트는 lifespan에 하나(요청 경로만 쓴다 — 수집 태스크 없음). 새 테이블이라 개발 DB에 `alembic upgrade head`가 필요하다.
 
+**부동산 보드의 매도비용**(010 반복 5): 보드만 — 기준일에 평가액으로 판다고 가정한 매도 중개 보수(매수와 같은 서울 조례 요율) + 양도소득세(1세대 1주택,
+부부 5:5 — 인별 기본공제·누진세율·지방소득세 10%, 12억 초과 비율 과세, 장특공 표2·표1, 단기 60%·70%)를 `summary.saleCost`로 더하고 `profitAfterSale`·
+`returnRateAfterSale`을 낸다. 규칙은 `simulation/apt_tax_rules.py`의 `TRANSFER_RULES`(2023-01-01부터 — 그 앞은 세금을 비운다), 계산은 `simulation/apt_sale_cost.py`.
+거주 기간 = 보유 × **거주 기간 비율**(설정, 기본 100%) — 보유세 기준 비율과 **따로 된 경로**(`/api/realestate/settings/residence`, `apt_setting.residence_ratio`
+NULL = 100%)다. 비과세의 거주 2년 요건은 늘 적용한다(조정대상지역 취득 가정 — 보수적).
+
 **주식 보드의 매도 수수료·세금**(010 반복 4): 보드만 — 기준일 상태를 모두 판다고 가정한 수수료(매매 수수료율)와 세금(국내 증권거래세 시행일별 표,
 해외 (원화 양도차익 − 250만 원) × 22%)을 `summary.saleCost`로 **더하고** `profitAfterSale`·`returnRateAfterSale`을 낸다 — `summary.profit`·표·차트·
 이력 비교는 보유 중 값 그대로다. 세율 표(`simulation/stock_sale_cost.py`)는 2023-01-01부터다 — 그 앞이나 세법이 바뀐 뒤 날짜는 규칙을 더해야 한다

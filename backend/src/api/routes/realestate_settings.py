@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.errors import InvalidSetting
 from src.db.session import get_session
-from src.repository.apt_setting import get_settings, save_settings
+from src.repository.apt_setting import get_residence, get_settings, save_residence, save_settings
 
 router = APIRouter(prefix="/api/realestate", tags=["realestate"])
 
@@ -59,3 +59,41 @@ async def update_settings(
     await save_settings(session, holding_tax_base_ratio=_ratio(payload.get("holdingTaxBaseRatio")))
     await session.commit()
     return await read_settings(session)
+
+
+# ── 거주 기간 비율 (010 반복 5, FR-031) — 보유세 기준 비율과 따로 된 경로 ─────────────────────────
+
+
+def _residence(raw: object) -> Decimal:
+    """0 이상 1 이하, 소수 6자리까지. 0도 된다(거주하지 않음)."""
+    value: Decimal | None = None
+    if isinstance(raw, str):
+        try:
+            value = Decimal(raw)
+        except InvalidOperation:
+            value = None
+    if value is None or not value.is_finite() or not (Decimal(0) <= value <= Decimal(1)):
+        raise InvalidSetting(f"거주 기간 비율은 0 이상 1 이하인 수(문자열)여야 합니다: {raw}")
+    exponent = value.normalize().as_tuple().exponent
+    if isinstance(exponent, int) and -exponent > _PLACES:
+        raise InvalidSetting(f"거주 기간 비율은 소수 {_PLACES}자리(백분율 4자리)까지입니다: {raw}")
+    return value
+
+
+@router.get("/settings/residence")
+async def read_residence(session: Annotated[AsyncSession, Depends(get_session)]) -> Json:
+    setting = await get_residence(session)
+    return {"residenceRatio": format(setting.residence_ratio, ".6f"),
+            "isDefault": setting.is_default}
+
+
+@router.put("/settings/residence")
+async def update_residence(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    payload: Annotated[Json, Body()],
+) -> Json:
+    """거주 기간 비율을 저장한다. 다음 시뮬레이션의 매도비용(양도소득세)이 새 값을 쓴다."""
+    await save_residence(session, residence_ratio=_residence(payload.get("residenceRatio")))
+    await session.commit()
+    return await read_residence(session)
+

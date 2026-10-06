@@ -32,7 +32,9 @@ from src.simulation.apt_area import AreaBucket, UnknownArea, bucket_by_key
 from src.simulation.apt_holding import HoldingResult, TaxPayment, simulate_holding
 from src.simulation.apt_price import MarketPrice, MonthTotal, Trade, aggregate
 from src.simulation.apt_price import provisional_from as provisional_start
+from src.simulation.apt_sale_cost import sale_cost
 from src.simulation.apt_tax import AcquisitionCost
+from src.simulation.money import quantize_rate
 from src.worker.apt_trade_runner import kst_date, plan_months
 
 Json = dict[str, object]
@@ -143,9 +145,39 @@ def _acquisition(cost: AcquisitionCost) -> Json:
                       "brokerage": cost.brokerage_rule_from.isoformat()}}
 
 
+def _text(value: int | None) -> str | None:
+    return None if value is None else str(value)
+
+
+def _sale_json(result: HoldingResult, residence_ratio: Decimal) -> Json:
+    """010 반복 5(FR-031) — 기준일에 평가액으로 판다고 가정한 매도비용(중개 보수 + 양도소득세)과
+    그것을 뺀 투자 수익· 수익률. **더하는 키**다. 평가액을 모르면(시세 없음) 키를 두지 않는다. 매도
+    가격은 투자 수익과 같은 시세 — 지금 시세가 없으면 마지막으로 시세가 있던 달의 평가액이다."""
+    summary = result.summary
+    valued = next((r for r in result.rows if r.value is not None), None)
+    if summary.profit is None or valued is None or valued.value is None:
+        return {}
+    cost = sale_cost(sale_price=valued.value, buy_price=result.buy_price,
+                     acquisition_total=result.acquisition.total, buy_date=result.buy_date,
+                     sale_date=summary.as_of, residence_ratio=residence_ratio)
+    after = None if cost.total is None else summary.profit - cost.total
+    return {
+        "saleCost": {
+            "brokerage": str(cost.brokerage), "incomeTax": _text(cost.income_tax),
+            "localTax": _text(cost.local_tax), "total": _text(cost.total), "kind": cost.kind,
+            "gain": _text(cost.gain), "taxableGain": _text(cost.taxable_gain),
+            "ltsdRate": None if cost.ltsd_rate is None else format(cost.ltsd_rate, ".6f"),
+            "holdingYears": cost.holding_years, "residenceYears": cost.residence_years,
+            "basePerOwner": _text(cost.base_per_owner)},
+        "profitAfterSale": _text(after),
+        "returnRateAfterSale": None if after is None or result.invested == 0
+        else str(quantize_rate(Decimal(after) / Decimal(result.invested))),
+    }
+
+
 def render(result: HoldingResult, *, row: AptComplex, umd_name: str, area: AreaBucket,
            ratio: Decimal, recheck_failed: tuple[str, str] | None,
-           provisional_from: dt.date) -> Json:
+           provisional_from: dt.date, residence_ratio: Decimal | None = None) -> Json:
     acquisition = _acquisition(result.acquisition)
     window = result.buy_price_window
     summary = result.summary
@@ -166,6 +198,8 @@ def render(result: HoldingResult, *, row: AptComplex, umd_name: str, area: AreaB
     }
     if recheck_failed is not None:
         body_summary["recheckFailed"] = {"kind": recheck_failed[0], "reason": recheck_failed[1]}
+    if residence_ratio is not None:
+        body_summary.update(_sale_json(result, residence_ratio))
     rows: list[Json] = []
     for item in result.rows:
         price = item.price
@@ -192,6 +226,8 @@ def render(result: HoldingResult, *, row: AptComplex, umd_name: str, area: AreaB
             "buyPriceWindow": None if window is None or result.buy_price_source == "input" else {
                 "months": window.window, "trades": window.trades, "estimated": window.estimated},
             "holdingTaxBaseRatio": format(ratio, ".6f"), "assumptions": list(ASSUMPTIONS),
+            **({} if residence_ratio is None
+               else {"residenceRatio": format(residence_ratio, ".6f")}),
         },
         "acquisition": acquisition, "summary": body_summary, "rows": rows,
     }
@@ -206,6 +242,8 @@ class Prepared:
     ratio: Decimal
     gate: Gate
     provisional_from: dt.date
+    #: 010 반복 5 — 거주 기간 비율(매도비용의 양도소득세).
+    residence_ratio: Decimal = Decimal("1.000000")
 
 
 async def prepare(session: AsyncSession, query: SimulationQuery, *, settings: Settings,
@@ -221,8 +259,9 @@ async def prepare(session: AsyncSession, query: SimulationQuery, *, settings: Se
         await _monthly(session, row, query.area), buy_date=query.buy_date,
         buy_price=query.buy_price, area=query.area, today=today,
         holding_tax_base_ratio=ratio, provisional_months=settings.apt_trade_provisional_months)
+    residence = (await apt_setting.get_residence(session)).residence_ratio
     return Prepared(row, result, ratio, gate,
-                    provisional_start(today, settings.apt_trade_provisional_months))
+                    provisional_start(today, settings.apt_trade_provisional_months), residence)
 
 
 async def simulation_response(session: AsyncSession, query: SimulationQuery, *,
@@ -234,4 +273,5 @@ async def simulation_response(session: AsyncSession, query: SimulationQuery, *,
     return 200, render(prepared.result, row=prepared.row,
                        umd_name=umd.name if umd is not None else "", area=query.area,
                        ratio=prepared.ratio, recheck_failed=prepared.gate.recheck_failed,
+                       residence_ratio=prepared.residence_ratio,
                        provisional_from=prepared.provisional_from)

@@ -1085,5 +1085,8 @@ class AptSetting(Base):
 
     id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, default=1)
     holding_tax_base_ratio: Mapped[Decimal] = mapped_column(SPREAD, nullable=False)
+    #: 010 반복 5 — 거주 기간 비율(거주 기간 = 보유 기간 × 비율, 양도소득세의 비과세·장특공).
+    #: NULL이면 기본값 1.000000(보유 내내 거주)이다 — 보유세 기준 비율만 저장한 행도 그대로 읽힌다.
+    residence_ratio: Mapped[Decimal | None] = mapped_column(SPREAD, nullable=True)
     updated_at: Mapped[dt.datetime] = mapped_column(
         TS, server_default=func.now(), onupdate=func.now())

@@ -36,6 +36,37 @@ async def get_settings(session: AsyncSession) -> AptSettings:
                        is_default=row.holding_tax_base_ratio == DEFAULT_HOLDING_TAX_BASE_RATIO)
 
 
+DEFAULT_RESIDENCE_RATIO: Final = Decimal("1.000000")
+
+
+@dataclass(frozen=True, slots=True)
+class ResidenceSetting:
+    """010 반복 5 — 거주 기간 비율. 보유세 기준 비율 설정과 따로 읽고 쓴다(따로 된 경로)."""
+
+    residence_ratio: Decimal
+    is_default: bool
+
+
+async def get_residence(session: AsyncSession) -> ResidenceSetting:
+    """거주 기간 비율. 행이 없거나 값이 없으면 기본값(1.000000 — 보유 내내 거주)이다."""
+    row = await session.get(AptSetting, _ROW_ID, populate_existing=True)
+    value = row.residence_ratio if row is not None else None
+    if value is None:
+        return ResidenceSetting(DEFAULT_RESIDENCE_RATIO, is_default=True)
+    return ResidenceSetting(value, is_default=value == DEFAULT_RESIDENCE_RATIO)
+
+
+async def save_residence(session: AsyncSession, *, residence_ratio: Decimal) -> None:
+    """거주 기간 비율을 저장한다. 행이 없으면 보유세 기준 비율은 기본값으로 만든다."""
+    row = await session.get(AptSetting, _ROW_ID)
+    if row is None:
+        session.add(AptSetting(id=_ROW_ID, holding_tax_base_ratio=DEFAULT_HOLDING_TAX_BASE_RATIO,
+                               residence_ratio=residence_ratio))
+    else:
+        row.residence_ratio = residence_ratio
+    await session.flush()
+
+
 async def save_settings(session: AsyncSession, *, holding_tax_base_ratio: Decimal) -> None:
     """저장한다. 결과를 저장하지 않으므로 다음 조회가 새 값을 쓴다 — 무효화할 캐시가 없다."""
     await upsert(session, AptSetting,

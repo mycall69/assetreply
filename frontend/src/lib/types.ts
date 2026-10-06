@@ -1060,6 +1060,8 @@ export interface RealEstateCondition {
   holdingTaxBaseRatio: DecimalString;
   /** 서버가 적용한 가정 — "부부 5:5 공동 소유" 같은 글자 그대로 보인다. */
   assumptions: string[];
+  /** 010 반복 5 — 거주 기간 비율(거주 기간 = 보유 기간 × 이 값). 양도소득세 매도비용에 쓴다. */
+  residenceRatio?: DecimalString;
 }
 
 /**
@@ -1086,6 +1088,26 @@ export interface RealEstateSummary {
   provisionalFrom: string;
   /** 받아 둔 시·군·구의 오늘 확인이 실패했을 때만(FR-014). */
   recheckFailed?: { kind: RealEstateFailureKind; reason: string };
+  /** 010 반복 5(FR-031) — 기준일에 평가액으로 판다고 가정한 매도비용. 평가액을 모르면 없다. */
+  saleCost?: RealEstateSaleCost;
+  /** `profit` − `saleCost.total`. 세금을 모르면(규칙 표 밖) `null`. */
+  profitAfterSale?: DecimalString | null;
+  returnRateAfterSale?: DecimalString | null;
+}
+
+/** 부동산 매도비용 — 중개 보수 + 양도소득세(1세대 1주택, 부부 5:5). 원 정수 문자열. 규칙 표 밖이면 세금·합계 `null`. */
+export interface RealEstateSaleCost {
+  brokerage: DecimalString;
+  incomeTax: DecimalString | null;
+  localTax: DecimalString | null;
+  total: DecimalString | null;
+  kind: "exempt" | "high_price" | "taxed" | "short_term" | "no_gain" | "outside_table";
+  gain: DecimalString | null;
+  taxableGain: DecimalString | null;
+  ltsdRate: DecimalString | null;
+  holdingYears: number;
+  residenceYears: number;
+  basePerOwner: DecimalString | null;
 }
 
 /** 보유세의 기준 시세 — 그해 6월의 적용 시세(FR-021). */
@@ -1141,6 +1163,12 @@ export interface RealEstateSimulationResponse {
 /** 부동산 보유세 기준 비율(FR-034) — 시세에 곱해 공시가격을 대신한다. 0 초과 1 이하, 소수 6자리. 다른 자산군 설정과 따로다. */
 export interface RealEstateSettings {
   holdingTaxBaseRatio: DecimalString;
+  isDefault: boolean;
+}
+
+/** 010 반복 5 — 부동산 거주 기간 비율. 0 이상 1 이하, 소수 6자리. 보유세 기준 비율과 따로 된 경로다. */
+export interface RealEstateResidenceSetting {
+  residenceRatio: DecimalString;
   isDefault: boolean;
 }
 

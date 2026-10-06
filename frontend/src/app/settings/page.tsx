@@ -10,6 +10,7 @@
 import { useEffect, useState } from "react";
 import { CryptoSettingsForm } from "@/components/settings/CryptoSettingsForm";
 import { DepositSettingsForm } from "@/components/settings/DepositSettingsForm";
+import { RealEstateResidenceForm } from "@/components/settings/RealEstateResidenceForm";
 import { RealEstateSettingsForm } from "@/components/settings/RealEstateSettingsForm";
 import { RestoreDefaultsDialog } from "@/components/settings/RestoreDefaultsDialog";
 import { SpreadForm } from "@/components/settings/SpreadForm";
@@ -22,6 +23,7 @@ import type {
   CryptoSettings,
   DepositSettings,
   DerivedRates,
+  RealEstateResidenceSetting,
   RealEstateSettings,
   SpreadRow,
   StockSettings,
@@ -98,6 +100,7 @@ export default function SettingsPage() {
 
       {/* 009 — 부동산 보유세 기준 비율. 다른 자산군 설정과 따로 저장한다(FR-034). */}
       <RealEstateSettingsSection />
+      <RealEstateResidenceSection />
 
       {pending !== null && (
         <RestoreDefaultsDialog
@@ -264,6 +267,51 @@ function DepositSettingsSection() {
   );
 }
 
+
+/**
+ * 부동산 거주 기간 비율 구역 (010 반복 5, T081) — FR-031. 보유세 기준 비율 구역과 **따로 된 경로·상태**다 — 한쪽의 실패가 다른 쪽을
+ * 가리지 않는다.
+ */
+function RealEstateResidenceSection() {
+  const [value, setValue] = useState<RealEstateResidenceSetting | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        setValue(await apiClient.get<RealEstateResidenceSetting>("/api/realestate/settings/residence"));
+      } catch (err) {
+        setFailure(err instanceof ApiError ? err.message : "거주 기간 비율을 불러오지 못했습니다.");
+      }
+    })();
+  }, []);
+
+  const save = async (residenceRatio: string) => {
+    try {
+      setValue(await apiClient.put<RealEstateResidenceSetting>("/api/realestate/settings/residence", { residenceRatio }));
+      setNotice("저장했습니다. 부동산 화면으로 돌아가면 새 값으로 다시 계산합니다.");
+      setFailure(null);
+    } catch (err) {
+      setFailure(err instanceof ApiError ? err.message : "거주 기간 비율을 저장하지 못했습니다.");
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <h2 className="text-xl font-bold tracking-tight">부동산 거주 기간 비율</h2>
+      {failure !== null && (
+        <p role="alert" className="rounded border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+          {failure}
+        </p>
+      )}
+      {notice !== null && <p className="text-sm text-gray-600">{notice}</p>}
+      {value !== null && (
+        <RealEstateResidenceForm key={value.residenceRatio} value={value} onSave={(r) => void save(r)} />
+      )}
+    </div>
+  );
+}
 
 /**
  * 부동산 설정 구역 (T044) — 009 FR-034, ui-wireframes E8.

@@ -15,7 +15,7 @@
 
 import { ComplexLink } from "@/components/realestate/ComplexLink";
 import { formatMoneyWithSymbol, formatPercent, shiftDecimal } from "@/lib/format";
-import type { RealEstateSimulationResponse } from "@/lib/types";
+import type { RealEstateSaleCost, RealEstateSimulationResponse } from "@/lib/types";
 
 export type RealEstateBoardResult = Omit<RealEstateSimulationResponse, "rows">;
 
@@ -36,8 +36,18 @@ export function ratioPercent(ratio: string): string {
 
 export function RealEstateBoard({ result }: { result: RealEstateBoardResult }) {
   const { complex, area, condition, acquisition, summary } = result;
-  const negative = summary.profit !== null && summary.profit.trimStart().startsWith("-");
-  const emphasis = summary.profit === null ? undefined : negative ? "loss" : "gain";
+  // 010 반복 5(FR-031) — 매도비용을 뺀 값을 알면 투자 수익·수익률 칸은 그 값이다(보유 중 값은 함께 보인다).
+  const sale = summary.saleCost;
+  const after = sale !== undefined && summary.profitAfterSale != null && summary.returnRateAfterSale != null
+    ? { profit: summary.profitAfterSale, rate: summary.returnRateAfterSale }
+    : null;
+  const shownProfit = after?.profit ?? summary.profit;
+  const shownRate = after?.rate ?? summary.returnRate;
+  const negative = shownProfit !== null && shownProfit.trimStart().startsWith("-");
+  const emphasis = shownProfit === null ? undefined : negative ? "loss" : "gain";
+  const holding = (text: string | null) => (sale === undefined ? []
+    : after !== null ? ["매도비용을 뺀 값", text === null ? null : `보유 중 ${text}`]
+      : ["매도 세금을 모름 — 보유 중 값"]);
   const valueFlags = [summary.estimated && "추정", summary.provisional && "잠정"].filter(Boolean).join(" · ");
   const buyWindow = condition.buyPriceWindow;
 
@@ -47,10 +57,14 @@ export function RealEstateBoard({ result }: { result: RealEstateBoardResult }) {
     ...condition.assumptions,
     ...(condition.buyPriceSource === "input" ? ["매입가 직접 입력"] : []),
   ];
+  // 매도비용의 가정 — 한 줄로 밝힌다(FR-031). 보드가 월별 표의 마지막 행과 다른 까닭이 여기 있다.
+  const saleBasis = sale === undefined ? null
+    : `매도비용: 1세대 1주택 · 부부 5:5 · 거주 기간 = 보유 × ${ratioPercent(condition.residenceRatio ?? "1")}`
+      + " · 기준일에 평가액으로 판다고 가정한 값 — 월별 표는 보유 중 평가";
 
   return (
     <section className="rounded-lg border border-gray-200">
-      <div className="grid gap-px bg-gray-200 sm:grid-cols-3 xl:grid-cols-6">
+      <div className={`grid gap-px bg-gray-200 sm:grid-cols-3 ${sale !== undefined ? "xl:grid-cols-7" : "xl:grid-cols-6"}`}>
         <Cell label="매입가" value={won(condition.buyPrice)}
           notes={[condition.buyPriceSource === "input" ? "직접 입력"
             : buyWindow === null ? null
@@ -64,9 +78,13 @@ export function RealEstateBoard({ result }: { result: RealEstateBoardResult }) {
             summary.valueWindow === null ? null : windowText(summary.valueWindow.months, summary.valueWindow.trades),
             valueFlags === "" ? null : valueFlags,
           ]} />
-        <Cell label="투자 수익" value={summary.profit === null ? "—" : won(summary.profit)} emphasis={emphasis} />
-        <Cell label="수익률" value={summary.returnRate === null ? "—" : formatPercent(summary.returnRate)}
-          emphasis={emphasis} />
+        {sale !== undefined && (
+          <Cell label="매도비용" value={sale.total === null ? "—" : won(`-${sale.total}`)} notes={saleNotes(sale)} />
+        )}
+        <Cell label="투자 수익" value={shownProfit === null ? "—" : won(shownProfit)} emphasis={emphasis}
+          notes={holding(summary.profit === null ? null : won(summary.profit))} />
+        <Cell label="수익률" value={shownRate === null ? "—" : formatPercent(shownRate)} emphasis={emphasis}
+          notes={holding(summary.returnRate === null ? null : formatPercent(summary.returnRate))} />
       </div>
 
       <p className="border-t border-gray-100 px-4 py-2 text-xs text-gray-500">
@@ -79,8 +97,28 @@ export function RealEstateBoard({ result }: { result: RealEstateBoardResult }) {
           <span key={item}> · {item}</span>
         ))}
       </p>
+      {saleBasis !== null && <p className="border-t border-gray-100 px-4 py-2 text-xs text-gray-500">{saleBasis}</p>}
     </section>
   );
+}
+
+/** 매도비용 칸의 내역 — 중개 보수, 양도소득세(지방소득세 포함)와 판정·장특공·보유·거주 연수(FR-031). */
+function saleNotes(sale: RealEstateSaleCost): string[] {
+  const lines = [`중개 보수 ${won(sale.brokerage)}`];
+  if (sale.incomeTax === null || sale.localTax === null) {
+    lines.push("세금 — 규칙 표 밖(2023-01-01 앞)");
+    return lines;
+  }
+  const tax = (BigInt(sale.incomeTax) + BigInt(sale.localTax)).toString();
+  lines.push(`양도소득세 ${won(tax)} (지방소득세 포함)`);
+  const years = `보유 ${sale.holdingYears}년 · 거주 ${sale.residenceYears}년`;
+  const ltsd = sale.ltsdRate === null ? "" : `장특공 ${ratioPercent(sale.ltsdRate)} · `;
+  if (sale.kind === "exempt") lines.push("비과세(12억 이하)");
+  else if (sale.kind === "high_price") lines.push(`고가주택(12억 초과분) · ${ltsd}${years}`);
+  else if (sale.kind === "taxed") lines.push(`비과세 요건 밖(거주 2년 미만) · ${ltsd}${years}`);
+  else if (sale.kind === "short_term") lines.push(`단기 보유 — 세율 ${sale.holdingYears < 1 ? "70%" : "60%"}`);
+  else if (sale.kind === "no_gain") lines.push("양도차익 없음");
+  return lines;
 }
 
 function Cell({

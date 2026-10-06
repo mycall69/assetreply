@@ -174,6 +174,6 @@
 
 ### `GET`·`PUT /api/realestate/settings/residence`
 
-- `GET` → `{"residenceRatio": "1.000000", "isDefault": true}`. `PUT {"residenceRatio": "0.5"}` → 저장한 값. 0 이상 1 이하의 소수 문자열(소수 6자리까지), 그 밖은 400
-  `invalid_setting`(보유세 기준 비율과 같은 꼴). 기존 `/api/realestate/settings`는 바뀌지 않는다.
+- `GET` → `{"residenceRatio": "1.000000", "isDefault": true}`. `PUT {"residenceRatio": "0.5"}` → 저장한 값. 0 이상 1 이하의 소수 문자열(소수 6자리까지), 그 밖은 422
+  `invalid_setting`(보유세 기준 비율과 같은 오류 — 구현 중 확인). 기존 `/api/realestate/settings`는 바뀌지 않는다.
 
