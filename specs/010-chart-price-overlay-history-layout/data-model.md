@@ -166,3 +166,21 @@ apt_complex_naver                       # 단지 하나에 한 행. 마이그레
   (주소는 백엔드 한 곳에서 만든다 — 화면에 같은 규칙을 두지 않는다).
   접근 이름은 바뀐 뒤 `{단지명} Npay 부동산에서 보기`, 그 전·못 찾음·실패는 `{단지명} 네이버에서 단지 찾기`. 같은 쪽 안에서 단지마다 한 번만 묻는다.
 
+## 9. 반복 4 (2026-10-06) — 주식 보드의 매도 수수료·세금 (FR-030, research R10-20)
+
+```text
+simulation/stock_sale_cost.py                     # 순수 함수 — DB·HTTP 없음
+  TRANSACTION_TAX = [(2023-01-01, 0.0020), (2024-01-01, 0.0018), (2025-01-01, 0.0015), (2026-01-01, 0.0020)]
+  CAPITAL_GAINS   = [(2023-01-01, rate 0.22, deduction 2,500,000)]
+  SaleCost(fee_krw, tax_krw | None, total_krw | None, tax_kind: "transaction_tax" | "capital_gains_tax" | "outside_table",
+           tax_rate | None, gain_krw | None, deduction_krw | None)
+  domestic_sale_cost(sale_krw, *, fee_rate, day) -> SaleCost
+  foreign_sale_cost(*, sale_krw, sell_fee_krw, acquisition_krw, buy_fees_krw, day) -> SaleCost
+```
+
+- 원화 금액은 원 미만을 버린다. 표 밖 날짜는 `tax_kind = "outside_table"`, 세금·합계 `None`.
+- 응답 `summary`에 **더한다**(기존 키는 그대로):
+  - `saleCost`: `{"fee", "tax", "total", "taxKind", "taxRate", "gain", "deduction"}` — 금액은 원화 정수 문자열, 없으면 `null`
+  - `profitAfterSale` = `profit` − `saleCost.total`, `returnRateAfterSale` = 그 값 ÷ 수익률 분모. 세금을 모르면 둘 다 `null`
+- 프론트엔드 `SimulationSummary.saleCost?`·`profitAfterSale?`·`returnRateAfterSale?`(선택 — 없으면 보드는 반복 4 전처럼 세 칸).
+

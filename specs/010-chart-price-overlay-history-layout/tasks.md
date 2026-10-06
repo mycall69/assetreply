@@ -513,6 +513,23 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 ---
 
+## Phase 11: 반복 4 (2026-10-06) — 주식 보드의 매도 수수료·세금
+
+**Purpose**: 주식 보드를 투자 원금 · 매도 수수료/세금 · 투자 수익 · 수익률 넷으로 나누고 매도 비용을 뺀 투자 수익·수익률을 보인다(FR-030).
+
+- [ ] T069 [P] [US1] `backend/tests/unit/test_stock_sale_cost.py` — 증권거래세 표(2023·2024·2025·2026 시행일, 2022-12-31은 표 밖), 국내 수수료·세금 원 미만 버림,
+  해외 차익(공제 이하 0·손실 0·초과분 22%), 표 밖 날짜는 세금 `None`·`outside_table` (FR-030)
+- [ ] T070 [P] [US1] `backend/tests/integration/test_stock_sale_cost_api.py` — 2026년 시드로 삼성전자·AAPL(원화 원금) `summary.saleCost`가 손 계산과 같고
+  `profitAfterSale` = `profit` − 합계, 2021년 시드(표 밖)는 세금·순수익 `null`, 기존 `summary` 키는 그대로 (FR-030, SC-011)
+- [ ] T071 [P] [US1] `frontend/tests/PerformanceBoardSaleCost.test.tsx` — 네 칸(매도 수수료/세금 칸의 내역), 투자 수익·수익률이 매도 비용을 뺀 값과 보유 중 값,
+  표 밖은 `—`·사유, `saleCost`가 없으면 세 칸 그대로 (FR-030)
+- [ ] T072 [US1] 백엔드 — `backend/src/simulation/stock_sale_cost.py`(신규), `backend/src/api/services/stock_simulation.py`(기준일 상태·행으로 매도 비용),
+  `backend/src/api/routes/stock_simulation.py`(`summary`에 더하는 키) (FR-030)
+- [ ] T073 [US1] 프론트엔드 — `src/lib/types.ts`(`SimulationSummary` 선택 키), `src/components/stock/PerformanceBoard.tsx`(네 칸) (FR-030)
+- [ ] T074 quickstart 16 실행·기록(삼성전자·AAPL 보드의 손 계산 대조, 화면 캡처), 품질 게이트, README·CLAUDE.md (FR-030, SC-011)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

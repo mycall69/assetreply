@@ -145,3 +145,16 @@
 - 계약 테스트: 저장된 응답 픽스처(헬리오시티·미륭·개포자이·리센츠)로 파싱과 고르기, 가짜 클라이언트로 저장·재사용(두 번째 요청에 출처 호출 0)·실패 미저장·
   못 찾음 다시 찾기·모르는 단지 400.
 
+## 반복 4 (2026-10-06) — `GET /api/stocks/simulation`의 `summary` (FR-030)
+
+```json
+"summary": {"principal": "10000000", "profit": "46493910.88…", "returnRate": "4.649391", "asOf": "2026-10-02", "isFinal": true,
+            "saleCost": {"fee": "8445", "tax": "112608", "total": "121053", "taxKind": "transaction_tax", "taxRate": "0.0020",
+                         "gain": null, "deduction": null},
+            "profitAfterSale": "46372857", "returnRateAfterSale": "4.637285"}
+```
+
+- 해외 종목: `taxKind "capital_gains_tax"`, `taxRate "0.22"`, `gain`(원화 양도차익)·`deduction`(`"2500000"`). 차익이 공제 이하·손실이면 `tax "0"`.
+- 기준일이 세율 표 밖: `taxKind "outside_table"`, `tax`·`total`·`profitAfterSale`·`returnRateAfterSale`이 `null`(`fee`는 있다).
+- `profit`·`returnRate`(보유 중)와 표의 행·시계열은 그대로다.
+

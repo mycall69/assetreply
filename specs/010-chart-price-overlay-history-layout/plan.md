@@ -125,6 +125,7 @@ backend/
 ├── src/api/routes/stock_simulation.py   # (반복 3) 행 closePrice
 ├── src/api/routes/realestate_complexes.py  # (반복 3) GET /api/realestate/complexes/{id}/naver
 ├── src/simulation/reinvest.py  # (반복 3) DayBar.close_price(필수), Row.close_price, 잔고 = 보유 × 종가
+├── src/simulation/stock_sale_cost.py  # (반복 4 신규) 증권거래세·양도소득세 시행일별 표와 매도 비용(순수 함수)
 ├── src/ingestion/naver_land/   # (반복 3 신규) client.py·parse.py·errors.py — Npay 부동산 단지 자동완성(원칙 II 이탈)
 ├── src/repository/apt_naver.py # (반복 3 신규) apt_complex_naver 읽기·쓰기
 ├── src/db/models.py · src/db/migrations/versions/*_네이버_단지_번호.py  # (반복 3) AptComplexNaver
@@ -210,6 +211,7 @@ CLAUDE.md · README.md           # 현재 상태 표에 010 (반복 1 내용 더
 | FR-026 (부동산 검색 링크 — 반복 1) | R10-15, data-model 7절, F5, quickstart 12, tasks T040·T044·T045·T049·T051 |
 | FR-027 (이력 행 버튼은 내용 바로 뒤 — 반복 2) | F3·F4, tasks T055·T056·T057 |
 | FR-028 (주식 종가 열·잔고 종가 평가 — 반복 3) | R10-18, data-model 8.1, rest-api 반복 3, F6, quickstart 14, tasks T058·T059·T060·T063·T064·T067 |
+| FR-030 (주식 보드 매도 수수료·세금 — 반복 4) | R10-20, data-model 9, rest-api 반복 4, F7, quickstart 16, tasks T069~T074 |
 | FR-029 (Npay 부동산 단지 화면 — 반복 3, FR-026 대체) | R10-19, data-model 8.2, rest-api 반복 3, F5, quickstart 15, tasks T061·T062·T065·T066·T067 |
 | FR-021 (계산·이력 형식 불변) | R10-1, data-model 5절, quickstart 10, tasks T001·T037·T039, 반복 1 — tasks T054 |
 | SC-001 | 네 경로 통합 테스트(표 대조), quickstart 1~4, tasks T007·T008·T009·T010·T018, 반복 1 — tasks T042·T051 |
@@ -221,6 +223,7 @@ CLAUDE.md · README.md           # 현재 상태 표에 010 (반복 1 내용 더
 | SC-007 (반복 1) | 링크 단위·화면 테스트, quickstart 12, tasks T044·T045·T051 |
 | SC-008 (반복 1) | 외환 화면 테스트, quickstart 13, tasks T046·T051 |
 | SC-009 (반복 3) | 주식 표 행 통합 테스트, quickstart 14, tasks T059·T067·T068 |
+| SC-011 (반복 4) | 매도 비용 단위·통합 테스트, quickstart 16, tasks T069·T070·T074 |
 | SC-010 (반복 3) | 단지 번호 경로 통합 테스트, quickstart 15, tasks T062·T067 |
 ## Complexity Tracking
 
