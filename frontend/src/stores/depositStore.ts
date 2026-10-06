@@ -19,6 +19,7 @@ import type { Startable } from "@/components/stock/StartDateInput";
 import { ApiError, apiClient } from "@/lib/apiClient";
 import { INITIAL_HISTORY, removeHistoryFlow, restoreHistoryFlow, saveHistoryFlow } from "@/lib/historyFlow";
 import { subscribeDepositProgress, type DepositProgressSnapshot } from "@/lib/depositProgressStream";
+import { DEFAULT_PRINCIPAL } from "@/lib/principalFormat";
 import { DEFAULT_START } from "@/lib/startDate";
 import type {
   BeforeFirstMonthBody,
@@ -290,7 +291,8 @@ export const useDepositStore = create<DepositState>((set, get) => {
   }
 
   return {
-    input: { institution: "commercial_bank", start: DEFAULT_START, principal: "" },
+    // 012 FR-016 — 처음 열 때만 1천만 원이다. 상품·투자처를 바꿔도 덮지 않는다.
+    input: { institution: "commercial_bank", start: DEFAULT_START, principal: DEFAULT_PRINCIPAL },
     product: "deposit",
     productNotice: null,
     institutions: null,

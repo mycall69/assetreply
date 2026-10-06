@@ -17,6 +17,7 @@ import { subscribeCollection } from "@/lib/collectionStream";
 import { INITIAL_HISTORY, removeHistoryFlow, restoreHistoryFlow, saveHistoryFlow } from "@/lib/historyFlow";
 import { subscribeCryptoProgress, type CryptoProgressSnapshot } from "@/lib/cryptoProgressStream";
 import { isAllowedPrincipal, principalRule } from "@/lib/principalCurrency";
+import { DEFAULT_PRINCIPAL } from "@/lib/principalFormat";
 import { DEFAULT_START } from "@/lib/startDate";
 import { periodQuery } from "@/lib/tablePeriod";
 import type {
@@ -343,7 +344,8 @@ async function runRecurring(input: CryptoInput & { coin: CoinRef }, set: Setter,
 export const useCryptoStore = create<CryptoState>((set, get) => ({
   plan: { mode: "lump_sum", frequency: "monthly" },
   recurring: null,
-  input: { coin: null, start: DEFAULT_START, principal: "", principalCurrency: "KRW" },
+  // 012 FR-016 — 처음 열 때만 1천만 원이다. 방식·통화·코인을 바꿔도 덮지 않는다.
+  input: { coin: null, start: DEFAULT_START, principal: DEFAULT_PRINCIPAL, principalCurrency: "KRW" },
   startable: null,
   rows: [],
   summary: null,

@@ -18,6 +18,7 @@ import {
 } from "@/lib/historyFlow";
 import { isAllowedPrincipal, principalRule } from "@/lib/principalCurrency";
 import { createSequence } from "@/lib/searchSequence";
+import { DEFAULT_PRINCIPAL } from "@/lib/principalFormat";
 import { DEFAULT_START } from "@/lib/startDate";
 import { periodQuery } from "@/lib/tablePeriod";
 import {
@@ -486,7 +487,8 @@ export const useStockStore = create<StockState>((set, get) => ({
     stock: null,
     // FR-001 — 처음 들어오면 2020-01-01. 종목을 바꿔도 덮지 않는다(FR-006).
     start: DEFAULT_START,
-    principal: "",
+    // 012 FR-016 — 처음 열 때만 1천만 원이다. 방식·통화를 바꿔도 덮지 않는다.
+    principal: DEFAULT_PRINCIPAL,
     principalCurrency: "KRW",
     reinvest: true,
   },
