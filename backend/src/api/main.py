@@ -64,6 +64,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     import asyncio
     import contextlib
 
+    from src.api.services import apt_naver_link
     from src.config.settings import load_settings
     from src.db.session import get_session_factory
     from src.ingestion.datagokr.client import DataGoKrClient
@@ -72,6 +73,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from src.ingestion.ecos.deposit_client import EcosDepositClient
     from src.ingestion.investing.client import InvestingClient
     from src.ingestion.kiwoom.client import KiwoomClient
+    from src.ingestion.naver_land.client import NaverLandClient
     from src.ingestion.yahoo.client import YahooStockClient
     from src.observability.logging_config import configure_logging
     from src.repository.apt_usage import ApiUsageCounter
@@ -144,6 +146,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     apt_client = DataGoKrClient(settings, apt_gate)
     await apt_client.__aenter__()
     apt_worker.set_shared_source(apt_client)
+    # 010 반복 3 — Npay 부동산 단지 자동완성 클라이언트 하나(공개되지 않은 내부 API, 원칙 II 이탈).
+    # 요청 경로 (단지 이름 링크)만 쓴다 — 수집 태스크가 없다. 요청 사이 최소 간격을 모든 요청이 함께
+    # 지킨다.
+    naver_client = NaverLandClient(settings)
+    await naver_client.__aenter__()
+    apt_naver_link.set_shared_client(naver_client)
 
     tasks = [
         asyncio.create_task(worker_loop(
@@ -183,6 +191,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await deposit_client.__aexit__(None, None, None)
         apt_worker.set_shared_source(None)
         await apt_client.__aexit__(None, None, None)
+        apt_naver_link.set_shared_client(None)
+        await naver_client.__aexit__(None, None, None)
         await shutdown_engine()
 
 

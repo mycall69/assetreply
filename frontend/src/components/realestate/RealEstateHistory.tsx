@@ -9,8 +9,7 @@
  * - 버튼·고르기의 이름은 단지·평형·매입일이다 — 같은 단지·평형을 다른 날 산 줄이 여럿일 수 있다
  */
 
-import { ExternalLink } from "@/components/ExternalLink";
-import { complexSearchLink } from "@/lib/externalLinks";
+import { ComplexLink } from "@/components/realestate/ComplexLink";
 import { formatMoney } from "@/lib/format";
 import type { RealEstateHistoryEntry } from "@/lib/types";
 
@@ -66,10 +65,8 @@ export function RealEstateHistory({
                 <input type="checkbox" checked={selected.includes(entry.id)}
                   onChange={() => onToggle(entry.id)} aria-label={`${label} 비교 대상으로 선택`} />
                 <span className="min-w-48 font-medium">
-                  <ExternalLink href={complexSearchLink(entry.complexName, umdNames[entry.umd] ?? null)}
-                    label={`${entry.complexName} 네이버에서 단지 찾기`}>
-                    {entry.complexName}
-                  </ExternalLink>{" "}
+                  <ComplexLink complexId={entry.complexId} name={entry.complexName}
+                    umdName={umdNames[entry.umd] ?? null} />{" "}
                   {entry.areaLabel}
                 </span>
                 <span className="tabular-nums text-gray-600">{entry.buyDate}</span>

@@ -919,6 +919,30 @@ class AptComplex(Base):
         TS, server_default=func.now(), onupdate=func.now())
 
 
+class AptComplexNaver(Base):
+    """단지의 Npay 부동산 단지 번호(010 반복 3, FR-029, research R10-19). 단지 하나에 한 행 —
+    공개되지 않은 단지 자동완성으로 **한 번** 찾아 저장해 다시 쓴다(헌법 원칙 II 이탈 — 출처를
+    화면마다 부르지 않는다).
+
+    `found`면 번호가 있고, `not_found`면 같은 법정동에서 고를 후보가 없거나 여럿이었다 —
+    `checked_at`에서 정해진 날 수(설정)가 지나면 다시 찾는다. **실패(차단·요청 제한·연결·형식)는
+    행을 만들지 않는다** — 일시 장애 하나로 그 단지가 영영 검색으로만 열리지 않게. 원본 응답을 함께
+    둔다(헌법 원칙 V)."""
+
+    __tablename__ = "apt_complex_naver"
+
+    complex_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("apt_complex.id"), primary_key=True)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    naver_complex_no: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    naver_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    keyword: Mapped[str] = mapped_column(String(160), nullable=False)
+    checked_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+    raw_response: Mapped[str | None] = mapped_column(Text(length=16_777_215), nullable=True)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    ingested_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now(), nullable=False)
+
+
 class AptTrade(Base):
     """거래 하나. 유니크 키는 (자산 식별자, 날짜)를 **거래 사건**에 맞춘 것이다 — 같은 날 같은
     층·면적·금액의 다른 호가 있어 응답 안 순번까지 넣는다(research R9-4). 바뀌는

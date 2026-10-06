@@ -416,6 +416,8 @@ export interface SimulationRow {
   date: string;
   kind: SimulationRowKind;
   openPrice: DecimalString;
+  /** 010 반복 3(FR-028) — 그 날 원주가 종가. 잔고 = 보유 주식 × 이 값(매수는 `openPrice`). */
+  closePrice: DecimalString;
   dividendPerShare?: DecimalString;
   dividendYield?: DecimalString;
   boughtShares: number;

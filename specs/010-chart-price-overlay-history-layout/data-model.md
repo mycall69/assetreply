@@ -134,7 +134,7 @@ SimulationSeriesResponse (+)
 
 ```text
 DayBar  = (date, open_price: Decimal, close_price: Decimal)   # 원주가. 종가는 필수 — 없으면 그 일봉을 쓰지 않는다(원칙 V)
-Row    += close_price: Decimal                                 # 그 행 날짜의 원주가 종가
+Row    += close_price: Decimal | None = None                   # 그 행 날짜의 원주가 종가 — 계산이 만든 행에는 늘 있다(기본값은 행을 직접 만드는 005 테스트 때문, 잔고는 DayBar의 종가로 계산)
 Row.balance = held_shares × close_price                        # 005 FR-013(× open_price)을 대체
 Row.profit  = balance + cash − principal                       # 식은 그대로, 잔고가 종가 평가
 매수 수량·매수 금액·수수료·배당율(÷ open_price)                 # 그대로 시가
@@ -162,6 +162,7 @@ apt_complex_naver                       # 단지 하나에 한 행. 마이그레
   나가지 않는다.
 - 고르기 `pick_naver_complex(candidates, umd_code, name) -> NaverComplexCandidate | None` — 순수 함수. 정규화: 공백 제거, 괄호와 그 안 제거, 끝의 "아파트" 제거.
   ① 같은 법정동 코드 ② 정규화한 이름이 같은 후보가 하나 ③ 없으면 한쪽이 다른 쪽을 품는 후보가 하나 ④ 그 밖은 `None`.
-- 화면: `naverComplexLink(no) = https://fin.land.naver.com/complexes/{no}`. 단지 이름 링크는 처음에 FR-026의 검색 주소이고, 이 경로가 `found`를 주면 그 주소로 바뀐다.
+- 화면: 단지 이름 링크(`components/realestate/ComplexLink.tsx`)는 처음에 FR-026의 검색 주소이고, 이 경로가 `found`를 주면 응답의 `url`(Npay 부동산 단지 화면)로 바뀐다
+  (주소는 백엔드 한 곳에서 만든다 — 화면에 같은 규칙을 두지 않는다).
   접근 이름은 바뀐 뒤 `{단지명} Npay 부동산에서 보기`, 그 전·못 찾음·실패는 `{단지명} 네이버에서 단지 찾기`. 같은 쪽 안에서 단지마다 한 번만 묻는다.
 

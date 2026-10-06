@@ -13,8 +13,7 @@
  *   명의로 계산한 결과로 읽는다(FR-030)
  */
 
-import { ExternalLink } from "@/components/ExternalLink";
-import { complexSearchLink } from "@/lib/externalLinks";
+import { ComplexLink } from "@/components/realestate/ComplexLink";
 import { formatMoneyWithSymbol, formatPercent, shiftDecimal } from "@/lib/format";
 import type { RealEstateSimulationResponse } from "@/lib/types";
 
@@ -73,10 +72,8 @@ export function RealEstateBoard({ result }: { result: RealEstateBoardResult }) {
       <p className="border-t border-gray-100 px-4 py-2 text-xs text-gray-500">
         {/* 어느 날짜까지의 결과인지 알 수 없으면 오늘까지로 읽는다. */}
         <span className="tabular-nums">{summary.asOf}</span> 기준 ·{" "}
-        {/* 010 FR-026 — 단지 이름은 네이버 통합검색(법정동 이름과 함께) 링크다. */}
-        <ExternalLink href={complexSearchLink(complex.name, complex.umdName)} label={`${complex.name} 네이버에서 단지 찾기`}>
-          {complex.name}
-        </ExternalLink>{" "}
+        {/* 010 FR-029 — 단지 이름은 Npay 부동산 단지 화면(번호를 모르는 동안·못 찾으면 네이버 검색 — FR-026) 링크다. */}
+        <ComplexLink complexId={complex.complexId} name={complex.name} umdName={complex.umdName} />{" "}
         {area.label}
         {basis.map((item) => (
           <span key={item}> · {item}</span>

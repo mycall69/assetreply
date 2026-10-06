@@ -27,10 +27,15 @@ _ZERO = Decimal("0")
 
 @dataclass(frozen=True, slots=True)
 class DayBar:
-    """하루치 시가. **원주가다.**"""
+    """하루치 시가와 종가. **원주가다.** 매수는 시가, 잔고 평가는 종가다(010 FR-028 — 005는 시가로
+    평가했다).
+
+    종가는 필수다 — 없으면 시가로 메우지 않는다. 시가와 종가는 같은 일봉에서 온다(헌법 원칙 V).
+    """
 
     date: dt.date
     open_price: Decimal
+    close_price: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +101,10 @@ class Row:
     trade_fee: Decimal | None = None
     dividend_total: Decimal | None = None
     dividend_total_net: Decimal | None = None
+    #: 그 행 날짜의 원주가 종가 — 잔고 평가의 가격(010 FR-028). 계산이 만든 행에는 늘 있다. 기본값은
+    #: 행을 직접 만드는 기존 테스트(005 `test_stock_series_build`)를 위한 것이고 잔고는 이 값을 쓰지
+    #: 않는다.
+    close_price: Decimal | None = None
 
 
 def _fee(bought: int, price: Decimal, fee_rate: Decimal) -> Decimal | None:
@@ -287,8 +296,11 @@ def _row(
 
     **총자산 = 잔고 + 예수금**이다. 예수금을 빼먹으면 수익률이 실제보다 낮게 나오고,
     정수 매수라 예수금이 거의 항상 남아 모든 행에서 조금씩 틀린다 (FR-013).
+
+    잔고 = 보유 주식 × 그 날 **종가**다(010 FR-028이 005 FR-013의 시가 평가를 대체). 배당율은 그대로
+    시가로 나눈다 — 매수 가격 기준의 비율이다.
     """
-    balance = Decimal(held) * bar.open_price
+    balance = Decimal(held) * bar.close_price
     profit = balance + cash - condition.principal
     rate = (
         quantize_rate(profit / condition.principal)
@@ -302,6 +314,7 @@ def _row(
         date=bar.date,
         kind=kind,
         open_price=bar.open_price,
+        close_price=bar.close_price,
         bought_shares=bought,
         held_shares=held,
         cash=cash,

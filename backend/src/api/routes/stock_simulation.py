@@ -53,6 +53,9 @@ def row_json(converted: ConvertedRow) -> Json:
         "profit": str(row.profit),
         "returnRate": str(row.return_rate),
     }
+    # 010 FR-028 — 잔고를 평가한 원주가 종가. 계산이 만든 행에는 늘 있다.
+    if row.close_price is not None:
+        body["closePrice"] = str(row.close_price)
     if row.dividend_per_share is not None:
         body["dividendPerShare"] = str(row.dividend_per_share)
     if row.dividend_yield is not None:

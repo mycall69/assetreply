@@ -287,6 +287,21 @@ class Settings:
     crypto_list_shrink_threshold: Decimal = Decimal("0.5")
     crypto_list_lock_stale_minutes: int = 10
 
+    # ── 부동산 단지 번호 — Npay 부동산 단지 자동완성 (010 반복 3, research R10-19) ── **공개되지
+    # 않은 내부 API다**(헌법 원칙 II 이탈, 010 plan Complexity Tracking — 개인 이용 전제의 잠정
+    # 결정). 단지 이름에서 Npay 부동산 단지 화면을 열 번호만 찾는다 — 단지 하나에 한 번, 저장해 다시
+    # 쓴다. 기본 사용자 에이전트는 403, 짧은 시간에 여러 번 부르면 429다.
+    naver_land_base_url: str = "https://fin.land.naver.com/front-api/v1"
+    naver_land_user_agent: str = INVESTING_DEFAULT_USER_AGENT
+    naver_land_referer: str = "https://fin.land.naver.com/map"
+    naver_land_min_interval_ms: int = 2000
+    # 한 요청의 최대 시도 횟수(첫 시도 포함). 429·5xx·연결 오류만 다시 시도한다 — 403은 차단이다.
+    naver_land_max_retries: int = 2
+    naver_land_backoff_base_ms: int = 3000
+    naver_land_request_timeout_seconds: int = 10
+    # 못 찾은 단지를 다시 찾기까지의 날 수. 찾은 번호는 다시 찾지 않는다.
+    naver_land_recheck_days: int = 30
+
     # ── 수집 동작 ──
     collection_sync_threshold_days: int = 30
     job_history_success_retention_days: int = 90
@@ -432,6 +447,17 @@ def load_settings(env_file: Path | None = None) -> Settings:
         crypto_list_refresh_days=_env_int("CRYPTO_LIST_REFRESH_DAYS", 7, minimum=1),
         crypto_list_shrink_threshold=_env_ratio("CRYPTO_LIST_SHRINK_THRESHOLD", "0.5"),
         crypto_list_lock_stale_minutes=_env_int("CRYPTO_LIST_LOCK_STALE_MINUTES", 10, minimum=1),
+        naver_land_base_url=_env_str(
+            "NAVER_LAND_BASE_URL", "https://fin.land.naver.com/front-api/v1"),
+        naver_land_user_agent=_env_user_agent(
+            "NAVER_LAND_USER_AGENT", INVESTING_DEFAULT_USER_AGENT),
+        naver_land_referer=_env_str("NAVER_LAND_REFERER", "https://fin.land.naver.com/map"),
+        naver_land_min_interval_ms=_env_seconds_ms("NAVER_LAND_MIN_INTERVAL_SECONDS", "2"),
+        naver_land_max_retries=_env_int("NAVER_LAND_MAX_RETRIES", 2, minimum=1),
+        naver_land_backoff_base_ms=_env_seconds_ms("NAVER_LAND_BACKOFF_BASE_SECONDS", "3"),
+        naver_land_request_timeout_seconds=_env_int(
+            "NAVER_LAND_REQUEST_TIMEOUT_SECONDS", 10, minimum=1),
+        naver_land_recheck_days=_env_int("NAVER_LAND_RECHECK_DAYS", 30, minimum=1),
         collection_sync_threshold_days=_env_int("COLLECTION_SYNC_THRESHOLD_DAYS", 30),
         job_history_success_retention_days=_env_int("JOB_HISTORY_SUCCESS_RETENTION_DAYS", 90),
         daily_page_size=_env_int("DAILY_PAGE_SIZE", 30, minimum=1),

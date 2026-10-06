@@ -84,7 +84,7 @@
 | 배치의 경계 | ✅ | 상수 없음 — 표 고유 폭으로 줄바꿈. 측정 경계 모두 1920px 이하. 표의 열을 줄이지 않으므로 1440px 기준(006 FR-069·007 FR-041·008 FR-034·009 FR-028·SC-010)을 구조적으로 지킨다 |
 | 라이브러리 모의 객체 | ✅ | 기존 모의 객체가 지원하는 API(`addSeries`·`setData`·`subscribeCrosshairMove`·`timeScale`·`remove`)와 `createChart` 옵션만 쓴다. 라이브러리 열거형을 실행 중에 읽지 않는다 |
 | 바뀌는 기존 테스트 | ✅(승인 — T029) | `SimulationHistoryList.test.tsx`·`SimulationHistoryBlocked.test.tsx`의 렌더 10곳에 `onRerun` 속성만 더한다(검사 내용 그대로 — R10-12). 구현 단계에서 사용자 승인을 받는다(006 D2) |
-| 바뀌는 기존 테스트 (반복 3) | ✅(승인 — 2026-10-06) | 잔고 종가 평가(FR-028): 백엔드 단위 12개 파일의 `DayBar` 생성에 종가 인자(값은 시가와 같게 — 기대값 그대로), 의미가 바뀌는 곳은 `test_reinvest_balance`(잔고 = 보유 × **종가**) 하나. 프론트엔드 최대 7개 파일(`PerformanceTable`·`PerformanceTableCurrency`의 열 목록에 "종가", 행 픽스처에 `closePrice`). 통합 테스트는 바뀌지 않는다(R10-18 실측 — 임시 사본에서 2,361개 통과) |
+| 바뀌는 기존 테스트 (반복 3) | ✅(승인 — 2026-10-06) | 잔고 종가 평가(FR-028): 백엔드 단위 12개 파일(실제 11개 — `test_no_interpolation`은 그대로)의 `DayBar` 생성에 종가 인자(값은 시가와 같게 — 기대값 그대로), 의미가 바뀌는 곳은 `test_reinvest_balance`(잔고 = 보유 × **종가**) 하나. 프론트엔드 최대 7개 파일(`PerformanceTable`·`PerformanceTableCurrency`의 열 목록에 "종가", 행 픽스처에 `closePrice`). 통합 테스트는 바뀌지 않는다(R10-18 실측 — 임시 사본에서 2,361개 통과) |
 | 바뀌는 기존 테스트 (반복 1) | ✅(없음 — 실측) | 통화 전환은 `tableEpoch`를 올리지 않아 004 `fxWorkspaceScroll`·`PeriodSwitch`는 그대로다(R10-16). 외환 화면 배치를 검사하는 기존 테스트는 없다. 010 자체 테스트(`test_stock_series_price*`·`PerformanceChartPrice`·`chartSeriesPrice`·`chartHover`·`PerformanceChartHover`)는 이 기능 안의 반복 변경이다(T042·T043) |
 
 ## Project Structure
@@ -140,7 +140,7 @@ frontend/
 │   ├── types.ts                # 선택 키: price·priceMissing·profit, priceKind·priceCurrency (반복 1: splits·SplitMark 제거)
 │   ├── chartSeries.ts          # priceSegments·gapSlots (반복 1: splitMarks 제거)
 │   ├── chartHover.ts           # (신규) hoverView·placeHover (반복 1: 주식 줄 "주가(수정 종가)", notes 제거)
-│   ├── externalLinks.ts        # (반복 1 신규) 네이버 증권·코인·부동산 검색 URL 만들기 (반복 3: naverComplexLink)
+│   ├── externalLinks.ts        # (반복 1 신규) 네이버 증권·코인·부동산 검색 URL 만들기
 │   ├── naverComplexLink.ts     # (반복 3 신규) 단지 번호 경로를 단지마다 한 번 묻고 기억 — useNaverComplexHref
 │   └── format.ts               # formatAnnualRate를 예금 표 부품에서 옮긴다(차트가 쓴다 — 부품 간 역참조를 피한다)
 ├── src/components/

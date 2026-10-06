@@ -231,7 +231,8 @@ async def run_simulation(
     )
 
     outcome = simulate_detailed(
-        [DayBar(r.quote_date, r.open_raw) for r in bars_rows],
+        # 010 FR-028 — 잔고는 같은 일봉의 원주가 종가로 평가한다(매수는 시가).
+        [DayBar(r.quote_date, r.open_raw, r.close_raw) for r in bars_rows],
         [DividendOn(d.ex_date, d.amount_per_share) for d in dividend_rows],
         list(splits),
         Condition(
