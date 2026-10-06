@@ -365,7 +365,7 @@ description: "Task list for 011-recurring-investment-installment-savings"
   - `recurring`이 있으면 `RecurringBoard`·`RecurringStockTable`을, 없으면 지금 부품을 그린다.
   - 차트는 같은 `PerformanceChart`다.
   - 부제목은 일시금 그대로다. 적립식이면 "정해진 주기로 사 모은 투자 성과"다.
-- [ ] T030 [US1] quickstart 3-1·3-2·3-3·4-1~4-3을 실행하고 `specs/011-recurring-investment-installment-savings/quickstart.md` 실행 기록에 더한다 (SC-001, SC-002, SC-003, SC-006, SC-010)
+- [X] T030 [US1] quickstart 3-1·3-2·3-3·4-1~4-3을 실행하고 `specs/011-recurring-investment-installment-savings/quickstart.md` 실행 기록에 더한다 (SC-001, SC-002, SC-003, SC-006, SC-010)
   - 손계산과 다른 값 0건
   - 일시금 응답 대조(T001)
   - 1440px 표 고유 폭 — 넘으면 "시작가·종가"를 한 칸으로 접고 다시 잰다

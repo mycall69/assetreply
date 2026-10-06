@@ -21,6 +21,7 @@ from src.api.services.series_query import DEFAULT_MAX_POINTS
 from src.api.services.stock_collect import collecting_body
 from src.api.services.stock_recurring import (
     PreparedRecurring,
+    dec,
     page,
     parse_amount,
     parse_frequency,
@@ -89,10 +90,10 @@ async def get_recurring_simulation(
         "stock": {"market": stock.market, "symbol": stock.symbol, "name": stock.name,
                   "currency": stock.currency},
         "condition": {
-            "mode": "recurring", "start": start.isoformat(), "amount": str(parse_amount(amount)),
+            "mode": "recurring", "start": start.isoformat(), "amount": dec(parse_amount(amount)),
             "principalCurrency": principal_currency, "frequency": parse_frequency(frequency),
-            "reinvest": reinvest, "tradeFeeRate": str(prepared.settings.trade_fee_rate),
-            "dividendTaxRate": str(prepared.dividend_tax_rate),
+            "reinvest": reinvest, "tradeFeeRate": dec(prepared.settings.trade_fee_rate),
+            "dividendTaxRate": dec(prepared.dividend_tax_rate),
         },
         "summary": summary_json(result, amount=parse_amount(amount), stock=stock),
         "rows": [row_json(v) for v in rows],
@@ -136,9 +137,9 @@ async def get_recurring_series(
         "algorithm": "lttb",
         "sourcePointCount": series.source_point_count,
         "points": [
-            {"date": p.date.isoformat(), "balance": str(p.balance),
-             "returnRate": str(p.return_rate), "principal": str(p.principal),
-             "price": str(p.price)}
+            {"date": p.date.isoformat(), "balance": dec(p.balance),
+             "returnRate": dec(p.return_rate), "principal": dec(p.principal),
+             "price": dec(p.price)}
             for p in series.points],
         "gaps": [{"from": g.start.isoformat(), "to": g.end.isoformat(), "reason": g.reason}
                  for g in series.gaps],

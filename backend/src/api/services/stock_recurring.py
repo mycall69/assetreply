@@ -88,6 +88,12 @@ def parse_amount(raw: str) -> Decimal:
     return value
 
 
+def dec(value: Decimal) -> str:
+    """금액·비율 문자열. **지수 표기를 내지 않는다** — 빼기로 0이 되면 `Decimal("0E-12")`이고
+    `str()`이 그대로 내면 화면이 "0E12"로 보인다 (T030 실측). 0은 "0", 나머지는 고정 소수점이다."""
+    return "0" if value == 0 else format(value, "f")
+
+
 def floor_won(amount: Decimal) -> Decimal:
     return amount.quantize(_WON, rounding=ROUND_FLOOR)
 
@@ -279,34 +285,34 @@ def summary_json(result: RecurringResult, *, amount: Decimal, stock: Stock) -> d
     after = None if sale is None or sale.total is None else latest.profit - sale.total
     basis = latest.row.basis_krw
     body: dict[str, object] = {
-        "contributed": str(latest.contributed),
-        "contributedKrw": str(basis),
+        "contributed": dec(latest.contributed),
+        "contributedKrw": dec(basis),
         "contributions": latest.row.contributions,
         "pendingAfterEnd": result.pending_after_end,
         "heldShares": latest.row.held_shares,
-        "pending": str(latest.row.pending),
-        "dividendCash": str(latest.row.dividend_cash),
-        "totalKrw": str(latest.total_krw),
-        "buyFeeTotal": str(result.buy_fee_total_krw),
-        "dividendTaxTotal": str(result.dividend_tax_total_krw),
-        "feeTotal": str(result.buy_fee_total_krw + (sale.fee if sale is not None else _ZERO)),
+        "pending": dec(latest.row.pending),
+        "dividendCash": dec(latest.row.dividend_cash),
+        "totalKrw": dec(latest.total_krw),
+        "buyFeeTotal": dec(result.buy_fee_total_krw),
+        "dividendTaxTotal": dec(result.dividend_tax_total_krw),
+        "feeTotal": dec(result.buy_fee_total_krw + (sale.fee if sale is not None else _ZERO)),
         "taxTotal": None if sale is None or sale.tax is None
-        else str(result.dividend_tax_total_krw + sale.tax),
-        "profit": str(latest.profit),
-        "returnRate": str(latest.return_rate),
-        "profitAfterSale": None if after is None else str(after),
+        else dec(result.dividend_tax_total_krw + sale.tax),
+        "profit": dec(latest.profit),
+        "returnRate": dec(latest.return_rate),
+        "profitAfterSale": None if after is None else dec(after),
         "returnRateAfterSale": None if after is None or basis == 0
-        else str(quantize_rate(after / basis)),
+        else dec(quantize_rate(after / basis)),
         "asOf": result.as_of.isoformat(),
         "isFinal": result.is_final,
     }
     if sale is not None:
         body["saleCost"] = {
-            "fee": str(sale.fee), "tax": None if sale.tax is None else str(sale.tax),
-            "total": None if sale.total is None else str(sale.total), "taxKind": sale.tax_kind,
-            "taxRate": None if sale.tax_rate is None else str(sale.tax_rate),
-            "gain": None if sale.gain is None else str(sale.gain),
-            "deduction": None if sale.deduction is None else str(sale.deduction)}
+            "fee": dec(sale.fee), "tax": None if sale.tax is None else dec(sale.tax),
+            "total": None if sale.total is None else dec(sale.total), "taxKind": sale.tax_kind,
+            "taxRate": None if sale.tax_rate is None else dec(sale.tax_rate),
+            "gain": None if sale.gain is None else dec(sale.gain),
+            "deduction": None if sale.deduction is None else dec(sale.deduction)}
     return body
 
 
@@ -314,15 +320,15 @@ def row_json(v: RecurringView) -> dict[str, object]:
     """표 한 행. 해당이 없으면 키를 두지 않는다 — 0과 "없음"을 구별한다."""
     row = v.row
     body: dict[str, object] = {
-        "date": row.date.isoformat(), "kind": row.kind, "openPrice": str(row.open_price),
-        "closePrice": str(row.close_price), "boughtShares": row.bought_shares,
-        "heldShares": row.held_shares, "pending": str(row.pending),
-        "dividendCash": str(row.dividend_cash), "contributed": str(v.contributed),
-        "contributedKrw": str(row.basis_krw), "balance": str(row.balance),
-        "profit": str(v.profit), "returnRate": str(v.return_rate),
+        "date": row.date.isoformat(), "kind": row.kind, "openPrice": dec(row.open_price),
+        "closePrice": dec(row.close_price), "boughtShares": row.bought_shares,
+        "heldShares": row.held_shares, "pending": dec(row.pending),
+        "dividendCash": dec(row.dividend_cash), "contributed": dec(v.contributed),
+        "contributedKrw": dec(row.basis_krw), "balance": dec(row.balance),
+        "profit": dec(v.profit), "returnRate": dec(v.return_rate),
     }
     if v.contribution is not None:
-        body["contribution"] = str(v.contribution)
+        body["contribution"] = dec(v.contribution)
     if row.deferred:
         body["deferred"] = [d.isoformat() for d in row.deferred]
     optional = {
@@ -331,7 +337,7 @@ def row_json(v: RecurringView) -> dict[str, object]:
         "dividendTotalNet": row.dividend_total_net, "balanceKrw": v.balance_krw,
         "fxRate": v.fx_rate, "exchangeRate": v.exchange_rate,
     }
-    body.update({k: str(value) for k, value in optional.items() if value is not None})
+    body.update({k: dec(value) for k, value in optional.items() if value is not None})
     if v.fx_rate_date is not None:
         body["fxRateDate"] = v.fx_rate_date.isoformat()
     if v.exchange_rate_date is not None:
