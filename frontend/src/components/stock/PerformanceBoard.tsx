@@ -16,10 +16,14 @@
  * 006 FR-068 — 투자 수익·수익률은 **원금 통화와 관계없이 KRW**다. 달러 원금만 달러 기준이면 이력
  * 비교에서 원화 원금 실행과 다른 기준의 수익률이 나란히 놓인다. 투자 원금은 입력한 통화로 보이고,
  * 원화가 아니면 괄호에 KRW 값(첫 매수일 매매기준율로 평가 — 수익률의 분모)을 붙인다(W8).
+ *
+ * 010 반복 4(FR-030) — 주식은 **투자 원금 · 매도 수수료/세금 · 투자 수익 · 수익률** 넷이다. 기준일에 모두 판다고 가정한 비용을
+ * 투자 수익·수익률에서 빼고, 보유 중 값을 칸 안에 함께 둔다 — 보드가 표의 마지막 행과 다른 까닭이 보여야 한다. 세율 표 밖이면 세금을
+ * 비우고(—) 보유 중 값을 그대로 보인다(0을 빼지 않는다). `saleCost`가 없으면(가상자산 등) 세 칸이다.
  */
 
 import { formatMoneyWithSymbol, formatPercent, formatRate } from "@/lib/format";
-import type { ExchangeInfo, SimulationSummary } from "@/lib/types";
+import type { ExchangeInfo, SaleCost, SimulationSummary } from "@/lib/types";
 
 export function PerformanceBoard({
   summary,
@@ -37,11 +41,18 @@ export function PerformanceBoard({
   currency: string;
   exchange?: ExchangeInfo;
 }) {
-  const negative = summary.profit.trimStart().startsWith("-");
+  const sale = summary.saleCost;
+  // 매도 비용을 뺀 값을 아는지 — 세율 표 밖이면 보유 중 값을 보인다.
+  const after = sale !== undefined && summary.profitAfterSale != null && summary.returnRateAfterSale != null
+    ? { profit: summary.profitAfterSale, rate: summary.returnRateAfterSale }
+    : null;
+  const shownProfit = after?.profit ?? summary.profit;
+  const negative = shownProfit.trimStart().startsWith("-");
+  const holdingNote = sale === undefined ? null : after !== null ? "보유 중" : "매도 세금을 모름 — 보유 중 값";
 
   return (
     <section className="rounded-lg border border-gray-200">
-      <div className="grid gap-px bg-gray-200 sm:grid-cols-3">
+      <div className={`grid gap-px bg-gray-200 ${sale !== undefined ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
         <Cell label="투자 원금">
           {formatMoneyWithSymbol(summary.principal, currency)}
           {currency !== "KRW" && summary.principalKrw !== undefined && (
@@ -53,11 +64,22 @@ export function PerformanceBoard({
             </>
           )}
         </Cell>
-        <Cell label="투자 수익" emphasis={negative ? "loss" : "gain"}>
-          {formatMoneyWithSymbol(summary.profit, "KRW")}
+        {sale !== undefined && (
+          <Cell label="매도 수수료/세금" notes={saleNotes(sale)}>
+            {sale.total === null ? "—" : formatMoneyWithSymbol(`-${sale.total}`, "KRW")}
+          </Cell>
+        )}
+        <Cell label="투자 수익" emphasis={negative ? "loss" : "gain"}
+          notes={holdingNote === null ? [] : after !== null
+            ? ["매도 비용을 뺀 값", `${holdingNote} ${formatMoneyWithSymbol(summary.profit, "KRW")}`]
+            : [holdingNote]}>
+          {formatMoneyWithSymbol(shownProfit, "KRW")}
         </Cell>
-        <Cell label="수익률" emphasis={negative ? "loss" : "gain"}>
-          {formatPercent(summary.returnRate)}
+        <Cell label="수익률" emphasis={negative ? "loss" : "gain"}
+          notes={holdingNote === null ? [] : after !== null
+            ? ["매도 비용을 뺀 값", `${holdingNote} ${formatPercent(summary.returnRate)}`]
+            : [holdingNote]}>
+          {formatPercent(after?.rate ?? summary.returnRate)}
         </Cell>
       </div>
 
@@ -69,6 +91,7 @@ export function PerformanceBoard({
         {notes.map((note) => (
           <span key={note}> · {note}</span>
         ))}
+        {sale !== undefined && <span> · 매도 수수료·세금은 기준일에 모두 판다고 가정한 값 — 일자별 표는 보유 중 평가</span>}
       </p>
 
       {!summary.isFinal && notFinalNotice && (
@@ -97,14 +120,33 @@ export function PerformanceBoard({
   );
 }
 
+/** 매도 칸의 내역 — 수수료, 세금(국내 증권거래세 또는 해외 양도소득세와 차익·공제), 표 밖이면 사유. */
+function saleNotes(sale: SaleCost): string[] {
+  const won = (v: string) => formatMoneyWithSymbol(v, "KRW");
+  const rate = (v: string | null, digits: number) => (v === null ? "" : `${formatPercent(v, digits).replace("+", "")} `);
+  const lines = [`수수료 ${won(sale.fee)}`];
+  if (sale.taxKind === "transaction_tax" && sale.tax !== null) {
+    lines.push(`증권거래세 ${rate(sale.taxRate, 2)}${won(sale.tax)}`);
+  } else if (sale.taxKind === "capital_gains_tax" && sale.tax !== null) {
+    lines.push(`양도소득세 ${rate(sale.taxRate, 0)}${won(sale.tax)}`);
+    if (sale.gain !== null && sale.deduction !== null) lines.push(`차익 ${won(sale.gain)} − 공제 ${won(sale.deduction)}`);
+  } else {
+    lines.push("세금 — 세율 표 밖(2023-01-01 앞)");
+  }
+  return lines;
+}
+
 function Cell({
   label,
   children,
   emphasis,
+  notes = [],
 }: {
   label: string;
   children: React.ReactNode;
   emphasis?: "gain" | "loss";
+  /** 값 아래의 작은 줄 — 매도 내역, 보유 중 값. */
+  notes?: string[];
 }) {
   return (
     <div className="bg-white px-4 py-3">
@@ -120,6 +162,9 @@ function Cell({
       >
         {children}
       </p>
+      {notes.map((note) => (
+        <p key={note} className="mt-0.5 text-xs text-gray-500 tabular-nums">{note}</p>
+      ))}
     </div>
   );
 }

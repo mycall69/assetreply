@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.services.stock_collect import collecting_body
+from src.api.services.stock_sale import sale_cost_for
 from src.api.services.stock_simulation import (
     ConvertedRow,
     SimulationResult,
@@ -29,6 +30,7 @@ from src.api.services.stock_simulation import (
     require_stock,
 )
 from src.db.session import get_session
+from src.simulation.money import quantize_rate
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 
@@ -80,7 +82,8 @@ def row_json(converted: ConvertedRow) -> Json:
     return body
 
 
-def summary_json(result: SimulationResult, principal: Decimal) -> Json:
+def summary_json(result: SimulationResult, principal: Decimal, *, market: str | None = None,
+                 fee_rate: Decimal | None = None) -> Json:
     """성과 요약 (FR-031).
 
     `asOf`는 계산이 어느 날짜까지인지다. `isFinal`은 **항상 명시한다** — "확인했고
@@ -102,7 +105,34 @@ def summary_json(result: SimulationResult, principal: Decimal) -> Json:
     }
     if result.principal_krw is not None:
         body["principalKrw"] = str(result.principal_krw)
+    if market is not None and fee_rate is not None and latest is not None:
+        body.update(_sale_json(result, latest.profit, market=market, fee_rate=fee_rate,
+                               basis=result.principal_krw if result.principal_krw is not None
+                               else principal))
     return body
+
+
+def _text(value: Decimal | None) -> str | None:
+    return None if value is None else str(value)
+
+
+def _sale_json(result: SimulationResult, profit: Decimal, *, market: str, fee_rate: Decimal,
+               basis: Decimal) -> Json:
+    """010 반복 4(FR-030) — 기준일에 모두 판다고 가정한 매도 수수료·세금과 그것을 뺀 투자
+    수익·수익률. **더하는 키**다 — `profit`·`returnRate`(보유 중)는 그대로다. 세금을 모르면(세율 표
+    밖) 순수익이 `null`."""
+    cost = sale_cost_for(result, market=market, fee_rate=fee_rate)
+    if cost is None:
+        return {}
+    after = None if cost.total is None else profit - cost.total
+    return {
+        "saleCost": {"fee": str(cost.fee), "tax": _text(cost.tax), "total": _text(cost.total),
+                     "taxKind": cost.tax_kind, "taxRate": _text(cost.tax_rate),
+                     "gain": _text(cost.gain), "deduction": _text(cost.deduction)},
+        "profitAfterSale": _text(after),
+        "returnRateAfterSale": None if after is None or basis == 0
+        else str(quantize_rate(after / basis)),
+    }
 
 
 @router.get("/simulation", response_model=None)
@@ -163,7 +193,8 @@ async def get_simulation(
             # 006 FR-055 — 그 종목에 **적용한** 세율(국내 또는 해외).
             "dividendTaxRate": str(prepared.dividend_tax_rate),
         },
-        "summary": summary_json(result, amount),
+        "summary": summary_json(result, amount, market=stock.market,
+                                fee_rate=settings.trade_fee_rate),
         **({"exchange": {
             "rate": str(result.exchange.rate),
             "rateDate": result.exchange.rate_date.isoformat(),

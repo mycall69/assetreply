@@ -178,7 +178,7 @@ simulation/stock_sale_cost.py                     # 순수 함수 — DB·HTTP �
   foreign_sale_cost(*, sale_krw, sell_fee_krw, acquisition_krw, buy_fees_krw, day) -> SaleCost
 ```
 
-- 원화 금액은 원 미만을 버린다. 표 밖 날짜는 `tax_kind = "outside_table"`, 세금·합계 `None`.
+- 원화 금액은 원 미만을 버린다(해외 차익은 각 원화 금액을 먼저 버린 뒤 뺀다). 매도 대상은 기준일 상태(`latest`), 해외 매도금액·매도 수수료는 그 상태의 환율. 표 밖 날짜는 `tax_kind = "outside_table"`, 세금·합계 `None`.
 - 응답 `summary`에 **더한다**(기존 키는 그대로):
   - `saleCost`: `{"fee", "tax", "total", "taxKind", "taxRate", "gain", "deduction"}` — 금액은 원화 정수 문자열, 없으면 `null`
   - `profitAfterSale` = `profit` − `saleCost.total`, `returnRateAfterSale` = 그 값 ÷ 수익률 분모. 세금을 모르면 둘 다 `null`

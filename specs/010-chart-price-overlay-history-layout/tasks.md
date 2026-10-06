@@ -517,16 +517,16 @@ US1의 가격 값을 상자에 보이므로 US1 뒤다. MVP는 US1까지다 — 
 
 **Purpose**: 주식 보드를 투자 원금 · 매도 수수료/세금 · 투자 수익 · 수익률 넷으로 나누고 매도 비용을 뺀 투자 수익·수익률을 보인다(FR-030).
 
-- [ ] T069 [P] [US1] `backend/tests/unit/test_stock_sale_cost.py` — 증권거래세 표(2023·2024·2025·2026 시행일, 2022-12-31은 표 밖), 국내 수수료·세금 원 미만 버림,
+- [X] T069 [P] [US1] `backend/tests/unit/test_stock_sale_cost.py` — 증권거래세 표(2023·2024·2025·2026 시행일, 2022-12-31은 표 밖), 국내 수수료·세금 원 미만 버림,
   해외 차익(공제 이하 0·손실 0·초과분 22%), 표 밖 날짜는 세금 `None`·`outside_table` (FR-030)
-- [ ] T070 [P] [US1] `backend/tests/integration/test_stock_sale_cost_api.py` — 2026년 시드로 삼성전자·AAPL(원화 원금) `summary.saleCost`가 손 계산과 같고
+- [X] T070 [P] [US1] `backend/tests/integration/test_stock_sale_cost_api.py` — 2026년 시드로 삼성전자·AAPL(원화 원금) `summary.saleCost`가 손 계산과 같고
   `profitAfterSale` = `profit` − 합계, 2021년 시드(표 밖)는 세금·순수익 `null`, 기존 `summary` 키는 그대로 (FR-030, SC-011)
-- [ ] T071 [P] [US1] `frontend/tests/PerformanceBoardSaleCost.test.tsx` — 네 칸(매도 수수료/세금 칸의 내역), 투자 수익·수익률이 매도 비용을 뺀 값과 보유 중 값,
+- [X] T071 [P] [US1] `frontend/tests/PerformanceBoardSaleCost.test.tsx` — 네 칸(매도 수수료/세금 칸의 내역), 투자 수익·수익률이 매도 비용을 뺀 값과 보유 중 값,
   표 밖은 `—`·사유, `saleCost`가 없으면 세 칸 그대로 (FR-030)
-- [ ] T072 [US1] 백엔드 — `backend/src/simulation/stock_sale_cost.py`(신규), `backend/src/api/services/stock_simulation.py`(기준일 상태·행으로 매도 비용),
+- [X] T072 [US1] 백엔드 — `backend/src/simulation/stock_sale_cost.py`(신규), `backend/src/api/services/stock_sale.py`(신규 — 기준일 상태·행으로 매도 비용 입력),
   `backend/src/api/routes/stock_simulation.py`(`summary`에 더하는 키) (FR-030)
-- [ ] T073 [US1] 프론트엔드 — `src/lib/types.ts`(`SimulationSummary` 선택 키), `src/components/stock/PerformanceBoard.tsx`(네 칸) (FR-030)
-- [ ] T074 quickstart 16 실행·기록(삼성전자·AAPL 보드의 손 계산 대조, 화면 캡처), 품질 게이트, README·CLAUDE.md (FR-030, SC-011)
+- [X] T073 [US1] 프론트엔드 — `src/lib/types.ts`(`SimulationSummary` 선택 키), `src/components/stock/PerformanceBoard.tsx`(네 칸) (FR-030)
+- [X] T074 quickstart 16 실행·기록(삼성전자·AAPL 보드의 손 계산 대조, 화면 캡처), 품질 게이트, README·CLAUDE.md (FR-030, SC-011)
 
 ---
 
@@ -645,4 +645,7 @@ Task: "T012 PerformanceChartPrice.test.tsx — 겹침 축·끊김·표식·범�
 - **2026-10-06 반복 3 실측이 바꾼 것**: T064 — `Row.close_price`에 기본값(행을 직접 만드는 005 `test_stock_series_build`가 승인 목록 밖이라).
   T066 — 화면은 응답의 `url`을 쓴다(`externalLinks.naverComplexLink` 두지 않음). T067 — Npay 부동산은 `Accept-Language`가 없으면 곧바로 429였다 →
   설정으로 싣는다(테스트 먼저)
+- **2026-10-06 T074 품질 게이트(반복 4)**: 백엔드 2,434 passed, 커버리지 96.01%, mypy 205 파일·ruff 통과 / 프론트엔드 130 파일·1,154 passed, tsc·eslint
+  통과. 구현 뒤 기존 가드 `test_no_hardcoded_dates`가 실패(세율 표의 시행일 날짜 리터럴) → 멈추고 보고, 사용자 승인으로 허용 목록(`_LEGAL_DATE_MODULES`)에
+  `simulation/stock_sale_cost.py`를 더했다(부동산 세법 표와 같은 근거)
 

@@ -459,6 +459,23 @@ export interface SimulationSummary {
   returnRate: DecimalString;
   asOf: string;
   isFinal: boolean;
+  /** 010 반복 4(FR-030) — 기준일에 모두 판다고 가정한 매도 수수료·세금(원화). 주식만 있다. */
+  saleCost?: SaleCost;
+  /** `profit` − `saleCost.total`. 세금을 모르면(세율 표 밖) `null`. */
+  profitAfterSale?: DecimalString | null;
+  returnRateAfterSale?: DecimalString | null;
+}
+
+/** 매도 수수료·세금 — 원화 정수 문자열. 세율 표 밖이면 `tax`·`total`이 `null`이다(0이 아니다). */
+export interface SaleCost {
+  fee: DecimalString;
+  tax: DecimalString | null;
+  total: DecimalString | null;
+  taxKind: "transaction_tax" | "capital_gains_tax" | "outside_table";
+  taxRate: DecimalString | null;
+  /** 해외 — 원화 양도차익과 기본공제. 국내는 `null`. */
+  gain: DecimalString | null;
+  deduction: DecimalString | null;
 }
 
 /**
