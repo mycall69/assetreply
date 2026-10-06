@@ -72,7 +72,7 @@ description: "Task list for 012-period-tables-history-db"
 
 **Purpose**: 구현 전의 기준(불변 대조용 응답·기존 검사 통과 상태)
 
-- [ ] T001 구현 전 기준 응답을 남긴다 (FR-017, SC-009, quickstart 0·3-7)
+- [X] T001 구현 전 기준 응답을 남긴다 (FR-017, SC-009, quickstart 0·3-7)
   - 서버를 띄운다(`./start.sh`).
   - 다음 실행의 표 경로 첫 쪽(`summary`·`condition`)과 `/series` 응답을 저장소 밖 작업용 임시 폴더(`012-baseline/before/`)에 JSON으로 저장한다.
     - 일시금: 주식 KRX 005930.KS·NASDAQ AAPL(원화 원금), 가상자산 BTC(원화)
@@ -94,7 +94,7 @@ description: "Task list for 012-period-tables-history-db"
 
 ### Tests for Foundational ⚠️
 
-- [ ] T003 [P] `frontend/tests/useHeightHold.test.tsx` — `hooks/useHeightHold` (FR-001, FR-006, SC-001)
+- [X] T003 [P] `frontend/tests/useHeightHold.test.tsx` — `hooks/useHeightHold` (FR-001, FR-006, SC-001)
   - `hold(reload)` 동안 감싼 요소의 `minHeight`가 바꾸기 직전 높이(`getBoundingClientRect().height` 모의)다.
   - 다시 받기가 끝나면 놓는다.
     - 새 내용이 스크롤을 받칠 만큼 높으면 `minHeight`가 `""`다.
@@ -104,7 +104,7 @@ description: "Task list for 012-period-tables-history-db"
 
 ### Implementation for Foundational
 
-- [ ] T004 `frontend/src/hooks/useHeightHold.ts` — `app/fx/page.tsx`의 `holdWhile`(`:41-52`)을 훅으로 뽑고, 놓을 때 바닥을 남기는 판정을 더한다 (FR-001, FR-006)
+- [X] T004 `frontend/src/hooks/useHeightHold.ts` — `app/fx/page.tsx`의 `holdWhile`(`:41-52`)을 훅으로 뽑고, 놓을 때 바닥을 남기는 판정을 더한다 (FR-001, FR-006)
   - 반환: `{ref, style, hold(reload: () => Promise<void>)}`.
   - 외환 화면은 아직 바꾸지 않는다(T009).
 
@@ -607,6 +607,9 @@ Task: "T025 화면 테스트 — 탭·창 그대로"
 - 커밋 전에 비밀 검사 스크립트를 돌린다. `.env`가 추적되지 않는지, 스테이징된 내용에 키·DB 비밀번호가 없는지, `.venv/`·`node_modules/`·`.next/`·`logs/`
   경로가 없는지 본다.
 - 개발 서버를 띄운 채 통합 테스트를 돌리지 않는다(같은 MySQL 스키마를 다시 만든다).
+- **2026-10-06 T001 기준 응답**: 저장소 밖 작업 폴더(`012-baseline/before/`)에 표 경로 첫 쪽의 머리(`summary`·`condition`·종목 — `rows` 제외)와 `/series`를
+  저장했다(`end=2026-09-30` 고정). 주식 KRX 005930.KS·AAPL, 가상자산 BTC, 정기예금 시중은행, 부동산 헬리오시티 30평대, 적립식 주식(국내 매달)·가상자산(매일),
+  적금 시중은행 — 8개. 11:44Z
 - (T002·T067 결과와 승인 날짜를 여기에 적는다.)
 
 ## 요구사항 ↔ 태스크
