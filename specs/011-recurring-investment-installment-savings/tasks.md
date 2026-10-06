@@ -385,23 +385,24 @@ description: "Task list for 011-recurring-investment-installment-savings"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T031 [P] [US2] `backend/tests/unit/test_recurring_crypto.py` — `simulate_recurring_crypto` (FR-017~FR-019, SC-001, SC-002)
+- [X] T031 [P] [US2] `backend/tests/unit/test_recurring_crypto.py` — `simulate_recurring_crypto` (FR-017~FR-019, SC-001, SC-002)
   - 매일 원화(환전 납입마다), 출처 결측 이틀 → 다음 일봉에 합침
   - 수량은 `buy_fraction`(소수 8자리 버림, 수수료 포함), 남은 돈 이월
   - 잔고 = 보유 × 그날 시가
   - 행 = 납입 행 + 그 달 첫 일봉 행(그날 납입이 없을 때만, `first_day_missing`)
   - `daily`는 일봉마다
   - 손계산을 머리 주석에 적는다
-- [ ] T032 [P] [US2] `backend/tests/unit/test_crypto_sale_cost.py` — `crypto_sale_cost(sale_krw, fee_rate=…, day=…)` (FR-020)
+- [X] T032 [P] [US2] `backend/tests/unit/test_crypto_sale_cost.py` — `crypto_sale_cost(sale_krw, fee_rate=…, day=…)` (FR-020)
   - 수수료 = floor(평가액 × 수수료율)
   - 2026-12-31 → `tax 0`·`not_yet_taxed`
   - 2027-01-01 → `tax None`·`total None`·`outside_rules`
-- [ ] T033 [US2] **기존 테스트 변경 승인을 받는다**(A3 — research R11-7) (FR-020)
+- [X] T033 [US2] **기존 테스트 변경 승인을 받는다**(A3 — research R11-7) (FR-020)
+  - **2026-10-06 승인**(A1·A2와 함께 — Phase 2 기록). 바꾸기는 T037에서 한다.
   - 바꿀 것: `backend/tests/unit/test_no_hardcoded_dates.py`의 `_LEGAL_DATE_MODULES`에서 `simulation/stock_sale_cost.py`(T011 뒤 날짜가 없다)를 빼고
     `simulation/crypto_sale_cost.py`를 더한다.
   - 주석에 "011 — 가상자산 과세 시행일(법령), 출처의 시작일이 아니다"를 적는다.
   - 사용자에게 보이고 승인을 받은 뒤 바꾼다. 승인 전에는 T037을 시작하지 않는다.
-- [ ] T034 [P] [US2] `backend/tests/integration/test_crypto_recurring_api.py` — `GET /api/crypto/recurring-simulation` (FR-002, FR-017~FR-021, SC-002)
+- [X] T034 [P] [US2] `backend/tests/integration/test_crypto_recurring_api.py` — `GET /api/crypto/recurring-simulation` (FR-002, FR-017~FR-021, SC-002)
   - 준비는 `crypto_support.seed_daily`·`seed_usd`다.
   - 202(일시금과 같은 `collecting_body`)
   - 400 `invalid_query`·`currency_pair_not_allowed`, 409 `before_listing`·`fx_not_available_before`(수집 전)·`fx_unavailable`(계산 중 — 분석 F1)
@@ -412,11 +413,11 @@ description: "Task list for 011-recurring-investment-installment-savings"
   - 2027-01-01 이후 기준일 → `outside_rules`·`taxTotal null`·`profitAfterSale null`. 계산 끝이 min(`end`, UTC 어제)이므로 시드의 끝만 늦춰서는 만들 수
     없다 — `monkeypatch.setattr("src.api.routes.crypto_simulation.utc_yesterday", lambda: D("2027-01-05"))`로 시계를 바꾸고 2027-01-04까지의 일봉·
     커버리지·환율을 시드한다(분석 C1)
-- [ ] T035 [P] [US2] `backend/tests/integration/test_crypto_recurring_series_api.py` — `/series` (FR-019)
+- [X] T035 [P] [US2] `backend/tests/integration/test_crypto_recurring_series_api.py` — `/series` (FR-019)
   - 점은 일봉마다이고 `principal`이 있다.
   - 출처 결측 구간은 `gaps` `source_missing`(일시금과 같은 판정)
   - `price` = 시가
-- [ ] T036 [P] [US2] 화면 테스트 (FR-017, FR-019, FR-020, FR-033, FR-034)
+- [X] T036 [P] [US2] 화면 테스트 (FR-017, FR-019, FR-020, FR-033, FR-034)
   - `frontend/tests/RecurringCryptoTable.test.tsx` — 열·수량 `formatQuantity`·"◇ 1일 결측"·`deferred`·스크롤
   - `frontend/tests/cryptoHistoryRecurring.test.ts` — 선택 칸·식별자·옛 항목
   - `frontend/tests/cryptoStoreRecurring.test.ts`
@@ -425,6 +426,9 @@ description: "Task list for 011-recurring-investment-installment-savings"
     - 방식 전환 비움, `loadMore`, 다시 실행·비교 `label`
   - `frontend/tests/CryptoPageRecurring.test.tsx` — 실행 주체(006 D1): "적립식"을 눌러 실행하면 적립식 경로·다섯 칸 보드("가상자산 과세 시행 전")
     - 기존 `CryptoPage.test.tsx`의 "배당 재투자 없음" 검사 그대로
+  - **US1 결함 함께 고침(단언은 그대로)**: `StocksPageRecurring.test.tsx`가 실제 차트 라이브러리를 jsdom에서 그려(`matchMedia` 없음) 처리되지 않은
+    오류로 vitest가 종료 코드 1을 냈다. "누르지 않으면" 검사는 시계열 요청에도 일시금 본문을 줘 차트가 `points`를 읽다 오류를 냈다. 차트 모의와
+    시계열 응답만 더했다. T030의 "1,230 통과"는 이 종료 코드를 놓친 기록이다.
 
 ### Implementation for User Story 2
 

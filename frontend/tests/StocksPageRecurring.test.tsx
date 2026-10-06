@@ -14,6 +14,16 @@ import { useStockStore } from "@/stores/stockStore";
 
 vi.mock("@/lib/stockProgressStream", () => ({ subscribeStockProgress: () => () => undefined }));
 vi.mock("@/lib/collectionStream", () => ({ subscribeCollection: () => () => undefined }));
+// 실제 차트는 jsdom에서 그릴 수 없다(`matchMedia` 없음 — 처리되지 않은 오류로 실행이 실패한다). 범례는 DOM이라 모의로도 보인다.
+vi.mock("lightweight-charts", () => ({
+  LineSeries: "Line",
+  createChart: () => ({
+    addSeries: () => ({ setData: () => undefined }),
+    subscribeCrosshairMove: () => undefined,
+    timeScale: () => ({ fitContent: () => undefined }),
+    remove: () => undefined,
+  }),
+}));
 
 const STOCK = { market: "KRX" as const, symbol: "005930.KS", name: "삼성전자", currency: "KRW" };
 
@@ -77,12 +87,15 @@ describe("주식 화면 — 적립식", () => {
   });
 
   it("누르지 않으면 적립식 경로를 부르지 않는다", async () => {
-    const get = vi.spyOn(apiClient, "get").mockResolvedValue({
+    const lump = {
       stock: STOCK, condition: { start: "2024-01-15", principal: "500000", principalCurrency: "KRW", reinvest: true,
         tradeFeeRate: "0", dividendTaxRate: "0" },
       summary: { principal: "500000", profit: "1", returnRate: "0.1", asOf: "2024-01-22", isFinal: true },
       rows: [], hasMore: false, oldestReturned: null,
-    } as never);
+    };
+    // 시계열 요청에는 시계열을 준다 — 일시금 본문을 주면 차트가 `points`를 읽다 처리되지 않은 오류를 낸다.
+    const get = vi.spyOn(apiClient, "get").mockImplementation(async (path: string) =>
+      (path.includes("/series") ? SERIES : lump) as never);
     render(<StocksPage />);
     fireEvent.click(screen.getByRole("button", { name: "시뮬레이션" }));
     await waitFor(() => expect(get).toHaveBeenCalled());
