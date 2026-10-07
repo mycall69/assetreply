@@ -20,6 +20,10 @@
  * 010 반복 4(FR-030) — 주식은 **투자 원금 · 매도 수수료/세금 · 투자 수익 · 수익률** 넷이다. 기준일에 모두 판다고 가정한 비용을
  * 투자 수익·수익률에서 빼고, 보유 중 값을 칸 안에 함께 둔다 — 보드가 표의 마지막 행과 다른 까닭이 보여야 한다. 세율 표 밖이면 세금을
  * 비우고(—) 보유 중 값을 그대로 보인다(0을 빼지 않는다). `saleCost`가 없으면(가상자산 등) 세 칸이다.
+ *
+ * 012 US5(FR-018) — `totalKrw`가 있으면 투자 원금 다음에 **현재 잔고**(기준일의 원화 총자산 — 잔고 + 예수금, 매도 비용 전)를 둔다. 주식 다섯 칸, 가상자산
+ * 네 칸이다. 서버 값을 그린다 — 원금 + 수익을 더하지 않는다(헌법 원칙 VI). 표의 잔고 열(보유 평가액)과 다른 까닭이 보이게 "잔고 + 예수금"을 적는다. 잔고는
+ * 손익이 아니라 손익 색을 쓰지 않는다. 같은 부품을 쓰는 예금 보드에는 `totalKrw`가 없어 칸이 없다.
  */
 
 import { formatMoneyWithSymbol, formatPercent, formatRate } from "@/lib/format";
@@ -49,10 +53,11 @@ export function PerformanceBoard({
   const shownProfit = after?.profit ?? summary.profit;
   const negative = shownProfit.trimStart().startsWith("-");
   const holdingNote = sale === undefined ? null : after !== null ? "보유 중" : "매도 세금을 모름 — 보유 중 값";
+  const columns = 3 + (sale !== undefined ? 1 : 0) + (summary.totalKrw !== undefined ? 1 : 0);
 
   return (
     <section className="rounded-lg border border-gray-200">
-      <div className={`grid gap-px bg-gray-200 ${sale !== undefined ? "sm:grid-cols-4" : "sm:grid-cols-3"}`}>
+      <div className={`grid gap-px bg-gray-200 ${GRID_COLUMNS[columns]}`}>
         <Cell label="투자 원금">
           {formatMoneyWithSymbol(summary.principal, currency)}
           {currency !== "KRW" && summary.principalKrw !== undefined && (
@@ -64,6 +69,11 @@ export function PerformanceBoard({
             </>
           )}
         </Cell>
+        {summary.totalKrw !== undefined && (
+          <Cell label="현재 잔고" notes={["잔고 + 예수금"]}>
+            {formatMoneyWithSymbol(summary.totalKrw, "KRW")}
+          </Cell>
+        )}
         {sale !== undefined && (
           <Cell label="매도 수수료/세금" notes={saleNotes(sale)}>
             {sale.total === null ? "—" : formatMoneyWithSymbol(`-${sale.total}`, "KRW")}
@@ -119,6 +129,9 @@ export function PerformanceBoard({
     </section>
   );
 }
+
+/** 칸 수 → 격자 열(Tailwind는 글자 그대로의 클래스 이름만 만든다). */
+const GRID_COLUMNS: Record<number, string> = { 3: "sm:grid-cols-3", 4: "sm:grid-cols-4", 5: "sm:grid-cols-5" };
 
 /** 매도 칸의 내역 — 수수료, 세금(국내 증권거래세 또는 해외 양도소득세와 차익·공제), 표 밖이면 사유. */
 function saleNotes(sale: SaleCost): string[] {

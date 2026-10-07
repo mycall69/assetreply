@@ -96,6 +96,10 @@ def summary_json(result: CryptoResult, principal: Decimal) -> Json:
     }
     if result.principal_krw is not None:
         body["principalKrw"] = format(result.principal_krw, "f")
+    # 012 FR-018(US5) — 보드의 현재 잔고: 기준일의 원화 총자산(잔고 + 예수금). 투자 수익을 만든 같은
+    # 평가값이다(주식과 같다).
+    basis = result.principal_krw if result.principal_krw is not None else principal
+    body["totalKrw"] = format((latest.profit if latest else Decimal("0")) + basis, "f")
     return body
 
 

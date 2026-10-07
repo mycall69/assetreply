@@ -486,6 +486,11 @@ export interface SimulationSummary {
   returnRate: DecimalString;
   asOf: string;
   isFinal: boolean;
+  /**
+   * 012 US5(FR-018) — 기준일의 원화 총자산(잔고 + 예수금, 매도 비용 전) = 보드의 현재 잔고. 주식·가상자산 일시금에만 있다(예금은 없다 — 칸이 없다).
+   * `totalKrw − (principalKrw ?? principal) = profit`이다. 적립식(011)의 `totalKrw`와 같은 뜻이다.
+   */
+  totalKrw?: DecimalString;
   /** 010 반복 4(FR-030) — 기준일에 모두 판다고 가정한 매도 수수료·세금(원화). 주식만 있다. */
   saleCost?: SaleCost;
   /** `profit` − `saleCost.total`. 세금을 모르면(세율 표 밖) `null`. */

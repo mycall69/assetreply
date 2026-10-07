@@ -547,9 +547,9 @@ description: "Task list for 012-period-tables-history-db"
 
 ### Implementation for User Story 5
 
-- [ ] T073 [US5] `backend/src/api/routes/stock_simulation.py`·`backend/src/api/routes/crypto_simulation.py` — `summary_json`에 `totalKrw` (FR-018, research R12-17)
+- [X] T073 [US5] `backend/src/api/routes/stock_simulation.py`·`backend/src/api/routes/crypto_simulation.py` — `summary_json`에 `totalKrw` (FR-018, research R12-17)
   - 투자 수익을 만든 같은 원화 평가값이다 — `profit + (principalKrw ?? principal)`(적립식 011의 `profit + basisKrw`와 같은 방식). 따로 환산하지 않는다.
-- [ ] T074 [US5] `frontend/src/lib/types.ts`(`SimulationSummary.totalKrw?`·가상자산 요약)·`frontend/src/components/stock/PerformanceBoard.tsx`(`totalKrw`가 있으면
+- [X] T074 [US5] `frontend/src/lib/types.ts`(`SimulationSummary.totalKrw?`·가상자산 요약)·`frontend/src/components/stock/PerformanceBoard.tsx`(`totalKrw`가 있으면
   투자 원금 다음 칸)·`frontend/src/components/recurring/RecurringBoard.tsx`(총 납입 원금 다음 칸) (FR-018, F9)
 - [ ] T075 [US5] 브라우저 확인 — quickstart 5(네 보드·USD 원금·예금 보드) (FR-018, SC-010)
 - [ ] T076 [US5] 게이트(서버를 내린 채 — T067과 같은 명령)·불변 대조(T001 기준 — `totalKrw`를 빼고 견준다, quickstart 3-7)·문서(CLAUDE.md·README의 012 줄에 US5,

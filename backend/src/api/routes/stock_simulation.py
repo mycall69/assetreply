@@ -107,6 +107,11 @@ def summary_json(result: SimulationResult, principal: Decimal, *, market: str | 
     }
     if result.principal_krw is not None:
         body["principalKrw"] = str(result.principal_krw)
+    # 012 FR-018(US5) — 보드의 현재 잔고: 기준일의 원화 총자산(잔고 + 예수금, 매도 비용 전). 투자
+    # 수익을 만든 같은 평가값이다 —
+    # 따로 환산하면 1원이 어긋날 수 있다. 적립식(011)의 `totalKrw`와 같은 이름·같은 뜻이다.
+    basis = result.principal_krw if result.principal_krw is not None else principal
+    body["totalKrw"] = format((latest.profit if latest else Decimal("0")) + basis, "f")
     if market is not None and fee_rate is not None and sale_tax is not None and latest is not None:
         body.update(_sale_json(result, latest.profit, market=market, fee_rate=fee_rate,
                                sale_tax=sale_tax,

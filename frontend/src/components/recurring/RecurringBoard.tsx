@@ -3,7 +3,7 @@
 /**
  * 적립식 보드 (011 T027) — FR-012, FR-020, ui-wireframes §2. 주식·가상자산이 함께 쓴다.
  *
- * 다섯 칸이다 — 총 납입 원금 · 매매 수수료 총액 · 세금 총액 · 투자 수익 · 수익률.
+ * 여섯 칸이다 — 총 납입 원금 · 현재 잔고(012 US5 — 원화 총자산 `totalKrw`) · 매매 수수료 총액 · 세금 총액 · 투자 수익 · 수익률.
  *
  * **화면은 계산하지 않는다.** 모든 값은 서버 문자열이고 여기서는 서식만 입힌다(`noClientSideFinance`).
  * - 투자 수익·수익률은 기준일 매도 비용을 뺀 값이다. 매수 수수료와 배당 소득세는 이미 총자산에서 빠져 있다 — 다시 빼면 두 번 차감된다(FR-012)
@@ -75,7 +75,8 @@ export function RecurringBoard(props: Props) {
 
   return (
     <section className="rounded-lg border border-gray-200">
-      <div className="grid gap-px bg-gray-200 sm:grid-cols-5">
+      {/* 012 US5(FR-018) — 현재 잔고를 더해 여섯 칸이다. 좁은 창에서는 세 칸씩 두 줄이다. */}
+      <div className="grid gap-px bg-gray-200 sm:grid-cols-3 lg:grid-cols-6">
         <Cell label="총 납입 원금" notes={[`${summary.contributions.toLocaleString("en-US")}회 납입`]}>
           {principalCurrency === "KRW" ? won(summary.contributedKrw) : (
             <>
@@ -83,6 +84,11 @@ export function RecurringBoard(props: Props) {
               <span className="text-base font-normal text-gray-500">({won(summary.contributedKrw)})</span>
             </>
           )}
+        </Cell>
+        {/* 012 US5 — 기준일의 원화 총자산(011 `totalKrw`). 표의 잔고 열(보유 평가액)과 다른 까닭이 보이게 무엇을 더했는지 적는다. 손익 색이 없다. */}
+        <Cell label="현재 잔고"
+          notes={[props.asset === "stock" ? "잔고 + 매수 대기금 + 배당 현금" : "잔고 + 매수 대기금"]}>
+          {won(summary.totalKrw)}
         </Cell>
         <Cell label="매매 수수료 총액" notes={[`매수 ${won(summary.buyFeeTotal)}`, `매도 ${won(sale.fee)}`]}>
           {minusWon(summary.feeTotal)}
