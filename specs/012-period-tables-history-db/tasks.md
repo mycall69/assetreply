@@ -551,8 +551,8 @@ description: "Task list for 012-period-tables-history-db"
   - 투자 수익을 만든 같은 원화 평가값이다 — `profit + (principalKrw ?? principal)`(적립식 011의 `profit + basisKrw`와 같은 방식). 따로 환산하지 않는다.
 - [X] T074 [US5] `frontend/src/lib/types.ts`(`SimulationSummary.totalKrw?`·가상자산 요약)·`frontend/src/components/stock/PerformanceBoard.tsx`(`totalKrw`가 있으면
   투자 원금 다음 칸)·`frontend/src/components/recurring/RecurringBoard.tsx`(총 납입 원금 다음 칸) (FR-018, F9)
-- [ ] T075 [US5] 브라우저 확인 — quickstart 5(네 보드·USD 원금·예금 보드) (FR-018, SC-010)
-- [ ] T076 [US5] 게이트(서버를 내린 채 — T067과 같은 명령)·불변 대조(T001 기준 — `totalKrw`를 빼고 견준다, quickstart 3-7)·문서(CLAUDE.md·README의 012 줄에 US5,
+- [X] T075 [US5] 브라우저 확인 — quickstart 5(네 보드·USD 원금·예금 보드) (FR-018, SC-010)
+- [X] T076 [US5] 게이트(서버를 내린 채 — T067과 같은 명령)·불변 대조(T001 기준 — `totalKrw`를 빼고 견준다, quickstart 3-7)·문서(CLAUDE.md·README의 012 줄에 US5,
   spec Status) (FR-017, FR-018, SC-009)
 
 **Checkpoint**: US5 완결.
@@ -706,6 +706,8 @@ Task: "T025 화면 테스트 — 탭·창 그대로"
 - **2026-10-07 US5 문서 바로잡기**: 테스트를 쓰다 확인했다 — 표의 "잔고" 열(`balance`)은 **보유 평가액만**이고 예수금(`cash`)이 따로다. spec·data-model·quickstart·
   research·tasks의 "표 기준일 행의 원화 잔고와 같다"를 "잔고 + 예수금"으로 고쳤고(원화 종목·원화 원금에서 0원 차이 — T070), 보드 칸 안에 무엇을 더한 값인지
   적는 요구를 FR-018·F9에 더했다(표의 잔고 열과 다른 까닭 — 010 반복 4의 "보유 중"과 같은 이유)
+- **2026-10-07 T076(US5) 게이트(서버를 내린 채 — 구현 커밋 `71549e4`과 같은 코드)**: 백엔드 2,828 passed(커버리지 96.35%, 8분 48초), mypy 230 파일·ruff(`--no-cache`)
+  통과 / 프론트엔드 165 파일·1,416 passed, tsc·eslint — 모두 종료 코드 0. 불변 대조는 기존 키가 모두 같고 더한 키는 일시금 요약의 `totalKrw` 셋뿐이다(quickstart 기록)
 
 ## 요구사항 ↔ 태스크
 
