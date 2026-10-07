@@ -103,9 +103,11 @@ class Test국내_매달:
         sale = Decimal(latest["balance"])
         fee = floor(sale * Decimal("0.000150"))
         tax = floor(sale * Decimal("0.0020"))
+        # 012 승인 2026-10-07 — US6(FR-019): 양도차익의 구성은 해외만이다. 국내는 셋 모두 null
         assert summary["saleCost"] == {
             "fee": str(fee), "tax": str(tax), "total": str(fee + tax), "taxKind": "transaction_tax",
             "taxRate": "0.0020", "gain": None, "deduction": None,
+            "saleKrw": None, "acquisitionKrw": None, "feesKrw": None,
         }
         buy_fees = floor(sum((Decimal(r["tradeFee"]) for r in body["rows"] if "tradeFee" in r),
                              Decimal("0")))
@@ -181,10 +183,14 @@ class Test해외_원화_매주:
                               if "tradeFee" in r), Decimal("0")))
         gain = sale_krw - acquisition - buy_fees - sell_fee
         tax = floor(max(gain - Decimal("2500000"), Decimal("0")) * Decimal("0.22"))
+        # 012 승인 2026-10-07 — US6(FR-019): 차익을 만든 세 값 — 위에서 계산한
+        # 매도금액·취득가·수수료(매수 + 매도)
         assert summary["saleCost"] == {
             "fee": str(sell_fee), "tax": str(tax), "total": str(sell_fee + tax),
             "taxKind": "capital_gains_tax", "taxRate": "0.22", "gain": str(gain),
             "deduction": "2500000",
+            "saleKrw": str(sale_krw), "acquisitionKrw": str(acquisition),
+            "feesKrw": str(buy_fees + sell_fee),
         }
         assert (summary["contributions"], summary["contributed"], summary["contributedKrw"]) == (
             9, "4500000", "4500000")

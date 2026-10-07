@@ -186,6 +186,10 @@ async def test_국내_종목은_수수료와_증권거래세를_뺀다(client: A
         "taxRate": "0.0020",
         "gain": None,
         "deduction": None,
+        # 012 승인 2026-10-07 — US6(FR-019): 양도차익의 구성은 해외만이다. 국내는 셋 모두 null
+        "saleKrw": None,
+        "acquisitionKrw": None,
+        "feesKrw": None,
     }
     after = Decimal(summary["profit"]) - (fee + tax)
     assert Decimal(summary["profitAfterSale"]) == after
@@ -234,6 +238,11 @@ async def test_해외_종목은_원화_양도차익의_22퍼센트를_뺀다(cli
         "taxRate": "0.22",
         "gain": str(gain),
         "deduction": "2500000",
+        # 012 승인 2026-10-07 — US6(FR-019): 차익을 만든 세 값 — 위에서 계산한
+        # 매도금액·취득가·수수료(매수 + 매도)
+        "saleKrw": str(sale_krw),
+        "acquisitionKrw": str(acquisition),
+        "feesKrw": str(buy_fees + sell_fee),
     }
     assert Decimal(summary["profitAfterSale"]) == Decimal(summary["profit"]) - (sell_fee + tax)
 
@@ -259,6 +268,10 @@ async def test_2023년_전_기준일도_설정_세율로_계산한다(client: As
         "taxRate": "0.0020",
         "gain": None,
         "deduction": None,
+        # 012 승인 2026-10-07 — US6(FR-019): 양도차익의 구성은 해외만이다. 국내는 셋 모두 null
+        "saleKrw": None,
+        "acquisitionKrw": None,
+        "feesKrw": None,
     }
     assert Decimal(summary["profitAfterSale"]) == Decimal(summary["profit"]) - (fee + tax)
     assert summary["returnRateAfterSale"] is not None

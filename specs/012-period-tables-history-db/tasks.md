@@ -559,6 +559,45 @@ description: "Task list for 012-period-tables-history-db"
 
 ---
 
+## Phase 9: User Story 6 - 해외 주식 매도 칸이 양도차익의 구성을 보인다 (Priority: P3) — 반복 2026-10-07
+
+**Goal**: 해외 주식 보드의 매도 칸(일시금)·세금 칸(주식 적립식)에 양도차익의 구성(매도금액 − 취득가 − 수수료)을 숫자로 보인다. 계산은 바꾸지 않는다(spec US6, FR-019 —
+버그 평가 `foreign-sale-tax-gain`의 A안).
+
+**Independent Test**: XLK(NYSE) 2010-02-11 원화 2,000만 원 일시금(배당 재투자) — 매도 칸에 "매도금액 ₩539,229,405 − 취득가 ₩36,181,082 − 수수료 ₩86,311"과 취득가 설명 줄이
+"차익 ₩502,962,012 − 공제 ₩2,500,000" 바로 앞에 있다. 국내 종목 매도 칸은 그대로다(quickstart 6).
+
+### Tests for User Story 6 ⚠️
+
+- [X] T077 [US6] 바뀌는 기존 테스트 승인을 받는다 (FR-019)
+  - 구현을 작업 트리에 둔 채 전체 스위트를 돌려 **실제로 실패한** 기존 테스트로 목록을 만든다.
+  - 예상: `backend/tests/integration/test_stock_sale_cost_api.py`의 `saleCost ==` 셋(181·229·254행), `test_stock_recurring_api.py`의 둘(106·184행) — 기대값에 새 키 셋을
+    더한다(국내 `null`, 해외 값). 고친 줄 위에 `012 승인 <날짜>` 주석.
+- [X] T078 [P] [US6] `backend/tests/unit/test_stock_sale_cost_breakdown.py` — `simulation/stock_sale_cost` (FR-019, SC-011, research R12-18)
+  - `foreign_sale_cost`의 `sale_krw`·`acquisition_krw`·`fees_krw`가 원 미만을 버린 값이고 `gain = sale_krw − acquisition_krw − fees_krw`다(소수 입력 포함).
+  - `domestic_sale_cost`는 셋 모두 `None`이다. 기존 `gain`·`tax`·`total`·`fee`는 그대로다.
+- [X] T079 [P] [US6] `backend/tests/integration/test_sale_gain_breakdown_api.py` — 경로의 `saleCost` 새 키 (FR-019, SC-011, data-model 4.2, rest-api 1.2)
+  - 해외 일시금(배당 재투자 있음)·해외 적립식: `saleKrw − acquisitionKrw − feesKrw = gain`.
+  - 일시금 `acquisitionKrw` = 매수 행 + 재투자 행의 `boughtShares × openPrice × fxRate` 합(원 미만 버림), `saleKrw` = 기준일 행 `balance × fxRate`의 원 미만 버림(예수금 제외 — 행의 `balanceKrw`는 반올림이라 1원 다를 수 있다).
+  - 국내 종목은 셋 모두 `null`이다.
+- [X] T080 [P] [US6] `frontend/tests/SaleGainBreakdown.test.tsx` — `PerformanceBoard`·`RecurringBoard` (FR-019, SC-011, F10)
+  - 일시금 매도 칸·적립식 세금 칸의 두 줄(문구, "차익 − 공제" 바로 앞 자리), 서버 값을 그린다.
+  - 국내 종목·세 값이 없는 응답(010 전 형식)에는 두 줄이 없다.
+
+### Implementation for User Story 6
+
+- [ ] T081 [US6] `backend/src/simulation/stock_sale_cost.py`(`SaleCost`에 `sale_krw`·`acquisition_krw`·`fees_krw`)·`backend/src/api/services/stock_sale.py`·
+  `backend/src/api/routes/stock_simulation.py`(`_sale_json`)·`backend/src/api/services/stock_recurring.py`(적립식 `saleCost`) (FR-019, research R12-18)
+- [ ] T082 [US6] `frontend/src/lib/types.ts`(`SaleCost` 선택 키 셋)·`frontend/src/components/stock/PerformanceBoard.tsx`(`saleNotes`)·
+  `frontend/src/components/recurring/RecurringBoard.tsx`(`stockTaxNotes`) (FR-019, F10)
+- [ ] T083 [US6] 브라우저 확인 — quickstart 6(XLK 일시금·해외 적립식·국내 종목) (FR-019, SC-011)
+- [ ] T084 [US6] 게이트(서버를 내린 채)·불변 대조(T001 기준 — US5·US6이 더한 키 제외, quickstart 3-7)·문서(CLAUDE.md·README의 012 줄에 US6, spec Status, 버그 평가
+  `foreign-sale-tax-gain`에 처리 기록) (FR-017, FR-019, SC-009, SC-011)
+
+**Checkpoint**: US6 완결.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -572,6 +611,7 @@ description: "Task list for 012-period-tables-history-db"
 - **US4 (Phase 6)**: T002 뒤면 시작할 수 있다.
 - **Polish (Phase 7)**: 모든 스토리 뒤
 - **US5 (Phase 8 — 반복 2026-10-07)**: 012 완료(Phase 7) 뒤. **T069(승인)가 T074의 커밋을 막는다.** 테스트 T070~T072는 함께 쓴다
+- **US6 (Phase 9 — 반복 2026-10-07)**: US5 뒤. **T077(승인)이 테스트 커밋(기존 테스트 변경 포함)을 막는다.** 테스트 T078~T080은 함께 쓴다
 
 스토리를 하나씩 끝내려면 US1 → US2 → US3 → US4 차례다. 같은 파일을 여러 스토리가 만지므로(아래 표) 스토리 사이에는 나란히 하지 않는다.
 
@@ -586,9 +626,10 @@ description: "Task list for 012-period-tables-history-db"
 |------|--------|
 | `frontend/src/stores/stockStore.ts`·`cryptoStore.ts` | T034(US2), T056(US3), T063(US4) |
 | `frontend/src/stores/depositStore.ts` | T056, T063 |
-| `frontend/src/lib/types.ts` | T031, T055, T074 |
-| `backend/src/api/routes/stock_simulation.py`·`crypto_simulation.py` | T029·T030(US2), T073(US5) |
-| `frontend/src/components/stock/PerformanceBoard.tsx`·`components/recurring/RecurringBoard.tsx` | T074 |
+| `frontend/src/lib/types.ts` | T031, T055, T074, T082 |
+| `backend/src/api/routes/stock_simulation.py`·`crypto_simulation.py` | T029·T030(US2), T073(US5), T081(US6 — stock만) |
+| `frontend/src/components/stock/PerformanceBoard.tsx`·`components/recurring/RecurringBoard.tsx` | T074, T082 |
+| `backend/src/simulation/stock_sale_cost.py`·`api/services/stock_sale.py`·`api/services/stock_recurring.py` | T081 |
 | `frontend/src/app/stocks/page.tsx`·`crypto/page.tsx` | T035, T059 |
 | `frontend/src/app/fx/page.tsx` | T009 |
 | `frontend/src/components/fx/PeriodTabs.tsx` | T032 |
@@ -596,7 +637,7 @@ description: "Task list for 012-period-tables-history-db"
 | `backend/src/api/services/crypto_simulation.py`·`crypto_recurring.py`·`routes/crypto_*` | T030 |
 | `backend/src/api/main.py`·`errors.py` | T054 |
 | `frontend/tests/setup.ts`(더하기만) | T043 |
-| `specs/012-…/quickstart.md`(실행 기록) | T010, T036, T060, T064, T065, T075 |
+| `specs/012-…/quickstart.md`(실행 기록) | T010, T036, T060, T064, T065, T075, T083 |
 
 ### Parallel Opportunities
 
@@ -604,6 +645,7 @@ description: "Task list for 012-period-tables-history-db"
 - US3 테스트 T039~T042(백엔드)와 T044~T049(화면 — T043 뒤)는 함께 쓴다.
 - US4 테스트 T061·T062는 함께 쓴다.
 - US5 테스트 T070~T072는 함께 쓴다.
+- US6 테스트 T078~T080은 함께 쓴다.
 
 ---
 
@@ -640,6 +682,7 @@ Task: "T025 화면 테스트 — 탭·창 그대로"
 4. US4 — 원금 기본값
 5. Polish — 성능·문서·게이트·불변 대조
 6. US5(반복 2026-10-07) — 보드의 현재 잔고
+7. US6(반복 2026-10-07) — 해외 주식 매도 칸의 양도차익 구성
 
 ---
 
@@ -708,6 +751,11 @@ Task: "T025 화면 테스트 — 탭·창 그대로"
   적는 요구를 FR-018·F9에 더했다(표의 잔고 열과 다른 까닭 — 010 반복 4의 "보유 중"과 같은 이유)
 - **2026-10-07 T076(US5) 게이트(서버를 내린 채 — 구현 커밋 `71549e4`과 같은 코드)**: 백엔드 2,828 passed(커버리지 96.35%, 8분 48초), mypy 230 파일·ruff(`--no-cache`)
   통과 / 프론트엔드 165 파일·1,416 passed, tsc·eslint — 모두 종료 코드 0. 불변 대조는 기존 키가 모두 같고 더한 키는 일시금 요약의 `totalKrw` 셋뿐이다(quickstart 기록)
+- **2026-10-07 T077 승인(사용자, US6)**: 구현을 작업 트리에 둔 채 전체 스위트를 돌렸다 — 백엔드 5 failed·2,833 passed, 프론트엔드 166 파일·1,421 passed. 실패 다섯은
+  모두 `saleCost`를 통째로 견주는 단언이고 차이는 "더한 키 셋"뿐이다(기존 키의 값은 같다) — `test_stock_sale_cost_api.py`의 국내·2023년 전·해외, `test_stock_recurring_api.py`의
+  국내 매달·해외 매주. 기대값에 키 셋을 **더하기만** 했다(국내 `None`, 해외는 테스트가 이미 계산하던 매도금액·취득가·매수 + 매도 수수료). 고친 줄 위에 `012 승인 2026-10-07` 주석
+- **2026-10-07 US6 문서 바로잡기**: T079의 "`saleKrw` = 기준일 행 `balanceKrw`"를 "`balance × fxRate`의 원 미만 버림"으로 고쳤다 — 행의 `balanceKrw`는 원 단위 반올림이라 1원
+  다를 수 있다(quickstart 6도 같이)
 
 ## 요구사항 ↔ 태스크
 
@@ -743,6 +791,8 @@ Task: "T025 화면 테스트 — 탭·창 그대로"
 | SC-006 | T040, T046, T060 |
 | SC-007 | T041, T060 |
 | SC-008 | T061, T062, T064 |
-| SC-009 | T001, T002, T068, T076 |
+| SC-009 | T001, T002, T068, T076, T084 |
 | FR-018 | T069, T070, T071, T072, T073, T074, T075, T076 |
 | SC-010 | T070, T071, T072, T075 |
+| FR-019 | T077, T078, T079, T080, T081, T082, T083, T084 |
+| SC-011 | T078, T079, T080, T083, T084 |

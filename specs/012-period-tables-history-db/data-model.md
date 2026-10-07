@@ -144,6 +144,20 @@ TableEntry(kind, date, shifted_from: date | None, is_ongoing: bool, date_to: dat
 - 값은 `profit + (principalKrw ?? principal)`이다 — 투자 수익을 만든 평가값((잔고 + 예수금) × 기준일 매매기준율)과 같다. 적립식 011의 `totalKrw = profit + basisKrw`와 같은 방식이다.
 - `/series`·적립식 요약·다른 키는 바뀌지 않는다.
 
+### 4.2 `saleCost`에 더하는 키 (US6 — 반복 2026-10-07)
+
+주식 일시금(`/api/stocks/simulation`)·적립식(`/api/stocks/recurring-simulation`) 요약의 `saleCost`에 더한다.
+
+| 키 | 형 | 뜻 |
+|----|----|----|
+| `saleKrw` | `DecimalString \| null` | 매도금액 — 보유 주식 × 기준일 종가 × 기준일 매매기준율(원 미만 버림). 예수금·매수 대기금·배당 현금은 빠진다 |
+| `acquisitionKrw` | `DecimalString \| null` | 취득가 — 모든 매수(처음 매수·납입·배당 재투자)의 `주 수 × 시가 × 매수일 매매기준율` 합(원 미만 버림) |
+| `feesKrw` | `DecimalString \| null` | 매수 수수료(원화 합, 원 미만 버림) + 매도 수수료(`fee`) |
+
+- 해외 종목만 값이 있다. 국내 종목(증권거래세)은 셋 모두 `null`이다(`gain`·`deduction`과 같다).
+- 불변식: `gain = saleKrw − acquisitionKrw − feesKrw`(0원 차이) — `foreign_sale_cost`가 차익을 만든 그 값들이다(research R12-18).
+- `gain`·`tax`·`total`·`fee`·`taxKind`·`taxRate`·`deduction`은 바뀌지 않는다.
+
 ## 5. 화면 상태
 
 ### 5.1 표 단위 (`stockStore`·`cryptoStore`)

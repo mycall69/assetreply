@@ -44,6 +44,15 @@
   "summary": { "principal": "10000000", "profit": "4630000", "totalKrw": "14630000", … }   // totalKrw − (principalKrw ?? principal) = profit
   ```
 
+- **US6(반복 2026-10-07)** — 주식 일시금·적립식 표 경로의 `summary.saleCost`에 `saleKrw`·`acquisitionKrw`·`feesKrw`(해외 종목만 값, 국내 `null` — data-model 4.2)를 더한다.
+  다른 키의 값은 바뀌지 않는다.
+
+  ```jsonc
+  "saleCost": { "fee": "80884", "tax": "110101642", "total": "110182526", "taxKind": "capital_gains_tax", "taxRate": "0.22",
+                "gain": "502962012", "deduction": "2500000",
+                "saleKrw": "539229405", "acquisitionKrw": "36181082", "feesKrw": "86311" }   // gain = saleKrw − acquisitionKrw − feesKrw
+  ```
+
 ### 1.3 행
 
 | `kind` | 경로 | 뜻 | 키 |

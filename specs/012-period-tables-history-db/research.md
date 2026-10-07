@@ -371,3 +371,22 @@ Technical Context에 "NEEDS CLARIFICATION"으로 남은 항목은 없다. 아래
 - 이름 `balance` — 일시금 표 행의 `balance`는 종목 통화의 **보유 평가액**(예수금 제외)이라 뜻이 다르다(해외 종목의 원화는 `balanceKrw`). 보드의 현재 잔고는
   예수금을 더한 원화 총자산이다 — 칸 안에 "잔고 + 예수금"이라고 밝힌다.
 - 매도 비용을 뺀 잔고 — 투자 수익 칸이 이미 매도 비용을 빼므로 두 번 빠진 것처럼 읽힌다(010 반복 4).
+
+## R12-18 양도차익의 구성 값 (US6 — 반복 2026-10-07)
+
+**Decision**:
+- `simulation/stock_sale_cost.SaleCost`에 `sale_krw`·`acquisition_krw`·`fees_krw`를 더한다. `foreign_sale_cost`가 차익을 만들 때 쓴 **원 미만을 버린 값** 그대로다 —
+  `sale_krw = ⌊매도금액⌋`, `acquisition_krw = ⌊취득가⌋`, `fees_krw = ⌊매수 수수료⌋ + ⌊매도 수수료⌋`. 그래서 `gain = sale_krw − acquisition_krw − fees_krw`가 정확하다.
+- JSON은 `saleCost`의 `saleKrw`·`acquisitionKrw`·`feesKrw`(문자열). 국내(`domestic_sale_cost`)는 셋 모두 `null`이다(`gain`·`deduction`과 같다).
+- 수수료는 매수·매도를 하나로 낸다 — 매도 수수료는 매도 칸의 첫 줄("수수료 ₩…")에 이미 있고, 차익 식의 항을 셋으로 둔다.
+- 계산(`gain`·`tax`·`total`·`fee`)은 바꾸지 않는다.
+
+**Rationale**:
+- 차익과 같은 버림이라 화면의 세 값이 차익과 0원 차이로 맞는다 — 화면이 빼거나 반올림하지 않는다(헌법 원칙 VI).
+- 2026-10-07 보고(버그 평가 `foreign-sale-tax-gain`)의 원인은 계산이 아니라 표시의 빈틈이다 — 배당 재투자 매수의 취득가(₩16,195,960)가 차이의 대부분인데 화면에 없었다.
+
+**Alternatives considered**:
+- 화면이 `totalKrw`에서 거꾸로 계산 — 원칙 VI 위반이고 예수금이 매도금액에 섞인다.
+- 고정 도움말만 — 숫자로 맞춰 볼 수 없다.
+- 수수료를 매수·매도 따로 — 줄이 길어진다. 매도 수수료는 이미 첫 줄에 있다.
+
