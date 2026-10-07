@@ -517,6 +517,48 @@ description: "Task list for 012-period-tables-history-db"
 
 ---
 
+## Phase 8: User Story 5 - 성과 보드에 현재 잔고가 보인다 (Priority: P3) — 반복 2026-10-07
+
+**Goal**: 주식·가상자산 성과 보드 넷(일시금·적립식)에 현재 잔고 칸을 더한다. 예금·정기 적금·부동산 보드는 그대로다(spec US5, FR-018).
+
+**Independent Test**: 삼성전자 일시금·비트코인 일시금·삼성전자 매일 적립·AAPL(USD 원금) 일시금을 실행한다. 칸 차례가 F9와 같고, 현재 잔고 − 투자 원금(원화) =
+보유 중 투자 수익이며, 일 단위 표 맨 위 행의 원화 잔고와 같다. 예금 보드는 그대로다(quickstart 5).
+
+### Tests for User Story 5 ⚠️
+
+- [X] T069 [US5] 바뀌는 기존 테스트 승인을 받는다 (FR-018)
+  - 구현을 작업 트리에 둔 채 전체 스위트를 돌려 **실제로 실패한** 기존 테스트로 목록을 만든다. 없으면 없음을 Notes에 적는다.
+  - 예상: 없다 — 보드 테스트는 칸을 이름(`role="group"`)으로 찾고 칸 수를 세지 않는다. `PerformanceBoardSaleCost.test.tsx`의 "네 칸이다"·"세 칸"은 `totalKrw`가 없는
+    형식이라 그대로다.
+- [X] T070 [P] [US5] `backend/tests/integration/test_board_total_krw.py` — 일시금 요약의 `totalKrw` (FR-018, SC-010, data-model 4.1, rest-api 1.2)
+  - 주식(원화 원금·USD 원금 — AAPL)·가상자산(원화 원금)의 `summary.totalKrw`가 있다.
+  - `totalKrw − (principalKrw ?? principal) = profit`이 문자열 Decimal로 0원 차이다.
+  - 원화 종목·원화 원금이면 일 단위 표 기준일(첫 쪽 맨 위) 행의 `balance + cash`와 같다(행의 `balance`는 보유 평가액만 — 예수금이 따로다).
+  - 적립식 요약은 `totalKrw − contributedKrw = profit`이다(011 — 그대로).
+  - `/series`에는 없다. 적립식 요약의 `totalKrw`는 그대로다(011).
+- [X] T071 [P] [US5] `frontend/tests/PerformanceBoardTotal.test.tsx` — `components/stock/PerformanceBoard` (FR-018, SC-010, F9)
+  - 주식(`saleCost` 있음): 다섯 칸이 투자 원금 · 현재 잔고 · 매도 수수료/세금 · 투자 수익 · 수익률 차례다. 가상자산(`saleCost` 없음): 네 칸.
+  - 현재 잔고는 `₩` 값이다. USD 원금이어도 원화만이다. 손익 색이 없다. 칸 안에 "잔고 + 예수금"이 있다.
+  - `totalKrw`가 없으면 칸이 없다(예금 — 지금 세 칸 그대로).
+  - 화면이 원금 + 수익을 더하지 않는다 — 서로 맞지 않는 값을 줘도 서버의 `totalKrw`가 그대로 보인다.
+- [X] T072 [P] [US5] `frontend/tests/RecurringBoardTotal.test.tsx` — `components/recurring/RecurringBoard` (FR-018, SC-010, F9)
+  - 주식·가상자산 모두 여섯 칸이 총 납입 원금 · 현재 잔고 · 매매 수수료 총액 · 세금 총액 · 투자 수익 · 수익률 차례다.
+  - 현재 잔고는 `summary.totalKrw`의 `₩` 값이고 손익 색이 없다. 칸 안에 주식 "잔고 + 매수 대기금 + 배당 현금", 가상자산 "잔고 + 매수 대기금"이 있다.
+
+### Implementation for User Story 5
+
+- [ ] T073 [US5] `backend/src/api/routes/stock_simulation.py`·`backend/src/api/routes/crypto_simulation.py` — `summary_json`에 `totalKrw` (FR-018, research R12-17)
+  - 투자 수익을 만든 같은 원화 평가값이다 — `profit + (principalKrw ?? principal)`(적립식 011의 `profit + basisKrw`와 같은 방식). 따로 환산하지 않는다.
+- [ ] T074 [US5] `frontend/src/lib/types.ts`(`SimulationSummary.totalKrw?`·가상자산 요약)·`frontend/src/components/stock/PerformanceBoard.tsx`(`totalKrw`가 있으면
+  투자 원금 다음 칸)·`frontend/src/components/recurring/RecurringBoard.tsx`(총 납입 원금 다음 칸) (FR-018, F9)
+- [ ] T075 [US5] 브라우저 확인 — quickstart 5(네 보드·USD 원금·예금 보드) (FR-018, SC-010)
+- [ ] T076 [US5] 게이트(서버를 내린 채 — T067과 같은 명령)·불변 대조(T001 기준 — `totalKrw`를 빼고 견준다, quickstart 3-7)·문서(CLAUDE.md·README의 012 줄에 US5,
+  spec Status) (FR-017, FR-018, SC-009)
+
+**Checkpoint**: US5 완결.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -529,6 +571,7 @@ description: "Task list for 012-period-tables-history-db"
   스토어를 바꾸면 이력과 무관한 화면 테스트 수십 개가 흔들린다.
 - **US4 (Phase 6)**: T002 뒤면 시작할 수 있다.
 - **Polish (Phase 7)**: 모든 스토리 뒤
+- **US5 (Phase 8 — 반복 2026-10-07)**: 012 완료(Phase 7) 뒤. **T069(승인)가 T074의 커밋을 막는다.** 테스트 T070~T072는 함께 쓴다
 
 스토리를 하나씩 끝내려면 US1 → US2 → US3 → US4 차례다. 같은 파일을 여러 스토리가 만지므로(아래 표) 스토리 사이에는 나란히 하지 않는다.
 
@@ -543,7 +586,9 @@ description: "Task list for 012-period-tables-history-db"
 |------|--------|
 | `frontend/src/stores/stockStore.ts`·`cryptoStore.ts` | T034(US2), T056(US3), T063(US4) |
 | `frontend/src/stores/depositStore.ts` | T056, T063 |
-| `frontend/src/lib/types.ts` | T031, T055 |
+| `frontend/src/lib/types.ts` | T031, T055, T074 |
+| `backend/src/api/routes/stock_simulation.py`·`crypto_simulation.py` | T029·T030(US2), T073(US5) |
+| `frontend/src/components/stock/PerformanceBoard.tsx`·`components/recurring/RecurringBoard.tsx` | T074 |
 | `frontend/src/app/stocks/page.tsx`·`crypto/page.tsx` | T035, T059 |
 | `frontend/src/app/fx/page.tsx` | T009 |
 | `frontend/src/components/fx/PeriodTabs.tsx` | T032 |
@@ -551,13 +596,14 @@ description: "Task list for 012-period-tables-history-db"
 | `backend/src/api/services/crypto_simulation.py`·`crypto_recurring.py`·`routes/crypto_*` | T030 |
 | `backend/src/api/main.py`·`errors.py` | T054 |
 | `frontend/tests/setup.ts`(더하기만) | T043 |
-| `specs/012-…/quickstart.md`(실행 기록) | T010, T036, T060, T064, T065 |
+| `specs/012-…/quickstart.md`(실행 기록) | T010, T036, T060, T064, T065, T075 |
 
 ### Parallel Opportunities
 
 - US2 테스트 T012~T017은 다른 파일이라 함께 쓴다. 화면 테스트 T019~T025도 함께 쓴다.
 - US3 테스트 T039~T042(백엔드)와 T044~T049(화면 — T043 뒤)는 함께 쓴다.
 - US4 테스트 T061·T062는 함께 쓴다.
+- US5 테스트 T070~T072는 함께 쓴다.
 
 ---
 
@@ -593,6 +639,7 @@ Task: "T025 화면 테스트 — 탭·창 그대로"
 3. US3 — 이력의 로컬 DB와 보관 기간(승인 C)
 4. US4 — 원금 기본값
 5. Polish — 성능·문서·게이트·불변 대조
+6. US5(반복 2026-10-07) — 보드의 현재 잔고
 
 ---
 
@@ -654,6 +701,12 @@ Task: "T025 화면 테스트 — 탭·창 그대로"
   - **2026-10-07 사용자 확인**: 지금 동작을 그대로 요구로 적은 판단 다섯(CHK001·CHK026·CHK033·CHK034·CHK035·CHK028)을 변경 없이 확정했다(spec
     Clarifications 2026-10-07). 리뷰어(사용자) 확인으로 40개 항목을 충족으로 표시했다
 
+- **2026-10-07 T069(US5)**: 구현을 작업 트리에 둔 채 전체 스위트를 돌렸다 — 백엔드 2,828 passed(새 8건 포함), 프론트엔드 165 파일·1,416 passed. **실제로 실패한
+  기존 테스트가 없어** 승인할 목록이 없다(예상과 같다 — 보드 테스트는 칸을 이름으로 찾는다)
+- **2026-10-07 US5 문서 바로잡기**: 테스트를 쓰다 확인했다 — 표의 "잔고" 열(`balance`)은 **보유 평가액만**이고 예수금(`cash`)이 따로다. spec·data-model·quickstart·
+  research·tasks의 "표 기준일 행의 원화 잔고와 같다"를 "잔고 + 예수금"으로 고쳤고(원화 종목·원화 원금에서 0원 차이 — T070), 보드 칸 안에 무엇을 더한 값인지
+  적는 요구를 FR-018·F9에 더했다(표의 잔고 열과 다른 까닭 — 010 반복 4의 "보유 중"과 같은 이유)
+
 ## 요구사항 ↔ 태스크
 
 모든 FR·SC가 하나 이상의 태스크에 참조된다(헌법 명세 작성 규약).
@@ -688,4 +741,6 @@ Task: "T025 화면 테스트 — 탭·창 그대로"
 | SC-006 | T040, T046, T060 |
 | SC-007 | T041, T060 |
 | SC-008 | T061, T062, T064 |
-| SC-009 | T001, T002, T068 |
+| SC-009 | T001, T002, T068, T076 |
+| FR-018 | T069, T070, T071, T072, T073, T074, T075, T076 |
+| SC-010 | T070, T071, T072, T075 |

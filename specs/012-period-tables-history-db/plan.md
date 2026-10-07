@@ -26,6 +26,9 @@
   - 화면마다 그 자산군의 브라우저 이력을 한 번 옮기고, 성공한 뒤에만 지운다(R12-11).
   - 불러오기 실패·저장 실패를 빈 목록과 구별해 알린다(R12-13).
 - **원금 기본값(US4)**: 세 스토어의 처음 원금이 `"10000000"`이다. 다른 흐름은 이미 FR-016과 같다(R12-14).
+- **보드의 현재 잔고(US5 — 반복 2026-10-07)**: 주식·가상자산 보드 넷에 현재 잔고 칸을 더한다(R12-17).
+  - 일시금 요약에 `totalKrw`를 더한다 — 적립식 011의 `totalKrw`와 같은 이름·뜻이고, 투자 수익을 만든 같은 원화 평가값이다.
+  - 일시금 보드 부품은 `totalKrw`가 있을 때만 칸을 그린다(예금 보드 그대로). 적립식 보드는 이미 있는 `totalKrw`를 그린다.
 
 **설계 중 확인한 것**(research "조사에서 확인한 사실" 요약):
 
@@ -68,10 +71,10 @@
 |------|------|------|
 | I. 비동기 우선 | ✅ | 새 I/O는 비동기 세션의 이력 읽기·쓰기뿐이다. 표 묶기는 순수 함수다 |
 | II. 데이터 소스 격리 | ✅ | 새 출처 없음. 기록된 이탈(005·007·010)의 범위가 넓어지지 않는다 |
-| III. TDD (NON-NEGOTIABLE) | ✅ | 순서: 테스트를 먼저 커밋 → 최초 실패 확인 → 구현. 구현 뒤 실패하면 멈추고 보고한다. 바뀌는 기존 테스트는 아래 재평가를 본다. 먼저 쓸 테스트: <br>• `period_table` 참조 날짜 테스트(quickstart 1)<br>• `daily` 불변식<br>• 조건 식별자 대조·보관 경계·옮기기(quickstart 2)<br>• 경로 통합(`period`·이력 다섯)<br>• 화면·스토어(스크롤 위치·늦은 응답·이력 상태·원금) |
+| III. TDD (NON-NEGOTIABLE) | ✅ | 순서: 테스트를 먼저 커밋 → 최초 실패 확인 → 구현. 구현 뒤 실패하면 멈추고 보고한다. US5도 같다 — 바뀌는 기존 테스트는 구현 뒤 실제 실패로 목록을 만들어 승인을 받는다(T069). 바뀌는 기존 테스트는 아래 재평가를 본다. 먼저 쓸 테스트: <br>• `period_table` 참조 날짜 테스트(quickstart 1)<br>• `daily` 불변식<br>• 조건 식별자 대조·보관 경계·옮기기(quickstart 2)<br>• 경로 통합(`period`·이력 다섯)<br>• 화면·스토어(스크롤 위치·늦은 응답·이력 상태·원금) |
 | IV. 모듈화 | ✅ | 대표일·표 묶기는 `simulation/`의 순수 함수다(DB·HTTP 없음 — `test_layer_boundaries`). 조건 검증·식별자는 서비스의 순수 함수, DB는 저장소, 경로는 얇다. `simulation/`이 외환 `api/services/period_rows`를 부르지 않는다(R12-2) |
 | V. 정합성·재현성 | ✅ | 기준일에 시세가 없으면 **날짜를 옮기고** 표시한다. 값을 옮기거나 만들지 않는다 — 행의 값은 옮긴 날 하루의 평가라 날짜를 옮기는 것은 보간이 아니다(spec 헌법 준수와 같은 말). 구간에 시세가 없으면 행이 없다. 출처 결측은 값 없는 행으로 드러낸다(FR-004b). 전일 값 복사 없음(`test_no_interpolation` — 새 주석에 금지 낱말을 쓰지 않는다). 결과는 저장하지 않는다(이력은 조건만) |
-| VI. 금융 정확성 | ✅(기록) | 표의 값은 계산 모듈의 `Decimal` 그대로이고 API는 문자열이다. 이력 조건의 원금은 사용자가 친 문자열의 기록이다 — DB·서버가 그것으로 계산하지 않는다. 다시 실행하면 그 문자열이 질의가 된다(Complexity Tracking). 같은 해석을 spec 헌법 준수 원칙 VI와 FR-011에도 적었다(2026-10-07 요구사항 리뷰) |
+| VI. 금융 정확성 | ✅(기록) | 표의 값은 계산 모듈의 `Decimal` 그대로이고 API는 문자열이다. 이력 조건의 원금은 사용자가 친 문자열의 기록이다 — DB·서버가 그것으로 계산하지 않는다. 다시 실행하면 그 문자열이 질의가 된다(Complexity Tracking). 같은 해석을 spec 헌법 준수 원칙 VI와 FR-011에도 적었다(2026-10-07 요구사항 리뷰). US5의 현재 잔고는 서버의 `Decimal` 문자열(`totalKrw`)이고 화면은 원금 + 수익으로 계산하지 않는다(`noClientSideFinance`) |
 | VII. UI·진행 | ✅ | Zustand. 표는 기존 커서 이어 받기(IntersectionObserver)다. 일 단위 20년도 쪽으로 받는다(헌법 "가상화 또는 다운샘플링" — 쪽 받기). 차트 불변 |
 | VIII. 한국어 | ✅ | 문서·주석·커밋 한국어 |
 | IX. MVP·자산군 순서 | ✅ | 새 자산군이 아니다. 스토리마다 계산·경로·화면까지 완결한다(US1~US4는 서로 독립) |
@@ -87,7 +90,7 @@
 | 일어나지 않음 | ✅ | <br>• 사건 행은 단위 판정 전에 모두 넣는다 — 대표일 판정이 사건 행을 지울 수 없다(SC-003 불변식)<br>• 옮기기 실패면 브라우저 키를 지우지 않는다<br>• 불러오기 실패는 빈 목록이 아니다(FR-014a)<br>• 저장 실패는 알린다(FR-014)<br>• 같은 날 행을 쪽에 붙잡는다(R12-7) |
 | 다른 곳에서 일어남 | ✅ | <br>• 표시는 대표일의 마지막 사건 행이 지고, 사건 행의 날짜는 바꾸지 않는다(배당락일이 금요일로 바뀌어 보이지 않음)<br>• 가상자산 주 행은 금요일 이하에서 고른다 — 매주 일요일이 되지 않는다<br>• 이력은 화면마다 자기 자산군 키만 옮긴다<br>• 보관 기간은 보관 기준 시각으로 잰다 — 다시 실행한 항목·옮긴 항목이 지워지지 않는다<br>• 원금 기본값은 처음 값일 뿐이라 화면을 오갈 때 덮지 않는다 |
 | 늦게 일어남 | ✅ | <br>• 보관 기간을 줄이면 설정 저장이 곧바로 지운다. 목록 조회도 먼저 지운다<br>• 늦은 표 응답은 차례 번호로 버린다(주식·가상자산) 또는 단위·통화로 버린다(외환 `loadAll` 포함)<br>• 높이 붙잡기는 놓을 때 바닥을 남겨 늦은 스크롤 당김을 막는다 |
-| 공유 부품 변경 | ✅(기록) | <br>• `PeriodTabs`(선택 속성 `titles` — 기본값은 지금 외환 문구)<br>• 이력 부품 넷(선택 속성 넷)<br>• `apiClient`(`request` 공개, `delete` 더함)<br>• `tests/setup.ts`(이력 대역 더함)<br>외환 `PeriodRowBadges`·`DailyTable`·`period_rows.py`는 고치지 않는다 |
+| 공유 부품 변경 | ✅(기록) | <br>• `PeriodTabs`(선택 속성 `titles` — 기본값은 지금 외환 문구)<br>• 이력 부품 넷(선택 속성 넷)<br>• `apiClient`(`request` 공개, `delete` 더함)<br>• `tests/setup.ts`(이력 대역 더함)<br>• 보드 부품 둘(US5 — `PerformanceBoard`는 `totalKrw`가 있을 때만 칸, `RecurringBoard` 여섯 칸)<br>외환 `PeriodRowBadges`·`DailyTable`·`period_rows.py`는 고치지 않는다 |
 | **바뀌는 기존 테스트** | ⚠ 승인 필요(구현 때) | research R12-15의 목록이다. 셋 모두 spec이 바꾼 요구사항(004 FR-005b의 기간 전환, 월 행, 이력 보관 위치)에서 나온다. 계산 모듈의 단위 테스트는 바뀌지 않는다. **스토리의 테스트 커밋 전에 목록을 보이고 승인을 받고**, 그 커밋에서 바뀐 요구를 단언하는 부분만 고친다. 구현 뒤 목록 밖의 실패는 결함으로 보고 멈춘다 |
 
 ## Project Structure
@@ -127,6 +130,7 @@ backend/
 ├── src/db/models.py · src/db/migrations/versions/<rev>_시뮬레이션_이력.py   # 테이블 둘
 ├── src/api/routes/
 │   ├── stock_simulation.py · crypto_simulation.py · stock_recurring.py · crypto_recurring.py   # (변경) period 질의·응답 period·행 JSON(kind·표시·missing)
+│   │                              # US5 — stock_simulation.py·crypto_simulation.py의 summary_json에 totalKrw(R12-17)
 │   └── history.py                 # (신규) /api/history/settings(먼저) · /api/history/{asset}…
 ├── src/api/errors.py · src/api/main.py   # UnknownAsset·InvalidHistory 처리기, 라우터 등록
 └── tests/
@@ -154,6 +158,9 @@ frontend/
 ├── src/components/history/HistoryStates.tsx # (신규) 넷이 함께 쓰는 안내·상태(HistoryNotice·HistoryContent)
 ├── src/components/settings/HistoryRetentionSection.tsx · src/app/settings/page.tsx   # (신규 절)
 ├── src/app/{stocks,crypto,deposit,realestate}/page.tsx   # 단위 탭·붙잡기(주식·가상자산), 이력 속성
+├── src/components/stock/PerformanceBoard.tsx  # US5 — totalKrw가 있으면 현재 잔고 칸(주식 다섯·가상자산 넷, 예금 그대로)
+├── src/components/recurring/RecurringBoard.tsx # US5 — 현재 잔고 칸(여섯)
+├── src/lib/types.ts                         # US5 — SimulationSummary·가상자산 요약에 totalKrw
 └── tests/             # 새 파일 — 스크롤 위치, 단위 탭·표시·결측 행, 늦은 응답, 이력 상태·옮기기, 설정 절, 원금 처음 값
                        # setup.ts — /api/history 대역(도우미는 tests/support/historyStub.ts)
 
@@ -199,7 +206,9 @@ FR·SC가 남으면 헌법 명세 작성 규약 위반이다.
 | SC-006 (옮기기 100%·다른 브라우저) | R12-11, Q2·Q4-3, tasks T040·T046·T060 |
 | SC-007 (보관 경계 0건) | R12-10, Q2·Q3-5, tasks T041·T060 |
 | SC-008 (원금 입력 0회) | R12-14, Q4-6, tasks T061·T062·T064 |
-| SC-009 (011까지 계산 결과 같음) | 설계 후 재평가, Q3-7, tasks T001·T002·T068 |
+| SC-009 (011까지 계산 결과 같음) | 설계 후 재평가, Q3-7, tasks T001·T002·T068·T076 |
+| FR-018 (보드의 현재 잔고 — US5) | R12-17, data-model 4.1, rest-api 1.2, F9, Q5, tasks T069·T070·T071·T072·T073·T074·T075·T076 |
+| SC-010 (잔고 − 원금 = 보유 중 수익, 예금 보드 그대로) | R12-17, data-model 4.1, Q5, tasks T070·T071·T072·T075 |
 
 ## Complexity Tracking
 

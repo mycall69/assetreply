@@ -30,12 +30,19 @@
 ```jsonc
 {
   "period": "weekly",              // 받은 단위를 그대로 싣는다 — 화면이 늦은 응답을 가른다
-  "summary": { … },                // 그대로 — 단위와 무관하다
+  "summary": { … },                // 그대로 — 단위와 무관하다(US5 — 일시금 둘은 totalKrw를 더한다, 아래)
   "rows": [ … ],                   // 아래 1.3
   "hasMore": true,
   "oldestReturned": "2026-08-21"   // 마지막 행의 커서 날짜(결측 구간 행은 처음 날짜)
 }
 ```
+
+- **US5(반복 2026-10-07)** — 주식·가상자산 **일시금** 표 경로의 `summary`에 `totalKrw`(문자열 — 기준일의 원화 총자산, 매도 비용 전)를 더한다.
+  적립식 두 경로의 `summary.totalKrw`는 011부터 있다(그대로). 다른 키와 `/series`는 바뀌지 않는다(data-model 4.1).
+
+  ```jsonc
+  "summary": { "principal": "10000000", "profit": "4630000", "totalKrw": "14630000", … }   // totalKrw − (principalKrw ?? principal) = profit
+  ```
 
 ### 1.3 행
 

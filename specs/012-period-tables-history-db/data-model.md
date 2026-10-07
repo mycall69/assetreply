@@ -130,6 +130,20 @@ TableEntry(kind, date, shifted_from: date | None, is_ongoing: bool, date_to: dat
    - `Event`는 그 사건 행, `Period`는 `daily`의 그날 상태(`kind = "period"`), `Missing`은 값 없는 행이다.
    - 원화 환산·환율 칸은 이때 붙인다.
 
+### 4.1 일시금 요약에 더하는 키 (US5 — 반복 2026-10-07)
+
+| 경로 | 더하는 키 | 뜻 |
+|------|-----------|----|
+| `GET /api/stocks/simulation` | `summary.totalKrw: DecimalString` | 기준일(`asOf`)의 원화 총자산 — 보유 평가액 + 예수금, 매도 비용 전 |
+| `GET /api/crypto/simulation` | `summary.totalKrw: DecimalString` | 기준일의 원화 총자산 — 보유 평가액 |
+
+- 이름·뜻은 적립식 요약(011)의 `totalKrw`와 같다. 자릿수는 그 경로의 `profit`과 같다.
+- 불변식: `totalKrw − (principalKrw ?? principal) = profit`(문자열 Decimal, 0원 차이). 투자 수익을 만든 같은 원화 평가값이다 — 따로 환산하지 않는다(research R12-17).
+- 원화 종목·원화 원금이면 일 단위 표 기준일 행의 `balance + cash`와 같다. 행의 `balance`(·해외 종목의 `balanceKrw`)는 **보유 평가액만**이고 예수금(`cash`)이
+  따로다 — 그래서 이름을 `balance`로 쓰지 않는다. 행의 금액은 종목 통화다(006).
+- 값은 `profit + (principalKrw ?? principal)`이다 — 투자 수익을 만든 평가값((잔고 + 예수금) × 기준일 매매기준율)과 같다. 적립식 011의 `totalKrw = profit + basisKrw`와 같은 방식이다.
+- `/series`·적립식 요약·다른 키는 바뀌지 않는다.
+
 ## 5. 화면 상태
 
 ### 5.1 표 단위 (`stockStore`·`cryptoStore`)
