@@ -651,6 +651,8 @@ Task: "T025 화면 테스트 — 탭·창 그대로"
   - 비기능 CHK032 FR-014·FR-014a 알림(T048) · CHK033 Assumptions 로그 제외 · CHK034 FR-012·Assumptions 상한 없음 · CHK035 Assumptions 인증 없음
   - 헌법 CHK036·CHK037 헌법 준수 원칙 VI·FR-011(T039) · CHK038 원칙 V 같은 말(spec 헌법 준수·FR-004·FR-004b·plan) · CHK039 Assumptions 확인(화면에
     `lastRunAt` 없음)
+  - **2026-10-07 사용자 확인**: 지금 동작을 그대로 요구로 적은 판단 다섯(CHK001·CHK026·CHK033·CHK034·CHK035·CHK028)을 변경 없이 확정했다(spec
+    Clarifications 2026-10-07). 리뷰어(사용자) 확인으로 40개 항목을 충족으로 표시했다
 
 ## 요구사항 ↔ 태스크
 
