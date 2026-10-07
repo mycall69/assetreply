@@ -14,6 +14,7 @@
  */
 
 import { useId } from "react";
+import { gainBreakdown } from "@/components/stock/PerformanceBoard";
 import { currencySymbol, formatMoneyWithSymbol, formatPercent, formatPrice, formatQuantity } from "@/lib/format";
 import type {
   CryptoSaleCost,
@@ -47,6 +48,8 @@ function stockTaxNotes(summary: RecurringStockSummary): string[] {
   if (sale.tax === null) return [...lines, "매도 세금 —"];
   if (sale.taxKind === "capital_gains_tax") {
     lines.push(`양도소득세 ${percent(sale.taxRate, 0)}${won(sale.tax)} (설정)`);
+    // 012 US6(FR-019) — 양도차익의 구성. 일시금 매도 칸과 같은 줄이고 설명만 적립식의 말이다.
+    lines.push(...gainBreakdown(sale, "취득가는 모든 매수(납입·배당 재투자) · 매수 대기금은 팔지 않음"));
     if (sale.gain !== null && sale.deduction !== null) {
       lines.push(`차익 ${won(sale.gain)} − 공제 ${won(sale.deduction)}`);
     }

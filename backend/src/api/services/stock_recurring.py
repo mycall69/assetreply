@@ -329,7 +329,12 @@ def summary_json(result: RecurringResult, *, amount: Decimal, stock: Stock) -> d
             "total": None if sale.total is None else dec(sale.total), "taxKind": sale.tax_kind,
             "taxRate": None if sale.tax_rate is None else dec(sale.tax_rate),
             "gain": None if sale.gain is None else dec(sale.gain),
-            "deduction": None if sale.deduction is None else dec(sale.deduction)}
+            "deduction": None if sale.deduction is None else dec(sale.deduction),
+            # 012 US6(FR-019) — 양도차익의 구성(해외만, 국내는 null). gain = saleKrw −
+            # acquisitionKrw − feesKrw
+            "saleKrw": None if sale.sale_krw is None else dec(sale.sale_krw),
+            "acquisitionKrw": None if sale.acquisition_krw is None else dec(sale.acquisition_krw),
+            "feesKrw": None if sale.fees_krw is None else dec(sale.fees_krw)}
     return body
 
 

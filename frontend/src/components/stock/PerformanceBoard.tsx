@@ -130,6 +130,17 @@ export function PerformanceBoard({
   );
 }
 
+/**
+ * 양도차익의 구성 두 줄 — "매도금액 − 취득가 − 수수료"와 취득가 설명(012 US6, contracts/ui-wireframes.md F10). 세 값 가운데 하나라도 없으면(국내·US6 전 응답)
+ * 그리지 않는다. 적립식 보드도 쓴다 — 설명 줄만 다르다.
+ */
+export function gainBreakdown(sale: SaleCost, explanation: string): string[] {
+  const { saleKrw, acquisitionKrw, feesKrw } = sale;
+  if (saleKrw == null || acquisitionKrw == null || feesKrw == null) return [];
+  const won = (v: string) => formatMoneyWithSymbol(v, "KRW");
+  return [`매도금액 ${won(saleKrw)} − 취득가 ${won(acquisitionKrw)} − 수수료 ${won(feesKrw)}`, explanation];
+}
+
 /** 칸 수 → 격자 열(Tailwind는 글자 그대로의 클래스 이름만 만든다). */
 const GRID_COLUMNS: Record<number, string> = { 3: "sm:grid-cols-3", 4: "sm:grid-cols-4", 5: "sm:grid-cols-5" };
 
@@ -142,6 +153,8 @@ function saleNotes(sale: SaleCost): string[] {
     lines.push(`증권거래세 ${rate(sale.taxRate, 2)}${won(sale.tax)}`);
   } else if (sale.taxKind === "capital_gains_tax" && sale.tax !== null) {
     lines.push(`양도소득세 ${rate(sale.taxRate, 0)}${won(sale.tax)}`);
+    // 012 US6(FR-019) — 차익이 "현재 잔고 − 원금"보다 작은 까닭이 보이게 구성을 적는다. 서버 값을 그린다(빼지 않는다).
+    lines.push(...gainBreakdown(sale, "취득가는 모든 매수(배당 재투자 포함) · 예수금은 팔지 않음"));
     if (sale.gain !== null && sale.deduction !== null) lines.push(`차익 ${won(sale.gain)} − 공제 ${won(sale.deduction)}`);
   } else {
     lines.push("세금 — 세율 표 밖(2023-01-01 앞)");

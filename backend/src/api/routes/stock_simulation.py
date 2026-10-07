@@ -136,7 +136,11 @@ def _sale_json(result: SimulationResult, profit: Decimal, *, market: str, fee_ra
     return {
         "saleCost": {"fee": str(cost.fee), "tax": _text(cost.tax), "total": _text(cost.total),
                      "taxKind": cost.tax_kind, "taxRate": _text(cost.tax_rate),
-                     "gain": _text(cost.gain), "deduction": _text(cost.deduction)},
+                     "gain": _text(cost.gain), "deduction": _text(cost.deduction),
+                     # 012 US6(FR-019) — 양도차익의 구성(해외만, 국내는 null). gain = saleKrw −
+                     # acquisitionKrw − feesKrw
+                     "saleKrw": _text(cost.sale_krw), "acquisitionKrw": _text(cost.acquisition_krw),
+                     "feesKrw": _text(cost.fees_krw)},
         "profitAfterSale": _text(after),
         "returnRateAfterSale": None if after is None or basis == 0
         else str(quantize_rate(after / basis)),

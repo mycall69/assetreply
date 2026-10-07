@@ -44,6 +44,13 @@ class SaleCost:
     tax_rate: Decimal | None
     gain: Decimal | None
     deduction: Decimal | None
+    #: 012 US6(FR-019) — 양도차익의 구성(해외만, 원 미만을 버린 값). `gain = sale_krw −
+    #: acquisition_krw − fees_krw`다 — 차익을 만든 그 값들이라
+    #: 화면이 따로 빼지 않는다. 매도금액은 보유 주식만(예수금 제외), 취득가는 모든 매수(배당 재투자
+    #: 포함), 수수료는 매수 + 매도다.
+    sale_krw: Decimal | None = None
+    acquisition_krw: Decimal | None = None
+    fees_krw: Decimal | None = None
 
 
 def floor_won(amount: Decimal) -> Decimal:
@@ -64,7 +71,11 @@ def foreign_sale_cost(*, sale_krw: Decimal, sell_fee_krw: Decimal, acquisition_k
     """해외 종목 — 양도차익 = 매도금액 − 취득가 − 매수·매도 수수료(모두 원화, 원 미만 버림). 공제는
     **원화**다."""
     fee = floor_won(sell_fee_krw)
-    gain = floor_won(sale_krw) - floor_won(acquisition_krw) - floor_won(buy_fees_krw) - fee
+    sale = floor_won(sale_krw)
+    acquisition = floor_won(acquisition_krw)
+    fees = floor_won(buy_fees_krw) + fee
+    gain = sale - acquisition - fees
     tax = floor_won(max(gain - deduction, _ZERO) * rate)
     return SaleCost(fee=fee, tax=tax, total=fee + tax, tax_kind=CAPITAL_GAINS_KIND, tax_rate=rate,
-                    gain=gain, deduction=deduction)
+                    gain=gain, deduction=deduction, sale_krw=sale, acquisition_krw=acquisition,
+                    fees_krw=fees)

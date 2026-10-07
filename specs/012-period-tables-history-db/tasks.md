@@ -586,9 +586,9 @@ description: "Task list for 012-period-tables-history-db"
 
 ### Implementation for User Story 6
 
-- [ ] T081 [US6] `backend/src/simulation/stock_sale_cost.py`(`SaleCost`에 `sale_krw`·`acquisition_krw`·`fees_krw`)·`backend/src/api/services/stock_sale.py`·
+- [X] T081 [US6] `backend/src/simulation/stock_sale_cost.py`(`SaleCost`에 `sale_krw`·`acquisition_krw`·`fees_krw`)·`backend/src/api/services/stock_sale.py`·
   `backend/src/api/routes/stock_simulation.py`(`_sale_json`)·`backend/src/api/services/stock_recurring.py`(적립식 `saleCost`) (FR-019, research R12-18)
-- [ ] T082 [US6] `frontend/src/lib/types.ts`(`SaleCost` 선택 키 셋)·`frontend/src/components/stock/PerformanceBoard.tsx`(`saleNotes`)·
+- [X] T082 [US6] `frontend/src/lib/types.ts`(`SaleCost` 선택 키 셋)·`frontend/src/components/stock/PerformanceBoard.tsx`(`saleNotes`)·
   `frontend/src/components/recurring/RecurringBoard.tsx`(`stockTaxNotes`) (FR-019, F10)
 - [ ] T083 [US6] 브라우저 확인 — quickstart 6(XLK 일시금·해외 적립식·국내 종목) (FR-019, SC-011)
 - [ ] T084 [US6] 게이트(서버를 내린 채)·불변 대조(T001 기준 — US5·US6이 더한 키 제외, quickstart 3-7)·문서(CLAUDE.md·README의 012 줄에 US6, spec Status, 버그 평가

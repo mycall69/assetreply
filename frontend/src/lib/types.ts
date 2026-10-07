@@ -508,6 +508,13 @@ export interface SaleCost {
   /** 해외 — 원화 양도차익과 기본공제. 국내는 `null`. */
   gain: DecimalString | null;
   deduction: DecimalString | null;
+  /**
+   * 012 US6(FR-019) — 양도차익의 구성(해외만, 원 미만 버림 — 국내는 `null`, US6 전 응답은 없다). `gain = saleKrw − acquisitionKrw − feesKrw`.
+   * 매도금액은 보유 주식만(예수금 제외), 취득가는 모든 매수(배당 재투자 포함), 수수료는 매수 + 매도다.
+   */
+  saleKrw?: DecimalString | null;
+  acquisitionKrw?: DecimalString | null;
+  feesKrw?: DecimalString | null;
 }
 
 /**
