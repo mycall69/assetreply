@@ -590,8 +590,8 @@ description: "Task list for 012-period-tables-history-db"
   `backend/src/api/routes/stock_simulation.py`(`_sale_json`)·`backend/src/api/services/stock_recurring.py`(적립식 `saleCost`) (FR-019, research R12-18)
 - [X] T082 [US6] `frontend/src/lib/types.ts`(`SaleCost` 선택 키 셋)·`frontend/src/components/stock/PerformanceBoard.tsx`(`saleNotes`)·
   `frontend/src/components/recurring/RecurringBoard.tsx`(`stockTaxNotes`) (FR-019, F10)
-- [ ] T083 [US6] 브라우저 확인 — quickstart 6(XLK 일시금·해외 적립식·국내 종목) (FR-019, SC-011)
-- [ ] T084 [US6] 게이트(서버를 내린 채)·불변 대조(T001 기준 — US5·US6이 더한 키 제외, quickstart 3-7)·문서(CLAUDE.md·README의 012 줄에 US6, spec Status, 버그 평가
+- [X] T083 [US6] 브라우저 확인 — quickstart 6(XLK 일시금·해외 적립식·국내 종목) (FR-019, SC-011)
+- [X] T084 [US6] 게이트(서버를 내린 채)·불변 대조(T001 기준 — US5·US6이 더한 키 제외, quickstart 3-7)·문서(CLAUDE.md·README의 012 줄에 US6, spec Status, 버그 평가
   `foreign-sale-tax-gain`에 처리 기록) (FR-017, FR-019, SC-009, SC-011)
 
 **Checkpoint**: US6 완결.
@@ -756,6 +756,8 @@ Task: "T025 화면 테스트 — 탭·창 그대로"
   국내 매달·해외 매주. 기대값에 키 셋을 **더하기만** 했다(국내 `None`, 해외는 테스트가 이미 계산하던 매도금액·취득가·매수 + 매도 수수료). 고친 줄 위에 `012 승인 2026-10-07` 주석
 - **2026-10-07 US6 문서 바로잡기**: T079의 "`saleKrw` = 기준일 행 `balanceKrw`"를 "`balance × fxRate`의 원 미만 버림"으로 고쳤다 — 행의 `balanceKrw`는 원 단위 반올림이라 1원
   다를 수 있다(quickstart 6도 같이)
+- **2026-10-07 T084(US6) 게이트(서버를 내린 채 — 구현 커밋 `8003b24`과 같은 코드)**: 백엔드 2,838 passed(커버리지 96.35%, 8분 51초), mypy 230 파일·ruff(`--no-cache`)
+  통과 / 프론트엔드 166 파일·1,421 passed, tsc·eslint — 모두 종료 코드 0. 불변 대조는 기존 키가 모두 같다(quickstart 기록). 버그 평가 `foreign-sale-tax-gain`에 `fix.md`로 처리를 적었다
 
 ## 요구사항 ↔ 태스크
 
