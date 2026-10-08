@@ -50,6 +50,8 @@ export function block(over: Partial<ComparisonBlock> = {}): ComparisonBlock {
     },
     lineEnd: { date: "2026-10-06", holdingReturnRate: "25.964860", afterSaleReturnRate: "20.455734" },
     provisional: [], fx: null,
+    // 013 승인 2026-10-09 — 블록의 필수 칸 `unitPrice`(반복 단가 등락). 단가가 주제가 아닌 테스트는 비어 있다.
+    unitPrice: null,
     ...over,
   };
 }

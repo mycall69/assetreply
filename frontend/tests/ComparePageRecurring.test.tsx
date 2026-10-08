@@ -108,8 +108,9 @@ describe("적립식 표", () => {
     fireEvent.click(screen.getByRole("button", { name: "비교 실행" }));
     const table = await screen.findByRole("table", { name: "비교 표" });
     const cells = within(within(table).getAllByRole("row")[1]).getAllByRole("cell");
-    expect(cells[4].textContent).toContain("과세 시행일 뒤");
-    expect(cells[5].textContent).toContain("—");
-    expect(cells[6].textContent).toContain("—");
+    // 013 승인 2026-10-09 — 반복(단가 등락)으로 투자 원금 뒤에 열이 셋 늘어 칸 번호가 3씩 밀렸다.
+    expect(cells[7].textContent).toContain("과세 시행일 뒤");
+    expect(cells[8].textContent).toContain("—");
+    expect(cells[9].textContent).toContain("—");
   });
 });

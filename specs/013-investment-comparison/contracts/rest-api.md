@@ -52,7 +52,7 @@
 
 ```json
 {"unitPrice": {
-  "kind": "share", "basis": "split_adjusted_close", "currency": "KRW",
+  "kind": "share", "basis": "split_restated_close", "currency": "KRW",
   "start": {"date": "2010-01-04", "value": "16180.000000", "provisional": false, "estimated": false},
   "asOf": {"date": "2026-10-07", "value": "55000.000000", "provisional": false, "estimated": false, "missing": null},
   "change": "38820.000000", "changeRate": "2.399258", "split": {"ratio": "50:1"}

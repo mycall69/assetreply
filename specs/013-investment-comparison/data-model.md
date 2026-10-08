@@ -132,7 +132,7 @@ Alembic 리비전 하나(`down_revision = "a6d2f9c41b83"`, 파일 이름 `<rev>_
 | 칸 | 형 | 뜻 |
 |----|----|----|
 | `kind` | `"share" \| "coin" \| "home" \| "rate"` | 단위 — 1주·1개·1채·금리 |
-| `basis` | `"split_adjusted_close" \| "daily_open" \| "market_price" \| "published_rate"` | 값의 기준 — 주식 수정주가(분할만 반영한 종가), 가상자산 UTC 일봉 시가, 부동산 그 달 시세, 예금 발표 금리 |
+| `basis` | `"split_restated_close" \| "daily_open" \| "market_price" \| "published_rate"` | 값의 기준 — 주식 수정주가(분할만 반영한 종가), 가상자산 UTC 일봉 시가, 부동산 그 달 시세, 예금 발표 금리 |
 | `currency` | 문자열 \| `null` | 주식 상장국 통화·가상자산 시세 통화·부동산 `KRW`, 금리 `null` |
 | `start` | `{date, value, provisional, estimated}` | 시작일 단가 — `date`는 값의 실제 날짜(휴장이면 매수일, 금리·부동산은 그 달 1일), `value` 소수 문자열 |
 | `asOf` | `{date, value \| null, provisional, estimated, missing}` | 기준일 단가 — 없으면 `value: null`, `missing` 까닭(`no_price`·`no_trades`). 금리는 미발표 달이면 마지막 발표 달(`date`)의 금리와 `provisional: true` |

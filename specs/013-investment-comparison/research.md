@@ -297,7 +297,7 @@ contracts/ui-wireframes.md.
 
 | 자산군 | 단가(`basis`) | 시작일 단가 | 기준일 단가 | 통화·단위 |
 |--------|---------------|-------------|-------------|-----------|
-| 주식(일시금·적립식) | 수정주가 `split_adjusted_close` — 010 `simulation/split_adjust.split_restated_close`(그 날 원주가 종가 ÷ 그 날 뒤 구간 안 분할 비율) | 시작일 이후 첫 거래일(매수일)의 수정주가 | 기준일 원주가 종가(그 뒤 분할이 없다) | 상장국 통화(KRW·USD·JPY), 1주 |
+| 주식(일시금·적립식) | 수정주가 `split_restated_close` — 010 `simulation/split_adjust.split_restated_close`(그 날 원주가 종가 ÷ 그 날 뒤 구간 안 분할 비율) | 시작일 이후 첫 거래일(매수일)의 수정주가 | 기준일 원주가 종가(그 뒤 분할이 없다) | 상장국 통화(KRW·USD·JPY), 1주 |
 | 가상자산(일시금·적립식) | UTC 일봉 시가 `daily_open` | 매수한 일봉(적립식은 첫 납입 일봉) | 기준일 일봉 | 시세 통화, 1개 |
 | 예금(정기예금·정기 적금) | 발표 금리 `published_rate` — 정기예금은 정기예금 금리, 적금은 적금 금리 | 가입 달 | 기준일 달 — 미발표면 마지막 발표 달 + 잠정(008 규칙) | 연 %, 차이는 %p, 등락률 없음 |
 | 부동산 | 그 달 시세 `market_price` | 매입가(매입 달 시세 — 요약 `buyPrice`) | 평가액의 시세(요약 `value`·`valueMonth`, 추정·잠정 표식). 없으면 `missing` | KRW, 1채 |
@@ -305,6 +305,8 @@ contracts/ui-wireframes.md.
 - 서버의 순수 함수(`simulation/unit_price.py`)가 `change = asOf − start`, `changeRate = quantize_rate(change ÷ start)`(예금은 `None`)를 낸다. 비율 표기는 기존 `returnRate`와 같다
   (비율 값, 화면 `formatPercent`). 분할 누적 비율 글자(`50:1`, 병합 `1:10`)도 같은 모듈이 낸다
 - 값은 비교 블록 `comparison.unitPrice`에만 싣는다(data-model 3.2) — 메뉴 요약·시계열은 바뀌지 않는다
+- 기준 이름은 `split_restated_close`다 — 010 함수와 같은 이름이고, 출처 수정가의 이름(`adjusted_close`·`close_adjusted`·`adjclose`)을 시뮬레이션 계층에 두지 않는다
+  (005 가드 `tests/unit/test_no_adjusted_price.py` — 구현 중 `split_adjusted_close`로 처음 지었다가 가드에 걸려 바꿨다, 2026-10-09)
 - 데이터 출처(지금 계산이 이미 가진 값 — 새 출처 없음):
   - 주식 일시금: `SimulationResult.closes`·`splits`·첫 행(매수일)·`as_of`
   - 주식 적립식: 적립식 결과 행의 `close_price`·`splits`

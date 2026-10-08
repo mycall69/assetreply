@@ -467,28 +467,28 @@ UTC 일봉 시가, 예금은 발표 금리와 %p 차이(등락률 "—"), 부동
 
 ### Preparation for 반복 2026-10-09
 
-- [ ] T084 [US1] 기존 테스트 변경 승인을 받는다 — T006과 같은 절차(구현 T089~T092를 작업 트리에 둔 채 전체 스위트를 돌려 **실제로 실패한** 기존 테스트로 "지금 단언 → 새 단언"을 만든다) (FR-011, FR-011a)
+- [X] T084 [US1] 기존 테스트 변경 승인을 받는다 — T006과 같은 절차(구현 T089~T092를 작업 트리에 둔 채 전체 스위트를 돌려 **실제로 실패한** 기존 테스트로 "지금 단언 → 새 단언"을 만든다) (FR-011, FR-011a)
   - 예상: `frontend/tests/CompareTable.test.tsx`의 열 머리 목록, `frontend/tests/support/compareFixtures.ts`의 `block()`(필수 형 `unitPrice` 기본값)
   - 목록 밖의 실패는 결함으로 보고 멈춘다. 고친 줄 위에 `013 승인 YYYY-MM-DD` 주석
 
 ### Tests for 반복 2026-10-09 ⚠️
 
-- [ ] T085 [P] [US1] `backend/tests/unit/test_unit_price.py` — `simulation/unit_price` (FR-011a, SC-010, research R13-18)
+- [X] T085 [P] [US1] `backend/tests/unit/test_unit_price.py` — `simulation/unit_price` (FR-011a, SC-010, research R13-18)
   - 차이·등락률(`Decimal`, `quantize_rate` — 기존 `returnRate`와 같은 비율 표기). 금리는 차이만(%p), 등락률 `None`
   - 시작일 단가가 0이거나 없으면 등락 `None`. 기준일 값이 없으면 `missing` 까닭, 차이·등락률 `None`(메우지 않는다)
   - 분할 누적 비율 글자 — 시작일 뒤 기준일까지의 분할만(`50:1`, 둘이면 곱, 병합 `1:10`), 없으면 `None`
   - 모듈에 DB·HTTP 임포트가 없다(헌법 원칙 IV)
-- [ ] T086 [P] [US1] `backend/tests/unit/test_comparison_metrics_unit_price.py` — `api/services/comparison_metrics` (FR-011a)
+- [X] T086 [P] [US1] `backend/tests/unit/test_comparison_metrics_unit_price.py` — `api/services/comparison_metrics` (FR-011a)
   - 비교 블록에 `unitPrice` — 가족별 `kind`·`basis`·`currency`(주식 상장국 통화, 가상자산 시세 통화, 부동산 `KRW`, 금리 `null`), `start`·`asOf`의 `date`·`value`·잠정·추정
   - 넘기지 않으면 `unitPrice: None` — 기존 호출·기존 칸은 그대로
-- [ ] T087 [P] [US1] `backend/tests/integration/test_comparison_unit_price.py` — 일곱 비교 경로 (FR-011a, SC-001, SC-010, contracts/rest-api.md 1.2)
+- [X] T087 [P] [US1] `backend/tests/integration/test_comparison_unit_price.py` — 일곱 비교 경로 (FR-011a, SC-001, SC-010, contracts/rest-api.md 1.2)
   - 주식 일시금·적립식: 시작일 단가 = 메뉴 `/series` 첫 점 `price`(수정 종가), 기준일 단가 = 기준일 원주가 종가. 분할이 낀 고정 데이터에서 `split.ratio`와 수정주가 등락률.
     휴장 시작일이면 시작일 단가의 `date`가 매수일. 해외 종목 `currency = USD`
   - 가상자산 일시금·적립식: 매수 일봉·기준일 일봉 시가
   - 정기예금·정기 적금: 가입 달·기준일 달 발표 금리, 미발표 달이면 마지막 발표 달과 `provisional`
   - 부동산: `summary.buyPrice`·`summary.value`(그 달), 기준일 시세가 없으면 `asOf.value = null`·`missing`
   - 같은 질의의 메뉴 `summary`·`series`가 그대로다(비교 경로가 메뉴 값을 바꾸지 않는다)
-- [ ] T088 [P] [US1] `frontend/tests/CompareTableUnitPrice.test.tsx` — `components/compare/CompareTable`의 단가 열 셋 (FR-011, FR-011a, FR-012)
+- [X] T088 [P] [US1] `frontend/tests/CompareTableUnitPrice.test.tsx` — `components/compare/CompareTable`의 단가 열 셋 (FR-011, FR-011a, FR-012)
   - 열 차례: 대상, 기준일, 투자 원금, 시작일 단가, 기준일 단가, 등락, 현재 가치, 비용, 투자 수익, 수익률
   - 통화 형식(₩·$·¥, 가상자산은 007 유효 숫자 형식, 금리 `3.45%`), 날짜 글자, 휴장 시작일의 매수일
   - 등락: ▲/▼와 색(오름 빨강·내림 파랑), 등락률 둘째 줄. 예금은 `%p`와 등락률 "—". 값 없음은 "—"와 까닭, 잠정·추정 ⏳, "분할 반영 50:1"
@@ -648,6 +648,12 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
 - **2026-10-09 T082 기존 테스트 변경 범위**: `git diff --stat --diff-filter=MD 71003d4 -- backend/tests frontend/tests` → `Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts`
   (T006 승인)·`tests/setup.ts`뿐이다. `setup.ts`는 **더하기만**이다 — 처음엔 이력 대역 줄에 저장 대역을 이어 한 줄을 바꿨던 것을, 기존 감싸기를 그대로 두고 한 겹 더
   감싸는 추가로 고쳤다. T057 승인 변경(`ComparePage.test.tsx`)은 이 기능이 더한 파일이라 목록에 나오지 않는다. 백엔드 기존 테스트 변경은 없다
+- **2026-10-09 T084 승인(사용자)**: 구현 T089~T092를 작업 트리에 둔 채 전체 스위트를 돌렸다 — 화면에서 **실제로 실패한** 기존 테스트 9건(2개 파일), 까닭은 하나(투자 원금 뒤에 열이
+  셋 늘어 칸 번호가 3씩 밀림). `CompareTable.test.tsx` 여덟(열 머리 10개·이름 "열 개의 열이다", 칸 번호 +3, 빈 칸 9개), `ComparePageRecurring.test.tsx` 하나(칸 번호 +3). 실패는 아니나
+  tsc가 요구한 `tests/support/compareFixtures.ts` `block()`의 `unitPrice: null` 한 줄. 기대 값은 바꾸지 않았다. 고친 줄 위에 `013 승인 2026-10-09` 주석.
+  백엔드는 기존 테스트 변경이 없다 — 005 가드(`test_no_adjusted_price`)가 처음 지은 기준 이름 `split_adjusted_close`를 잡아 **구현 이름**을 `split_restated_close`(010 함수와 같은
+  이름)로 고쳤고, 같은 작업 단위에서 data-model 3.2·rest-api 1.2·research R13-18도 고쳤다
+- **2026-10-09 T087 범위**: 부동산 기준일 시세가 없는 경우(`missing: no_trades`)는 이 고정 데이터로 만들 수 없어 단위 테스트(T085·T086)가 본다
 - 커밋 메시지는 한국어이고 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`을 단다. 푸시는 요청이 있을 때만 한다.
 
 ## 요구사항 ↔ 태스크
