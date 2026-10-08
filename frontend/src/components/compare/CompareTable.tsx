@@ -89,7 +89,7 @@ function UnitCell({ unit, point, testId, split }: {
   const p = unit[point];
   const marks = [p.provisional ? "⏳ 잠정" : null, p.estimated ? "⏳ 추정" : null].filter((m) => m !== null);
   return (
-    <td data-testid={testId} className="px-3 py-2 text-right align-top tabular-nums">
+    <td data-testid={testId} className="whitespace-nowrap px-3 py-2 text-right align-top tabular-nums">
       {p.value === null ? "—" : unitText(unit, p.value)}
       <p className="text-xs text-gray-500">{unitDate(unit, p)}</p>
       {p.value === null && p.missing !== undefined && p.missing !== null && (
@@ -115,7 +115,7 @@ function ChangeCell({ unit }: { unit: UnitPrice | null }) {
   const arrow = flat ? "" : negative ? "▼ " : "▲ ";
   const amount = unit.kind === "rate" ? `${formatRate(magnitude)}%p` : unitText(unit, magnitude);
   return (
-    <td data-testid="unit-change" className={`px-3 py-2 text-right align-top tabular-nums ${tone}`}>
+    <td data-testid="unit-change" className={`whitespace-nowrap px-3 py-2 text-right align-top tabular-nums ${tone}`}>
       {arrow}{amount}
       <p className="text-xs">{unit.changeRate === null ? "—" : formatPercent(unit.changeRate)}</p>
     </td>
@@ -195,7 +195,8 @@ function OkCells({ row, block, method, summary }: {
         )}
       </td>
       <td className="px-3 py-2 align-top tabular-nums">
-        {block.asOf}
+        {/* 반복 2026-10-09 — 열이 늘어 날짜가 중간에서 꺾이지 않게 한다. */}
+        <span className="whitespace-nowrap">{block.asOf}</span>
         {block.provisional.length > 0 && (
           <p className="text-xs text-amber-700">⏳ {block.provisional.map((k) => PROVISIONAL_TEXT[k]).join(" · ")}</p>
         )}
