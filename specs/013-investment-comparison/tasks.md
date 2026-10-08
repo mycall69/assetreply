@@ -281,26 +281,26 @@ Test, quickstart 5-7).
 ### Tests for User Story 2 ⚠️
 
 - [ ] T039 [US2] 기존 테스트 변경 승인을 받는다 — T006과 같은 절차. 예상 목록은 없다(research R13-16). 실제로 실패한 기존 테스트가 있으면 "지금 단언 → 새 단언"으로 보이고 승인을 받는다 (FR-006)
-- [ ] T040 [P] [US2] `backend/tests/unit/test_installment_open_tax.py` — `simulation/installment_ladder`의 `open_tax` (FR-011, SC-001, data-model 4)
+- [X] T040 [P] [US2] `backend/tests/unit/test_installment_open_tax.py` — `simulation/installment_ladder`의 `open_tax` (FR-011, SC-001, data-model 4)
   - 진행 중 적금 계약·정기예금이 있으면 `open_tax`가 그 경과 이자의 소득세 합이고, 평가액 = 납입·원금 + 경과 이자 − `open_tax`.
   - 모두 만기로 끝나면 0. 같은 입력의 기존 요약 값(`interest_total`·`tax_total`·`balance`·`profit`·`return_rate`)이 더하기 전과 같다.
-- [ ] T041 [P] [US2] `backend/tests/unit/test_comparison_costs_recurring.py` — `simulation/comparison_costs` 적립식·정기 적금 (FR-011, SC-001, research R13-3)
+- [X] T041 [P] [US2] `backend/tests/unit/test_comparison_costs_recurring.py` — `simulation/comparison_costs` 적립식·정기 적금 (FR-011, SC-001, research R13-3)
   - 주식 적립식: `buy_fee = buyFeeTotal`, `dividend_tax = dividendTaxTotal`, 매도 `sale_fee = saleCost.fee`, 세금 = `saleCost.tax`.
   - 가상자산 적립식: `buy_fee = buyFeeTotal`, `sale_fee = saleCost.fee`. 기준일이 과세 시행일 전이면 `crypto_tax = 0`(`not_yet_taxed`), 시행일 뒤면 `crypto_tax = None`·`sale.total = None`·
     `total = None`·`blank = "outside_rules"`(0으로 메우지 않는다).
   - 정기 적금: `interest_tax_matured = taxTotal`(메뉴 칸과 같다), `interest_tax_open = open_tax`, `sale = None`.
-- [ ] T042 [P] [US2] `backend/tests/unit/test_comparison_metrics_recurring.py` — `api/services/comparison_metrics` 적립식·정기 적금 (FR-011, FR-015, research R13-4)
+- [X] T042 [P] [US2] `backend/tests/unit/test_comparison_metrics_recurring.py` — `api/services/comparison_metrics` 적립식·정기 적금 (FR-011, FR-015, research R13-4)
   - 적립식 둘: `mainBasis = after_sale`, 매도 후 값이 `null`이면 `unavailable`이고 `profit`·`returnRate`가 `None`(물러나지 않는다 — `RecurringBoard.tsx:73`). 현재 가치 `totalKrw`,
     원금 `contributed`(+`contributedKrw`).
   - 정기 적금: `holding`, 현재 가치 `balance`, 원금 `contributed`, `lineEnd.afterSaleReturnRate = None`, `provisionalFrom` → `unpublished_rate`.
-- [ ] T043 [P] [US2] `backend/tests/integration/test_comparison_identity_recurring.py` — 비교 경로 셋(주식·가상자산 적립식, 정기 적금) ↔ 메뉴 경로 (FR-006, FR-011, FR-020, SC-001, SC-002, contracts/rest-api.md 1)
+- [X] T043 [P] [US2] `backend/tests/integration/test_comparison_identity_recurring.py` — 비교 경로 셋(주식·가상자산 적립식, 정기 적금) ↔ 메뉴 경로 (FR-006, FR-011, FR-020, SC-001, SC-002, contracts/rest-api.md 1)
   - T010과 같은 대조(`summary`·`condition`·`series`·202·거절). 거절은 정기 적금 `installment_not_available`·`before_first_month`, 가상자산 `start_after_end`.
   - 가상자산 2027년 기준일은 `routes.crypto_simulation`의 `utc_yesterday`를 바꿔 만든다.
   - 실행 전후 `simulation_history` 행 수가 같다.
-- [ ] T044 [P] [US2] `frontend/tests/compareStoreRecurring.test.ts` — 적립식·정기 적금 실행 (FR-006, FR-007, FR-010, FR-012a)
+- [X] T044 [P] [US2] `frontend/tests/compareStoreRecurring.test.ts` — 적립식·정기 적금 실행 (FR-006, FR-007, FR-010, FR-012a)
   - 적립식 질의 = `stockStore.toRecurringQuery`·`cryptoStore.toRecurringQuery`(`amount`·`frequency`), 정기 적금 = `depositStore.toInstallmentQuery` — 글자까지 같다.
   - 방식·주기를 바꾸면 흐림. 정기 적금 + 적금 없는 투자처가 대상에 있으면 400 `installment_not_available` → `blocked`(`remove` 갈래, "정기 적금이 없는 투자처").
-- [ ] T045 [P] [US2] `frontend/tests/ComparePageRecurring.test.tsx` — 방식 칸과 적립식 표 (FR-006, FR-007, FR-011, F3·F5)
+- [X] T045 [P] [US2] `frontend/tests/ComparePageRecurring.test.tsx` — 방식 칸과 적립식 표 (FR-006, FR-007, FR-011, F3·F5)
   - 주식·가상자산 라디오 일시금·적립식 + 주기(`aria-label="납입 주기"`), 금액 라벨 "한 번 납입액"·"월 납입액", 예금 정기예금·정기 적금, 부동산 "매입 후 보유" 글자.
   - 표의 투자 원금 "총 납입 원금 · N회 납입". 가상자산 적립식의 시행일 뒤 비용 "—" + 까닭, 투자 수익·수익률 "—".
 
