@@ -313,7 +313,7 @@ Test, quickstart 5-7).
   - 질의는 `routes/stock_recurring.py:68-83`, `routes/crypto_recurring.py:146-159`, `routes/deposit_installment.py:117-124`와 같다(+ `maxPoints`). 요약 JSON은 `services/stock_recurring.summary_json`,
     `routes.crypto_recurring.summary_json`, `routes.deposit_installment`의 요약 함수. 시계열은 `recurring_series.build_stock_series`·`build_crypto_series`·`build_installment_series`.
 - [X] T050 [US2] 화면 — `frontend/src/lib/compareApi.ts`(적립식·정기 적금 짝) · `frontend/src/stores/compareStore.ts`(방식·주기) · `frontend/src/components/compare/CompareConditionForm.tsx`(`InvestmentModeFields`·`ProductPicker`, 금액 라벨 `amountLabel`) · `CompareTable.tsx`(총 납입 원금 · N회) (FR-006, FR-007, FR-011, F3·F5)
-- [ ] T051 [US2] 검증 — quickstart 5-7(+ 정기 적금 시중은행·상호금융 비교) (FR-006, SC-001)
+- [X] T051 [US2] 검증 — quickstart 5-7(+ 정기 적금 시중은행·상호금융 비교) (FR-006, SC-001)
   - quickstart 실행 기록에 적는다.
 
 **Checkpoint**: US2 완결 — 일곱 방식 모두 비교된다.
