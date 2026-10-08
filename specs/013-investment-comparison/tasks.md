@@ -363,13 +363,13 @@ Independent Test, quickstart 5-10).
 
 ### Preparation for User Story 4
 
-- [ ] T059 [US4] 개발 DB에 새 리비전을 올릴 준비 — T003의 머리(`a6d2f9c41b83`)가 그대로인지 다시 본다(다른 작업이 리비전을 더했으면 멈추고 보고한다) (data-model 1)
-- [ ] T060 [US4] 화면 테스트 대역 — `frontend/tests/support/savedComparisonStub.ts`(신규 — 메모리 안 `GET`·`POST`·`DELETE /api/comparison/saved`, 도우미 `seed`·`entries`·`fail`·`heal`·`calls`) · `frontend/tests/setup.ts`(**더하기만** — 이력 대역 곁에 `/api/comparison/saved*` 처리와 `beforeEach` 비우기) (FR-016~FR-019)
+- [X] T059 [US4] 개발 DB에 새 리비전을 올릴 준비 — T003의 머리(`a6d2f9c41b83`)가 그대로인지 다시 본다(다른 작업이 리비전을 더했으면 멈추고 보고한다) (data-model 1)
+- [X] T060 [US4] 화면 테스트 대역 — `frontend/tests/support/savedComparisonStub.ts`(신규 — 메모리 안 `GET`·`POST`·`DELETE /api/comparison/saved`, 도우미 `seed`·`entries`·`fail`·`heal`·`calls`) · `frontend/tests/setup.ts`(**더하기만** — 이력 대역 곁에 `/api/comparison/saved*` 처리와 `beforeEach` 비우기) (FR-016~FR-019)
   - 비교 화면이 저장 목록을 받기 시작하는 T077보다 먼저다 — 대역 없이 화면을 바꾸면 US1~US3 화면 테스트가 실제 `fetch`로 흘러간다.
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T061 [P] [US4] `backend/tests/unit/test_comparison_conditions.py` — `api/services/comparison_conditions` (FR-004, FR-016, SC-006, data-model 2)
+- [X] T061 [P] [US4] `backend/tests/unit/test_comparison_conditions.py` — `api/services/comparison_conditions` (FR-004, FR-016, SC-006, data-model 2)
   - `v`는 1만. `asset`은 `stock`·`crypto`·`deposit`·`realestate`. `method` 짝(주식·가상자산 `lump_sum`·`recurring`, 예금 `deposit`·`installment`, 부동산 `hold`).
   - `frequency`: `recurring`이면 `daily`·`weekly`·`monthly`·`yearly`, 그 밖은 `null`. `start`는 `YYYY-MM-DD`.
   - `amount`: `[0-9]+(\.[0-9]+)?`, > 0, 예금 둘은 정수, 부동산은 `null`. **받은 글자 그대로** 남는다(`"10000000"`이 수가 되지 않는다).
@@ -379,34 +379,34 @@ Independent Test, quickstart 5-10).
   - 이름: 앞뒤 공백을 뺀 1~100자.
   - 알려진 칸만 남는다 — 결과 키(`summary`·`comparison`·`series`)는 버려진다. 직렬화는 `json.dumps(…, ensure_ascii=False, sort_keys=True, separators=(",", ":"))`.
   - 거절 메시지가 칸을 밝힌다. 모듈에 `*`·`/`·`//`·`.quantize`가 없다(012 `test_history_conditions`의 금액 비계산 검사와 같은 매개 검사에 이 모듈을 더하는 대신 이 파일에서 같은 검사).
-- [ ] T062 [P] [US4] `backend/tests/integration/test_saved_comparison_schema.py` — 테이블 (FR-016, data-model 1)
+- [X] T062 [P] [US4] `backend/tests/integration/test_saved_comparison_schema.py` — 테이블 (FR-016, data-model 1)
   - 열이 정확히 `id`·`name`·`asset_class`·`condition`·`saved_at`. `id` `bigint` 자동 증가 PK, `name` `varchar(100)` NOT NULL, `asset_class` `varchar(16)` NOT NULL,
     `condition` `text` NOT NULL, `saved_at` `datetime` NOT NULL. 색인 `ix_saved_comparison_list (saved_at, id)`. 처음 0행.
   - 하향(`a6d2f9c41b83`) 뒤 `saved_comparison`만 없어지고 `simulation_history`·`history_setting`은 남는다. 재상향.
-- [ ] T063 [P] [US4] `backend/tests/integration/test_saved_comparison_api.py` — `/api/comparison/saved` (FR-016, FR-017, FR-018, FR-019, SC-006, contracts/rest-api.md 2~5)
+- [X] T063 [P] [US4] `backend/tests/integration/test_saved_comparison_api.py` — `/api/comparison/saved` (FR-016, FR-017, FR-018, FR-019, SC-006, contracts/rest-api.md 2~5)
   - `GET` 빈 목록 `{"entries": []}`. `POST` 201 `{entry, entries}`. 같은 조건·이름을 두 번 저장하면 두 행.
   - 차례: `savedAt` 내림차순, 같은 초는 `id` 내림차순(`api/services/saved_comparison.utc_now`를 바꾼다). `savedAt`은 `%Y-%m-%dT%H:%M:%SZ`.
   - `DELETE /{id}` 200 남은 목록, 없는 `id`도 200, 정수가 아닌 `id`는 422.
   - 검증 실패 422 `{"status": "invalid_comparison", "message": …}`.
   - 이력 보관 기간을 7일로 바꾸고(`PUT /api/history/settings`) 시각을 1년 뒤로 옮겨도 저장한 비교가 남는다(보관 기간 없음).
-- [ ] T064 [P] [US4] `frontend/tests/HistoryStatesEmptyText.test.tsx` — `components/history/HistoryStates.HistoryContent`의 빈 목록 문구 속성 (F9)
+- [X] T064 [P] [US4] `frontend/tests/HistoryStatesEmptyText.test.tsx` — `components/history/HistoryStates.HistoryContent`의 빈 목록 문구 속성 (F9)
   - 속성이 없으면 지금 문구("아직 실행한 시뮬레이션이 없습니다."), 주면 그 문구.
-- [ ] T065 [P] [US4] `frontend/tests/SavedComparisons.test.tsx` — `components/compare/SavedComparisons` (FR-016~FR-019, F9)
+- [X] T065 [P] [US4] `frontend/tests/SavedComparisons.test.tsx` — `components/compare/SavedComparisons` (FR-016~FR-019, F9)
   - 줄: 이름, "자산군 · 대상 이름들"(셋 넘으면 "외 N개"), 시작일·방식, 저장 시각(`formatKst`). "불러오기"(`aria-label="{이름} 불러오기"`)·"×"(`aria-label="{이름} 삭제"`).
   - 안내 "이 기기의 로컬 DB에 저장됩니다. 지울 때까지 남습니다." — 보관 기간 문장이 없다. 빈 목록 "아직 저장한 비교가 없습니다.".
   - 불러오기 실패 `role="alert"` + "다시 시도", 삭제·저장 실패 `role="alert"` 문구.
-- [ ] T066 [P] [US4] `frontend/tests/SaveComparisonForm.test.tsx` — `components/compare/SaveComparisonForm` (FR-016, F9)
+- [X] T066 [P] [US4] `frontend/tests/SaveComparisonForm.test.tsx` — `components/compare/SaveComparisonForm` (FR-016, F9)
   - 열면 이름 칸에 자동 이름. 빈 이름(공백만)이면 저장 단추가 꺼진다. 취소. 저장은 앞뒤 공백을 뺀 이름으로 `onSave`.
-- [ ] T067 [P] [US4] `frontend/tests/compareStoreSaved.test.ts` — 저장 슬라이스 (FR-012a, FR-016~FR-019, SC-006, SC-007, data-model 5.2)
+- [X] T067 [P] [US4] `frontend/tests/compareStoreSaved.test.ts` — 저장 슬라이스 (FR-012a, FR-016~FR-019, SC-006, SC-007, data-model 5.2)
   - 저장은 결과가 있고 흐리지 않고 막히지 않았을 때만(수집 중인 대상이 남아도 된다). 본문 = `run.condition`(정규 조건) + 이름.
   - 성공하면 `entries`가 응답 목록. 실패하면 `saveError`, 결과·실행 상태는 그대로.
   - 불러오기: 자산군·방식·입력·대상을 채우고 곧바로 실행(같은 질의). 불러온 대상이 지금 막히면(`unknown_coin`) 막힘 칸.
   - 삭제, 목록 받기 실패·다시 시도. 어디에서도 `/api/history` `PUT`이 없다.
-- [ ] T068 [P] [US4] `frontend/tests/ComparePageSaved.test.tsx` — 화면 끝에서 끝까지(대역 T060) (FR-012a, FR-016~FR-019)
+- [X] T068 [P] [US4] `frontend/tests/ComparePageSaved.test.tsx` — 화면 끝에서 끝까지(대역 T060) (FR-012a, FR-016~FR-019)
   - 실행 → 저장(이름 고침) → 목록에 보인다 → 다시 그려도(새 렌더) 목록이 있다 → 불러오면 같은 질의로 요청 → 삭제하면 빠진다.
   - 흐린 동안 저장 단추가 꺼지고 "다시 실행한 뒤 저장할 수 있습니다". 막힘이면 저장 단추가 꺼진다.
 
-- [ ] T083 [P] [US4] `backend/tests/unit/test_saved_comparison_service.py` — 메모리 안 가짜 저장소(`SavedComparisonRepository` Protocol 충족)로 `api/services/saved_comparison` (FR-016, FR-018, SC-006, 헌법 원칙 IV)
+- [X] T083 [P] [US4] `backend/tests/unit/test_saved_comparison_service.py` — 메모리 안 가짜 저장소(`SavedComparisonRepository` Protocol 충족)로 `api/services/saved_comparison` (FR-016, FR-018, SC-006, 헌법 원칙 IV)
   - 저장은 정규화된 조건 글과 이름을 저장소에 넘기고 201 본문 `{entry, entries}`를 만든다.
   - 검증 실패면 저장소를 부르지 않고 `InvalidComparison`.
   - 삭제는 없는 `id`도 저장소에 맡기고 남은 목록을 돌려준다.
@@ -570,6 +570,7 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
 - **2026-10-08 T057 승인(사용자)**: 최종 지표 막대를 붙인 뒤 전체 화면 스위트에서 **실제로 실패한** 테스트는 이 기능 US1의 `ComparePage.test.tsx` 2건(3줄)뿐이었다 —
   `screen.getAllByText(/₩409,114,677/)`가 화면 전체의 투자 수익 글자를 세는데 막대도 같은 값을 같은 형식으로 보인다(F7). 세는 범위를 비교 표(`within(표)`)로 좁혔고
   기대 개수(2·1·2)는 그대로다. 고친 줄 위에 `013 승인 2026-10-08` 주석. 정렬 상태는 US1에서 이미 스토어에 있어(`sort`) 표의 줄 차례 함수만 내보냈다(`sortedRows`)
+- **2026-10-08 T059**: 개발 DB 머리 리비전이 T003과 같은 `a6d2f9c41b83`(head)이었다 — 다른 작업이 리비전을 더하지 않았다
 - 커밋 메시지는 한국어이고 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`을 단다. 푸시는 요청이 있을 때만 한다.
 
 ## 요구사항 ↔ 태스크
