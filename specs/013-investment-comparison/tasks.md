@@ -347,7 +347,7 @@ Independent Test, quickstart 5-10).
 - [X] T055 [US3] `frontend/src/components/compare/CompareReturnChart.tsx`(신규) — 색 10개 팔레트·선 모양 번갈아(수 상수 — 열거형을 실행 중에 읽지 않는다), `lineEnd` 점, 커서 상자(`lib/chartHover`의 자리 계산 — `sourceEvent` 좌표), 높이 360 (FR-015, F6)
 - [X] T056 [US3] `frontend/src/components/compare/CompareMetricBars.tsx`(신규) — DOM 막대, 길이만 그리기 전용 `Number`, 잠정 대상 ⏳ (FR-015, F7)
 - [X] T057 [US3] `frontend/src/stores/compareStore.ts`(정렬 상태 `sort`를 스토어로 — 표와 막대가 함께 쓴다) · `frontend/src/app/compare/page.tsx`(표 아래 그래프 둘, 흐림 적용) · `CompareTable.tsx`(정렬 상태를 스토어에서) (FR-012, FR-015)
-- [ ] T058 [US3] 검증 — quickstart 5-10 (FR-015, SC-005)
+- [X] T058 [US3] 검증 — quickstart 5-10 (FR-015, SC-005)
   - quickstart 실행 기록에 적는다.
 
 **Checkpoint**: US3 완결 — 그래프의 끝 값이 표와 같다.
