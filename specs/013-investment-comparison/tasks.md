@@ -329,17 +329,17 @@ Independent Test, quickstart 5-10).
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T052 [P] [US3] `frontend/tests/CompareReturnChart.test.tsx` — `components/compare/CompareReturnChart` (FR-015, SC-005, research R13-5, F6)
+- [X] T052 [P] [US3] `frontend/tests/CompareReturnChart.test.tsx` — `components/compare/CompareReturnChart` (FR-015, SC-005, research R13-5, F6)
   - 파일 안 인라인 모의(`createChart`·`addSeries`·`setData`·`subscribeCrosshairMove`·`timeScale().fitContent`·`remove`·`LineSeries`만).
   - 대상마다 `splitSeriesAtGaps` 구간 선, 값은 `returnRate`. 잠정 구간은 연한 색.
   - 시계열 마지막 날 < `lineEnd.date`면 그 날에 보유 중 점을 더한다. 같으면 더하지 않는다.
   - `afterSaleReturnRate`가 있을 때만 점만 그리는 시리즈(`lineVisible: false`, `pointMarkersVisible: true`)를 기준일 하나로 더한다.
   - 대상 10개 → 색 10개가 모두 다르고 선 모양(수)이 번갈아. 범례에 이름(`compare-legend`), 설명 글자 "선: 보유 중(매도 전) · 끝 점: 매도 후"(`compare-basis`).
   - 붙잡은 커서 처리기에 `{time, point, sourceEvent}`를 주면 상자(`compare-hover`)가 대상마다 값을, 없는 대상은 "값 없음"을, 기준일엔 두 값을 보인다. 자리는 `sourceEvent` 좌표.
-- [ ] T053 [P] [US3] `frontend/tests/CompareMetricBars.test.tsx` — `components/compare/CompareMetricBars` (FR-015, SC-005, research R13-12, F7)
+- [X] T053 [P] [US3] `frontend/tests/CompareMetricBars.test.tsx` — `components/compare/CompareMetricBars` (FR-015, SC-005, research R13-12, F7)
   - 수익률 묶음·투자 수익 묶음. 글자 값 = 표와 같은 형식 함수의 출력(`formatPercent`·원화 형식). `null`이면 막대 없이 "—". 음수는 기준선 왼쪽. 차례 = 받은 차례.
   - `provisional`이 있는 대상은 이름 곁에 ⏳(표와 같은 글자 — 원칙 V).
-- [ ] T054 [P] [US3] `frontend/tests/ComparePageCharts.test.tsx` — 화면의 그래프 (FR-012a, FR-013, FR-015)
+- [X] T054 [P] [US3] `frontend/tests/ComparePageCharts.test.tsx` — 화면의 그래프 (FR-012a, FR-013, FR-015)
   - `ok` 대상만 그래프·막대에 있다. 수집 중 대상은 완료 뒤 더해진다. 막대 차례가 표의 지금 정렬을 따른다. 흐린 동안 그래프·막대도 흐리다.
 
 ### Implementation for User Story 3
