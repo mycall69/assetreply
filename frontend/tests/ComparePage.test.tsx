@@ -135,7 +135,8 @@ describe("실행", () => {
     const rows = within(table).getAllByRole("row").slice(1);
     expect(rows.map((r) => within(r).getAllByRole("cell")[0].textContent)).toEqual([
       expect.stringContaining("삼성전자"), expect.stringContaining("Technology Select Sector SPDR Fund")]);
-    expect(screen.getAllByText(/₩409,114,677/)).toHaveLength(2);
+    // 013 승인 2026-10-08 — 최종 지표 막대(US3)도 같은 값을 보여 세는 범위를 비교 표로 좁힌다.
+    expect(within(screen.getByRole("table", { name: "비교 표" })).getAllByText(/₩409,114,677/)).toHaveLength(2);
   });
 
   it("막히면 결과 대신 막힘 칸이고 제안을 누르면 시작일만 옮긴다", async () => {
@@ -160,9 +161,11 @@ describe("실행", () => {
     render(<ComparePage />);
     fireEvent.click(runButton());
     expect(await screen.findByText(/수집 중 ·/)).toBeInTheDocument();
-    expect(screen.getAllByText(/₩409,114,677/)).toHaveLength(1);
+    // 013 승인 2026-10-08 — 최종 지표 막대(US3)도 같은 값을 보여 세는 범위를 비교 표로 좁힌다.
+    expect(within(screen.getByRole("table", { name: "비교 표" })).getAllByText(/₩409,114,677/)).toHaveLength(1);
     streams.stock[0].handlers.onCompleted();
-    await waitFor(() => expect(screen.getAllByText(/₩409,114,677/)).toHaveLength(2));
+    // 013 승인 2026-10-08 — 최종 지표 막대(US3)도 같은 값을 보여 세는 범위를 비교 표로 좁힌다.
+    await waitFor(() => expect(within(screen.getByRole("table", { name: "비교 표" })).getAllByText(/₩409,114,677/)).toHaveLength(2));
     expect(screen.queryByText(/수집 중 ·/)).toBeNull();
   });
 

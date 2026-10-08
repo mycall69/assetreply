@@ -344,9 +344,9 @@ Independent Test, quickstart 5-10).
 
 ### Implementation for User Story 3
 
-- [ ] T055 [US3] `frontend/src/components/compare/CompareReturnChart.tsx`(신규) — 색 10개 팔레트·선 모양 번갈아(수 상수 — 열거형을 실행 중에 읽지 않는다), `lineEnd` 점, 커서 상자(`lib/chartHover`의 자리 계산 — `sourceEvent` 좌표), 높이 360 (FR-015, F6)
-- [ ] T056 [US3] `frontend/src/components/compare/CompareMetricBars.tsx`(신규) — DOM 막대, 길이만 그리기 전용 `Number`, 잠정 대상 ⏳ (FR-015, F7)
-- [ ] T057 [US3] `frontend/src/stores/compareStore.ts`(정렬 상태 `sort`를 스토어로 — 표와 막대가 함께 쓴다) · `frontend/src/app/compare/page.tsx`(표 아래 그래프 둘, 흐림 적용) · `CompareTable.tsx`(정렬 상태를 스토어에서) (FR-012, FR-015)
+- [X] T055 [US3] `frontend/src/components/compare/CompareReturnChart.tsx`(신규) — 색 10개 팔레트·선 모양 번갈아(수 상수 — 열거형을 실행 중에 읽지 않는다), `lineEnd` 점, 커서 상자(`lib/chartHover`의 자리 계산 — `sourceEvent` 좌표), 높이 360 (FR-015, F6)
+- [X] T056 [US3] `frontend/src/components/compare/CompareMetricBars.tsx`(신규) — DOM 막대, 길이만 그리기 전용 `Number`, 잠정 대상 ⏳ (FR-015, F7)
+- [X] T057 [US3] `frontend/src/stores/compareStore.ts`(정렬 상태 `sort`를 스토어로 — 표와 막대가 함께 쓴다) · `frontend/src/app/compare/page.tsx`(표 아래 그래프 둘, 흐림 적용) · `CompareTable.tsx`(정렬 상태를 스토어에서) (FR-012, FR-015)
 - [ ] T058 [US3] 검증 — quickstart 5-10 (FR-015, SC-005)
   - quickstart 실행 기록에 적는다.
 
@@ -567,6 +567,9 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
 - **2026-10-08 T047·T048**: 새 코드가 없다 — US1의 `comparison_costs`·`comparison_metrics`가 이미 적립식 둘·정기 적금 갈래를 담고 있어(가족 `Family`·`stock_costs`·
   `crypto_costs`·`deposit_costs`) T041·T042가 최초 실행에서 통과했다(US2 테스트 커밋 메시지에 적었다). T050의 스토어(방식·주기)·조건 칸(`methodFields`·금액 라벨)·
   표(총 납입 원금 · N회)도 US1에서 들어갔고, US2에서는 `compareApi`의 짝 셋과 화면의 방식 칸만 더했다
+- **2026-10-08 T057 승인(사용자)**: 최종 지표 막대를 붙인 뒤 전체 화면 스위트에서 **실제로 실패한** 테스트는 이 기능 US1의 `ComparePage.test.tsx` 2건(3줄)뿐이었다 —
+  `screen.getAllByText(/₩409,114,677/)`가 화면 전체의 투자 수익 글자를 세는데 막대도 같은 값을 같은 형식으로 보인다(F7). 세는 범위를 비교 표(`within(표)`)로 좁혔고
+  기대 개수(2·1·2)는 그대로다. 고친 줄 위에 `013 승인 2026-10-08` 주석. 정렬 상태는 US1에서 이미 스토어에 있어(`sort`) 표의 줄 차례 함수만 내보냈다(`sortedRows`)
 - 커밋 메시지는 한국어이고 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`을 단다. 푸시는 요청이 있을 때만 한다.
 
 ## 요구사항 ↔ 태스크

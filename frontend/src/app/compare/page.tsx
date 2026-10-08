@@ -12,7 +12,9 @@ import { useEffect } from "react";
 import { AssetPicker } from "@/components/compare/AssetPicker";
 import { CompareBlockedPanel } from "@/components/compare/CompareBlockedPanel";
 import { CompareConditionForm } from "@/components/compare/CompareConditionForm";
-import { CompareTable, type CompareRow } from "@/components/compare/CompareTable";
+import { CompareMetricBars, type MetricItem } from "@/components/compare/CompareMetricBars";
+import { CompareReturnChart, type CompareChartItem } from "@/components/compare/CompareReturnChart";
+import { CompareTable, sortedRows, type CompareRow } from "@/components/compare/CompareTable";
 import { CompareTargetPicker } from "@/components/compare/CompareTargetPicker";
 import { StaleBanner } from "@/components/compare/StaleBanner";
 import { ProductPicker } from "@/components/deposit/ProductPicker";
@@ -52,6 +54,14 @@ export default function ComparePage() {
   const blocked = rows.flatMap((r) => (r.state.status === "blocked"
     ? [{ key: r.key, name: r.name, reason: r.state.reason as BlockReason }] : []));
   const proposal = suggestion(states);
+  // 그래프에는 계산된 대상만 — 수집 중 대상은 끝나면 더해진다(명확화 2). 선은 실행 차례라 정렬해도 색이 바뀌지 않고, 막대는 표의 지금 정렬이다.
+  const chartItems: CompareChartItem[] = rows.flatMap((r) => (r.state.status === "ok"
+    ? [{ key: r.key, name: r.name, series: r.state.data.series, lineEnd: r.state.data.comparison.lineEnd }] : []));
+  const metricItems: MetricItem[] = sortedRows(rows, sort).flatMap((r) => (r.state.status === "ok"
+    ? [{
+      key: r.key, name: r.name, returnRate: r.state.data.comparison.returnRate, profit: r.state.data.comparison.profit,
+      provisional: r.state.data.comparison.provisional.length > 0,
+    }] : []));
 
   // 투자 방식 — 메뉴와 같은 부품이다(주식·가상자산 `InvestmentModeFields`, 예금 `ProductPicker`). 부동산은 하나뿐이다.
   const methodFields = asset === "stock" || asset === "crypto"
@@ -99,9 +109,15 @@ export default function ComparePage() {
       {run !== null && status !== "blocked" && (
         <section className="space-y-3">
           {stale && <StaleBanner onRerun={() => void runComparison()} />}
-          <div className={stale ? "opacity-50" : undefined} data-testid="compare-result">
+          <div className={stale ? "space-y-5 opacity-50" : "space-y-5"} data-testid="compare-result">
             <CompareTable rows={rows} method={run.condition.method} sort={sort} onSort={toggleSort}
               onRetry={(key) => void retryTarget(key)} />
+            {chartItems.length > 0 && (
+              <>
+                <CompareReturnChart items={chartItems} />
+                <CompareMetricBars items={metricItems} />
+              </>
+            )}
           </div>
         </section>
       )}

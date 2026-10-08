@@ -56,7 +56,8 @@ function sortValue(block: ComparisonBlock, key: SortKey): string | null {
   }
 }
 
-function sorted(rows: CompareRow[], sort: SortState | null): CompareRow[] {
+/** 표의 줄 차례 — 계산된 줄을 정렬하고 나머지(수집 중·실패)는 맨 아래다. 최종 지표 막대도 이 차례를 쓴다(T057). */
+export function sortedRows(rows: CompareRow[], sort: SortState | null): CompareRow[] {
   const done = rows.filter((r) => r.state.status === "ok");
   const rest = rows.filter((r) => r.state.status !== "ok");
   if (sort === null) return [...done, ...rest];
@@ -207,7 +208,7 @@ export function CompareTable({ rows, method, sort, onSort, onRetry }: {
           </tr>
         </thead>
         <tbody>
-          {sorted(rows, sort).map((row) => (
+          {sortedRows(rows, sort).map((row) => (
             <tr key={row.key} className="border-b border-gray-100">
               {row.state.status === "ok"
                 ? <OkCells row={row} block={row.state.data.comparison} method={method} summary={row.state.data.summary} />
