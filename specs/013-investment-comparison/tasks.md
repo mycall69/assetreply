@@ -507,8 +507,8 @@ UTC 일봉 시가, 예금은 발표 금리와 %p 차이(등락률 "—"), 부동
   - `frontend/src/lib/types.ts`: `UnitPrice`, `ComparisonBlock.unitPrice`
   - `frontend/src/components/compare/CompareTable.tsx`: 열 셋, 셀 형식, 도움말, 정렬 키 `unitChange`
   - `frontend/src/stores/compareStore.ts`: `SortKey`에 `unitChange`
-- [ ] T093 [US1] 검증 — quickstart 5-13을 개발 서버·브라우저로 확인하고 실행 기록에 적는다 (FR-011a, SC-010)
-- [ ] T094 품질 게이트·불변 대조·문서 (FR-020, SC-009)
+- [X] T093 [US1] 검증 — quickstart 5-13을 개발 서버·브라우저로 확인하고 실행 기록에 적는다 (FR-011a, SC-010)
+- [X] T094 품질 게이트·불변 대조·문서 (FR-020, SC-009)
   - 서버를 내린 채 백엔드 `pytest -q --cov=src`·`mypy src`·`ruff check --no-cache src tests`, 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .` — 통과 수·종료 코드를 Notes에
   - T080 불변 대조를 다시 돌린다 — 메뉴 경로 16개 파일 차이 0(부동산은 같은 KST 날짜)
   - `CLAUDE.md` 013 줄과 주의 문단에 단가 등락 한 줄, `README.md` 013 줄, `spec.md` Status
@@ -654,6 +654,10 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
   백엔드는 기존 테스트 변경이 없다 — 005 가드(`test_no_adjusted_price`)가 처음 지은 기준 이름 `split_adjusted_close`를 잡아 **구현 이름**을 `split_restated_close`(010 함수와 같은
   이름)로 고쳤고, 같은 작업 단위에서 data-model 3.2·rest-api 1.2·research R13-18도 고쳤다
 - **2026-10-09 T087 범위**: 부동산 기준일 시세가 없는 경우(`missing: no_trades`)는 이 고정 데이터로 만들 수 없어 단위 테스트(T085·T086)가 본다
+- **2026-10-09 T094 품질 게이트(서버를 내린 채)**: 백엔드 **3,034 passed**(커버리지 96.41%, 9분 47초)·mypy 239 파일·ruff(`--no-cache`) 통과 / 프론트엔드 **187 파일·
+  1,642 passed**·tsc·eslint — 모두 종료 코드 0. 반복 명세 커밋(`47b8108`) 뒤 바뀐 기존 테스트 파일은 T084 승인 목록(`CompareTable.test.tsx`·`ComparePageRecurring.test.tsx`·
+  `tests/support/compareFixtures.ts`)뿐이다(`git diff --stat --diff-filter=MD`). 불변 대조는 quickstart 실행 기록(T094)
+- **2026-10-09 T093 실측**: 1440px에서 날짜·등락이 줄을 바꿔 갈렸다 — 테스트(`222d14f`) → 수정(`5d8031c`, 단가·등락 칸과 기준일 날짜에 줄바꿈 금지)
 - 커밋 메시지는 한국어이고 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`을 단다. 푸시는 요청이 있을 때만 한다.
 
 ## 요구사항 ↔ 태스크
