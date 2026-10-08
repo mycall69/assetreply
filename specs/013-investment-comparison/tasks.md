@@ -497,13 +497,13 @@ UTC 일봉 시가, 예금은 발표 금리와 %p 차이(등락률 "—"), 부동
 
 ### Implementation for 반복 2026-10-09
 
-- [ ] T089 [US1] `backend/src/simulation/unit_price.py`(신규, 순수) — 차이·등락률·분할 누적 비율 글자, 기준일 값 없음의 까닭 (FR-011a, data-model 3.2)
-- [ ] T090 [US1] `backend/src/api/services/comparison_metrics.py` — `comparison_block(..., unit_price=None)` → 블록 `unitPrice`(기본값 `None` — 기존 호출 그대로) (FR-011a)
-- [ ] T091 [US1] `backend/src/api/routes/comparison.py` — 일곱 경로에서 시작·기준일 값을 모아 넘긴다(출처 research R13-18) (FR-011a, SC-001, SC-010)
+- [X] T089 [US1] `backend/src/simulation/unit_price.py`(신규, 순수) — 차이·등락률·분할 누적 비율 글자, 기준일 값 없음의 까닭 (FR-011a, data-model 3.2)
+- [X] T090 [US1] `backend/src/api/services/comparison_metrics.py` — `comparison_block(..., unit_price=None)` → 블록 `unitPrice`(기본값 `None` — 기존 호출 그대로) (FR-011a)
+- [X] T091 [US1] `backend/src/api/routes/comparison.py` — 일곱 경로에서 시작·기준일 값을 모아 넘긴다(출처 research R13-18) (FR-011a, SC-001, SC-010)
   - 주식 일시금: `SimulationResult.closes`·`splits`·첫 행(매수일)·`as_of`, 시작일 단가는 `split_restated_close`(010 차트와 같은 함수). 주식 적립식: 결과 행의 `close_price`·`splits`
   - 가상자산: 매수(첫 납입) 일봉·기준일 일봉의 시가. 예금: 금리 해석기의 가입 달·기준일 달 발표 금리. 부동산: 요약의 `buyPrice`·`value`·`valueMonth`·`estimated`·`provisional`
   - 메뉴 경로·메뉴 서비스의 값·응답을 바꾸지 않는다. 결과에 필요한 값이 없으면 결과의 끝 칸(기본값 있는 필드)으로만 더한다
-- [ ] T092 [US1] 화면 (FR-011, FR-011a, FR-012, ui-wireframes F5)
+- [X] T092 [US1] 화면 (FR-011, FR-011a, FR-012, ui-wireframes F5)
   - `frontend/src/lib/types.ts`: `UnitPrice`, `ComparisonBlock.unitPrice`
   - `frontend/src/components/compare/CompareTable.tsx`: 열 셋, 셀 형식, 도움말, 정렬 키 `unitChange`
   - `frontend/src/stores/compareStore.ts`: `SortKey`에 `unitChange`

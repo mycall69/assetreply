@@ -1,4 +1,5 @@
-"""비교 경로의 정규화 블록 (013 T025·T048) — spec FR-011·FR-015, research R13-4·R13-5, data-model 3.
+"""비교 경로의 정규화 블록 (013 T025·T048·T090) — spec FR-011·FR-011a·FR-015, research R13-4·R13-5·
+R13-18, data-model 3.
 
 메뉴 요약(그 메뉴의 요약 JSON 함수가 낸 문자열)과 비용 몫(`simulation/comparison_costs`)에서
 비교 표의 칸을 만든다. **주 값**(투자 수익·수익률)은 각 메뉴 보드의 규칙 그대로다.
@@ -22,6 +23,7 @@ from decimal import Decimal
 from typing import Literal
 
 from src.simulation.comparison_costs import CostPart, Costs
+from src.simulation.unit_price import PricePoint, UnitPrice
 
 Json = dict[str, object]
 Family = Literal["stock_lump", "crypto_lump", "deposit", "realestate", "stock_recurring",
@@ -138,9 +140,32 @@ def _fx_json(fx: FxInfo | None) -> Json | None:
             "exchange": fx.exchange}
 
 
+def _point_json(point: PricePoint, *, with_missing: bool) -> Json:
+    body: Json = {"date": point.date.isoformat(), "value": _money(point.value),
+                  "provisional": point.provisional, "estimated": point.estimated}
+    if with_missing:
+        body["missing"] = point.missing
+    return body
+
+
+def unit_price_json(unit: UnitPrice | None) -> Json | None:
+    """단가 등락(반복 2026-10-09 — data-model 3.2). 값은 서버가 계산한 문자열이다 — 화면은
+    형식만 입힌다."""
+    if unit is None:
+        return None
+    return {
+        "kind": unit.kind, "basis": unit.basis, "currency": unit.currency,
+        "start": _point_json(unit.start, with_missing=False),
+        "asOf": _point_json(unit.as_of, with_missing=True),
+        "change": _money(unit.change), "changeRate": _money(unit.change_rate),
+        "split": None if unit.split_ratio is None else {"ratio": unit.split_ratio},
+    }
+
+
 def comparison_block(family: Family, summary: Json, costs: Costs, *,
-                     principal_currency: str = "KRW", fx: FxInfo | None = None) -> Json:
-    """비교 표 한 줄의 칸 — data-model 3."""
+                     principal_currency: str = "KRW", fx: FxInfo | None = None,
+                     unit_price: UnitPrice | None = None) -> Json:
+    """비교 표 한 줄의 칸 — data-model 3. `unit_price`는 반복 2026-10-09의 단가 등락(3.2)이다."""
     basis, profit, rate = _main(family, summary)
     holding_rate = _text(summary.get("returnRate"))
     return {
@@ -157,4 +182,5 @@ def comparison_block(family: Family, summary: Json, costs: Costs, *,
                     "afterSaleReturnRate": rate if basis == "after_sale" else None},
         "provisional": _provisional(family, summary),
         "fx": _fx_json(fx),
+        "unitPrice": unit_price_json(unit_price),
     }

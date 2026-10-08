@@ -53,7 +53,8 @@ import { failureText as cryptoFailureText } from "./cryptoStore";
 import { depositFailureText } from "./depositStore";
 import { realEstateFailureText } from "./realEstateStore";
 
-export type SortKey = "name" | "asOf" | "principal" | "currentValue" | "cost" | "profit" | "returnRate";
+/** `unitChange`(반복 2026-10-09)는 단가 등락률 — 예금은 %p 차이로 견준다. */
+export type SortKey = "name" | "asOf" | "principal" | "unitChange" | "currentValue" | "cost" | "profit" | "returnRate";
 
 export interface SortState {
   key: SortKey;

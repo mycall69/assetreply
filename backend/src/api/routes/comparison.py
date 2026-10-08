@@ -1,5 +1,5 @@
-"""투자 비교 — 대상 하나의 비교 경로 (013 T026·T049) — spec FR-005~FR-011, FR-020, research R13-1·
-R13-2, contracts/rest-api.md 1.
+"""투자 비교 — 대상 하나의 비교 경로 (013 T026·T049·T091) — spec FR-005~FR-011a, FR-020, research
+R13-1·R13-2·R13-18, contracts/rest-api.md 1.
 
 경로마다 짝이 되는 **메뉴 경로와 같은 질의·같은 검증·같은 수집 판정·같은 계산을 같은 차례로**
 부른다. 거절은 같은 예외를 그대로 올려 같은 처리기가 같은 본문을 낸다. 202는 메뉴의 수집 본문
@@ -9,11 +9,17 @@ R13-2, contracts/rest-api.md 1.
 (`comparison` — 주 값·현재 가치·비용 몫·잠정·환율)을 함께 낸다. 표의 행은 만들지 않는다.
 
 **이력을 쓰지 않는다**(FR-020). 비교는 화면이 대상마다 이 경로를 부르고 끝이다.
+
+반복 2026-10-09 — 단가 등락(`comparison.unitPrice`, data-model 3.2)의 두 값을 그 계산이 이미 가진
+값에서 고른다: 주식은 수정주가(메뉴 차트의 주가 선과 같은 `split_restated_close`), 가상자산은 일봉
+시가, 예금은 발표 금리, 부동산은 그 달 시세. 차이·등락률은 순수 모듈(`simulation/unit_price`)이
+낸다. 메뉴 값은 건드리지 않는다.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Mapping
 from decimal import Decimal
 from typing import Annotated
 
@@ -32,6 +38,7 @@ from src.api.routes import realestate_series as realestate_series_routes
 from src.api.routes import stock_recurring as stock_recurring_routes
 from src.api.routes import stock_series as stock_series_routes
 from src.api.routes import stock_simulation as stock_routes
+from src.api.services import crypto_recurring as crypto_recurring_service
 from src.api.services import crypto_series as crypto_series_service
 from src.api.services import crypto_simulation as crypto_service
 from src.api.services import deposit_installment as installment_service
@@ -52,6 +59,7 @@ from src.config.settings import Settings, load_settings
 from src.db.session import get_session
 from src.repository import crypto_daily
 from src.repository.stock import get_coverage
+from src.simulation.apt_holding import HoldingResult
 from src.simulation.comparison_costs import (
     crypto_costs,
     deposit_costs,
@@ -59,6 +67,8 @@ from src.simulation.comparison_costs import (
     realestate_costs,
     stock_costs,
 )
+from src.simulation.split_adjust import split_restated_close
+from src.simulation.unit_price import PricePoint, UnitPrice, split_ratio, unit_price
 from src.worker.apt_trade_runner import kst_date
 
 router = APIRouter(prefix="/api/comparison", tags=["comparison"])
@@ -82,6 +92,93 @@ def _required(source: Json, key: str) -> Decimal:
     value = _decimal(source[key])
     assert value is not None
     return value
+
+
+def _stock_lump_unit(result: stock_service.SimulationResult, currency: str) -> UnitPrice | None:
+    """시작일 단가 = 첫 행(매수일) 종가의 수정주가 — 메뉴 시계열 첫 점의 `price`와 같은
+    함수·입력."""
+    if not result.rows or result.as_of is None:
+        return None
+    first = min(c.row.date for c in result.rows)
+    opened = result.closes.get(first)
+    closed = result.closes.get(result.as_of)
+    return unit_price(
+        "share", "split_restated_close", currency,
+        PricePoint(first, None if opened is None
+                   else split_restated_close(opened, first, result.splits)),
+        PricePoint(result.as_of, closed, missing=None if closed is not None else "no_price"),
+        split_ratio=split_ratio(result.splits, first))
+
+
+def _stock_recurring_unit(result: stock_recurring_service.RecurringResult,
+                          currency: str) -> UnitPrice | None:
+    """시작일 단가 = 첫 납입 행 종가의 수정주가(적립식 시계열 첫 점과 같다)."""
+    if not result.views or result.latest is None:
+        return None
+    first = min((v.row for v in result.views), key=lambda r: r.date)
+    last = result.latest.row
+    return unit_price(
+        "share", "split_restated_close", currency,
+        PricePoint(first.date, split_restated_close(first.close_price, first.date, result.splits)),
+        PricePoint(last.date, last.close_price),
+        split_ratio=split_ratio(result.splits, first.date))
+
+
+def _crypto_lump_unit(result: crypto_service.CryptoResult, currency: str) -> UnitPrice | None:
+    """매수한 일봉·기준일 일봉의 시가 — 매수·평가에 쓴 가격."""
+    rows = [v.row for v in (result.daily or tuple(result.rows))]
+    bought = next((r for r in rows if r.date == result.bought_on), None)
+    if bought is None or result.latest is None:
+        return None
+    last = result.latest.row
+    return unit_price("coin", "daily_open", currency, PricePoint(bought.date, bought.open_price),
+                      PricePoint(last.date, last.open_price))
+
+
+def _crypto_recurring_unit(result: crypto_recurring_service.CryptoRecurringResult,
+                           currency: str) -> UnitPrice | None:
+    """첫 납입 일봉·기준일 일봉의 시가."""
+    views = result.daily or tuple(result.views)
+    if not views:
+        return None
+    first = min((v.row for v in views), key=lambda r: r.date)
+    last = result.latest.row
+    return unit_price("coin", "daily_open", currency, PricePoint(first.date, first.open_price),
+                      PricePoint(last.date, last.open_price))
+
+
+def _rate_unit(rates: Mapping[dt.date, Decimal], latest: dt.date | None, start: dt.date,
+               as_of: dt.date) -> UnitPrice:
+    """가입 달·기준일 달의 발표 금리. 기준일 달이 미발표면 마지막 발표 달의 금리를 그 달과 함께
+    잠정으로 낸다(008 규칙 — 계산이 쓴 그 금리). 발표 기간 안의 빈 달은 값 없음이다(메우지
+    않는다)."""
+    opened_month = start.replace(day=1)
+    opened = rates.get(opened_month)
+    month = as_of.replace(day=1)
+    if latest is not None and month > latest:
+        value = rates.get(latest)
+        at = PricePoint(latest, value, provisional=True,
+                        missing=None if value is not None else "no_price")
+    else:
+        value = rates.get(month)
+        at = PricePoint(month, value, missing=None if value is not None else "no_price")
+    return unit_price("rate", "published_rate", None, PricePoint(opened_month, opened), at)
+
+
+def _realestate_unit(result: HoldingResult) -> UnitPrice:
+    """매입가(매입 달 시세)·평가액(그 달 시세). 지금 시세가 없으면 값 없음이다(메우지 않는다)."""
+    window = result.buy_price_window
+    start = PricePoint(window.month if window is not None else result.buy_date.replace(day=1),
+                       Decimal(result.buy_price),
+                       provisional=window is not None and window.provisional,
+                       estimated=window is not None and window.estimated)
+    summary = result.summary
+    if summary.value is None or summary.value_month is None:
+        at = PricePoint(summary.as_of.replace(day=1), None, missing="no_trades")
+    else:
+        at = PricePoint(summary.value_month, Decimal(summary.value),
+                        provisional=summary.provisional, estimated=summary.estimated)
+    return unit_price("home", "market_price", "KRW", start, at)
 
 
 def _body(*, target: Json, condition: Json, exchange: Json | None, summary: Json, series: Json,
@@ -149,7 +246,8 @@ async def compare_stock(
         series=stock_series_routes.series_json(series, principal_currency=principal_currency,
                                                price_currency=stock.currency),
         comparison=comparison_block("stock_lump", summary, costs,
-                                    principal_currency=principal_currency, fx=fx))
+                                    principal_currency=principal_currency, fx=fx,
+                                    unit_price=_stock_lump_unit(result, stock.currency)))
 
 
 @router.get("/crypto/simulation", response_model=None)
@@ -204,7 +302,8 @@ async def compare_crypto(
         series=crypto_series_routes.series_json(series, principal_currency=principal_currency,
                                                 price_currency=coin.quote_currency),
         comparison=comparison_block("crypto_lump", summary, costs,
-                                    principal_currency=principal_currency, fx=fx))
+                                    principal_currency=principal_currency, fx=fx,
+                                    unit_price=_crypto_lump_unit(result, coin.quote_currency)))
 
 
 @router.get("/deposit/simulation", response_model=None)
@@ -234,7 +333,8 @@ async def compare_deposit(
         target=deposit_routes.institution_json(request),
         condition=deposit_routes.condition_json(request, result), exchange=None,
         summary=summary, series=deposit_series_routes.series_json(series),
-        comparison=comparison_block("deposit", summary, costs))
+        comparison=comparison_block("deposit", summary, costs, unit_price=_rate_unit(
+            result.rates, result.latest_month, request.start, outcome.summary.as_of)))
 
 
 @router.get("/realestate/simulation", response_model=None)
@@ -288,7 +388,8 @@ async def compare_realestate(
         condition=_object(body["condition"]), exchange=None, summary=summary,
         series=realestate_series_routes.series_json(
             series, provisional_from=prepared.provisional_from),
-        comparison=comparison_block("realestate", summary, costs))
+        comparison=comparison_block("realestate", summary, costs,
+                                    unit_price=_realestate_unit(prepared.result)))
 
 
 @router.get("/stocks/recurring-simulation", response_model=None)
@@ -336,7 +437,8 @@ async def compare_stock_recurring(
         series=stock_recurring_routes.series_json(series, principal_currency=principal_currency,
                                                   price_currency=stock.currency),
         comparison=comparison_block("stock_recurring", summary, costs,
-                                    principal_currency=principal_currency, fx=fx))
+                                    principal_currency=principal_currency, fx=fx,
+                                    unit_price=_stock_recurring_unit(result, stock.currency)))
 
 
 @router.get("/crypto/recurring-simulation", response_model=None)
@@ -379,7 +481,8 @@ async def compare_crypto_recurring(
         series=crypto_recurring_routes.series_json(series, principal_currency=principal_currency,
                                                    price_currency=coin.quote_currency),
         comparison=comparison_block("crypto_recurring", summary, costs,
-                                    principal_currency=principal_currency, fx=fx))
+                                    principal_currency=principal_currency, fx=fx,
+                                    unit_price=_crypto_recurring_unit(result, coin.quote_currency)))
 
 
 @router.get("/deposit/installment-simulation", response_model=None)
@@ -408,4 +511,6 @@ async def compare_installment(
         target=installment_routes.institution_json(request),
         condition=installment_routes.condition_json(request, result), exchange=None,
         summary=summary, series=installment_routes.series_json(series),
-        comparison=comparison_block("installment", summary, costs))
+        comparison=comparison_block("installment", summary, costs, unit_price=_rate_unit(
+            result.installment_rates, result.installment_latest, request.start,
+            outcome.summary.as_of)))

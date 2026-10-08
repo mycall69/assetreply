@@ -1630,6 +1630,32 @@ export interface ComparisonFx {
   exchange: ExchangeInfo | null;
 }
 
+/** 단가 하나(반복 2026-10-09 — data-model 3.2). `date`는 값의 실제 날짜(휴장이면 매수일, 금리·부동산은 그 달 1일)다. */
+export interface UnitPricePoint {
+  date: string;
+  value: DecimalString | null;
+  provisional: boolean;
+  estimated: boolean;
+  /** 기준일 단가만 — 값이 없는 까닭(`no_price` 그 날·달의 값 없음, `no_trades` 그 평형의 거래 없음). */
+  missing?: "no_price" | "no_trades" | null;
+}
+
+/**
+ * 단가 등락(반복 2026-10-09 — spec FR-011a, data-model 3.2). 주식은 상장국 통화의 수정주가, 가상자산은 시세 통화의 일봉 시가,
+ * 예금은 발표 금리(차이는 %p, 등락률 `null`), 부동산은 그 달 시세. 차이·등락률은 서버가 계산한 문자열이다(원칙 VI).
+ */
+export interface UnitPrice {
+  kind: "share" | "coin" | "home" | "rate";
+  basis: "split_restated_close" | "daily_open" | "market_price" | "published_rate";
+  currency: string | null;
+  start: UnitPricePoint;
+  asOf: UnitPricePoint;
+  change: DecimalString | null;
+  changeRate: DecimalString | null;
+  /** 주식 — 시작일 뒤 분할·병합의 누적 비율 글자(`"50:1"`). */
+  split: { ratio: string } | null;
+}
+
 /** 비교 경로 200의 정규화 블록(data-model 3). 금액은 원화 문자열이다. */
 export interface ComparisonBlock {
   asOf: string;
@@ -1644,6 +1670,8 @@ export interface ComparisonBlock {
   lineEnd: { date: string; holdingReturnRate: DecimalString | null; afterSaleReturnRate: DecimalString | null };
   provisional: ProvisionalKind[];
   fx: ComparisonFx | null;
+  /** 반복 2026-10-09 — 단가 등락. 메뉴 응답에는 없다. */
+  unitPrice: UnitPrice | null;
 }
 
 /** 비교 경로 200(contracts/rest-api.md 1.2). `summary`·`condition`은 메뉴 응답의 것 그대로다. */
