@@ -263,7 +263,7 @@ description: "Task list for 013-investment-comparison"
   - 메뉴 스토어의 `run` 계열·`saveHistoryFlow`를 부르지 않는다.
 - [X] T036 [US1] 비교 부품 — `frontend/src/components/compare/AssetPicker.tsx`·`TargetChips.tsx`·`CompareTargetPicker.tsx`(자산군별 고르기 — `StockSearch`·`CoinSearch`·`InstitutionChecklist`·부동산 피커 셋 + "더하기")·`InstitutionChecklist.tsx`·`CompareConditionForm.tsx`(일시금·정기예금·매입 후 보유 — `StartDateInput`, 금액, 통화, 재투자)·`CompareBlockedPanel.tsx`·`CompareTable.tsx`·`CostCell.tsx`·`StaleBanner.tsx` (FR-002~FR-014, F2~F5·F8)
 - [X] T037 [US1] `frontend/src/app/compare/page.tsx`(신규) · `frontend/src/components/shell/Sidebar.tsx`(`{ label: "투자 비교", href: "/compare" }`) · `frontend/src/components/shell/TopBar.tsx`(`TITLES["/compare"] = "투자 비교"`) (FR-001, F1)
-- [ ] T038 [US1] 검증 — quickstart 2(개발 서버 `curl` 두 줄)·5-1~5-6·5-9·5-12 (FR-001~FR-014, FR-020, SC-001, SC-003, SC-007, SC-008)
+- [X] T038 [US1] 검증 — quickstart 2(개발 서버 `curl` 두 줄)·5-1~5-6·5-9·5-12 (FR-001~FR-014, FR-020, SC-001, SC-003, SC-007, SC-008)
   - 1440×900 헤드리스 Chrome, 새 브라우저 문맥. 비교 실행 전후 네 자산군 `GET /api/history/{asset}`가 같다.
   - quickstart 실행 기록에 적는다.
 
