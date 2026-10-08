@@ -4,10 +4,10 @@
  * 비교 경로는 메뉴 경로의 짝이다(`/api/comparison/<자산군>/<메뉴 경로>`). 질의는 **메뉴 스토어가 이미 내보내는 질의 함수**로 만든다 —
  * 같은 함수가 같은 공통 조건으로 대상마다 질의를 만들어, 대상마다 조건이 조금이라도 달라지는 일이 없다(SC-002).
  */
-import { toQuery as cryptoQuery } from "@/stores/cryptoStore";
-import { toQuery as depositQuery } from "@/stores/depositStore";
+import { toQuery as cryptoQuery, toRecurringQuery as cryptoRecurringQuery } from "@/stores/cryptoStore";
+import { toQuery as depositQuery, toInstallmentQuery } from "@/stores/depositStore";
 import { simulationQuery as realEstateQuery } from "@/stores/realEstateStore";
-import { toQuery as stockQuery } from "@/stores/stockStore";
+import { toQuery as stockQuery, toRecurringQuery as stockRecurringQuery } from "@/stores/stockStore";
 import { apiClient } from "./apiClient";
 import type { CompareCondition } from "./compareCondition";
 import type {
@@ -24,6 +24,7 @@ import type {
 export function comparisonPath(condition: CompareCondition, target: CompareTarget): string {
   const amount = condition.amount ?? "";
   const { start, principalCurrency } = condition;
+  const plan = { mode: "recurring" as const, frequency: condition.frequency ?? "monthly" };
   switch (`${condition.asset}:${condition.method}`) {
     case "stock:lump_sum":
       return `/api/comparison/stocks/simulation?${stockQuery({
@@ -31,6 +32,16 @@ export function comparisonPath(condition: CompareCondition, target: CompareTarge
     case "crypto:lump_sum":
       return `/api/comparison/crypto/simulation?${cryptoQuery({
         coin: { ...(target as CryptoTarget), slug: null }, start, principal: amount, principalCurrency })}`;
+    case "stock:recurring":
+      return `/api/comparison/stocks/recurring-simulation?${stockRecurringQuery({
+        stock: target as StockTarget, start, principal: amount, principalCurrency, reinvest: condition.reinvest ?? true },
+      plan)}`;
+    case "crypto:recurring":
+      return `/api/comparison/crypto/recurring-simulation?${cryptoRecurringQuery({
+        coin: { ...(target as CryptoTarget), slug: null }, start, principal: amount, principalCurrency }, plan)}`;
+    case "deposit:installment":
+      return `/api/comparison/deposit/installment-simulation?${toInstallmentQuery({
+        institution: (target as DepositTarget).institution, start, principal: amount })}`;
     case "deposit:deposit":
       return `/api/comparison/deposit/simulation?${depositQuery({
         institution: (target as DepositTarget).institution, start, principal: amount })}`;

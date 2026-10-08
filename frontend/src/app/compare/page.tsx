@@ -15,6 +15,8 @@ import { CompareConditionForm } from "@/components/compare/CompareConditionForm"
 import { CompareTable, type CompareRow } from "@/components/compare/CompareTable";
 import { CompareTargetPicker } from "@/components/compare/CompareTargetPicker";
 import { StaleBanner } from "@/components/compare/StaleBanner";
+import { ProductPicker } from "@/components/deposit/ProductPicker";
+import { InvestmentModeFields } from "@/components/recurring/InvestmentModeFields";
 import { TargetChips } from "@/components/compare/TargetChips";
 import { overall, suggestion, type BlockReason } from "@/lib/compareBlock";
 import { maxTargets, targetName } from "@/lib/compareCondition";
@@ -33,8 +35,9 @@ function linkOf(target: CompareTarget): string | null {
 export default function ComparePage() {
   const store = useCompareStore();
   const {
-    asset, method, start, amount, principalCurrency, reinvest, targets, notice, run, sort,
-    setAsset, setStart, setAmount, setPrincipalCurrency, setReinvest, addTarget, removeTarget, toggleSort,
+    asset, method, frequency, start, amount, principalCurrency, reinvest, targets, notice, run, sort,
+    setAsset, setMethod, setFrequency, setStart, setAmount, setPrincipalCurrency, setReinvest, addTarget, removeTarget,
+    toggleSort,
     runComparison, retryTarget, moveStart, dispose,
   } = store;
 
@@ -49,6 +52,20 @@ export default function ComparePage() {
   const blocked = rows.flatMap((r) => (r.state.status === "blocked"
     ? [{ key: r.key, name: r.name, reason: r.state.reason as BlockReason }] : []));
   const proposal = suggestion(states);
+
+  // 투자 방식 — 메뉴와 같은 부품이다(주식·가상자산 `InvestmentModeFields`, 예금 `ProductPicker`). 부동산은 하나뿐이다.
+  const methodFields = asset === "stock" || asset === "crypto"
+    ? (
+      <InvestmentModeFields asset={asset} start={start}
+        value={{ mode: method === "recurring" ? "recurring" : "lump_sum", frequency }}
+        onChange={(plan) => {
+          setMethod(plan.mode);
+          setFrequency(plan.frequency);
+        }} />
+    )
+    : asset === "deposit"
+      ? <ProductPicker value={method === "installment" ? "installment" : "deposit"} onChange={setMethod} />
+      : <p className="text-sm"><span className="mr-4 text-gray-500">투자 방식</span>매입 후 보유</p>;
 
   return (
     <div className="space-y-5">
@@ -65,7 +82,7 @@ export default function ComparePage() {
 
       <section className="rounded-lg border border-gray-200 p-4">
         <CompareConditionForm asset={asset} method={method} start={start} amount={amount}
-          principalCurrency={principalCurrency} reinvest={reinvest} targets={targets}
+          principalCurrency={principalCurrency} reinvest={reinvest} targets={targets} methodFields={methodFields}
           onStart={setStart} onAmount={setAmount} onCurrency={setPrincipalCurrency} onReinvest={setReinvest}
           onRun={() => void runComparison()} />
       </section>

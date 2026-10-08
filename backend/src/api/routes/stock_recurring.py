@@ -16,7 +16,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.services.recurring_series import build_stock_series
+from src.api.services.recurring_series import RecurringSeries, build_stock_series
 from src.api.services.series_query import DEFAULT_MAX_POINTS
 from src.api.services.stock_collect import collecting_body
 from src.api.services.stock_recurring import (
@@ -43,12 +43,12 @@ router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 Json = dict[str, object]
 
 
-async def _prepare_or_collect(session: AsyncSession, *, market: str, symbol: str, start: dt.date,
-                              amount_raw: str, principal_currency: str, frequency_raw: str,
-                              reinvest: bool, end: dt.date | None,
-                              ) -> PreparedRecurring | JSONResponse:
+async def prepare_or_collect(session: AsyncSession, *, market: str, symbol: str, start: dt.date,
+                             amount_raw: str, principal_currency: str, frequency_raw: str,
+                             reinvest: bool, end: dt.date | None,
+                             ) -> PreparedRecurring | JSONResponse:
     """표와 차트가 **같은 판정·같은 계산**을 쓴다 — 한쪽만 막거나 한쪽만 설정을 빠뜨려도 오류 없이
-    다른 숫자가 나온다(005 SC-032)."""
+    다른 숫자가 나온다(005 SC-032). 013 — 비교 경로도 이것을 부른다."""
     check_principal_currency(principal_currency)
     amount = parse_amount(amount_raw)
     frequency = parse_frequency(frequency_raw)
@@ -63,6 +63,38 @@ async def _prepare_or_collect(session: AsyncSession, *, market: str, symbol: str
     return await prepare_recurring(
         session, market=market, symbol=symbol, start=start, end=finish, amount=amount,
         principal_currency=principal_currency, frequency=frequency, reinvest=reinvest)
+
+
+def condition_json(prepared: PreparedRecurring, *, start: dt.date, amount_raw: str,
+                   principal_currency: str, frequency_raw: str, reinvest: bool) -> Json:
+    return {
+        "mode": "recurring", "start": start.isoformat(), "amount": dec(parse_amount(amount_raw)),
+        "principalCurrency": principal_currency, "frequency": parse_frequency(frequency_raw),
+        "reinvest": reinvest, "tradeFeeRate": dec(prepared.settings.trade_fee_rate),
+        "dividendTaxRate": dec(prepared.dividend_tax_rate),
+    }
+
+
+def series_json(series: RecurringSeries, *, principal_currency: str, price_currency: str) -> Json:
+    """시계열 본문 — 비교 경로(013)도 이 함수로 같은 모양을 낸다."""
+    return {
+        "from": series.start.isoformat(),
+        "to": series.end.isoformat(),
+        "principalCurrency": principal_currency,
+        "basisCurrency": "KRW",
+        "priceKind": "stock_adjusted_close",
+        "priceCurrency": price_currency,
+        "downsampled": series.downsampled,
+        "algorithm": "lttb",
+        "sourcePointCount": series.source_point_count,
+        "points": [
+            {"date": p.date.isoformat(), "balance": dec(p.balance),
+             "returnRate": dec(p.return_rate), "principal": dec(p.principal),
+             "price": dec(p.price)}
+            for p in series.points],
+        "gaps": [{"from": g.start.isoformat(), "to": g.end.isoformat(), "reason": g.reason}
+                 for g in series.gaps],
+    }
 
 
 @router.get("/recurring-simulation", response_model=None)
@@ -83,7 +115,7 @@ async def get_recurring_simulation(
 ) -> Json | JSONResponse:
     """적립식을 실행하고 표 한 쪽을 돌려준다."""
     unit = parse_period(period)
-    prepared = await _prepare_or_collect(
+    prepared = await prepare_or_collect(
         session, market=market, symbol=symbol, start=start, amount_raw=amount,
         principal_currency=principal_currency, frequency_raw=frequency, reinvest=reinvest, end=end)
     if isinstance(prepared, JSONResponse):
@@ -94,12 +126,9 @@ async def get_recurring_simulation(
     return {
         "stock": {"market": stock.market, "symbol": stock.symbol, "name": stock.name,
                   "currency": stock.currency},
-        "condition": {
-            "mode": "recurring", "start": start.isoformat(), "amount": dec(parse_amount(amount)),
-            "principalCurrency": principal_currency, "frequency": parse_frequency(frequency),
-            "reinvest": reinvest, "tradeFeeRate": dec(prepared.settings.trade_fee_rate),
-            "dividendTaxRate": dec(prepared.dividend_tax_rate),
-        },
+        "condition": condition_json(prepared, start=start, amount_raw=amount,
+                                    principal_currency=principal_currency, frequency_raw=frequency,
+                                    reinvest=reinvest),
         "summary": summary_json(result, amount=parse_amount(amount), stock=stock),
         "period": unit,
         "rows": [row_body(r, row_json) for r in shown.rows],
@@ -122,7 +151,7 @@ async def get_recurring_series(
     max_points: Annotated[int, Query(alias="maxPoints", ge=2)] = DEFAULT_MAX_POINTS,
 ) -> Json | JSONResponse:
     """표와 같은 조건으로 전 구간 시계열을 돌려준다."""
-    prepared = await _prepare_or_collect(
+    prepared = await prepare_or_collect(
         session, market=market, symbol=symbol, start=start, amount_raw=amount,
         principal_currency=principal_currency, frequency_raw=frequency, reinvest=reinvest, end=end)
     if isinstance(prepared, JSONResponse):
@@ -132,21 +161,5 @@ async def get_recurring_series(
     covered = await get_coverage(session, int(stock.id))
     series = build_stock_series(prepared.result, start=start, end=finish, covered=covered,
                                 max_points=max_points)
-    return {
-        "from": series.start.isoformat(),
-        "to": series.end.isoformat(),
-        "principalCurrency": principal_currency,
-        "basisCurrency": "KRW",
-        "priceKind": "stock_adjusted_close",
-        "priceCurrency": stock.currency,
-        "downsampled": series.downsampled,
-        "algorithm": "lttb",
-        "sourcePointCount": series.source_point_count,
-        "points": [
-            {"date": p.date.isoformat(), "balance": dec(p.balance),
-             "returnRate": dec(p.return_rate), "principal": dec(p.principal),
-             "price": dec(p.price)}
-            for p in series.points],
-        "gaps": [{"from": g.start.isoformat(), "to": g.end.isoformat(), "reason": g.reason}
-                 for g in series.gaps],
-    }
+    return series_json(series, principal_currency=principal_currency,
+                       price_currency=stock.currency)

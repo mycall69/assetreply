@@ -280,7 +280,7 @@ Test, quickstart 5-7).
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T039 [US2] 기존 테스트 변경 승인을 받는다 — T006과 같은 절차. 예상 목록은 없다(research R13-16). 실제로 실패한 기존 테스트가 있으면 "지금 단언 → 새 단언"으로 보이고 승인을 받는다 (FR-006)
+- [X] T039 [US2] 기존 테스트 변경 승인을 받는다 — T006과 같은 절차. 예상 목록은 없다(research R13-16). 실제로 실패한 기존 테스트가 있으면 "지금 단언 → 새 단언"으로 보이고 승인을 받는다 (FR-006)
 - [X] T040 [P] [US2] `backend/tests/unit/test_installment_open_tax.py` — `simulation/installment_ladder`의 `open_tax` (FR-011, SC-001, data-model 4)
   - 진행 중 적금 계약·정기예금이 있으면 `open_tax`가 그 경과 이자의 소득세 합이고, 평가액 = 납입·원금 + 경과 이자 − `open_tax`.
   - 모두 만기로 끝나면 0. 같은 입력의 기존 요약 값(`interest_total`·`tax_total`·`balance`·`profit`·`return_rate`)이 더하기 전과 같다.
@@ -306,13 +306,13 @@ Test, quickstart 5-7).
 
 ### Implementation for User Story 2
 
-- [ ] T046 [US2] `backend/src/simulation/installment_ladder.py` — 요약에 `open_tax: Decimal`(맨 끝, 기본값 `Decimal(0)`) — 진행 중 계약·정기예금의 경과 이자 세금(평가액에서 빼는 그 값). `_saving_accrued`의 결과를 다시 계산하지 않고 그 자리에서 넣는다 (FR-011, data-model 4)
-- [ ] T047 [US2] `backend/src/simulation/comparison_costs.py` — 적립식 둘·정기 적금 함수 (FR-011, research R13-3)
-- [ ] T048 [US2] `backend/src/api/services/comparison_metrics.py` — 적립식 둘·정기 적금 정규화 (FR-011, FR-015, research R13-4)
-- [ ] T049 [US2] 비교 경로 셋 — `backend/src/api/routes/comparison.py`(`/api/comparison/stocks/recurring-simulation`·`/crypto/recurring-simulation`·`/deposit/installment-simulation`) · `backend/src/api/routes/stock_recurring.py`·`crypto_recurring.py`(`_prepare_or_collect`를 공개 이름 `prepare_or_collect`로 — 호출부만 바꾼다) (FR-006, FR-011, contracts/rest-api.md 1)
+- [X] T046 [US2] `backend/src/simulation/installment_ladder.py` — 요약에 `open_tax: Decimal`(맨 끝, 기본값 `Decimal(0)`) — 진행 중 계약·정기예금의 경과 이자 세금(평가액에서 빼는 그 값). `_saving_accrued`의 결과를 다시 계산하지 않고 그 자리에서 넣는다 (FR-011, data-model 4)
+- [X] T047 [US2] `backend/src/simulation/comparison_costs.py` — 적립식 둘·정기 적금 함수 (FR-011, research R13-3)
+- [X] T048 [US2] `backend/src/api/services/comparison_metrics.py` — 적립식 둘·정기 적금 정규화 (FR-011, FR-015, research R13-4)
+- [X] T049 [US2] 비교 경로 셋 — `backend/src/api/routes/comparison.py`(`/api/comparison/stocks/recurring-simulation`·`/crypto/recurring-simulation`·`/deposit/installment-simulation`) · `backend/src/api/routes/stock_recurring.py`·`crypto_recurring.py`(`_prepare_or_collect`를 공개 이름 `prepare_or_collect`로 — 호출부만 바꾼다) (FR-006, FR-011, contracts/rest-api.md 1)
   - 질의는 `routes/stock_recurring.py:68-83`, `routes/crypto_recurring.py:146-159`, `routes/deposit_installment.py:117-124`와 같다(+ `maxPoints`). 요약 JSON은 `services/stock_recurring.summary_json`,
     `routes.crypto_recurring.summary_json`, `routes.deposit_installment`의 요약 함수. 시계열은 `recurring_series.build_stock_series`·`build_crypto_series`·`build_installment_series`.
-- [ ] T050 [US2] 화면 — `frontend/src/lib/compareApi.ts`(적립식·정기 적금 짝) · `frontend/src/stores/compareStore.ts`(방식·주기) · `frontend/src/components/compare/CompareConditionForm.tsx`(`InvestmentModeFields`·`ProductPicker`, 금액 라벨 `amountLabel`) · `CompareTable.tsx`(총 납입 원금 · N회) (FR-006, FR-007, FR-011, F3·F5)
+- [X] T050 [US2] 화면 — `frontend/src/lib/compareApi.ts`(적립식·정기 적금 짝) · `frontend/src/stores/compareStore.ts`(방식·주기) · `frontend/src/components/compare/CompareConditionForm.tsx`(`InvestmentModeFields`·`ProductPicker`, 금액 라벨 `amountLabel`) · `CompareTable.tsx`(총 납입 원금 · N회) (FR-006, FR-007, FR-011, F3·F5)
 - [ ] T051 [US2] 검증 — quickstart 5-7(+ 정기 적금 시중은행·상호금융 비교) (FR-006, SC-001)
   - quickstart 실행 기록에 적는다.
 
@@ -562,6 +562,11 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
   고친 줄 위에 `013 승인 2026-10-08` 주석
 - **2026-10-08 T015 파일 이름**: 새 테스트를 처음에 `tests/stockSelection.test.ts`로 만들다 006의 같은 이름 테스트(메뉴 스토어의 등록)를 덮어쓴 것을 곧바로 알아챘다 —
   `git checkout`으로 되돌리고 새 테스트는 `tests/registerStock.test.ts`로 따로 두었다(기존 파일 변경 없음)
+- **2026-10-08 T039**: US2 구현을 작업 트리에 둔 채 전체 스위트를 돌렸다 — 백엔드 2,939 passed(커버리지 96%, 9분 30초), 화면 178 파일·1,574 passed(US3 새 테스트
+  셋은 빼고). **실제로 실패한 기존 테스트가 없어** 승인할 목록이 없다(research R13-16 예상과 같다)
+- **2026-10-08 T047·T048**: 새 코드가 없다 — US1의 `comparison_costs`·`comparison_metrics`가 이미 적립식 둘·정기 적금 갈래를 담고 있어(가족 `Family`·`stock_costs`·
+  `crypto_costs`·`deposit_costs`) T041·T042가 최초 실행에서 통과했다(US2 테스트 커밋 메시지에 적었다). T050의 스토어(방식·주기)·조건 칸(`methodFields`·금액 라벨)·
+  표(총 납입 원금 · N회)도 US1에서 들어갔고, US2에서는 `compareApi`의 짝 셋과 화면의 방식 칸만 더했다
 - 커밋 메시지는 한국어이고 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`을 단다. 푸시는 요청이 있을 때만 한다.
 
 ## 요구사항 ↔ 태스크

@@ -19,7 +19,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.services import deposit_installment as service
 from src.api.services.deposit_collect import month_text
-from src.api.services.recurring_series import InstallmentPoint, build_installment_series
+from src.api.services.recurring_series import (
+    InstallmentPoint,
+    InstallmentSeries,
+    build_installment_series,
+)
 from src.api.services.series_query import DEFAULT_MAX_POINTS
 from src.db.session import get_session
 from src.repository.deposit_rate import rate_text
@@ -114,6 +118,22 @@ def summary_json(outcome: LadderOutcome, recheck_failed: tuple[str, str] | None)
     }
 
 
+def institution_json(request: service.InstallmentRequest) -> Json:
+    return {"key": request.institution.key, "name": request.institution.name}
+
+
+def condition_json(request: service.InstallmentRequest,
+                   prepared: service.PreparedInstallment) -> Json:
+    """설정·출처 항목은 바뀐다. 결과만 남으면 어느 조건의 수치인지 알 수 없다(008 FR-031)."""
+    return {
+        "product": "installment", "start": request.start.isoformat(),
+        "amount": won(request.monthly),
+        "interestTaxRate": format(prepared.settings.interest_tax_rate, "f"),
+        "installmentItem": request.option.description,
+        "depositItem": request.institution.description,
+    }
+
+
 @router.get("/installment-simulation", response_model=None)
 async def get_installment_simulation(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -129,15 +149,8 @@ async def get_installment_simulation(
         return JSONResponse(status_code=202, content=result)
     outcome = result.outcome
     return {
-        "institution": {"key": request.institution.key, "name": request.institution.name},
-        # 설정·출처 항목은 바뀐다. 결과만 남으면 어느 조건의 수치인지 알 수 없다(008 FR-031).
-        "condition": {
-            "product": "installment", "start": request.start.isoformat(),
-            "amount": won(request.monthly),
-            "interestTaxRate": format(result.settings.interest_tax_rate, "f"),
-            "installmentItem": request.option.description,
-            "depositItem": request.institution.description,
-        },
+        "institution": institution_json(request),
+        "condition": condition_json(request, result),
         "summary": summary_json(outcome, result.recheck_failed),
         "contracts": [contract_json(c) for c in outcome.contracts],
         "deposits": [deposit_json(d) for d in outcome.deposits],
@@ -155,6 +168,26 @@ def point_json(p: InstallmentPoint) -> Json:
     if p.deposit_rate is not None:
         body["depositRate"] = rate_text(p.deposit_rate)
     return body
+
+
+def series_json(series: InstallmentSeries) -> Json:
+    """시계열 본문 — 비교 경로(013)도 이 함수로 같은 모양을 낸다."""
+    return {
+        "from": series.start.isoformat(),
+        "to": series.end.isoformat(),
+        "principalCurrency": "KRW",
+        "basisCurrency": "KRW",
+        # 가격은 그 달 발표 **적금** 금리(연 %). 통화가 아니라 단위라 `priceCurrency`는 비운다.
+        "priceKind": "installment_rate",
+        "priceCurrency": None,
+        "downsampled": series.downsampled,
+        "algorithm": "lttb",
+        "sourcePointCount": series.source_point_count,
+        "points": [point_json(p) for p in series.points],
+        "gaps": [],
+        "provisionalFrom": (None if series.provisional_from is None
+                            else series.provisional_from.isoformat()),
+    }
 
 
 @router.get("/installment-simulation/series", response_model=None)
@@ -175,19 +208,4 @@ async def get_installment_series(
         result.outcome, start=request.start, installment_rates=result.installment_rates,
         installment_latest=result.installment_latest, deposit_rates=result.deposit_rates,
         deposit_latest=result.deposit_latest, max_points=max_points)
-    return {
-        "from": series.start.isoformat(),
-        "to": series.end.isoformat(),
-        "principalCurrency": "KRW",
-        "basisCurrency": "KRW",
-        # 가격은 그 달 발표 **적금** 금리(연 %). 통화가 아니라 단위라 `priceCurrency`는 비운다.
-        "priceKind": "installment_rate",
-        "priceCurrency": None,
-        "downsampled": series.downsampled,
-        "algorithm": "lttb",
-        "sourcePointCount": series.source_point_count,
-        "points": [point_json(p) for p in series.points],
-        "gaps": [],
-        "provisionalFrom": (None if series.provisional_from is None
-                            else series.provisional_from.isoformat()),
-    }
+    return series_json(series)

@@ -22,19 +22,25 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.errors import InvalidQuery, StartAfterEnd
+from src.api.routes import crypto_recurring as crypto_recurring_routes
 from src.api.routes import crypto_series as crypto_series_routes
 from src.api.routes import crypto_simulation as crypto_routes
+from src.api.routes import deposit_installment as installment_routes
 from src.api.routes import deposit_series as deposit_series_routes
 from src.api.routes import deposit_simulation as deposit_routes
 from src.api.routes import realestate_series as realestate_series_routes
+from src.api.routes import stock_recurring as stock_recurring_routes
 from src.api.routes import stock_series as stock_series_routes
 from src.api.routes import stock_simulation as stock_routes
 from src.api.services import crypto_series as crypto_series_service
 from src.api.services import crypto_simulation as crypto_service
+from src.api.services import deposit_installment as installment_service
 from src.api.services import deposit_series as deposit_series_service
 from src.api.services import deposit_simulation as deposit_service
 from src.api.services import realestate_series as realestate_series_service
 from src.api.services import realestate_simulation as realestate_service
+from src.api.services import recurring_series
+from src.api.services import stock_recurring as stock_recurring_service
 from src.api.services import stock_series as stock_series_service
 from src.api.services import stock_simulation as stock_service
 from src.api.services.comparison_metrics import FxInfo, Json, comparison_block
@@ -69,6 +75,12 @@ def _decimal(value: object) -> Decimal | None:
 
 def _object(value: object) -> Json:
     assert isinstance(value, dict)
+    return value
+
+
+def _required(source: Json, key: str) -> Decimal:
+    value = _decimal(source[key])
+    assert value is not None
     return value
 
 
@@ -277,3 +289,123 @@ async def compare_realestate(
         series=realestate_series_routes.series_json(
             series, provisional_from=prepared.provisional_from),
         comparison=comparison_block("realestate", summary, costs))
+
+
+@router.get("/stocks/recurring-simulation", response_model=None)
+async def compare_stock_recurring(
+    session: Session,
+    market: Annotated[str, Query()],
+    symbol: Annotated[str, Query()],
+    start: Annotated[dt.date, Query()],
+    amount: Annotated[str, Query(description="한 번 납입액(원금 통화). 문자열")],
+    principal_currency: Annotated[str, Query(alias="principalCurrency")],
+    frequency: Annotated[str, Query(description="daily · weekly · monthly · yearly")],
+    reinvest: Annotated[bool, Query()] = True,
+    end: Annotated[dt.date | None, Query()] = None,
+    max_points: MaxPoints = DEFAULT_COMPARE_POINTS,
+) -> Json | JSONResponse:
+    """주식 적립식 — `routes/stock_recurring`과 같은 판정·계산(`prepare_or_collect`)."""
+    prepared = await stock_recurring_routes.prepare_or_collect(
+        session, market=market, symbol=symbol, start=start, amount_raw=amount,
+        principal_currency=principal_currency, frequency_raw=frequency, reinvest=reinvest, end=end)
+    if isinstance(prepared, JSONResponse):
+        return prepared
+    stock, result = prepared.stock, prepared.result
+    finish = end or (dt.date.today() - dt.timedelta(days=1))
+    summary = stock_recurring_service.summary_json(
+        result, amount=stock_recurring_service.parse_amount(amount), stock=stock)
+    series = recurring_series.build_stock_series(
+        result, start=start, end=finish, covered=await get_coverage(session, int(stock.id)),
+        max_points=max_points)
+    sale = _object(summary["saleCost"])
+    costs = stock_costs(
+        buy_fee=_required(summary, "buyFeeTotal"),
+        dividend_tax=_required(summary, "dividendTaxTotal"),
+        sale_fee=_decimal(sale["fee"]), sale_tax=_decimal(sale["tax"]),
+        tax_kind=str(sale["taxKind"]))
+    latest = result.latest
+    fx = (FxInfo(stock.currency, latest.fx_rate, latest.fx_rate_date)
+          if stock.market != DOMESTIC_MARKET and latest is not None and latest.fx_rate is not None
+          and latest.fx_rate_date is not None else None)
+    return _body(
+        target=stock_routes.stock_json(stock),
+        condition=stock_recurring_routes.condition_json(
+            prepared, start=start, amount_raw=amount, principal_currency=principal_currency,
+            frequency_raw=frequency, reinvest=reinvest),
+        exchange=None, summary=summary,
+        series=stock_recurring_routes.series_json(series, principal_currency=principal_currency,
+                                                  price_currency=stock.currency),
+        comparison=comparison_block("stock_recurring", summary, costs,
+                                    principal_currency=principal_currency, fx=fx))
+
+
+@router.get("/crypto/recurring-simulation", response_model=None)
+async def compare_crypto_recurring(
+    session: Session,
+    coin_id: Annotated[int, Query(alias="coinId")],
+    start: Annotated[dt.date, Query()],
+    amount: Annotated[str, Query(description="한 번 납입액(원금 통화). 문자열")],
+    principal_currency: Annotated[str, Query(alias="principalCurrency")],
+    frequency: Annotated[str, Query(description="daily · weekly · monthly · yearly")],
+    end: Annotated[dt.date | None, Query()] = None,
+    max_points: MaxPoints = DEFAULT_COMPARE_POINTS,
+) -> Json | JSONResponse:
+    """가상자산 적립식 — `routes/crypto_recurring`과 같은 판정·계산. 요약과 시계열을 한 번에 내려고
+    `daily=True`로 계산한다(일시금과 같은 전제 — 통합 테스트가 요약 동일성으로 지킨다)."""
+    prepared = await crypto_recurring_routes.prepare_or_collect(
+        session, coin_id=coin_id, start=start, amount_raw=amount,
+        principal_currency=principal_currency, frequency_raw=frequency, end=end, daily=True)
+    if isinstance(prepared, JSONResponse):
+        return prepared
+    coin, result = prepared.coin, prepared.result
+    summary = crypto_recurring_routes.summary_json(result,
+                                                   pending_after_end=result.pending_after_end)
+    series = recurring_series.build_crypto_series(
+        result, start=start, end=crypto_routes.calculation_end(end),
+        covered=await crypto_daily.get_coverage(session, int(coin.id)), max_points=max_points)
+    sale = _object(summary["saleCost"])
+    costs = crypto_costs(buy_fee=_required(summary, "buyFeeTotal"), sale_fee=_decimal(sale["fee"]),
+                         sale_tax=_decimal(sale["tax"]), tax_kind=str(sale["taxKind"]))
+    latest = result.latest
+    fx = (FxInfo(coin.quote_currency, latest.fx_rate, latest.fx_rate_date)
+          if coin.quote_currency != "KRW" and latest.fx_rate is not None
+          and latest.fx_rate_date is not None else None)
+    return _body(
+        target=crypto_routes.coin_json(coin),
+        condition=crypto_recurring_routes.condition_json(
+            prepared, start=start, amount_raw=amount, principal_currency=principal_currency,
+            frequency_raw=frequency),
+        exchange=None, summary=summary,
+        series=crypto_recurring_routes.series_json(series, principal_currency=principal_currency,
+                                                   price_currency=coin.quote_currency),
+        comparison=comparison_block("crypto_recurring", summary, costs,
+                                    principal_currency=principal_currency, fx=fx))
+
+
+@router.get("/deposit/installment-simulation", response_model=None)
+async def compare_installment(
+    session: Session,
+    institution: Annotated[str, Query()],
+    start: Annotated[str, Query(description="YYYY-MM-DD — 첫 적금 가입일")],
+    amount: Annotated[str, Query(description="월 납입액. 원 단위 정수 문자열")],
+    end: Annotated[str | None, Query(description="기본 오늘(한국 시간)")] = None,
+    max_points: MaxPoints = DEFAULT_COMPARE_POINTS,
+) -> Json | JSONResponse:
+    """정기 적금 — `routes/deposit_installment.get_installment_simulation`과 같은 차례."""
+    request = installment_service.read_request(institution, start, amount, end)
+    result = await installment_service.simulate_or_collect(session, request)
+    if not isinstance(result, installment_service.PreparedInstallment):
+        return JSONResponse(status_code=202, content=result)
+    outcome = result.outcome
+    summary = installment_routes.summary_json(outcome, result.recheck_failed)
+    series = recurring_series.build_installment_series(
+        outcome, start=request.start, installment_rates=result.installment_rates,
+        installment_latest=result.installment_latest, deposit_rates=result.deposit_rates,
+        deposit_latest=result.deposit_latest, max_points=max_points)
+    costs = deposit_costs(matured_taxes=[outcome.summary.tax_total],
+                          open_tax=outcome.summary.open_tax)
+    return _body(
+        target=installment_routes.institution_json(request),
+        condition=installment_routes.condition_json(request, result), exchange=None,
+        summary=summary, series=installment_routes.series_json(series),
+        comparison=comparison_block("installment", summary, costs))

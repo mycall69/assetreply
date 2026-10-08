@@ -34,7 +34,7 @@ from src.api.services.crypto_simulation import (
     require_start_available,
     source_missing,
 )
-from src.api.services.recurring_series import build_crypto_series
+from src.api.services.recurring_series import RecurringSeries, build_crypto_series
 from src.api.services.series_query import DEFAULT_MAX_POINTS
 from src.api.services.stock_recurring import parse_amount, parse_frequency
 from src.api.services.table_rows import parse_period, row_body
@@ -48,12 +48,12 @@ router = APIRouter(prefix="/api/crypto", tags=["crypto"])
 Json = dict[str, object]
 
 
-async def _prepare_or_collect(session: AsyncSession, *, coin_id: int, start: dt.date,
-                              amount_raw: str, principal_currency: str, frequency_raw: str,
-                              end: dt.date | None, daily: bool = False,
-                              ) -> PreparedCryptoRecurring | JSONResponse:
+async def prepare_or_collect(session: AsyncSession, *, coin_id: int, start: dt.date,
+                             amount_raw: str, principal_currency: str, frequency_raw: str,
+                             end: dt.date | None, daily: bool = False,
+                             ) -> PreparedCryptoRecurring | JSONResponse:
     """표와 차트가 **같은 판정·같은 계산**을 쓴다 — 한쪽만 막거나 한쪽만 설정을 빠뜨려도 오류 없이
-    다른 숫자가 나온다(005 SC-032)."""
+    다른 숫자가 나온다(005 SC-032). 013 — 비교 경로도 이것을 부른다."""
     amount = parse_amount(amount_raw)
     frequency = parse_frequency(frequency_raw)
     finish = calculation_end(end)
@@ -143,6 +143,41 @@ def row_json(v: CryptoRecurringView) -> Json:
     return body
 
 
+def condition_json(prepared: PreparedCryptoRecurring, *, start: dt.date, amount_raw: str,
+                   principal_currency: str, frequency_raw: str) -> Json:
+    return {
+        "mode": "recurring", "start": start.isoformat(),
+        "amount": format(parse_amount(amount_raw), "f"), "principalCurrency": principal_currency,
+        "frequency": parse_frequency(frequency_raw),
+        "tradeFeeRate": _rate(prepared.settings.trade_fee_rate),
+    }
+
+
+def series_json(series: RecurringSeries, *, principal_currency: str, price_currency: str) -> Json:
+    """시계열 본문 — 비교 경로(013)도 이 함수로 같은 모양을 낸다."""
+    return {
+        "from": series.start.isoformat(),
+        "to": series.end.isoformat(),
+        "principalCurrency": principal_currency,
+        "basisCurrency": "KRW",
+        # 가격은 그 일봉의 시가, 통화는 코인의 **시세 통화**다(010 — 원금이 KRW여도 환산하지
+        # 않는다).
+        "priceKind": "crypto_open",
+        "priceCurrency": price_currency,
+        "downsampled": series.downsampled,
+        "algorithm": "lttb",
+        "sourcePointCount": series.source_point_count,
+        "points": [
+            {"date": p.date.isoformat(), "balance": money(p.balance),
+             "returnRate": _rate(p.return_rate), "principal": money(p.principal),
+             "price": _rate(p.price)}
+            for p in series.points],
+        # `source_missing` — 받은 구간 안의 출처 결측. 끊어 그린다(007 FR-023)
+        "gaps": [{"from": g.start.isoformat(), "to": g.end.isoformat(), "reason": g.reason}
+                 for g in series.gaps],
+    }
+
+
 @router.get("/recurring-simulation", response_model=None)
 async def get_recurring_simulation(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -159,7 +194,7 @@ async def get_recurring_simulation(
 ) -> Json | JSONResponse:
     """적립식을 실행하고 표 한 쪽을 돌려준다."""
     unit = parse_period(period)
-    prepared = await _prepare_or_collect(
+    prepared = await prepare_or_collect(
         session, coin_id=coin_id, start=start, amount_raw=amount,
         principal_currency=principal_currency, frequency_raw=frequency, end=end)
     if isinstance(prepared, JSONResponse):
@@ -174,12 +209,8 @@ async def get_recurring_simulation(
     return {
         "coin": coin_json(prepared.coin),
         # 설정은 언제든 바뀐다. 결과만 남으면 어느 조건의 수치인지 알 수 없다(007 FR-033).
-        "condition": {
-            "mode": "recurring", "start": start.isoformat(),
-            "amount": format(parse_amount(amount), "f"), "principalCurrency": principal_currency,
-            "frequency": parse_frequency(frequency),
-            "tradeFeeRate": _rate(prepared.settings.trade_fee_rate),
-        },
+        "condition": condition_json(prepared, start=start, amount_raw=amount,
+                                    principal_currency=principal_currency, frequency_raw=frequency),
         "summary": summary_json(result, pending_after_end=result.pending_after_end),
         "period": unit,
         "rows": [row_body(r, row_json) for r in shown.rows],
@@ -200,7 +231,7 @@ async def get_recurring_series(
     max_points: Annotated[int, Query(alias="maxPoints", ge=2)] = DEFAULT_MAX_POINTS,
 ) -> Json | JSONResponse:
     """표와 같은 조건으로 일봉마다의 시계열을 돌려준다."""
-    prepared = await _prepare_or_collect(
+    prepared = await prepare_or_collect(
         session, coin_id=coin_id, start=start, amount_raw=amount,
         principal_currency=principal_currency, frequency_raw=frequency, end=end, daily=True)
     if isinstance(prepared, JSONResponse):
@@ -209,24 +240,5 @@ async def get_recurring_series(
     series = build_crypto_series(
         prepared.result, start=start, end=calculation_end(end),
         covered=await crypto_daily.get_coverage(session, int(coin.id)), max_points=max_points)
-    return {
-        "from": series.start.isoformat(),
-        "to": series.end.isoformat(),
-        "principalCurrency": principal_currency,
-        "basisCurrency": "KRW",
-        # 가격은 그 일봉의 시가, 통화는 코인의 **시세 통화**다(010 — 원금이 KRW여도 환산하지
-        # 않는다).
-        "priceKind": "crypto_open",
-        "priceCurrency": coin.quote_currency,
-        "downsampled": series.downsampled,
-        "algorithm": "lttb",
-        "sourcePointCount": series.source_point_count,
-        "points": [
-            {"date": p.date.isoformat(), "balance": money(p.balance),
-             "returnRate": _rate(p.return_rate), "principal": money(p.principal),
-             "price": _rate(p.price)}
-            for p in series.points],
-        # `source_missing` — 받은 구간 안의 출처 결측. 끊어 그린다(007 FR-023)
-        "gaps": [{"from": g.start.isoformat(), "to": g.end.isoformat(), "reason": g.reason}
-                 for g in series.gaps],
-    }
+    return series_json(series, principal_currency=principal_currency,
+                       price_currency=coin.quote_currency)

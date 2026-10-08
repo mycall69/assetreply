@@ -187,6 +187,10 @@ class LadderSummary:
     stopped: Stopped | None
     current_installment: OpenInstallment | None
     current_deposit: OpenDeposit | None
+    #: 013 — 기준일에 진행 중인 적금·정기예금의 경과 이자에 대한 이자 소득세 합. 평가액
+    #: (`installment_value`·`deposit_value`)에서 이미 뺀 그 값이다(비교 표의 비용 — 이미 반영된 몫,
+    #: research R13-3). 멈추면 0.
+    open_tax: Decimal = Decimal(0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -264,17 +268,31 @@ def _saving_accrued(saving: _Saving, monthly: Decimal, on: dt.date) -> Decimal:
         return _trunc(total / _MONTHS_PER_YEAR_PERCENT)
 
 
-def _saving_value(saving: _Saving, monthly: Decimal, on: dt.date, tax_rate: Decimal) -> Decimal:
+def _saving_parts(saving: _Saving, monthly: Decimal, on: dt.date,
+                  tax_rate: Decimal) -> tuple[Decimal, Decimal]:
+    """(평가액, 경과 이자의 세금) — 평가액은 낸 회차 + 경과 이자 − 그 세금이다."""
     accrued = _saving_accrued(saving, monthly, on)
-    return monthly * saving.paid + accrued - interest_tax(accrued, tax_rate)
+    tax = interest_tax(accrued, tax_rate)
+    return monthly * saving.paid + accrued - tax, tax
+
+
+def _saving_value(saving: _Saving, monthly: Decimal, on: dt.date, tax_rate: Decimal) -> Decimal:
+    return _saving_parts(saving, monthly, on, tax_rate)[0]
+
+
+def _deposit_parts(deposit: _Deposit | None, on: dt.date,
+                   tax_rate: Decimal) -> tuple[Decimal, Decimal]:
+    """(평가액, 경과 이자의 세금) — 정기예금이 없으면 둘 다 0이다."""
+    if deposit is None:
+        return _ZERO, _ZERO
+    accrued = accrued_interest(deposit.principal, deposit.rate.rate, deposit.joined,
+                               deposit.matures, on)
+    tax = interest_tax(accrued, tax_rate)
+    return deposit.principal + accrued - tax, tax
 
 
 def _deposit_value(deposit: _Deposit | None, on: dt.date, tax_rate: Decimal) -> Decimal:
-    if deposit is None:
-        return _ZERO
-    accrued = accrued_interest(deposit.principal, deposit.rate.rate, deposit.joined,
-                               deposit.matures, on)
-    return deposit.principal + accrued - interest_tax(accrued, tax_rate)
+    return _deposit_parts(deposit, on, tax_rate)[0]
 
 
 def _year_before(month: dt.date) -> dt.date:
@@ -434,14 +452,16 @@ def simulate_installment_ladder(
             provisional_from = matures
         saving = _new_saving(saving.no + 1, matures, next_saving_rate)
 
+    open_tax = _ZERO
     if stopped is not None:
         installment_value, deposit_value = state.stopped_values
         as_of = stopped.date
         current_installment: OpenInstallment | None = None
         current_deposit: OpenDeposit | None = None
     else:
-        installment_value = _saving_value(saving, monthly, end, tax_rate)
-        deposit_value = _deposit_value(deposit, end, tax_rate)
+        installment_value, installment_tax = _saving_parts(saving, monthly, end, tax_rate)
+        deposit_value, deposit_tax = _deposit_parts(deposit, end, tax_rate)
+        open_tax = installment_tax + deposit_tax
         as_of = end
         current_installment = OpenInstallment(
             no=saving.no, joined_on=saving.joined, matures_on=saving.matures,
@@ -469,7 +489,8 @@ def simulate_installment_ladder(
         installment_value=installment_value, deposit_value=deposit_value, balance=balance,
         profit=profit, return_rate=return_rate, as_of=as_of, is_final=stopped is None,
         provisional_from=provisional_from, stopped=stopped,
-        current_installment=current_installment, current_deposit=current_deposit)
+        current_installment=current_installment, current_deposit=current_deposit,
+        open_tax=open_tax)
     return LadderOutcome(contracts=contracts, deposits=deposits,
                          rows=list(reversed(ascending)), summary=summary)
 
