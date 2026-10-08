@@ -8,14 +8,11 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ComparePage from "@/app/compare/page";
 import { apiClient } from "@/lib/apiClient";
-import type { StockProgressHandlers } from "@/lib/stockProgressStream";
 import { useCompareStore } from "@/stores/compareStore";
 import { HYNIX_T, SAMSUNG_T, XLK_T, apiError, ok } from "./support/compareFixtures";
 import { savedComparisonStub } from "./support/savedComparisonStub";
 
-vi.mock("@/lib/stockProgressStream", () => ({
-  subscribeStockProgress: (_jobId: number, _handlers: StockProgressHandlers) => () => undefined,
-}));
+vi.mock("@/lib/stockProgressStream", () => ({ subscribeStockProgress: () => () => undefined }));
 vi.mock("@/lib/collectionStream", () => ({ subscribeCollection: () => () => undefined }));
 vi.mock("lightweight-charts", () => ({
   LineSeries: "Line",

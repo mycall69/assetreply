@@ -1147,3 +1147,33 @@ class HistorySetting(Base):
     )
     updated_at: Mapped[dt.datetime] = mapped_column(
         TS, server_default=func.now(), onupdate=func.now())
+
+
+COMPARISON_ASSET_CLASSES = ("stock", "crypto", "deposit", "realestate")
+
+
+class SavedComparison(Base):
+    """저장한 비교 한 항목 (013 FR-016, data-model 1.1). **조건만** 담는다 — 결과를 담지 않는다.
+
+    저장할 때마다 새 행이다(같은 조건·이름이어도 — 명확화 3). 보관 기간이 없다 — 지울 때까지
+    남는다(012 이력 정리와 무관하다). 조건은 서버가 정해진 차례로 직렬화한 JSON 글이다(012
+    `simulation_history`와 같은 까닭 — JSON 열은 금액 문자열을 수로 바꿔 돌려줄 수 있다). 금액 열이
+    없다 — 조건 안의 금액은 받은 글자 그대로의 기록이다(원칙 VI 해석). 대상 테이블과 외래 키가
+    없다 — 대상이 없어져도 저장한 비교는 남고 불러올 때 막힘으로 드러난다(FR-017).
+    """
+
+    __tablename__ = "saved_comparison"
+    __table_args__ = (Index("ix_saved_comparison_list", "saved_at", "id"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    #: 사용자가 붙인 이름 — 앞뒤 공백을 뺀 1~100자. 같은 이름이 여럿일 수 있다.
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    #: 자산군 — `condition`의 `asset`과 같다(목록 표시·검증용).
+    asset_class: Mapped[str] = mapped_column(
+        Enum(*COMPARISON_ASSET_CLASSES, native_enum=False, length=16,
+             name="comparison_asset_class"),
+        nullable=False,
+    )
+    condition: Mapped[str] = mapped_column(Text, nullable=False)
+    #: 저장 시각(UTC, 초 단위). 목록 차례다.
+    saved_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)

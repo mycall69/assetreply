@@ -146,3 +146,8 @@ class InvalidHistory(Exception):
     """이력 조건이 틀렸다 (012, 422 `invalid_history`). 메시지가 어느 칸인지 말한다 — 빠진 칸을
     기본값으로 채워 저장하면 다시 실행이 다른 조건으로
     돈다."""
+
+
+class InvalidComparison(Exception):
+    """저장한 비교의 이름·조건이 틀렸다 (013, 422 `invalid_comparison`). 메시지가 어느 칸인지 말한다
+    — 빠진 칸을 기본값으로 메워 저장하면 불러올 때 다른 조건으로 돈다."""

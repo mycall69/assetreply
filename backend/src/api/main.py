@@ -16,6 +16,7 @@ from src.api.errors import (
     CurrencyNotAllowed,
     CurrencyPairNotAllowed,
     InstallmentNotAvailable,
+    InvalidComparison,
     InvalidHistory,
     InvalidQuery,
     InvalidSetting,
@@ -250,6 +251,11 @@ def create_app() -> FastAPI:
     async def _invalid_history(_: Request, exc: InvalidHistory) -> JSONResponse:
         return _json(422, "invalid_history", str(exc))
 
+    # 013 — 저장한 비교. 틀린 이름·조건은 422(어느 칸인지 말한다).
+    @app.exception_handler(InvalidComparison)
+    async def _invalid_comparison(_: Request, exc: InvalidComparison) -> JSONResponse:
+        return _json(422, "invalid_comparison", str(exc))
+
     @app.exception_handler(FxUnavailable)
     async def _fx_unavailable(_: Request, exc: FxUnavailable) -> JSONResponse:
         # 환산할 수 없다는 사실이 드러나야 한다. 값을 만들어내지 않는다 (원칙 V).
@@ -456,6 +462,7 @@ def create_app() -> FastAPI:
     from src.api.routes import realestate_series as realestate_series_routes
     from src.api.routes import realestate_settings as realestate_settings_routes
     from src.api.routes import realestate_simulation as realestate_simulation_routes
+    from src.api.routes import saved_comparison as saved_comparison_routes
     from src.api.routes import series as series_routes
     from src.api.routes import spreads as spread_routes
     from src.api.routes import stock_progress as stock_progress_routes
@@ -511,7 +518,9 @@ def create_app() -> FastAPI:
     app.include_router(realestate_series_routes.router)
     app.include_router(realestate_settings_routes.router)
     app.include_router(history_routes.router)
-    # 013 — 투자 비교. 저장한 비교(`/api/comparison/saved`)는 이 라우터보다 먼저 더한다(T073).
+    # 013 — 투자 비교. 저장한 비교(`/api/comparison/saved`)를 비교 경로보다 먼저 더한다 — 나중의
+    # 경로가 앞 경로를 잡지 않게 한다(012 `settings`와 같은 까닭).
+    app.include_router(saved_comparison_routes.router)
     app.include_router(comparison_routes.router)
 
     return app

@@ -5,6 +5,7 @@
  *   기간을 말하지 않는다 — 기본값을 짐작해 적으면 설정과 다른 기간을 말할 수 있다
  * - 불러오는 중에는 빈 상태 문구를 보이지 않는다 — 비어 있는 것으로 오해한다
  * - 불러오기 실패는 알림과 다시 시도 단추다. 빈 상태 문구를 보이지 않는다(FR-014a — 실패가 빈 목록으로 보이면 지워졌다고 오해한다)
+ * - 빈 상태 문구는 속성으로 바꿀 수 있다(013 T075 — 저장한 비교 칸). 처음 값은 지금 문구다 — 메뉴 이력 칸은 그대로다
  */
 
 import type { ReactNode } from "react";
@@ -33,8 +34,8 @@ export function HistoryNotice({ retentionDays, scope }: { retentionDays?: number
 
 /** 목록 자리 — 알림, 불러오기 실패·불러오는 중·빈 상태, 그리고 목록. */
 export function HistoryContent({
-  loading = false, loadError = null, onRetry, notice = null, empty, children,
-}: Omit<HistoryStateProps, "retentionDays"> & { empty: boolean; children: ReactNode }) {
+  loading = false, loadError = null, onRetry, notice = null, empty, emptyText = "아직 실행한 시뮬레이션이 없습니다.", children,
+}: Omit<HistoryStateProps, "retentionDays"> & { empty: boolean; emptyText?: string; children: ReactNode }) {
   return (
     <>
       {notice !== null && (
@@ -56,7 +57,7 @@ export function HistoryContent({
       {loading && <p className="py-2 text-center text-sm text-gray-500">⟳ 불러오는 중…</p>}
       {empty
         ? !loading && loadError === null && (
-          <p className="py-6 text-center text-sm text-gray-500">아직 실행한 시뮬레이션이 없습니다.</p>
+          <p className="py-6 text-center text-sm text-gray-500">{emptyText}</p>
         )
         : children}
     </>

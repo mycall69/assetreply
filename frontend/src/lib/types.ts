@@ -1,6 +1,7 @@
 /** 백엔드 응답 타입 (contracts/rest-api.md). 금액은 문자열로 유지한다. */
 
 import type { CurrencyCode, DecimalString } from "./apiClient";
+import type { CompareCondition } from "./compareCondition";
 
 export type { CurrencyCode, DecimalString };
 
@@ -1669,4 +1670,23 @@ export interface CompareCollecting {
   monthsDone?: number;
   monthsTotal?: number;
   [key: string]: unknown;
+}
+
+/** 저장한 비교 한 항목(contracts/rest-api.md 2). 조건만이다 — 결과를 싣지 않는다. `savedAt`은 UTC ISO(`Z`). */
+export interface SavedComparison {
+  id: number;
+  name: string;
+  asset: CompareAsset;
+  condition: CompareCondition;
+  savedAt: string;
+}
+
+/** 저장한 비교 목록 — 최근 저장 먼저(서버 차례). 보관 기간이 없다. */
+export interface SavedComparisonList {
+  entries: SavedComparison[];
+}
+
+/** 저장 201 — 새 항목과 목록 전체(화면이 목록을 다시 받지 않는다). */
+export interface SavedComparisonCreated extends SavedComparisonList {
+  entry: SavedComparison;
 }

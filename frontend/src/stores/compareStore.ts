@@ -8,11 +8,22 @@
  * - 실행마다 차례 번호를 올린다 — 늦게 온 이전 실행의 응답·스트림 사건은 버린다(FR-012a). 결과를 낸 조건과 지금 조건이 다르면
  *   흐린다(`isStale` — 파생 값이라 되돌리면 풀린다)
  * - **이력을 쓰지 않는다**(FR-020) — 메뉴 스토어의 `run` 계열·`saveHistoryFlow`를 부르지 않는다. 메뉴 스토어에서는 질의 함수만 쓴다
+ * - **저장한 비교**(US4, data-model 5.2): 저장은 결과가 있고 흐리지 않고 막히지 않았을 때만이다(`saveBlockReason` — 수집 중인 대상이 남아도
+ *   된다, 조건만의 기록이다). 본문은 결과를 낸 정규 조건이다 — 지금 입력이 아니다(흐린 결과를 다른 조건으로 저장하는 길을 막는다). 불러오기는
+ *   입력을 채우고 곧바로 실행한다(FR-017). 저장·삭제가 실패해도 결과는 그대로다(FR-019)
  */
 import { create } from "zustand";
 import { subscribeCollection } from "@/lib/collectionStream";
-import { classify, type TargetState } from "@/lib/compareBlock";
-import { comparisonPath, fetchComparison, isCollecting } from "@/lib/compareApi";
+import { ApiError } from "@/lib/apiClient";
+import { classify, overall, type TargetState } from "@/lib/compareBlock";
+import {
+  comparisonPath,
+  deleteSavedComparison,
+  fetchComparison,
+  fetchSavedComparisons,
+  isCollecting,
+  postSavedComparison,
+} from "@/lib/compareApi";
 import {
   allowedCurrencies,
   maxTargets,
@@ -36,6 +47,7 @@ import type {
   CurrencyCode,
   Frequency,
   PrincipalCurrency,
+  SavedComparison,
 } from "@/lib/types";
 import { failureText as cryptoFailureText } from "./cryptoStore";
 import { depositFailureText } from "./depositStore";
@@ -57,6 +69,18 @@ export interface RunState {
   byTarget: Record<string, TargetState>;
 }
 
+/** 저장한 비교 슬라이스(data-model 5.2). */
+export interface SavedState {
+  /** 서버 차례 그대로 — 최근 저장 먼저. */
+  entries: SavedComparison[];
+  loading: boolean;
+  loadError: string | null;
+  saveError: string | null;
+  removeError: string | null;
+  /** 저장을 보내는 중. */
+  saving: boolean;
+}
+
 export interface CompareState {
   asset: CompareAsset;
   method: CompareMethod;
@@ -70,6 +94,7 @@ export interface CompareState {
   notice: string | null;
   run: RunState | null;
   sort: SortState | null;
+  saved: SavedState;
 
   setAsset: (asset: CompareAsset) => void;
   setMethod: (method: CompareMethod) => void;
@@ -89,6 +114,13 @@ export interface CompareState {
   moveStart: (date: string) => void;
   /** 진행 구독을 모두 푼다 — 화면을 떠날 때·자산군을 바꿀 때·새로 실행할 때. */
   dispose: () => void;
+  /** 저장한 비교 목록을 받는다. */
+  loadSaved: () => Promise<void>;
+  /** 결과를 낸 조건을 이름과 함께 저장한다. 저장할 수 없거나 실패하면 `false`. */
+  saveComparison: (name: string) => Promise<boolean>;
+  /** 저장한 비교의 조건을 채우고 곧바로 실행한다. */
+  openSaved: (id: number) => Promise<void>;
+  removeSaved: (id: number) => Promise<void>;
 }
 
 /** 연달아 받은 202가 이만큼이면 수집 실패로 둔다(research R13-7). */
@@ -120,9 +152,32 @@ export function isStale(state: CompareState): boolean {
   return state.run !== null && !sameCondition(state.run.condition, currentCondition(state));
 }
 
+/**
+ * 저장할 수 없는 까닭 — 결과가 없음·흐림·막힘. `null`이면 저장할 수 있다(수집 중인 대상이 남아도 된다 — 조건만의 기록이다). 흐린 결과를 저장하면
+ * 저장한 조건(결과를 낸 조건)과 화면의 입력이 달라 무엇을 저장했는지 알 수 없다(FR-012a).
+ */
+export function saveBlockReason(state: CompareState): string | null {
+  if (state.run === null) return "비교를 실행한 뒤 저장할 수 있습니다";
+  if (isStale(state)) return "다시 실행한 뒤 저장할 수 있습니다";
+  const states = runRows(state.run).map((r) => r.state);
+  if (overall(states) === "blocked") return "막힌 대상이 있어 저장할 수 없습니다";
+  if (!states.some((s) => s.status === "ok")) return "결과가 나온 뒤 저장할 수 있습니다";
+  return null;
+}
+
+const failure = (err: unknown): string => (err instanceof ApiError ? err.message : "서버에 연결하지 못했습니다");
+
+const SAVED_INITIAL: SavedState = {
+  entries: [], loading: false, loadError: null, saveError: null, removeError: null, saving: false,
+};
+
 let runSeq = 0;
 
 export const useCompareStore = create<CompareState>()((set, get) => {
+  function setSaved(partial: Partial<SavedState>): void {
+    set((s) => ({ saved: { ...s.saved, ...partial } }));
+  }
+
   function setTarget(seq: number, key: string, next: TargetState): boolean {
     const run = get().run;
     if (run === null || run.seq !== seq) return false;
@@ -253,6 +308,7 @@ export const useCompareStore = create<CompareState>()((set, get) => {
     notice: null,
     run: null,
     sort: null,
+    saved: SAVED_INITIAL,
 
     setAsset: (asset) => {
       if (asset === get().asset) return;
@@ -327,6 +383,56 @@ export const useCompareStore = create<CompareState>()((set, get) => {
 
     dispose: () => {
       unsubscribeAll();
+    },
+
+    loadSaved: async () => {
+      setSaved({ loading: true, loadError: null });
+      try {
+        const body = await fetchSavedComparisons();
+        setSaved({ entries: body.entries, loading: false });
+      } catch (err) {
+        setSaved({ loading: false, loadError: `저장한 비교를 받지 못했습니다 — ${failure(err)}` });
+      }
+    },
+
+    saveComparison: async (name) => {
+      const state = get();
+      const trimmed = name.trim();
+      if (state.run === null || saveBlockReason(state) !== null || trimmed === "") return false;
+      setSaved({ saving: true, saveError: null });
+      try {
+        const body = await postSavedComparison(trimmed, state.run.condition);
+        setSaved({ entries: body.entries, saving: false });
+        return true;
+      } catch (err) {
+        setSaved({ saving: false, saveError: `저장하지 못했습니다 — ${failure(err)}` });
+        return false;
+      }
+    },
+
+    openSaved: async (id) => {
+      const entry = get().saved.entries.find((e) => e.id === id);
+      if (entry === undefined) return;
+      const c = entry.condition;
+      unsubscribeAll();
+      runSeq += 1;
+      // 조건에 없는 칸(일시금의 주기, 부동산의 금액, 주식 밖의 재투자)은 지금 입력을 둔다 — 정규 조건이 그 칸을 쓰지 않아 같은 조건이다.
+      set((s) => ({
+        asset: c.asset, method: c.method, frequency: c.frequency ?? s.frequency, start: c.start, amount: c.amount ?? s.amount,
+        principalCurrency: c.principalCurrency, reinvest: c.reinvest ?? s.reinvest, targets: c.targets,
+        run: null, notice: null, sort: null,
+      }));
+      await get().runComparison();
+    },
+
+    removeSaved: async (id) => {
+      setSaved({ removeError: null });
+      try {
+        const body = await deleteSavedComparison(id);
+        setSaved({ entries: body.entries });
+      } catch (err) {
+        setSaved({ removeError: `지우지 못했습니다 — ${failure(err)}` });
+      }
     },
   };
 });

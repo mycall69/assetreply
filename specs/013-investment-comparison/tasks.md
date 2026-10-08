@@ -414,19 +414,19 @@ Independent Test, quickstart 5-10).
 
 ### Implementation for User Story 4
 
-- [ ] T069 [US4] `backend/src/db/models.py`(`SavedComparison`) · `backend/src/db/migrations/versions/<rev>_저장한_비교.py`(`down_revision = "a6d2f9c41b83"`) (FR-016, data-model 1)
+- [X] T069 [US4] `backend/src/db/models.py`(`SavedComparison`) · `backend/src/db/migrations/versions/<rev>_저장한_비교.py`(`down_revision = "a6d2f9c41b83"`) (FR-016, data-model 1)
   - `id BigInteger PK autoincrement`, `name String(100) NOT NULL`, `asset_class Enum("stock","crypto","deposit","realestate", native_enum=False, length=16, name="comparison_asset_class") NOT NULL`,
     `condition Text NOT NULL`, `saved_at DateTime(timezone=False) NOT NULL`, `ix_saved_comparison_list (saved_at, id)`.
   - 마이그레이션 상수는 파일 안에 둔다(012 선례). 코드에 날짜 리터럴을 두지 않는다(`test_no_hardcoded_dates`).
   - 개발 DB에 `alembic upgrade head`를 올린다.
-- [ ] T070 [US4] `backend/src/repository/saved_comparison.py`(신규) — `list_entries`(`saved_at` 내림차순, `id` 내림차순, `populate_existing`)·`add`(새 `id`를 돌려준다)·`remove`(없는 `id`도 조용히) — `SavedComparisonRepository` Protocol(T072)의 시그니처를 따른다 (FR-016, FR-018)
-- [ ] T071 [US4] `backend/src/api/services/comparison_conditions.py`(신규, 순수) — data-model 2의 검증·정규화·직렬화, `InvalidComparison`(칸을 밝힌 메시지) (FR-004, FR-016, SC-006)
-- [ ] T072 [US4] `backend/src/api/services/saved_comparison.py`(신규) — `class SavedComparisonRepository(Protocol)`(`list_entries`·`add`·`remove`)을 두고 목록·저장·삭제 함수가 저장소를 인자로 받는다(헌법 원칙 IV), `utc_now()`(테스트가 바꾼다), 목록·저장(201 본문)·삭제 본문, 각 함수가 커밋 (FR-016~FR-018)
-- [ ] T073 [US4] `backend/src/api/routes/saved_comparison.py`(신규 — `GET`·`POST`·`DELETE /{id}`) · `backend/src/api/errors.py`(`InvalidComparison`) · `backend/src/api/main.py`(처리기 422 `invalid_comparison`, 저장 라우터를 비교 라우터보다 **먼저**) — 경로가 `src.repository.saved_comparison` 모듈을 서비스에 넘긴다 (contracts/rest-api.md 2~6)
-- [ ] T074 [US4] `frontend/src/lib/compareApi.ts`(저장 경로 셋 — 공통 요청 함수) · `frontend/src/lib/types.ts`(`SavedComparison`·목록 응답) (FR-016~FR-018)
-- [ ] T075 [US4] `frontend/src/components/history/HistoryStates.tsx` — `HistoryContent`에 선택 속성 `emptyText`(처음 값 = 지금 문구) (F9)
-- [ ] T076 [US4] `frontend/src/components/compare/SaveComparisonForm.tsx`·`SavedComparisons.tsx`(신규) (FR-016~FR-019, F9)
-- [ ] T077 [US4] `frontend/src/stores/compareStore.ts`(저장 슬라이스 — data-model 5.2, 불러오기 → 채우고 실행) · `frontend/src/app/compare/page.tsx`(`TableWithHistory` 배치 — 오른쪽 저장한 비교, 저장 단추·이름 칸) (FR-016~FR-019, F9)
+- [X] T070 [US4] `backend/src/repository/saved_comparison.py`(신규) — `list_entries`(`saved_at` 내림차순, `id` 내림차순, `populate_existing`)·`add`(새 `id`를 돌려준다)·`remove`(없는 `id`도 조용히) — `SavedComparisonRepository` Protocol(T072)의 시그니처를 따른다 (FR-016, FR-018)
+- [X] T071 [US4] `backend/src/api/services/comparison_conditions.py`(신규, 순수) — data-model 2의 검증·정규화·직렬화, `InvalidComparison`(칸을 밝힌 메시지) (FR-004, FR-016, SC-006)
+- [X] T072 [US4] `backend/src/api/services/saved_comparison.py`(신규) — `class SavedComparisonRepository(Protocol)`(`list_entries`·`add`·`remove`)을 두고 목록·저장·삭제 함수가 저장소를 인자로 받는다(헌법 원칙 IV), `utc_now()`(테스트가 바꾼다), 목록·저장(201 본문)·삭제 본문, 각 함수가 커밋 (FR-016~FR-018)
+- [X] T073 [US4] `backend/src/api/routes/saved_comparison.py`(신규 — `GET`·`POST`·`DELETE /{id}`) · `backend/src/api/errors.py`(`InvalidComparison`) · `backend/src/api/main.py`(처리기 422 `invalid_comparison`, 저장 라우터를 비교 라우터보다 **먼저**) — 경로가 `src.repository.saved_comparison` 모듈을 서비스에 넘긴다 (contracts/rest-api.md 2~6)
+- [X] T074 [US4] `frontend/src/lib/compareApi.ts`(저장 경로 셋 — 공통 요청 함수) · `frontend/src/lib/types.ts`(`SavedComparison`·목록 응답) (FR-016~FR-018)
+- [X] T075 [US4] `frontend/src/components/history/HistoryStates.tsx` — `HistoryContent`에 선택 속성 `emptyText`(처음 값 = 지금 문구) (F9)
+- [X] T076 [US4] `frontend/src/components/compare/SaveComparisonForm.tsx`·`SavedComparisons.tsx`(신규) (FR-016~FR-019, F9)
+- [X] T077 [US4] `frontend/src/stores/compareStore.ts`(저장 슬라이스 — data-model 5.2, 불러오기 → 채우고 실행) · `frontend/src/app/compare/page.tsx`(`TableWithHistory` 배치 — 오른쪽 저장한 비교, 저장 단추·이름 칸) (FR-016~FR-019, F9)
 - [ ] T078 [US4] 검증 — quickstart 2(저장 API 손 확인)·5-8·5-11 (FR-016~FR-019, SC-006)
   - 다른 브라우저 문맥에서 같은 목록이 보인다. 백엔드를 멈추면 목록 받기 실패와 다시 시도가 보인다.
   - 확인으로 만든 저장한 비교를 지우고 전후 목록이 같음을 본다. quickstart 실행 기록에 적는다.
@@ -571,6 +571,10 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
   `screen.getAllByText(/₩409,114,677/)`가 화면 전체의 투자 수익 글자를 세는데 막대도 같은 값을 같은 형식으로 보인다(F7). 세는 범위를 비교 표(`within(표)`)로 좁혔고
   기대 개수(2·1·2)는 그대로다. 고친 줄 위에 `013 승인 2026-10-08` 주석. 정렬 상태는 US1에서 이미 스토어에 있어(`sort`) 표의 줄 차례 함수만 내보냈다(`sortedRows`)
 - **2026-10-08 T059**: 개발 DB 머리 리비전이 T003과 같은 `a6d2f9c41b83`(head)이었다 — 다른 작업이 리비전을 더하지 않았다
+- **2026-10-08 US4 구현**: 새 리비전 `b3e7d5a1c924`(`down_revision = "a6d2f9c41b83"`)를 개발 DB에 올렸다(`alembic upgrade head`). 전체 스위트에서 **실제로 실패한** 기존
+  테스트가 없어 승인할 목록이 없다 — 백엔드 2,998 passed(커버리지 96%), 화면 186 파일·1,630 passed. 저장 시각은 초 단위로 자른다(DB `DATETIME` 반올림 — 응답의
+  `entry`와 목록이 1초 어긋나지 않게). 화면 배치는 `TableWithHistory` — 결과 칸(저장 단추·표·그래프, `compare-result`가 표와 그래프를 함께 흐린다)과 오른쪽 저장한
+  비교(흐리지 않는다 — 흐린 동안에도 불러올 수 있다). 이번 페이즈의 새 테스트 `ComparePageSaved.test.tsx`의 쓰지 않는 모의 매개변수 둘(eslint 경고)을 지웠다(단언 불변)
 - 커밋 메시지는 한국어이고 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`을 단다. 푸시는 요청이 있을 때만 한다.
 
 ## 요구사항 ↔ 태스크
