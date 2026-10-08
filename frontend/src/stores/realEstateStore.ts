@@ -25,7 +25,7 @@
  * 어긋난다. 비교에서 빠지는 항목은 조용히 빼지 않는다 — 빼면 그 단지가 진 것으로 읽힌다.
  */
 
-import { create } from "zustand";
+import { create, type StateCreator } from "zustand";
 import type { ComparisonItem } from "@/components/stock/ComparisonChart";
 import { ApiError, apiClient } from "@/lib/apiClient";
 import {
@@ -90,7 +90,7 @@ export type RealEstateRejection =
   | { kind: "tax_rule_not_covered"; tax: string; date: string }
   | { kind: "region_retired"; lawdCd: string };
 
-interface RealEstateState {
+export interface RealEstateState {
   regions: RealEstateRegionLists;
   selection: RealEstateSelection;
   /** 행정구역을 처음 받는 중(202). */
@@ -200,44 +200,15 @@ const isCollecting = <T extends { status: "collecting" }>(body: object): body is
   "status" in body && body.status === "collecting";
 
 type Watch = "region" | "trade" | "details" | "areas" | "simulation";
-/** 살아 있는 진행 구독 — 종류마다 하나. 작업 번호를 들고 있어 같은 작업을 두 번 구독하지 않는다. */
-const watchers: Record<Watch, { jobId: number; stop: () => void } | null> = {
-  region: null, trade: null, details: null, areas: null, simulation: null,
-};
-
-function stopWatching(key: Watch): void {
-  watchers[key]?.stop();
-  watchers[key] = null;
-}
-
-function watch(key: Watch, jobId: number, handlers: RealEstateProgressHandlers): void {
-  // 같은 작업을 이미 구독하고 있으면 그대로 둔다 — 다시 받은 응답이 같은 작업을 가리키는 일이 흔하다.
-  if (watchers[key]?.jobId === jobId) return;
-  stopWatching(key);
-  watchers[key] = { jobId, stop: subscribeRealEstateProgress(jobId, handlers) };
-}
 
 const NO_RESULT = {
   summary: null, rows: [], condition: null, acquisition: null, resultTarget: null, series: null, seriesError: null,
   collecting: null, progress: null, startable: null, rejection: null, loading: false,
 } satisfies Partial<RealEstateState>;
 
-/** 지금 실행의 번호. 결과를 지우거나 새로 실행하면 늘어난다 — 늦게 온 이전 실행의 응답을 버린다. */
-let runSeq = 0;
-/** 지금 실행이 화면이 스스로 한 것인지(수집 완료·실패 뒤). 사용자가 실행하면 자동 다시 요청의 기회를 되돌린다. */
-let automaticRun = false;
-/** 이 실행에서 실패 뒤 다시 요청했는지 — 한 실행에 한 번(008 FR-016a와 같다). */
-let retriedAfterFailure = false;
-
-/** 결과·거절을 지우고 실행의 진행 구독을 끊는다. */
-function clearResult(): typeof NO_RESULT {
-  stopWatching("simulation");
-  runSeq += 1;
-  return NO_RESULT;
-}
-
-/** 실행의 질의. 매입가는 **문자열 그대로**, 비었으면 보내지 않는다. 통화는 보내지 않는다 — 원화만이다(FR-007). */
-function simulationQuery(complexId: number, area: RealEstateAreaKey, input: RealEstateInput): string {
+/** 실행의 질의. 매입가는 **문자열 그대로**, 비었으면 보내지 않는다. 통화는 보내지 않는다 — 원화만이다(FR-007). 013 — 비교 화면이
+ * 같은 질의를 쓴다(매입가 없이). */
+export function simulationQuery(complexId: number, area: RealEstateAreaKey, input: RealEstateInput): string {
   const query = new URLSearchParams({ complexId: String(complexId), area, buyDate: input.buyDate });
   if (input.buyPrice !== "") query.set("buyPrice", input.buyPrice);
   return query.toString();
@@ -263,7 +234,42 @@ function rejectionOf(code: string, body: Record<string, unknown>): RealEstateRej
   }
 }
 
-export const useRealEstateStore = create<RealEstateState>((set, get) => {
+/**
+ * 상태 생성기 — 013부터 내보낸다. 비교 화면은 이 생성기로 **따로 된 인스턴스**를 만들어 고르기만 쓴다(research R13-9) — 메뉴 스토어를
+ * 그대로 쓰면 비교에서 고를 때 메뉴의 결과와 진행 중 실행이 지워진다. 그래서 진행 구독·실행 차례는 모듈이 아니라 **인스턴스마다**다.
+ */
+export const realEstateStateCreator: StateCreator<RealEstateState> = (set, get) => {
+  /** 살아 있는 진행 구독 — 종류마다 하나. 작업 번호를 들고 있어 같은 작업을 두 번 구독하지 않는다. */
+  const watchers: Record<Watch, { jobId: number; stop: () => void } | null> = {
+    region: null, trade: null, details: null, areas: null, simulation: null,
+  };
+
+  function stopWatching(key: Watch): void {
+    watchers[key]?.stop();
+    watchers[key] = null;
+  }
+
+  function watch(key: Watch, jobId: number, handlers: RealEstateProgressHandlers): void {
+    // 같은 작업을 이미 구독하고 있으면 그대로 둔다 — 다시 받은 응답이 같은 작업을 가리키는 일이 흔하다.
+    if (watchers[key]?.jobId === jobId) return;
+    stopWatching(key);
+    watchers[key] = { jobId, stop: subscribeRealEstateProgress(jobId, handlers) };
+  }
+
+  /** 지금 실행의 번호. 결과를 지우거나 새로 실행하면 늘어난다 — 늦게 온 이전 실행의 응답을 버린다. */
+  let runSeq = 0;
+  /** 지금 실행이 화면이 스스로 한 것인지(수집 완료·실패 뒤). 사용자가 실행하면 자동 다시 요청의 기회를 되돌린다. */
+  let automaticRun = false;
+  /** 이 실행에서 실패 뒤 다시 요청했는지 — 한 실행에 한 번(008 FR-016a와 같다). */
+  let retriedAfterFailure = false;
+
+  /** 결과·거절을 지우고 실행의 진행 구독을 끊는다. */
+  function clearResult(): typeof NO_RESULT {
+    stopWatching("simulation");
+    runSeq += 1;
+    return NO_RESULT;
+  }
+
   /** 단지를 바꾸면 평형·결과를 지운다. */
   function belowComplex(): Partial<RealEstateState> {
     stopWatching("areas");
@@ -674,4 +680,6 @@ export const useRealEstateStore = create<RealEstateState>((set, get) => {
       stopWatching("simulation");
     },
   };
-});
+};
+
+export const useRealEstateStore = create<RealEstateState>()(realEstateStateCreator);

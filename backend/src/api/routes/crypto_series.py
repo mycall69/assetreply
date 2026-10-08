@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.errors import StartAfterEnd
 from src.api.routes.crypto_simulation import calculation_end
 from src.api.services.crypto_collect import collecting_body
-from src.api.services.crypto_series import build_series
+from src.api.services.crypto_series import CryptoSeries, build_series
 from src.api.services.crypto_simulation import (
     check_principal_currency,
     prepare,
@@ -35,6 +35,32 @@ from src.repository import crypto_daily
 router = APIRouter(prefix="/api/crypto", tags=["crypto"])
 
 Json = dict[str, object]
+
+
+def series_json(series: CryptoSeries, *, principal_currency: str, price_currency: str) -> Json:
+    """시계열 본문 — 비교 경로(013)도 이 함수로 같은 모양을 낸다."""
+    return {
+        "from": series.start.isoformat(),
+        "to": series.end.isoformat(),
+        # 원금 통화는 입력 그대로, 기준은 KRW다(FR-044, 006 FR-068).
+        "principalCurrency": principal_currency,
+        "basisCurrency": "KRW",
+        # 010 — 가격은 그 일봉의 시가, 통화는 코인의 **시세 통화**다(원금이 KRW여도 환산하지
+        # 않는다).
+        "priceKind": "crypto_open",
+        "priceCurrency": price_currency,
+        "downsampled": series.downsampled,
+        "algorithm": "lttb",
+        "sourcePointCount": series.source_point_count,
+        # 금액·비율은 문자열이다(헌법 원칙 VI). 표의 `balanceKrw`·`returnRate`·`openPrice`와 같은
+        # 서식이다.
+        "points": [{"date": p.date.isoformat(), "balance": format(p.balance, "f"),
+                    "returnRate": format(p.return_rate, "f"), "price": format(p.price, "f")}
+                   for p in series.points],
+        # `source_missing` — 받은 구간 안의 출처 결측. 끊어 그린다(FR-023)
+        "gaps": [{"from": g.start.isoformat(), "to": g.end.isoformat(), "reason": g.reason}
+                 for g in series.gaps],
+    }
 
 
 @router.get("/simulation/series", response_model=None)
@@ -65,25 +91,5 @@ async def get_simulation_series(
     series = build_series(prepared.result, start=start, end=finish,
                           covered=await crypto_daily.get_coverage(session, int(coin.id)),
                           max_points=max_points)
-    return {
-        "from": series.start.isoformat(),
-        "to": series.end.isoformat(),
-        # 원금 통화는 입력 그대로, 기준은 KRW다(FR-044, 006 FR-068).
-        "principalCurrency": principal_currency,
-        "basisCurrency": "KRW",
-        # 010 — 가격은 그 일봉의 시가, 통화는 코인의 **시세 통화**다(원금이 KRW여도 환산하지
-        # 않는다).
-        "priceKind": "crypto_open",
-        "priceCurrency": coin.quote_currency,
-        "downsampled": series.downsampled,
-        "algorithm": "lttb",
-        "sourcePointCount": series.source_point_count,
-        # 금액·비율은 문자열이다(헌법 원칙 VI). 표의 `balanceKrw`·`returnRate`·`openPrice`와 같은
-        # 서식이다.
-        "points": [{"date": p.date.isoformat(), "balance": format(p.balance, "f"),
-                    "returnRate": format(p.return_rate, "f"), "price": format(p.price, "f")}
-                   for p in series.points],
-        # `source_missing` — 받은 구간 안의 출처 결측. 끊어 그린다(FR-023)
-        "gaps": [{"from": g.start.isoformat(), "to": g.end.isoformat(), "reason": g.reason}
-                 for g in series.gaps],
-    }
+    return series_json(series, principal_currency=principal_currency,
+                       price_currency=coin.quote_currency)

@@ -18,6 +18,7 @@ import {
 } from "@/lib/historyFlow";
 import { isAllowedPrincipal, principalRule } from "@/lib/principalCurrency";
 import { createSequence } from "@/lib/searchSequence";
+import { registerStock } from "@/lib/stockSelection";
 import { DEFAULT_PRINCIPAL } from "@/lib/principalFormat";
 import { DEFAULT_START } from "@/lib/startDate";
 import { periodQuery } from "@/lib/tablePeriod";
@@ -39,7 +40,6 @@ import type {
   RecurringStockResponse,
   RecurringStockRow,
   RecurringStockSummary,
-  SelectionResponse,
   SimulationCollecting,
   SimulationCondition,
   SimulationHistoryEntry,
@@ -204,14 +204,6 @@ const message = (err: unknown, fallback: string): string =>
  * 것과 다른 종목으로 실행된다 (006 FR-029a와 같은 계열).
  */
 const selectionSeq = createSequence();
-
-function selectionBody(choice: StockChoice): Record<string, unknown> {
-  if (choice.source === "listing") {
-    return { source: "listing", listingId: choice.listingId };
-  }
-  const { market, symbol, name, currency } = choice.result;
-  return { source: "external", market, symbol, name, currency };
-}
 
 /**
  * 진행 구독 해제 함수. 모듈 수준에 두는 이유는 상태가 아니기 때문이다 — 화면에
@@ -538,8 +530,7 @@ export const useStockStore = create<StockState>((set, get) => ({
       startable: null,
     });
     try {
-      const body = await apiClient.post<SelectionResponse>(
-        "/api/stocks/selection", selectionBody(choice));
+      const body = await registerStock(choice);
       if (!selectionSeq.isLatest(id)) return;
       const { market, symbol, name, currency, listedOn } = body;
       set({

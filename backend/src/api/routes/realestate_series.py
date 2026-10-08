@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.services.realestate_lists import get_realestate_now, get_realestate_settings
-from src.api.services.realestate_series import SeriesPoint, build_series
+from src.api.services.realestate_series import RealEstateSeries, SeriesPoint, build_series
 from src.api.services.realestate_simulation import Prepared, parse_query, prepare
 from src.api.services.series_query import DEFAULT_MAX_POINTS
 from src.config.settings import Settings
@@ -39,6 +39,22 @@ def point_json(p: SeriesPoint) -> Json:
     return body
 
 
+def series_json(series: RealEstateSeries, *, provisional_from: dt.date) -> Json:
+    """시계열 본문 — 비교 경로(013)도 이 함수로 같은 모양을 낸다."""
+    return {
+        "from": series.start.isoformat(), "to": series.end.isoformat(),
+        "principalCurrency": "KRW", "basisCurrency": "KRW",
+        # 010 — 가격은 그 달 실거래가 평균(원).
+        "priceKind": "apt_average", "priceCurrency": "KRW",
+        "downsampled": series.downsampled, "algorithm": "lttb",
+        "sourcePointCount": series.source_point_count,
+        "points": [point_json(p) for p in series.points],
+        "gaps": [{"from": g.start.isoformat(), "to": g.end.isoformat(), "reason": g.reason}
+                 for g in series.gaps],
+        "provisionalFrom": provisional_from.isoformat(),
+    }
+
+
 @router.get("/simulation/series", response_model=None)
 async def get_simulation_series(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -57,15 +73,4 @@ async def get_simulation_series(
     if not isinstance(prepared, Prepared):
         return JSONResponse(status_code=202, content=prepared)
     series = build_series(prepared.result, max_points=max_points)
-    return {
-        "from": series.start.isoformat(), "to": series.end.isoformat(),
-        "principalCurrency": "KRW", "basisCurrency": "KRW",
-        # 010 — 가격은 그 달 실거래가 평균(원).
-        "priceKind": "apt_average", "priceCurrency": "KRW",
-        "downsampled": series.downsampled, "algorithm": "lttb",
-        "sourcePointCount": series.source_point_count,
-        "points": [point_json(p) for p in series.points],
-        "gaps": [{"from": g.start.isoformat(), "to": g.end.isoformat(), "reason": g.reason}
-                 for g in series.gaps],
-        "provisionalFrom": prepared.provisional_from.isoformat(),
-    }
+    return series_json(series, provisional_from=prepared.provisional_from)

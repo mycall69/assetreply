@@ -264,14 +264,20 @@ async def prepare(session: AsyncSession, query: SimulationQuery, *, settings: Se
                     provisional_start(today, settings.apt_trade_provisional_months), residence)
 
 
+async def render_prepared(session: AsyncSession, prepared: Prepared,
+                          query: SimulationQuery) -> Json:
+    """계산한 결과의 응답 본문 — 메뉴와 비교 경로(013)가 같은 함수로 만든다."""
+    umd = await apt_region.current(session, prepared.row.umd_code)
+    return render(prepared.result, row=prepared.row,
+                  umd_name=umd.name if umd is not None else "", area=query.area,
+                  ratio=prepared.ratio, recheck_failed=prepared.gate.recheck_failed,
+                  residence_ratio=prepared.residence_ratio,
+                  provisional_from=prepared.provisional_from)
+
+
 async def simulation_response(session: AsyncSession, query: SimulationQuery, *,
                               settings: Settings, now: dt.datetime) -> tuple[int, Json]:
     prepared = await prepare(session, query, settings=settings, now=now)
     if not isinstance(prepared, Prepared):
         return 202, prepared
-    umd = await apt_region.current(session, prepared.row.umd_code)
-    return 200, render(prepared.result, row=prepared.row,
-                       umd_name=umd.name if umd is not None else "", area=query.area,
-                       ratio=prepared.ratio, recheck_failed=prepared.gate.recheck_failed,
-                       residence_ratio=prepared.residence_ratio,
-                       provisional_from=prepared.provisional_from)
+    return 200, await render_prepared(session, prepared, query)

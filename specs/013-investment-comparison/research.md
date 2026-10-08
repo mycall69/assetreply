@@ -200,16 +200,21 @@ R13-3의 비용에서 만든다.
 - **가상자산**: `CoinSearch` 그대로(등록 단계 없음 — `coinId`가 식별)
 - **예금**: 새 `components/compare/InstitutionChecklist.tsx` — 체크박스 다섯. 정기 적금이면 `GET /api/deposit/institutions`의 `installment.available`이 거짓인 곳을
   끈다(까닭 문구). 기존 `InstitutionPicker`(라디오)는 그대로
-- **부동산**: 고르기 흐름(시·도 → 시·군·구 → 법정동 → 단지 → 평형, 목록 202·진행)을 `realEstateStore`에서 **슬라이스 팩토리**로 꺼낸다
-  (`stores/realEstatePickerSlice.ts`). `realEstateStore`는 같은 필드 이름으로 펼쳐 쓰고 고르기마다 `clearResult`를 부르는 훅을 넘긴다. 비교 화면은 따로 된
-  인스턴스(`stores/compareRealEstatePicker.ts`)를 쓴다 — 메뉴의 결과·진행을 지우지 않는다. 진행 구독(`watchers`)은 인스턴스마다다
+- **부동산**: `realEstateStore`의 상태 생성기를 내보내(`realEstateStateCreator`) 비교 화면이 **같은 생성기로 따로 된 인스턴스**
+  (`stores/compareRealEstatePicker.ts`)를 만든다. 비교는 그 인스턴스의 고르기(시·도 → 시·군·구 → 법정동 → 단지 → 평형, 목록 202·진행)만 쓰고
+  `run`(이력을 저장한다)은 부르지 않는다 — 메뉴의 결과·진행을 지우지 않는다. 모듈 수준이던 진행 구독(`watchers`)·실행 차례(`runSeq`)를 생성기
+  안으로 옮겨 인스턴스마다다
   - **지키는 조건**: 부동산 메뉴의 기존 테스트가 고치지 않고 통과해야 한다. 고쳐야 하면 멈추고 보고한다(원칙 III)
+  - **구현 중 바꾼 것(2026-10-08 T033)**: 계획은 고르기만 떼어 낸 슬라이스 팩토리(`realEstatePickerSlice.ts`)였다. 고르기 동작이 같은 스토어의
+    `clearResult`·`error`·실행 구독과 얽혀 떼어 내면 메뉴 쪽 코드가 크게 바뀐다. 생성기 하나를 두 번 쓰면 고르기 코드가 그대로 한 벌이고 메뉴의
+    필드·동작은 바뀌지 않는다(부동산 스토어 테스트 5개 파일이 고치지 않고 통과했다)
 - 고른 대상은 "대상 칩"으로 쌓인다(이름·빼기 단추). 같은 대상(주식 `market|symbol`, 가상자산 `coinId`, 예금 투자처, 부동산 `complexId|area`)은 다시 더하지 않는다.
   11번째는 더하지 않고 알린다(FR-004)
 
 **Rationale**: FR-003 "같은 방법" — 부품과 흐름을 함께 써야 메뉴와 비교의 검색이 갈라지지 않는다. 부동산 흐름은 202·진행이 얽혀 베끼면 두 벌이 서로 달라진다.
 
-**Alternatives considered**: 부동산 고르기를 비교 스토어에 새로 쓴다 — 약 200줄의 비동기 상태가 두 벌이 된다. `realEstateStore`를 그대로 쓴다 — 메뉴의 결과·진행을 지운다.
+**Alternatives considered**: 부동산 고르기를 비교 스토어에 새로 쓴다 — 약 200줄의 비동기 상태가 두 벌이 된다. `realEstateStore`를 그대로 쓴다 — 메뉴의 결과·진행을
+지운다. 고르기만 슬라이스로 떼어 낸다 — 위 "구현 중 바꾼 것".
 
 ## R13-10 저장한 비교 — 테이블 하나, 조건은 서버가 정규화
 

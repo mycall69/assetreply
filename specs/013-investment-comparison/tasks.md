@@ -66,8 +66,8 @@ description: "Task list for 013-investment-comparison"
 - **바뀌는 기존 테스트는 research R13-16의 목록이고, 승인을 받은 뒤에만 고친다**(T006·T039)
   - 구현을 작업 트리에 둔 채 전체 스위트를 돌려 **실제로 실패한** 기존 테스트로 목록을 만든다(012 T011·T038과 같은 절차).
   - 목록 밖의 실패는 결함으로 보고 멈춘다. 공유 테스트 기반(`frontend/tests/setup.ts`)에는 **더하기만** 한다(T060).
-- **부동산 고르기 슬라이스**(research R13-9) — `realEstateStore`의 필드 이름을 바꾸지 않는다. 부동산 메뉴의 기존 테스트가 고치지 않고 통과해야 한다. 고쳐야 하면
-  멈추고 보고한다.
+- **부동산 고르기 인스턴스**(research R13-9) — `realEstateStore`의 필드·동작을 바꾸지 않는다(상태 생성기를 내보내 비교 인스턴스를 하나 더 만든다). 부동산 메뉴의
+  기존 테스트가 고치지 않고 통과해야 한다. 고쳐야 하면 멈추고 보고한다.
 - **DB 비밀번호·키를 출력하거나 셸 인자로 넘기지 않는다.** 앱 DB 사용자는 `CREATE DATABASE` 권한이 없다 — 마이그레이션은 `alembic upgrade head`로만 한다.
 - **개발 서버를 띄운 채 통합 테스트를 돌리지 않는다**(같은 MySQL 스키마를 다시 만든다).
 - **브라우저 확인은 사용자 데이터를 바꾸지 않는다** — 비교 실행은 이력을 쓰지 않는다(확인 항목). 확인으로 만든 저장한 비교는 끝에 지우고 전후 목록이 같음을 본다.
@@ -127,18 +127,18 @@ description: "Task list for 013-investment-comparison"
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T006 [US1] 기존 테스트 변경 승인을 받는다 — research R13-16의 목록 (FR-001)
+- [X] T006 [US1] 기존 테스트 변경 승인을 받는다 — research R13-16의 목록 (FR-001)
   - 절차: 이 페이즈의 테스트(T007~T021)를 쓰고 구현(T023~T037)을 마친 뒤, 구현을 작업 트리에 둔 채 전체 스위트(백엔드·프론트엔드)를 돌려 **실제로 실패한** 기존
     테스트로 목록을 만든다.
   - 예상: `frontend/tests/Sidebar.test.tsx`(준비 안 된 항목 `["투자 비교","대시보드"]` → `["대시보드"]`, "준비중" 2 → 1, 포커스 예 "투자 비교" → "대시보드", 링크 목록에
     `/compare`), `frontend/tests/noUnbuiltAssetRoutes.test.ts`(`UNBUILT`에서 `compare`, 사이드바 링크 목록에 `/compare`), `frontend/tests/TopBarTitle.test.ts`(표가 전체를
     고정하면 `/compare`).
   - 목록을 테스트마다 "지금 단언 → 새 단언"으로 보이고 승인을 받는다. 승인 날짜를 Notes에 적는다. 목록 밖의 실패는 결함으로 보고 멈춘다.
-- [ ] T007 [P] [US1] `backend/tests/unit/test_deposit_accrued_tax.py` — `simulation/deposit_rollover.simulate_deposit`의 `Summary.accrued_tax` (FR-011, SC-001, data-model 4)
+- [X] T007 [P] [US1] `backend/tests/unit/test_deposit_accrued_tax.py` — `simulation/deposit_rollover.simulate_deposit`의 `Summary.accrued_tax` (FR-011, SC-001, data-model 4)
   - 계산 끝이 회차 안이면 `accrued_tax = interest_tax(accrued_interest(회차 원금, 금리, 가입일, 만기일, 끝), 세율)`이고 `balance = 회차 원금 + 경과 이자 − accrued_tax`.
   - 계산 끝이 만기일과 같으면 0, 재예치 달 결측으로 멈추면(`rate_missing`) 0.
   - 같은 입력의 `balance`·`profit`·`return_rate`·`terms`가 더하기 전과 같다(고정 참조값).
-- [ ] T008 [P] [US1] `backend/tests/unit/test_comparison_costs.py` — `simulation/comparison_costs` 일시금 쪽 (FR-011, SC-001, research R13-3, data-model 3.1)
+- [X] T008 [P] [US1] `backend/tests/unit/test_comparison_costs.py` — `simulation/comparison_costs` 일시금 쪽 (FR-011, SC-001, research R13-3, data-model 3.1)
   - 주식 국내: `buy_fee = floor_won(Σ 모든 매수 행 trade_fee)`(처음 매수 + 배당 재투자 매수), `dividend_tax = floor_won(Σ dividend_tax)`.
   - 주식 해외: `buy_fee = floor_won(Σ trade_fee × 그 행 fx_rate)`, `dividend_tax` 같은 규칙. `buy_fee + sale_fee = saleCost.feesKrw`(012 US6 값과 묶는다).
   - 매도 몫: `sale_fee = saleCost.fee`, 국내 `transaction_tax` / 해외 `capital_gains_tax = saleCost.tax`.
@@ -148,7 +148,7 @@ description: "Task list for 013-investment-comparison"
     매도 `brokerage_sale`·`transfer_income_tax`·`transfer_local_tax`(합 = `saleCost.total`).
   - 항목 합 = 몫의 합, `reflected.total + sale.total = total`. 항목 하나가 `None`이면 그 몫의 합과 전체 합이 `None`이고 `blank`에 까닭이 있다(0으로 메우지 않는다).
   - 모듈이 `src.api`·`src.repository`·`src.db`를 부르지 않는다(`test_layer_boundaries`에 맡기되 이 파일에서도 불러오기 목록을 본다).
-- [ ] T009 [P] [US1] `backend/tests/unit/test_comparison_metrics.py` — `api/services/comparison_metrics` 일시금·정기예금·부동산 (FR-011, FR-015, SC-001, SC-005, research R13-4, data-model 3)
+- [X] T009 [P] [US1] `backend/tests/unit/test_comparison_metrics.py` — `api/services/comparison_metrics` 일시금·정기예금·부동산 (FR-011, FR-015, SC-001, SC-005, research R13-4, data-model 3)
   - 주 값(`mainBasis`): 주식 일시금 — `profitAfterSale`·`returnRateAfterSale`이 둘 다 있으면 `after_sale`, 없으면 `holding`(`PerformanceBoard.tsx:50`). 부동산 — 매도 후 값이
     있으면 `after_sale`, 없으면 `holding`(`RealEstateBoard.tsx:44`). 가상자산 일시금·정기예금 — `holding`.
   - 현재 가치: 주식·가상자산 `totalKrw`, 정기예금 `principal + profit`(`Decimal`), 부동산 `value`(없으면 `None`).
@@ -158,7 +158,7 @@ description: "Task list for 013-investment-comparison"
   - `fx`: 외화 종목·코인이면 `{currency, valuationRate, valuationRateDate, source, exchange}` — 기준일 행의 `fxRate`·`fxRateDate`, 출처 ECOS 매매기준율. 원화 대상은 `None`.
   - `lineEnd = {date: asOf, holdingReturnRate: summary.returnRate, afterSaleReturnRate}` — `afterSaleReturnRate`는 `mainBasis = after_sale`일 때 그 값, 아니면 `None`.
   - 금액·비율 글자에 지수 표기가 없다(`Decimal("0E-12")` → `"0"` — `stock_recurring.dec`).
-- [ ] T010 [P] [US1] `backend/tests/integration/test_comparison_identity.py` — 비교 경로 넷(주식·가상자산 일시금, 정기예금, 부동산) ↔ 메뉴 경로 (FR-005, FR-008, FR-009, FR-011, FR-020, SC-001, SC-002, SC-007, contracts/rest-api.md 1)
+- [X] T010 [P] [US1] `backend/tests/integration/test_comparison_identity.py` — 비교 경로 넷(주식·가상자산 일시금, 정기예금, 부동산) ↔ 메뉴 경로 (FR-005, FR-008, FR-009, FR-011, FR-020, SC-001, SC-002, SC-007, contracts/rest-api.md 1)
   - 같은 고정 데이터·같은 질의로 두 경로를 부른다. `summary`·`condition`(·주식 `exchange`)이 같다.
   - `series`가 같은 `maxPoints`의 메뉴 `/series`와 같다. `maxPoints`를 빼면 1000으로 다운샘플링된다(`sourcePointCount`가 같고 점 수 ≤ 1000).
   - 받지 않은 구간이 있으면 202 본문이 메뉴와 같다(주식 `jobId`·`progressUrl`, 가상자산, 정기예금, 부동산 `kind:"trade"`).
@@ -166,39 +166,39 @@ description: "Task list for 013-investment-comparison"
   - 부동산 비교 경로에 `buyPrice`를 보내면 400 `invalid_query`(FR-008).
   - 실행 전후 `simulation_history` 행 수가 같다(FR-020).
   - 응답에 `rows`·`terms`가 없다(표가 없다 — FR-011).
-- [ ] T011 [P] [US1] `backend/tests/integration/test_comparison_api.py` — `comparison` 블록과 메뉴 값의 짝 (FR-011, SC-001, data-model 3)
+- [X] T011 [P] [US1] `backend/tests/integration/test_comparison_api.py` — `comparison` 블록과 메뉴 값의 짝 (FR-011, SC-001, data-model 3)
   - 주식 국내·해외 일시금: `costs.sale.total = summary.saleCost.total`, 해외 `buy_fee + sale_fee = saleCost.feesKrw`, `profit = profitAfterSale`, `returnRate = returnRateAfterSale`.
   - 부동산: 취득 항목 합 = `acquisition.total`, 보유세 항목 합 = `holdingTaxTotal`, 매도 몫 = `saleCost.total`, `principal.krw = invested`.
   - 정기예금: `interest_tax_matured` = 끝난 회차 세금 합, 현재 가치 = `principal + profit`. 미발표 달이 낀 고정 데이터에서 `provisional`에 `unpublished_rate`.
   - 가상자산 일시금: `costs.sale`이 `null`, `lineEnd.afterSaleReturnRate`가 `null`.
   - 해외 주식: `fx.valuationRateDate`가 기준일 행의 `fxRateDate`, `basisCurrency = "KRW"`.
-- [ ] T012 [P] [US1] `frontend/tests/decimalOrder.test.ts` — `lib/decimalOrder.compareDecimal` (FR-012, research R13-11)
+- [X] T012 [P] [US1] `frontend/tests/decimalOrder.test.ts` — `lib/decimalOrder.compareDecimal` (FR-012, research R13-11)
   - 부호, 정수부 길이, 소수 자리(`"9.99" < "10"`, `"-0.5" < "0"`, `"0.10" = "0.1"`, `"-0" = "0"`).
   - `null`은 오름·내림 모두 끝이다. 같은 값은 처음 차례를 지킨다(안정 정렬 도우미 `sortRows`).
-- [ ] T013 [P] [US1] `frontend/tests/compareCondition.test.ts` — `lib/compareCondition` (FR-004, FR-007, FR-012a, data-model 2)
+- [X] T013 [P] [US1] `frontend/tests/compareCondition.test.ts` — `lib/compareCondition` (FR-004, FR-007, FR-012a, data-model 2)
   - 정규 조건이 data-model 2의 칸 그대로다: `v = 1`, `method` 짝(주식·가상자산 `lump_sum`·`recurring`, 예금 `deposit`·`installment`, 부동산 `hold`), `frequency`는 `recurring`만,
     `reinvest`는 주식만, 부동산 `amount = null`.
   - 같음 판정: 같은 입력이면 같고, 시작일·금액·통화·재투자·방식·주기·대상 더하기·빼기·차례가 다르면 다르다.
   - 대상 키: 주식 `market|symbol`, 가상자산 `coinId`, 예금 투자처, 부동산 `complexId|area`.
   - 자동 이름 `"{자산군} {대상 수}개 · {start} · {방식}"`(예: `주식 3개 · 2020-01-02 · 일시금`).
   - 고를 수 있는 통화: 원화 + 모든 대상의 통화가 같을 때 그 통화. 대상이 없으면 원화만.
-- [ ] T014 [P] [US1] `frontend/tests/compareBlock.test.ts` — `lib/compareBlock` (FR-010, FR-013, FR-014, SC-003, research R13-6)
+- [X] T014 [P] [US1] `frontend/tests/compareBlock.test.ts` — `lib/compareBlock` (FR-010, FR-013, FR-014, SC-003, research R13-6)
   - R13-6 표의 코드마다 갈래(`start`·`remove`·`failed`)와 날짜 칸(`startableFrom`·`availableFrom`·`lastDay`·`month`)·문구.
   - 비교 전체: 막힌 대상이 하나라도 있으면 `blocked`, 아니면 `ok`가 아닌 대상이 있으면 `partial`, 모두 `ok`면 `complete`. `failed`는 막힘이 아니다.
   - 제안 날짜 = `start` 갈래 날짜 가운데 가장 늦은 날. 수집 중인 대상이 하나라도 있으면 `null`(+ 수집 중 수). `start` 갈래가 없으면 `null`.
   - 수집 중이던 대상이 막힘으로 바뀌면(늦게 드러난 막힘) 전체가 `blocked`.
   - `start_after_end`는 `too_late` 갈래이고 제안 날짜 후보가 아니다 — 문구 "시작일을 {lastDay} 이전으로 바꾸세요"(FR-010).
-- [ ] T015 [P] [US1] `frontend/tests/stockSelection.test.ts` — `lib/stockSelection.registerStock` (FR-003, research R13-9)
+- [X] T015 [P] [US1] `frontend/tests/registerStock.test.ts` — `lib/stockSelection.registerStock` (FR-003, research R13-9) — 006의 `tests/stockSelection.test.ts`(메뉴 스토어의 등록)는 그대로 둔다
   - 목록 결과·외부 결과마다 `POST /api/stocks/selection` 본문이 지금 `stockStore`가 보내는 본문과 같다. 응답 `{market, symbol, name, currency, listedOn}`을 돌려준다. 실패는 `ApiError`.
-- [ ] T016 [P] [US1] `frontend/tests/realEstatePickerSlice.test.ts` — `stores/realEstatePickerSlice`·`stores/compareRealEstatePicker` (FR-003, research R13-9)
+- [X] T016 [P] [US1] `frontend/tests/compareRealEstatePicker.test.ts` — `stores/compareRealEstatePicker`(같은 상태 생성기의 비교 인스턴스) (FR-003, research R13-9)
   - 비교 인스턴스에서 시·도 → 시·군·구 → 법정동 → 단지 → 평형을 고르면 목록 경로를 차례로 부르고(`apiClient.get` 모의), 메뉴 `useRealEstateStore`의 상태(결과·실행 차례·
     고르기)는 그대로다. 반대 방향도 같다.
   - 202 진행(시·군·구 실거래·단지 상세·평형)이 그 인스턴스에만 보인다 — 진행 구독이 인스턴스마다다.
-- [ ] T017 [P] [US1] `frontend/tests/InstitutionChecklist.test.tsx` — `components/compare/InstitutionChecklist` (FR-003, FR-004, F2)
+- [X] T017 [P] [US1] `frontend/tests/InstitutionChecklist.test.tsx` — `components/compare/InstitutionChecklist` (FR-003, FR-004, F2)
   - 체크박스 다섯(이름은 `INSTITUTION_NAMES`), 체크 = `onAdd`, 해제 = `onRemove`.
   - 정기 적금이면 적금 없는 투자처가 꺼지고 까닭이 보인다(`installment.available`). 이미 체크된 곳은 체크가 남고 까닭이 보인다.
   - id·name이 `InstitutionPicker`(`deposit-institution`·`deposit-inst-*`)와 겹치지 않는다.
-- [ ] T018 [P] [US1] `frontend/tests/compareStore.test.ts` — `stores/compareStore` (FR-002, FR-004, FR-009, FR-010, FR-012a, FR-013, FR-020, SC-002, SC-003, SC-007, data-model 5, research R13-7·R13-8)
+- [X] T018 [P] [US1] `frontend/tests/compareStore.test.ts` — `stores/compareStore` (FR-002, FR-004, FR-009, FR-010, FR-012a, FR-013, FR-020, SC-002, SC-003, SC-007, data-model 5, research R13-7·R13-8)
   - 실행: 대상마다 비교 경로 하나를 부르고 질의가 메뉴 질의 함수의 출력과 **글자까지** 같다 — 주식 `stockStore.toQuery`, 가상자산 `cryptoStore.toQuery`, 정기예금
     `depositStore.toQuery`, 부동산 `simulationQuery`(매입가 없이).
   - 200 → `ok`, 202 → `collecting`(그 자산군 진행 스트림을 `jobId`로 구독 — 모듈 모의), 거절 → `blocked`, 5xx·네트워크 → `failed`.
@@ -208,7 +208,7 @@ description: "Task list for 013-investment-comparison"
   - 자산군 전환: 대상·결과를 비우고 시작일·금액을 남기며 모든 구독을 푼다. 없는 방식은 그 자산군의 기본 방식으로.
   - 대상: 같은 대상은 다시 더하지 않는다, 11번째는 더하지 않고 알림, 2개 미만은 실행하지 않는다.
   - 실행·다시 요청 어디에서도 `/api/history` `PUT`이 없다(`historyStub.calls()`).
-- [ ] T019 [P] [US1] `frontend/tests/CompareTable.test.tsx` — `components/compare/CompareTable`·`CostCell` (FR-011, FR-012, FR-013, FR-014, F5)
+- [X] T019 [P] [US1] `frontend/tests/CompareTable.test.tsx` — `components/compare/CompareTable`·`CostCell` (FR-011, FR-012, FR-013, FR-014, F5)
   - 열 일곱(대상, 기준일, 투자 원금, 현재 가치, 비용, 투자 수익, 수익률).
   - 투자 원금: 원화는 하나, 외화는 `"$10,000 (₩13,581,000)"` 꼴. 부동산은 투입 금액 + "매입가 ₩… · 취득 비용 포함".
   - 비용: 합(`-₩…`) + "반영 ₩…"·"매도 가정 ₩…", 펼치면 항목 글자, 부동산 취득 항목에 "투자 원금에 포함", 비운 항목 "—" + 까닭, 칸 도움말(현재 가치 − 비용 − 투자 원금 ≠ 투자 수익).
@@ -216,32 +216,32 @@ description: "Task list for 013-investment-comparison"
   - 열 머리 단추로 정렬(`aria-sort` 오름·내림 번갈아), `null`은 끝, 처음 차례는 더한 차례.
   - 수집 중·실패 줄은 맨 아래, 값 칸은 비어 있다(0이 아니다). 수집 중은 진행, 실패는 "다시 시도" 단추.
   - 막힘·수집 중·수집 실패 줄의 글자가 서로 다르다(FR-014).
-- [ ] T020 [P] [US1] `frontend/tests/ComparePage.test.tsx` — `app/compare/page.tsx` (FR-001~FR-014, SC-008, F1~F5·F8)
+- [X] T020 [P] [US1] `frontend/tests/ComparePage.test.tsx` — `app/compare/page.tsx` (FR-001~FR-014, SC-008, F1~F5·F8)
   - `lightweight-charts`·진행 스트림 모듈을 모의한다. 검색은 `tests/support/stockSearchFixtures.routeGet`·`coinSearchFixtures.routeSearch`, 등록 `POST`는 `apiClient.post` 모의.
   - 자산군 라디오, 주식 검색으로 셋 더하기, 칩 빼기, 11번째 알림, 같은 대상 알림, 2개 미만이면 "비교 실행" 꺼짐.
   - 실행 → 표 줄이 고정 응답의 값이다. 막힘 응답이 끼면 결과 대신 막힘 칸(이름·까닭·제안). "시작일 옮기기"는 시작일만 바꾸고 요청하지 않는다.
   - 202 대상은 "수집 중" 줄이었다가 스트림 완료 뒤 채워진다. 실행 뒤 시작일을 바꾸면 "조건이 바뀌었습니다" 띠와 흐림, 되돌리면 사라진다.
   - 예금 체크리스트, 부동산 고르기(비교 인스턴스)로 대상 더하기.
   - 페이지가 이력 `PUT`을 하지 않는다. 종료 코드 0.
-- [ ] T021 [P] [US1] `frontend/tests/compareNoClientFinance.test.ts` — 비교 파일의 클라이언트 계산 금지 (원칙 VI, research R13-11)
+- [X] T021 [P] [US1] `frontend/tests/compareNoClientFinance.test.ts` — 비교 파일의 클라이언트 계산 금지 (원칙 VI, research R13-11)
   - `components/compare/CompareTable.tsx`·`CostCell.tsx`, `lib/decimalOrder.ts`·`compareBlock.ts`·`compareCondition.ts`, `stores/compareStore.ts`에 주석 밖 `Number(`·`parseFloat(`·
     `parseInt(`가 없다(`tests/noClientSideFinance.test.ts`와 같은 정규식·주석 제거).
-- [ ] T022 [US1] T006에서 승인된 기존 테스트를 고친다 — 바뀐 요구를 단언하는 부분만. 고친 줄 위에 `// 013 승인 <날짜>` 주석 (FR-001)
+- [X] T022 [US1] T006에서 승인된 기존 테스트를 고친다 — 바뀐 요구를 단언하는 부분만. 고친 줄 위에 `// 013 승인 <날짜>` 주석 (FR-001)
 
 ### Implementation for User Story 1
 
-- [ ] T023 [US1] `backend/src/simulation/deposit_rollover.py` — `Summary`에 `accrued_tax: Decimal`(맨 끝, 기본값 `Decimal(0)`)을 더하고, `matures > end`에서 이미 계산하는 경과 이자의 세금을 넣는다. 만기·멈춤으로 끝나면 0 (FR-011, data-model 4)
-- [ ] T024 [US1] `backend/src/simulation/comparison_costs.py`(신규, 순수) — 일시금·정기예금·부동산 (FR-011, research R13-3, data-model 3.1)
+- [X] T023 [US1] `backend/src/simulation/deposit_rollover.py` — `Summary`에 `accrued_tax: Decimal`(맨 끝, 기본값 `Decimal(0)`)을 더하고, `matures > end`에서 이미 계산하는 경과 이자의 세금을 넣는다. 만기·멈춤으로 끝나면 0 (FR-011, data-model 4)
+- [X] T024 [US1] `backend/src/simulation/comparison_costs.py`(신규, 순수) — 일시금·정기예금·부동산 (FR-011, research R13-3, data-model 3.1)
   - `CostItem(kind, amount: Decimal | None, in_principal: bool)`, `Costs(reflected, sale | None, blank)`와 합 계산(항목 `None`이면 합 `None`).
   - `kind`는 data-model 3.1 표의 글자 그대로: `buy_fee`·`dividend_tax`·`interest_tax_matured`·`interest_tax_open`·`acquisition_tax`·`education_tax`·`rural_tax`·`brokerage_buy`·
     `property_tax`·`comprehensive_tax`·`sale_fee`·`transaction_tax`·`capital_gains_tax`·`crypto_tax`·`brokerage_sale`·`transfer_income_tax`·`transfer_local_tax`.
   - 주식 일시금 행(`SimulationResult.rows`의 `ConvertedRow`)에서 매수 수수료·배당 소득세 원화 합, 가상자산 일시금 매수 수수료 원화, 정기예금 회차 세금·`accrued_tax`, 부동산 취득·
     보유·매도 항목.
   - 원 미만 버림은 `ROUND_FLOOR`(주식 적립식 `floor_won`과 같은 규칙). `src.api`·`src.repository`·`src.db`를 부르지 않는다.
-- [ ] T025 [US1] `backend/src/api/services/comparison_metrics.py`(신규, 순수) — 일시금·정기예금·부동산 정규화 블록 (FR-011, FR-015, research R13-4·R13-5, data-model 3)
+- [X] T025 [US1] `backend/src/api/services/comparison_metrics.py`(신규, 순수) — 일시금·정기예금·부동산 정규화 블록 (FR-011, FR-015, research R13-4·R13-5, data-model 3)
   - 메뉴 요약 JSON(문자열)을 `Decimal`로 읽어 `asOf`·`isFinal`·`principal`·`currentValue`·`mainBasis`·`profit`·`returnRate`·`holding`·`costs`·`lineEnd`·`provisional`·`fx`를 만든다.
   - 금액·비율은 지수 표기 없는 문자열(`stock_recurring.dec`). DB·HTTP·저장소를 부르지 않는다.
-- [ ] T026 [US1] `backend/src/api/routes/comparison.py`(신규) — 비교 경로 넷: `/api/comparison/stocks/simulation`·`/crypto/simulation`·`/deposit/simulation`·`/realestate/simulation` (FR-005, FR-008, FR-009, FR-011, FR-020, contracts/rest-api.md 1)
+- [X] T026 [US1] `backend/src/api/routes/comparison.py`(신규) — 비교 경로 넷: `/api/comparison/stocks/simulation`·`/crypto/simulation`·`/deposit/simulation`·`/realestate/simulation` (FR-005, FR-008, FR-009, FR-011, FR-020, contracts/rest-api.md 1)
   - 질의 선언·검증은 메뉴 경로(`routes/stock_simulation.py:150-164`, `routes/crypto_simulation.py:118-130`, `routes/deposit_simulation.py:77-85`, `routes/realestate_simulation.py:26-40`)와 같다.
     표 전용 질의는 없고 `maxPoints`(`ge=2`, 처음 값 1000)가 있다. 부동산 `buyPrice`가 오면 400 `invalid_query`.
   - 호출 차례는 research 조사 표 그대로 — 주식 `check_principal_currency` → `require_stock` → 통화 짝 → `require_start_available` → `collecting_body` → `prepare` →
@@ -250,19 +250,19 @@ description: "Task list for 013-investment-comparison"
   - 가상자산 일시금은 요약과 시계열을 한 번에 내려고 `prepare(..., daily=True)`를 쓴다(메뉴 표 경로는 `daily=False`). `daily`가 일봉 상태만 더하고 요약 값을 바꾸지
     않는다는 전제이고, T010의 요약 동일성 검사가 지킨다. 다르면 멈추고 보고한다(요약은 `daily=False`, 시계열은 `daily=True`로 두 번 계산하는 쪽으로 바꿀지 묻는다).
   - 응답 `{basisCurrency, target, condition, exchange, summary, series, comparison}`. `rows`·`terms`를 담지 않는다. 이력 서비스를 부르지 않는다.
-- [ ] T027 [US1] `backend/src/api/main.py` — 비교 라우터를 더한다(다른 라우터와 같은 자리·주석 `# 013 —`). 저장 라우터(T073)는 이것보다 먼저 들어갈 자리를 남긴다 (contracts/rest-api.md 6)
-- [ ] T028 [US1] `frontend/src/lib/types.ts` — 비교 응답(`ComparisonBlock`·`ComparisonCosts`·`CostItemKind` 유니언·`MainBasis`·`ProvisionalKind`·`LineEnd`·`ComparisonFx`), 대상 칸(data-model 2), `CompareAsset`·`CompareMethod` (data-model 2·3)
-- [ ] T029 [P] [US1] `frontend/src/lib/decimalOrder.ts` — `compareDecimal`·`sortRows` (FR-012, research R13-11)
-- [ ] T030 [P] [US1] `frontend/src/lib/compareCondition.ts` — 정규 조건·같음·대상 키·자동 이름·고를 수 있는 통화 (FR-004, FR-007, FR-012a, data-model 2)
-- [ ] T031 [P] [US1] `frontend/src/lib/compareBlock.ts` — 응답 갈래·비교 전체 상태·제안 날짜·문구 (FR-010, FR-013, FR-014, research R13-6)
-- [ ] T032 [US1] `frontend/src/lib/stockSelection.ts`(신규 — `registerStock`) · `frontend/src/stores/stockStore.ts`(그것을 쓴다 — 동작 그대로) (FR-003, research R13-9)
-- [ ] T033 [US1] 부동산 고르기 슬라이스 — `frontend/src/stores/realEstatePickerSlice.ts`(신규 — 팩토리, 진행 구독은 인스턴스마다) · `frontend/src/stores/realEstateStore.ts`(같은 필드 이름으로 펼치고 고르기마다 `clearResult` 훅, `simulationQuery`를 내보낸다) · `frontend/src/stores/compareRealEstatePicker.ts`(비교 인스턴스) (FR-003, research R13-9)
+- [X] T027 [US1] `backend/src/api/main.py` — 비교 라우터를 더한다(다른 라우터와 같은 자리·주석 `# 013 —`). 저장 라우터(T073)는 이것보다 먼저 들어갈 자리를 남긴다 (contracts/rest-api.md 6)
+- [X] T028 [US1] `frontend/src/lib/types.ts` — 비교 응답(`ComparisonBlock`·`ComparisonCosts`·`CostItemKind` 유니언·`MainBasis`·`ProvisionalKind`·`LineEnd`·`ComparisonFx`), 대상 칸(data-model 2), `CompareAsset`·`CompareMethod` (data-model 2·3)
+- [X] T029 [P] [US1] `frontend/src/lib/decimalOrder.ts` — `compareDecimal`·`sortRows` (FR-012, research R13-11)
+- [X] T030 [P] [US1] `frontend/src/lib/compareCondition.ts` — 정규 조건·같음·대상 키·자동 이름·고를 수 있는 통화 (FR-004, FR-007, FR-012a, data-model 2)
+- [X] T031 [P] [US1] `frontend/src/lib/compareBlock.ts` — 응답 갈래·비교 전체 상태·제안 날짜·문구 (FR-010, FR-013, FR-014, research R13-6)
+- [X] T032 [US1] `frontend/src/lib/stockSelection.ts`(신규 — `registerStock`) · `frontend/src/stores/stockStore.ts`(그것을 쓴다 — 동작 그대로) (FR-003, research R13-9)
+- [X] T033 [US1] 부동산 고르기 인스턴스 — `frontend/src/stores/realEstateStore.ts`(상태 생성기 `realEstateStateCreator`를 내보내고 모듈 수준 구독 `watchers`·실행 차례를 생성기 안으로, `simulationQuery`를 내보낸다) · `frontend/src/stores/compareRealEstatePicker.ts`(같은 생성기의 비교 인스턴스) (FR-003, research R13-9 — 구현 중 슬라이스 팩토리에서 바꿨다)
   - 부동산 메뉴의 기존 테스트가 **고치지 않고** 통과해야 한다. 고쳐야 하면 멈추고 보고한다.
-- [ ] T034 [US1] `frontend/src/lib/compareApi.ts`(신규) — (자산군, 방식) → 비교 경로와 메뉴 질의 함수의 짝(일시금·정기예금·매입 후 보유), 요청은 `apiClient`의 공통 요청 함수 (FR-009, research R13-2)
-- [ ] T035 [US1] `frontend/src/stores/compareStore.ts`(신규) — data-model 5의 입력·`RunState`·대상 상태, 대상별 구독 `Map`, 차례 번호, 연달은 202 한도 3, 흐림 파생, 자산군 전환 (FR-002, FR-004, FR-010, FR-012a, FR-013, FR-020, research R13-7·R13-8)
+- [X] T034 [US1] `frontend/src/lib/compareApi.ts`(신규) — (자산군, 방식) → 비교 경로와 메뉴 질의 함수의 짝(일시금·정기예금·매입 후 보유), 요청은 `apiClient`의 공통 요청 함수 (FR-009, research R13-2)
+- [X] T035 [US1] `frontend/src/stores/compareStore.ts`(신규) — data-model 5의 입력·`RunState`·대상 상태, 대상별 구독 `Map`, 차례 번호, 연달은 202 한도 3, 흐림 파생, 자산군 전환 (FR-002, FR-004, FR-010, FR-012a, FR-013, FR-020, research R13-7·R13-8)
   - 메뉴 스토어의 `run` 계열·`saveHistoryFlow`를 부르지 않는다.
-- [ ] T036 [US1] 비교 부품 — `frontend/src/components/compare/AssetPicker.tsx`·`TargetChips.tsx`·`CompareTargetPicker.tsx`(자산군별 고르기 — `StockSearch`·`CoinSearch`·`InstitutionChecklist`·부동산 피커 셋 + "더하기")·`InstitutionChecklist.tsx`·`CompareConditionForm.tsx`(일시금·정기예금·매입 후 보유 — `StartDateInput`, 금액, 통화, 재투자)·`CompareBlockedPanel.tsx`·`CompareTable.tsx`·`CostCell.tsx`·`StaleBanner.tsx` (FR-002~FR-014, F2~F5·F8)
-- [ ] T037 [US1] `frontend/src/app/compare/page.tsx`(신규) · `frontend/src/components/shell/Sidebar.tsx`(`{ label: "투자 비교", href: "/compare" }`) · `frontend/src/components/shell/TopBar.tsx`(`TITLES["/compare"] = "투자 비교"`) (FR-001, F1)
+- [X] T036 [US1] 비교 부품 — `frontend/src/components/compare/AssetPicker.tsx`·`TargetChips.tsx`·`CompareTargetPicker.tsx`(자산군별 고르기 — `StockSearch`·`CoinSearch`·`InstitutionChecklist`·부동산 피커 셋 + "더하기")·`InstitutionChecklist.tsx`·`CompareConditionForm.tsx`(일시금·정기예금·매입 후 보유 — `StartDateInput`, 금액, 통화, 재투자)·`CompareBlockedPanel.tsx`·`CompareTable.tsx`·`CostCell.tsx`·`StaleBanner.tsx` (FR-002~FR-014, F2~F5·F8)
+- [X] T037 [US1] `frontend/src/app/compare/page.tsx`(신규) · `frontend/src/components/shell/Sidebar.tsx`(`{ label: "투자 비교", href: "/compare" }`) · `frontend/src/components/shell/TopBar.tsx`(`TITLES["/compare"] = "투자 비교"`) (FR-001, F1)
 - [ ] T038 [US1] 검증 — quickstart 2(개발 서버 `curl` 두 줄)·5-1~5-6·5-9·5-12 (FR-001~FR-014, FR-020, SC-001, SC-003, SC-007, SC-008)
   - 1440×900 헤드리스 Chrome, 새 브라우저 문맥. 비교 실행 전후 네 자산군 `GET /api/history/{asset}`가 같다.
   - quickstart 실행 기록에 적는다.
@@ -446,7 +446,7 @@ Independent Test, quickstart 5-10).
 - [ ] T081 문서를 갱신한다
   - `CLAUDE.md` "현재 상태" 표에 013 한 줄을 더한다.
   - 주의 문단: 비교 경로는 메뉴 경로의 짝이고 같은 함수를 같은 차례로 부른다, 비교는 이력을 쓰지 않는다, 비용 몫(`simulation/comparison_costs.py`)과 `accrued_tax`·`open_tax`,
-    `resolve_rate` 이분 탐색, `saved_comparison`(보관 기간 없음 — 개발 DB `alembic upgrade head`), 저장 라우터를 먼저 등록, 부동산 고르기 슬라이스, 비교 스토어의 대상별 구독,
+    `resolve_rate` 이분 탐색, `saved_comparison`(보관 기간 없음 — 개발 DB `alembic upgrade head`), 저장 라우터를 먼저 등록, 부동산 스토어 생성기의 비교 인스턴스, 비교 스토어의 대상별 구독,
     화면 테스트의 저장 대역(`tests/setup.ts`).
   - `README.md` 기능 설명, `spec.md` Status.
 - [ ] T082 품질 게이트를 돌린다(서버를 내린 채) — 백엔드 `pytest -q --cov=src`(커버리지 80% 이상)·`mypy src`·`ruff check --no-cache src tests`, 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .` (헌법 품질 게이트, SC-009)
@@ -513,7 +513,7 @@ Task: "T009 test_comparison_metrics.py — 주 값·현재 가치·원금·잠�
 Task: "T010 test_comparison_identity.py — 비교 경로 넷 ↔ 메뉴 경로"
 Task: "T011 test_comparison_api.py — comparison 블록과 메뉴 값의 짝"
 Task: "T012 decimalOrder.test.ts · T013 compareCondition.test.ts · T014 compareBlock.test.ts"
-Task: "T015 stockSelection.test.ts · T016 realEstatePickerSlice.test.ts · T017 InstitutionChecklist.test.tsx"
+Task: "T015 registerStock.test.ts · T016 compareRealEstatePicker.test.ts · T017 InstitutionChecklist.test.tsx"
 Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePage.test.tsx · T021 compareNoClientFinance.test.ts"
 ```
 
@@ -555,6 +555,13 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
 - **2026-10-08 T002 기준 게이트(서버를 내린 채)**: 백엔드 2,838 passed(커버리지 96.14%, 8분 56초), mypy 230 파일·ruff(`--no-cache`) 통과 / 프론트엔드
   166 파일·1,421 passed, tsc·eslint — 모두 종료 코드 0
 - **2026-10-08 T003**: 개발 DB 머리 리비전 `a6d2f9c41b83`(head)
+- **2026-10-08 T006 승인(사용자)**: 구현을 작업 트리에 둔 채 전체 스위트를 돌려 **실제로 실패한** 기존 테스트로 목록을 만들었다 — 백엔드 0건(2,915 passed,
+  커버리지 96.36%), 화면 6건(2개 파일) — 모두 research R13-16 목록 안이고 까닭은 FR-001(투자 비교가 링크가 됨) 하나다. `Sidebar.test.tsx` 넷(준비 안 된 항목
+  `["대시보드"]`, 준비중 1개, 포커스 예 "대시보드", 링크 목록에 `/compare`), `noUnbuiltAssetRoutes.test.ts` 둘(`UNBUILT = ["dashboard"]`, 사이드바 경로에 `/compare`).
+  같은 파일의 API 호출 검사(`/api/(compare|dashboard)\b`)는 실패하지 않아 그대로 둔다(비교 경로는 `/api/comparison`). `TopBarTitle.test.ts`는 고치지 않고 통과.
+  고친 줄 위에 `013 승인 2026-10-08` 주석
+- **2026-10-08 T015 파일 이름**: 새 테스트를 처음에 `tests/stockSelection.test.ts`로 만들다 006의 같은 이름 테스트(메뉴 스토어의 등록)를 덮어쓴 것을 곧바로 알아챘다 —
+  `git checkout`으로 되돌리고 새 테스트는 `tests/registerStock.test.ts`로 따로 두었다(기존 파일 변경 없음)
 - 커밋 메시지는 한국어이고 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`을 단다. 푸시는 요청이 있을 때만 한다.
 
 ## 요구사항 ↔ 태스크

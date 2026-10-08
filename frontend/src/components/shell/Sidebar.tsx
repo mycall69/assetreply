@@ -31,7 +31,8 @@ export const MENU: readonly MenuItem[] = [
   { label: "예금", href: "/deposit" },
   // 009 — 부동산을 구현했다. 원칙 IX의 다섯 자산군이 모두 준비됐다.
   { label: "부동산", href: "/realestate" },
-  { label: "투자 비교" },
+  // 013 — 투자 비교. 한 자산군의 대상 여러 개를 같은 조건으로 견준다(새 자산군이 아니다).
+  { label: "투자 비교", href: "/compare" },
   { label: "설정", href: "/settings" },
 ];
 

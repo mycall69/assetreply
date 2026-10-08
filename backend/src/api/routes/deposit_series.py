@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.services import deposit_simulation as service
-from src.api.services.deposit_series import SeriesPoint, build_series
+from src.api.services.deposit_series import DepositSeries, SeriesPoint, build_series
 from src.api.services.series_query import DEFAULT_MAX_POINTS
 from src.db.session import get_session
 from src.repository.deposit_rate import rate_text
@@ -36,23 +36,8 @@ def point_json(p: SeriesPoint) -> Json:
     return body
 
 
-@router.get("/simulation/series", response_model=None)
-async def get_simulation_series(
-    session: Annotated[AsyncSession, Depends(get_session)],
-    institution: Annotated[str, Query()],
-    start: Annotated[str, Query(description="YYYY-MM-DD")],
-    principal: Annotated[str, Query(description="원 단위 정수 문자열")],
-    principal_currency: Annotated[str | None, Query(alias="principalCurrency")] = None,
-    end: Annotated[str | None, Query(description="기본 오늘(한국 시간)")] = None,
-    max_points: Annotated[int, Query(alias="maxPoints", ge=2)] = DEFAULT_MAX_POINTS,
-) -> Json | JSONResponse:
-    """표와 같은 조건으로 행 날짜와 계산 끝의 시계열을 돌려준다."""
-    request = service.read_request(institution, start, principal, principal_currency, end)
-    result = await service.simulate_or_collect(session, request)
-    if not isinstance(result, service.Prepared):
-        return JSONResponse(status_code=202, content=result)
-    series = build_series(result.outcome, start=request.start, rates=result.rates,
-                          latest_month=result.latest_month, max_points=max_points)
+def series_json(series: DepositSeries) -> Json:
+    """시계열 본문 — 비교 경로(013)도 이 함수로 같은 모양을 낸다."""
     return {
         "from": series.start.isoformat(),
         "to": series.end.isoformat(),
@@ -70,3 +55,23 @@ async def get_simulation_series(
         "provisionalFrom": (None if series.provisional_from is None
                             else series.provisional_from.isoformat()),
     }
+
+
+@router.get("/simulation/series", response_model=None)
+async def get_simulation_series(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    institution: Annotated[str, Query()],
+    start: Annotated[str, Query(description="YYYY-MM-DD")],
+    principal: Annotated[str, Query(description="원 단위 정수 문자열")],
+    principal_currency: Annotated[str | None, Query(alias="principalCurrency")] = None,
+    end: Annotated[str | None, Query(description="기본 오늘(한국 시간)")] = None,
+    max_points: Annotated[int, Query(alias="maxPoints", ge=2)] = DEFAULT_MAX_POINTS,
+) -> Json | JSONResponse:
+    """표와 같은 조건으로 행 날짜와 계산 끝의 시계열을 돌려준다."""
+    request = service.read_request(institution, start, principal, principal_currency, end)
+    result = await service.simulate_or_collect(session, request)
+    if not isinstance(result, service.Prepared):
+        return JSONResponse(status_code=202, content=result)
+    series = build_series(result.outcome, start=request.start, rates=result.rates,
+                          latest_month=result.latest_month, max_points=max_points)
+    return series_json(series)

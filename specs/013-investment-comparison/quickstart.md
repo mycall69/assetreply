@@ -56,7 +56,7 @@ curl -s 'http://localhost:8080/api/stocks/simulation?market=NYSE&symbol=XLK&star
 ```bash
 cd frontend && npx vitest run tests/ComparePage*.test.tsx tests/compareStore*.test.ts tests/CompareTable.test.tsx tests/CompareReturnChart.test.tsx \
   tests/CompareMetricBars.test.tsx tests/InstitutionChecklist.test.tsx tests/SavedComparisons.test.tsx tests/SaveComparisonForm.test.tsx \
-  tests/HistoryStatesEmptyText.test.tsx tests/stockSelection.test.ts tests/realEstatePickerSlice.test.ts
+  tests/HistoryStatesEmptyText.test.tsx tests/registerStock.test.ts tests/compareRealEstatePicker.test.ts
 ```
 
 - 종료 코드 0을 본다("N passed"만 보지 않는다 — 011 T036). 페이지 테스트는 `lightweight-charts`를 모의한다

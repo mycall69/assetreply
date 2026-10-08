@@ -116,6 +116,7 @@ Alembic 리비전 하나(`down_revision = "a6d2f9c41b83"`, 파일 이름 `<rev>_
 | `crypto_tax` | 매도 | 가상자산 적립식 |
 | `brokerage_sale`·`transfer_income_tax`·`transfer_local_tax` | 매도 | 부동산 |
 
+- 항목마다 `inPrincipal`(bool)이 늘 있다 — 부동산 취득 비용만 `true`
 - 매도 몫이 없는 자산군·방식(가상자산 일시금·예금 둘)은 `sale: null`
 - 메뉴가 비우는 항목은 `amount: null`이고 `sale.blank`에 까닭(`outside_rules` 등), `sale.total`·`total`도 `null`(R13-3)
 - 원화 환산 버림 규칙은 주식 적립식과 같다(R13-3)

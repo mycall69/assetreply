@@ -24,6 +24,7 @@ from src.api.services.crypto_collect import collecting_body
 from src.api.services.crypto_simulation import (
     CryptoResult,
     CryptoRowView,
+    Prepared,
     check_principal_currency,
     prepare,
     require_coin,
@@ -108,6 +109,27 @@ def coin_json(coin: CryptoCoin) -> Json:
             "nameKo": coin.name_ko, "currency": coin.quote_currency}
 
 
+def condition_json(prepared: Prepared, *, start: dt.date, principal: Decimal,
+                   principal_currency: str) -> Json:
+    """설정은 언제든 바뀐다. 결과만 남으면 어느 조건의 수치인지 알 수 없다(FR-033)."""
+    return {
+        "start": start.isoformat(), "principal": format(principal, "f"),
+        "principalCurrency": principal_currency,
+        "tradeFeeRate": format(prepared.settings.trade_fee_rate, "f"),
+    }
+
+
+def exchange_json(result: CryptoResult) -> Json | None:
+    if result.exchange is None:
+        return None
+    return {
+        "rate": format(result.exchange.rate, "f"),
+        "rateDate": result.exchange.rate_date.isoformat(),
+        "kind": "cash_buy_discounted",
+        "spreadDiscount": format(result.exchange.spread_discount, "f"),
+    }
+
+
 def calculation_end(end: dt.date | None) -> dt.date:
     """계산 끝 — 요청한 끝과 UTC 어제 중 이른 날. 마감 전 일봉은 저장하지 않으므로 그 뒤를 요구할 수
     없다(FR-022)."""
@@ -154,23 +176,15 @@ async def get_simulation(
     shown = table(result, unit=unit, end=finish, before=before, limit=limit, missing=missing)
     body: Json = {
         "coin": coin_json(coin),
-        # 설정은 언제든 바뀐다. 결과만 남으면 어느 조건의 수치인지 알 수 없다(FR-033).
-        "condition": {
-            "start": start.isoformat(), "principal": format(amount, "f"),
-            "principalCurrency": principal_currency,
-            "tradeFeeRate": format(prepared.settings.trade_fee_rate, "f"),
-        },
+        "condition": condition_json(prepared, start=start, principal=amount,
+                                    principal_currency=principal_currency),
         "summary": summary_json(result, amount),
         "period": unit,
         "rows": [row_body(r, row_json) for r in shown.rows],
         "hasMore": shown.has_more,
         "oldestReturned": shown.oldest.isoformat() if shown.oldest else None,
     }
-    if result.exchange is not None:
-        body["exchange"] = {
-            "rate": format(result.exchange.rate, "f"),
-            "rateDate": result.exchange.rate_date.isoformat(),
-            "kind": "cash_buy_discounted",
-            "spreadDiscount": format(result.exchange.spread_discount, "f"),
-        }
+    exchange = exchange_json(result)
+    if exchange is not None:
+        body["exchange"] = exchange
     return body

@@ -74,6 +74,16 @@ def summary_json(outcome: DepositOutcome, recheck_failed: tuple[str, str] | None
     }
 
 
+def institution_json(request: service.Request) -> Json:
+    return {"key": request.institution.key, "name": request.institution.name}
+
+
+def condition_json(request: service.Request, prepared: service.Prepared) -> Json:
+    """설정은 언제든 바뀐다. 결과만 남으면 어느 조건의 수치인지 알 수 없다(FR-031)."""
+    return {"start": request.start.isoformat(), "principal": won(request.principal),
+            "interestTaxRate": format(prepared.settings.interest_tax_rate, "f")}
+
+
 @router.get("/simulation", response_model=None)
 async def get_simulation(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -90,10 +100,8 @@ async def get_simulation(
         return JSONResponse(status_code=202, content=result)
     outcome = result.outcome
     return {
-        "institution": {"key": request.institution.key, "name": request.institution.name},
-        # 설정은 언제든 바뀐다. 결과만 남으면 어느 조건의 수치인지 알 수 없다(FR-031).
-        "condition": {"start": request.start.isoformat(), "principal": won(request.principal),
-                      "interestTaxRate": format(result.settings.interest_tax_rate, "f")},
+        "institution": institution_json(request),
+        "condition": condition_json(request, result),
         "summary": summary_json(outcome, result.recheck_failed),
         "terms": [term_json(t) for t in outcome.terms],
         "rows": [row_json(r) for r in outcome.rows],

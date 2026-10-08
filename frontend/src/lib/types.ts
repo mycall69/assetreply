@@ -1548,3 +1548,125 @@ export interface SaleTaxSettings extends SaleTaxValues {
   isDefault: boolean;
   defaults: SaleTaxValues;
 }
+
+/* ───────────────────────── 013: 투자 비교 ───────────────────────── */
+
+/** 비교의 자산군 — 한 비교에 하나다(FR-002). 외환은 투자 시뮬레이션이 없어 대상이 아니다. */
+export type CompareAsset = "stock" | "crypto" | "deposit" | "realestate";
+
+/** 투자 방식 — 주식·가상자산 일시금·적립식, 예금 정기예금·정기 적금, 부동산 매입 후 보유(data-model 2). */
+export type CompareMethod = "lump_sum" | "recurring" | "deposit" | "installment" | "hold";
+
+/** 비교 대상 — 저장 본문(data-model 2)과 같은 칸이다. 표시용 이름을 함께 둔다. */
+export interface StockTarget {
+  market: StockMarket;
+  symbol: string;
+  name: string;
+  currency: string;
+}
+
+export interface CryptoTarget {
+  coinId: number;
+  symbol: string;
+  name: string;
+  nameKo: string | null;
+  /** 시세 통화 — 원금 통화 규칙(원화 + 모든 대상이 같은 통화)에 쓴다. */
+  currency: string;
+}
+
+export interface DepositTarget {
+  institution: DepositInstitutionKey;
+}
+
+export interface RealEstateTarget {
+  complexId: number;
+  name: string;
+  umdName: string;
+  area: RealEstateAreaKey;
+  areaLabel: string;
+}
+
+export type CompareTarget = StockTarget | CryptoTarget | DepositTarget | RealEstateTarget;
+
+/** 비용 항목 — data-model 3.1 표의 글자. */
+export type CostItemKind =
+  | "buy_fee" | "dividend_tax" | "interest_tax_matured" | "interest_tax_open"
+  | "acquisition_tax" | "education_tax" | "rural_tax" | "brokerage_buy" | "property_tax" | "comprehensive_tax"
+  | "sale_fee" | "transaction_tax" | "capital_gains_tax" | "crypto_tax"
+  | "brokerage_sale" | "transfer_income_tax" | "transfer_local_tax";
+
+export interface ComparisonCostItem {
+  kind: CostItemKind;
+  /** 원화. 메뉴가 비우는 항목이면 `null` — 0으로 메우지 않는다. */
+  amount: DecimalString | null;
+  /** 투자 원금에 들어 있는 비용(부동산 취득 비용). */
+  inPrincipal: boolean;
+}
+
+export interface ComparisonCostPart {
+  total: DecimalString | null;
+  items: ComparisonCostItem[];
+}
+
+/** 기간 전체 비용(013 명확화 4) — 이미 반영된 몫과 기준일 매도 가정 몫. 매도를 가정하지 않는 자산군·방식은 `sale: null`. */
+export interface ComparisonCosts {
+  total: DecimalString | null;
+  reflected: ComparisonCostPart;
+  sale: (ComparisonCostPart & { blank: string | null }) | null;
+}
+
+/** 표의 투자 수익·수익률이 무엇인가 — 메뉴 보드의 규칙 그대로(research R13-4). */
+export type MainBasis = "after_sale" | "holding" | "unavailable";
+
+/** 잠정 까닭(헌법 원칙 V). */
+export type ProvisionalKind = "unpublished_rate" | "provisional_price" | "estimated_price" | "not_final";
+
+export interface ComparisonFx {
+  currency: string;
+  valuationRate: DecimalString;
+  valuationRateDate: string;
+  source: string;
+  exchange: ExchangeInfo | null;
+}
+
+/** 비교 경로 200의 정규화 블록(data-model 3). 금액은 원화 문자열이다. */
+export interface ComparisonBlock {
+  asOf: string;
+  isFinal: boolean;
+  principal: { amount: DecimalString | null; currency: string; krw: DecimalString | null };
+  currentValue: DecimalString | null;
+  mainBasis: MainBasis;
+  profit: DecimalString | null;
+  returnRate: DecimalString | null;
+  holding: { profit: DecimalString | null; returnRate: DecimalString | null };
+  costs: ComparisonCosts;
+  lineEnd: { date: string; holdingReturnRate: DecimalString | null; afterSaleReturnRate: DecimalString | null };
+  provisional: ProvisionalKind[];
+  fx: ComparisonFx | null;
+}
+
+/** 비교 경로 200(contracts/rest-api.md 1.2). `summary`·`condition`은 메뉴 응답의 것 그대로다. */
+export interface ComparisonResponse {
+  basisCurrency: "KRW";
+  target: unknown;
+  condition: Record<string, unknown>;
+  exchange: ExchangeInfo | null;
+  summary: Record<string, unknown>;
+  series: SimulationSeriesResponse;
+  comparison: ComparisonBlock;
+}
+
+/** 비교 경로 202 — 메뉴 경로의 수집 본문 그대로(자산군마다 칸이 다르다). */
+export interface CompareCollecting {
+  status: "collecting";
+  jobId?: number;
+  missingFrom?: string;
+  missingThrough?: string;
+  progressUrl?: string;
+  /** 주식·가상자산 — 환율이 비면 */
+  fx?: { currency: string; state: string };
+  /** 부동산 — 받은 달 / 받을 달 */
+  monthsDone?: number;
+  monthsTotal?: number;
+  [key: string]: unknown;
+}

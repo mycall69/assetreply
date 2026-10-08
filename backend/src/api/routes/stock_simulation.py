@@ -21,6 +21,7 @@ from src.api.services.stock_collect import collecting_body
 from src.api.services.stock_sale import sale_cost_for
 from src.api.services.stock_simulation import (
     ConvertedRow,
+    Prepared,
     SimulationResult,
     check_principal_currency,
     parse_principal,
@@ -30,6 +31,7 @@ from src.api.services.stock_simulation import (
     table,
 )
 from src.api.services.table_rows import parse_period, row_body
+from src.db.models import Stock
 from src.db.session import get_session
 from src.repository.stock_setting import SaleTaxSettings
 from src.simulation.money import quantize_rate
@@ -147,6 +149,37 @@ def _sale_json(result: SimulationResult, profit: Decimal, *, market: str, fee_ra
     }
 
 
+def stock_json(stock: Stock) -> Json:
+    return {"market": stock.market, "symbol": stock.symbol, "name": stock.name,
+            "currency": stock.currency}
+
+
+def condition_json(prepared: Prepared, *, start: dt.date, principal: Decimal,
+                   principal_currency: str, reinvest: bool) -> Json:
+    """FR-018 — 설정은 언제든 바뀐다. 결과만 남으면 어느 조건의 수치인지 알 수 없다."""
+    return {
+        "start": start.isoformat(),
+        "principal": str(principal),
+        "principalCurrency": principal_currency,
+        "reinvest": reinvest,
+        "tradeFeeRate": str(prepared.settings.trade_fee_rate),
+        # 006 FR-055 — 그 종목에 **적용한** 세율(국내 또는 해외).
+        "dividendTaxRate": str(prepared.dividend_tax_rate),
+    }
+
+
+def exchange_json(result: SimulationResult) -> Json | None:
+    """원금 환전(현금 살 때 환율 — 006 FR-019). 원금과 종목의 통화가 같으면 없다."""
+    if result.exchange is None:
+        return None
+    return {
+        "rate": str(result.exchange.rate),
+        "rateDate": result.exchange.rate_date.isoformat(),
+        "kind": "cash_buy_discounted",
+        "spreadDiscount": str(result.exchange.spread_discount),
+    }
+
+
 @router.get("/simulation", response_model=None)
 async def get_simulation(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -193,30 +226,15 @@ async def get_simulation(
 
     # 012 — 단위는 표의 행 구성만 바꾼다. 요약·조건·시계열은 단위와 무관하다(FR-007).
     shown = table(result, unit=unit, end=finish, before=before, limit=limit)
+    exchange = exchange_json(result)
 
     return {
-        "stock": {
-            "market": stock.market, "symbol": stock.symbol,
-            "name": stock.name, "currency": stock.currency,
-        },
-        # FR-018 — 설정은 언제든 바뀐다. 결과만 남으면 어느 조건의 수치인지 알 수 없다.
-        "condition": {
-            "start": start.isoformat(),
-            "principal": str(amount),
-            "principalCurrency": principal_currency,
-            "reinvest": reinvest,
-            "tradeFeeRate": str(settings.trade_fee_rate),
-            # 006 FR-055 — 그 종목에 **적용한** 세율(국내 또는 해외).
-            "dividendTaxRate": str(prepared.dividend_tax_rate),
-        },
+        "stock": stock_json(stock),
+        "condition": condition_json(prepared, start=start, principal=amount,
+                                    principal_currency=principal_currency, reinvest=reinvest),
         "summary": summary_json(result, amount, market=stock.market,
                                 fee_rate=settings.trade_fee_rate, sale_tax=prepared.sale_tax),
-        **({"exchange": {
-            "rate": str(result.exchange.rate),
-            "rateDate": result.exchange.rate_date.isoformat(),
-            "kind": "cash_buy_discounted",
-            "spreadDiscount": str(result.exchange.spread_discount),
-        }} if result.exchange is not None else {}),
+        **({"exchange": exchange} if exchange is not None else {}),
         "period": unit,
         "rows": [row_body(r, row_json) for r in shown.rows],
         "hasMore": shown.has_more,

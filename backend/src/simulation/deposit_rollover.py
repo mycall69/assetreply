@@ -120,6 +120,9 @@ class Summary:
     #: 잠정 회차가 시작된 날(가입일 또는 재예치일). 없으면 `None`.
     provisional_from: dt.date | None
     stopped: Stopped | None
+    #: 013 — 진행 중 회차의 경과 이자에 대한 이자 소득세. `balance`에서 이미 뺀 그 값이다(비교 표의
+    #: 비용 — 이미 반영된 몫, research R13-3). 만기일에 끝나거나 멈추면 0이다.
+    accrued_tax: Decimal = Decimal(0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -248,6 +251,7 @@ def simulate_deposit(*, principal: Decimal, start: dt.date, end: dt.date,
     terms: list[Term] = []
     stopped: Stopped | None = None
     balance: Decimal
+    accrued_tax = _ZERO
 
     while True:
         matures = add_one_year(joined)
@@ -261,7 +265,8 @@ def simulate_deposit(*, principal: Decimal, start: dt.date, end: dt.date,
 
         if matures > end:
             accrued = accrued_interest(held, current.rate, joined, matures, end)
-            balance = held + accrued - interest_tax(accrued, tax_rate)
+            accrued_tax = interest_tax(accrued, tax_rate)
+            balance = held + accrued - accrued_tax
             break
 
         interest = maturity_interest(held, current.rate)
@@ -294,5 +299,6 @@ def simulate_deposit(*, principal: Decimal, start: dt.date, end: dt.date,
     summary = Summary(
         principal=initial, balance=balance, profit=profit, return_rate=return_rate,
         as_of=stopped.date if stopped is not None else end, is_final=stopped is None,
-        current_term=open_term, provisional_from=provisional_from, stopped=stopped)
+        current_term=open_term, provisional_from=provisional_from, stopped=stopped,
+        accrued_tax=accrued_tax)
     return DepositOutcome(terms=terms, rows=list(reversed(ascending)), summary=summary)

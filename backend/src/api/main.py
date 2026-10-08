@@ -430,6 +430,7 @@ def create_app() -> FastAPI:
     # 라우터는 예외 핸들러 등록 이후에 붙인다 (순환 임포트 회피)
     from src.api.routes import collect as collect_routes
     from src.api.routes import collection as collection_routes
+    from src.api.routes import comparison as comparison_routes
     from src.api.routes import coverage as coverage_routes
     from src.api.routes import crypto_list_progress as crypto_list_progress_routes
     from src.api.routes import crypto_progress as crypto_progress_routes
@@ -510,6 +511,8 @@ def create_app() -> FastAPI:
     app.include_router(realestate_series_routes.router)
     app.include_router(realestate_settings_routes.router)
     app.include_router(history_routes.router)
+    # 013 — 투자 비교. 저장한 비교(`/api/comparison/saved`)는 이 라우터보다 먼저 더한다(T073).
+    app.include_router(comparison_routes.router)
 
     return app
 

@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.services.series_query import DEFAULT_MAX_POINTS
 from src.api.services.stock_collect import collecting_body
-from src.api.services.stock_series import build_series
+from src.api.services.stock_series import StockSeries, build_series
 from src.api.services.stock_simulation import (
     check_principal_currency,
     parse_principal,
@@ -33,6 +33,38 @@ from src.repository.stock import get_coverage
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 
 Json = dict[str, object]
+
+
+def series_json(series: StockSeries, *, principal_currency: str, price_currency: str) -> Json:
+    """시계열 본문 — 비교 경로(013)도 이 함수로 같은 모양을 낸다."""
+    return {
+        "from": series.start.isoformat(),
+        "to": series.end.isoformat(),
+        # FR-041 — 기준 통화를 밝히지 않으면 사용자가 어느 쪽을 보는지 모른다. 006 FR-068 — 기준은
+        # 원금 통화와 관계없이 KRW다. 원금 통화는 입력 그대로 따로 싣는다 — 범례·비교가 원금 통화로
+        # 기준을 말하면 달러 원금 실행의 KRW 값을 달러로 읽는다.
+        "principalCurrency": principal_currency,
+        "basisCurrency": "KRW",
+        # 010 — 가격은 분할만 반영한 수정 종가(반복 1), 통화는 **종목 통화**다(원금이 KRW여도
+        # 환산하지 않는다).
+        "priceKind": "stock_adjusted_close",
+        "priceCurrency": price_currency,
+        "downsampled": series.downsampled,
+        "algorithm": "lttb",
+        "sourcePointCount": series.source_point_count,
+        # 금액·비율은 **문자열**이다. JSON number는 IEEE 754라 경계에서 정밀도가
+        # 무너지고, 그것은 헌법 원칙 VI를 API 경계에서 무력화하는 일이다.
+        "points": [
+            {"date": p.date.isoformat(), "balance": str(p.balance),
+             "returnRate": str(p.return_rate),
+             "price": None if p.price is None else str(p.price),
+             **({} if p.price_missing is None else {"priceMissing": p.price_missing})}
+            for p in series.points],
+        "gaps": [
+            {"from": g.start.isoformat(), "to": g.end.isoformat(),
+             "reason": g.reason}
+            for g in series.gaps],
+    }
 
 
 @router.get("/simulation/series", response_model=None)
@@ -77,31 +109,5 @@ async def get_simulation_series(
         prepared.result, start=start, end=finish, covered=covered,
         max_points=max_points)
 
-    return {
-        "from": series.start.isoformat(),
-        "to": series.end.isoformat(),
-        # FR-041 — 기준 통화를 밝히지 않으면 사용자가 어느 쪽을 보는지 모른다. 006 FR-068 — 기준은
-        # 원금 통화와 관계없이 KRW다. 원금 통화는 입력 그대로 따로 싣는다 — 범례·비교가 원금 통화로
-        # 기준을 말하면 달러 원금 실행의 KRW 값을 달러로 읽는다.
-        "principalCurrency": principal_currency,
-        "basisCurrency": "KRW",
-        # 010 — 가격은 분할만 반영한 수정 종가(반복 1), 통화는 **종목 통화**다(원금이 KRW여도
-        # 환산하지 않는다).
-        "priceKind": "stock_adjusted_close",
-        "priceCurrency": stock.currency,
-        "downsampled": series.downsampled,
-        "algorithm": "lttb",
-        "sourcePointCount": series.source_point_count,
-        # 금액·비율은 **문자열**이다. JSON number는 IEEE 754라 경계에서 정밀도가
-        # 무너지고, 그것은 헌법 원칙 VI를 API 경계에서 무력화하는 일이다.
-        "points": [
-            {"date": p.date.isoformat(), "balance": str(p.balance),
-             "returnRate": str(p.return_rate),
-             "price": None if p.price is None else str(p.price),
-             **({} if p.price_missing is None else {"priceMissing": p.price_missing})}
-            for p in series.points],
-        "gaps": [
-            {"from": g.start.isoformat(), "to": g.end.isoformat(),
-             "reason": g.reason}
-            for g in series.gaps],
-    }
+    return series_json(series, principal_currency=principal_currency,
+                       price_currency=stock.currency)

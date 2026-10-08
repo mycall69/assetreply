@@ -30,7 +30,7 @@
 | 주식 상장 판정이 수집 뒤에 끝나는 경우가 있다 | `_require_start_month_bar` | 수집 중인 대상이 남으면 시작일을 제안하지 않는다. 늦게 드러난 막힘은 결과를 거둔다(R13-6). spec FR-010에 반영 |
 | 환율 찾기가 빗나가면 전체를 훑는다 | 가상자산 10개의 가장 느린 길 | `resolve_rate` 이분 탐색(결과 같음, R13-13) |
 | 메뉴 스토어의 `run`이 이력을 저장한다 | 일곱 호출 지점 | 비교 스토어를 따로 둔다(R13-8·R13-14) |
-| 부동산 고르기가 메뉴 결과를 지운다 | `clearResult` | 고르기 슬라이스를 꺼내 인스턴스를 따로(R13-9) |
+| 부동산 고르기가 메뉴 결과를 지운다 | `clearResult` | 같은 상태 생성기로 비교 인스턴스를 따로(R13-9) |
 | 가드 테스트가 `/compare`를 막는다 | `noUnbuiltAssetRoutes`·`Sidebar.test` | 바뀌는 기존 테스트로 승인 목록에 올린다(R13-16) |
 
 ## Technical Context
@@ -40,7 +40,7 @@
 | 언어(백엔드) | Python 3.14 (`.venv/bin/python`) |
 | 프레임워크 | FastAPI, SQLAlchemy 2.x async + aiomysql, Alembic |
 | 언어(프론트엔드) | TypeScript 5 (`strict`), Next.js 16, React 19 |
-| 상태 관리 | Zustand — 새 `compareStore`, 부동산 고르기 슬라이스(`realEstatePickerSlice` — 메뉴·비교 인스턴스 둘) |
+| 상태 관리 | Zustand — 새 `compareStore`, 부동산은 `realEstateStateCreator` 하나로 메뉴·비교 인스턴스 둘 |
 | 차트 | Lightweight Charts(수익률 추이 — `LineSeries`와 점만 그리는 `LineSeries`). 최종 지표는 DOM 막대 |
 | DB | MySQL 8 — 새 테이블 `saved_comparison`, Alembic 리비전 하나(`down_revision = "a6d2f9c41b83"`) |
 | 출처 | 새 출처 없음 — 각 자산군의 지금 수집 경로(Yahoo·investing.com·ECOS·공공데이터포털) |
@@ -78,7 +78,7 @@
 | 일어나지 않음 | ✅ | 비용 항목 하나를 빠뜨리면 몫의 참조값(항목 합 = 메뉴 합계)이 깨진다. 매도 후 점이 없으면 화면 테스트가 깨진다. 저장 실패를 삼키면 화면 테스트(대역 `fail`)가 깨진다 |
 | 다른 곳에서 일어남 | ✅ | 같은 질의 함수(메뉴 스토어의 `toQuery` 계열)로 대상마다 조건을 만든다(SC-002). 늦은 응답은 `runSeq`로 버린다. 비교 스토어는 이력·메뉴 스토어를 건드리지 않는다(이력 PUT 0건 테스트). 부동산 고르기는 인스턴스가 따로다 |
 | 늦게 일어남 | ✅ | 수집 중인 대상은 스트림 완료에 그 대상만 다시 요청한다. 연달은 202 한도(3)로 끝없는 대기를 막는다. 수집 중이면 시작일 제안을 미뤄 다시 막히지 않는다 |
-| 공유 부품 변경 | ✅ | `ComparisonChart`·`InstitutionPicker`·`SimulationForm`은 고치지 않는다. `HistoryContent`에 빈 목록 문구 속성(처음 값 = 지금 문구), `realEstateStore`는 같은 필드 이름의 슬라이스로 — 기존 테스트를 고치지 않고 통과해야 한다(못 하면 멈춘다) |
+| 공유 부품 변경 | ✅ | `ComparisonChart`·`InstitutionPicker`·`SimulationForm`은 고치지 않는다. `HistoryContent`에 빈 목록 문구 속성(처음 값 = 지금 문구), `realEstateStore`는 상태 생성기를 내보내고 구독·실행 차례를 인스턴스 안으로 — 기존 테스트를 고치지 않고 통과해야 한다(못 하면 멈춘다) |
 | 바뀌는 기존 테스트 | ⚠ 승인 필요 | R13-16 — `Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts`·(표가 전체를 고정하면) `TopBarTitle.test.ts`. 구현 뒤 실제 실패 목록으로 승인을 받는다 |
 
 ## Project Structure
@@ -138,9 +138,8 @@ frontend/
 │   ├── app/compare/page.tsx              (신규)
 │   ├── stores/
 │   │   ├── compareStore.ts               (신규 — data-model 5)
-│   │   ├── realEstatePickerSlice.ts      (신규 — realEstateStore에서 꺼냄, R13-9)
-│   │   ├── compareRealEstatePicker.ts    (신규 — 비교 화면의 고르기 인스턴스)
-│   │   ├── realEstateStore.ts            (변경 — 슬라이스를 같은 필드 이름으로 펼침, `simulationQuery` 내보냄)
+│   │   ├── compareRealEstatePicker.ts    (신규 — 같은 생성기로 만든 비교 화면의 고르기 인스턴스, R13-9)
+│   │   ├── realEstateStore.ts            (변경 — 상태 생성기 `realEstateStateCreator`를 내보내고 구독·실행 차례를 인스턴스 안으로, `simulationQuery` 내보냄)
 │   │   └── stockStore.ts                 (변경 — `registerStock` 사용)
 │   ├── lib/
 │   │   ├── compareApi.ts                 (신규 — 비교 경로·저장 경로 요청)
@@ -160,12 +159,12 @@ frontend/
     ├── support/savedComparisonStub.ts    (신규)
     └── ComparePage*.test.tsx · compareStore*.test.ts · compareBlock.test.ts · compareCondition.test.ts · decimalOrder.test.ts ·
         CompareTable.test.tsx · CompareReturnChart.test.tsx · CompareMetricBars.test.tsx · InstitutionChecklist.test.tsx · SavedComparisons.test.tsx ·
-        SaveComparisonForm.test.tsx · HistoryStatesEmptyText.test.tsx · stockSelection.test.ts · compareNoClientFinance.test.ts ·
-        realEstatePickerSlice.test.ts   (신규)
+        SaveComparisonForm.test.tsx · HistoryStatesEmptyText.test.tsx · registerStock.test.ts · compareNoClientFinance.test.ts ·
+        compareRealEstatePicker.test.ts   (신규)
 ```
 
 **Structure Decision**: 기존 웹 앱 구조(backend/frontend)를 그대로 쓴다. 비교는 새 자산군이 아니라 기존 계산을 함께 쓰는 화면이므로, 백엔드는 경로·순수 정규화·
-저장만 더하고 계산 모듈은 값을 바꾸지 않는 더함만 한다. 화면은 새 경로 하나와 새 스토어 하나, 메뉴 부품을 그대로 쓰고 부동산 고르기만 슬라이스로 꺼낸다.
+저장만 더하고 계산 모듈은 값을 바꾸지 않는 더함만 한다. 화면은 새 경로 하나와 새 스토어 하나, 메뉴 부품을 그대로 쓰고 부동산 고르기는 같은 생성기의 인스턴스를 하나 더 만든다.
 
 ## 요구사항 추적성
 
@@ -214,4 +213,4 @@ frontend/
 | 저장한 비교 조건을 JSON 글로 저장(금액 문자열 포함 — 원칙 VI 해석, 012 R12-9 선례) | 조건은 사용자가 친 입력의 기록이다. 서버는 검증할 때만 `Decimal`로 읽고 저장·응답은 받은 글자 그대로다. 불러오면 그 글자로 다시 계산한다 | 자산군마다 테이블·`DECIMAL` 열 — 대상 목록(최대 10)과 자산군별 칸이 네 벌이 된다 |
 | 최종 지표 막대의 길이에 `Number()`(그리기 전용) | 막대는 그림이다. 글자 값은 서버 문자열이고, 정렬은 문자열 견주기다(R13-11·R13-12). 차트의 `chartSeries.ts:120` 선례 | 서버가 막대 비율을 낸다 — 화면 배치 값을 API에 넣는다 |
 | 비교 경로 모듈이 메뉴 경로 모듈의 요약 함수를 부른다 | 요약 JSON 함수 다섯이 경로 모듈에 있다(조사). 같은 함수를 불러야 SC-001이 구조로 선다. 서비스가 경로를 부르지 않는다 — 경로 → 경로 | 요약 함수를 서비스로 옮긴다 — 다섯 모듈의 이동과 기존 테스트의 불러오기 경로가 바뀐다 |
-| 부동산 고르기를 슬라이스로 꺼낸다(메뉴 스토어 리팩터) | 같은 흐름 하나를 메뉴·비교가 함께 쓴다(FR-003). 필드 이름이 같아 메뉴 테스트를 고치지 않는다 | 비교 쪽에 새로 쓴다 — 202·진행이 얽힌 약 200줄이 두 벌이 된다 |
+| 부동산 스토어의 상태 생성기를 두 번 쓴다(메뉴 스토어 리팩터 — 구독·실행 차례를 인스턴스 안으로) | 같은 흐름 하나를 메뉴·비교가 함께 쓴다(FR-003). 필드·동작이 같아 메뉴 테스트를 고치지 않는다 | 비교 쪽에 새로 쓴다 — 202·진행이 얽힌 약 200줄이 두 벌이 된다. 고르기만 슬라이스로 뗀다 — 실행·오류와 얽혀 메뉴 코드가 크게 바뀐다(R13-9) |

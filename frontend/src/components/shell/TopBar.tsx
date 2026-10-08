@@ -20,6 +20,7 @@ const TITLES: ReadonlyArray<readonly [string, string]> = [
   ["/stocks", "주식"],
   ["/deposit", "예금"],
   ["/realestate", "부동산"],
+  ["/compare", "투자 비교"],
   ["/settings", "설정"],
   ["/", "대시보드"],
 ];
