@@ -33,7 +33,8 @@ const APP = join(process.cwd(), "src", "app");
  * 않은" 상태가 아니다. 자산군 순서(원칙 IX)에서 가상자산을 건너뛴 이탈은 005 plan의
  * Complexity Tracking에 기록돼 있으며, 가상자산은 006으로 수행한다.
  */
-const UNBUILT = ["compare", "dashboard"];
+// 013 승인 2026-10-08 — 013이 투자 비교 화면(`src/app/compare`)을 만들어 `compare`를 뺐다.
+const UNBUILT = ["dashboard"];
 
 describe("미구현 자산군", () => {
   it("라우트 디렉토리가 존재하지 않는다", () => {
@@ -44,7 +45,8 @@ describe("미구현 자산군", () => {
   it("사이드바가 준비되지 않은 항목에 경로를 주지 않는다", () => {
     const src = readFileSync(join(process.cwd(), "src/components/shell/Sidebar.tsx"), "utf-8");
     const hrefs = [...src.matchAll(/href:\s*"([^"]+)"/g)].map((m) => m[1]).sort();
-    expect(hrefs).toEqual(["/crypto", "/deposit", "/fx", "/realestate", "/settings", "/stocks"]);
+    // 013 승인 2026-10-08 — 사이드바에 투자 비교(`/compare`)가 더해졌다.
+    expect(hrefs).toEqual(["/compare", "/crypto", "/deposit", "/fx", "/realestate", "/settings", "/stocks"]);
   });
 
   /**
