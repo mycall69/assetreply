@@ -145,6 +145,16 @@ describe("가상자산·예금·부동산", () => {
   });
 });
 
+describe("줄바꿈", () => {
+  // T093 실측 — 열이 열 개가 되자 1440px 창에서 날짜가 "2026-10-"/"08"로, 등락의 ▲와 금액이 서로 다른 줄로 갈렸다.
+  it("단가·등락 칸과 기준일 날짜는 줄을 바꾸지 않는다", () => {
+    renderTable([row("a", "삼성전자", SAMSUNG)]);
+    for (const id of ["unit-start", "unit-asof", "unit-change"]) expect(cellOf("삼성전자", id).className).toContain("whitespace-nowrap");
+    const asOf = within(screen.getAllByRole("row")[1]).getAllByRole("cell")[1];
+    expect(within(asOf).getByText("2026-10-06").className).toContain("whitespace-nowrap");
+  });
+});
+
 describe("정렬", () => {
   const names = () => screen.getAllByRole("row").slice(1).map((r) => within(r).getAllByRole("cell")[0].textContent);
 
