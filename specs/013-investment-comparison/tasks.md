@@ -427,7 +427,7 @@ Independent Test, quickstart 5-10).
 - [X] T075 [US4] `frontend/src/components/history/HistoryStates.tsx` — `HistoryContent`에 선택 속성 `emptyText`(처음 값 = 지금 문구) (F9)
 - [X] T076 [US4] `frontend/src/components/compare/SaveComparisonForm.tsx`·`SavedComparisons.tsx`(신규) (FR-016~FR-019, F9)
 - [X] T077 [US4] `frontend/src/stores/compareStore.ts`(저장 슬라이스 — data-model 5.2, 불러오기 → 채우고 실행) · `frontend/src/app/compare/page.tsx`(`TableWithHistory` 배치 — 오른쪽 저장한 비교, 저장 단추·이름 칸) (FR-016~FR-019, F9)
-- [ ] T078 [US4] 검증 — quickstart 2(저장 API 손 확인)·5-8·5-11 (FR-016~FR-019, SC-006)
+- [X] T078 [US4] 검증 — quickstart 2(저장 API 손 확인)·5-8·5-11 (FR-016~FR-019, SC-006)
   - 다른 브라우저 문맥에서 같은 목록이 보인다. 백엔드를 멈추면 목록 받기 실패와 다시 시도가 보인다.
   - 확인으로 만든 저장한 비교를 지우고 전후 목록이 같음을 본다. quickstart 실행 기록에 적는다.
 
