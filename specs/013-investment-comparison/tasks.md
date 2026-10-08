@@ -78,7 +78,7 @@ description: "Task list for 013-investment-comparison"
 
 **Purpose**: 구현 전의 기준(불변 대조용 응답·기존 검사 통과 상태·DB 머리)
 
-- [ ] T001 구현 전 기준 응답을 남긴다 (FR-020, SC-009, quickstart 6)
+- [X] T001 구현 전 기준 응답을 남긴다 (FR-020, SC-009, quickstart 6)
   - 서버를 띄운다(`./start.sh`).
   - 메뉴 표 경로 첫 쪽의 머리(`summary`·`condition`·대상 식별 — `rows` 제외)와 `/series` 응답을 저장소 밖 작업용 임시 폴더(`013-baseline/before/`)에 JSON으로 저장한다.
     - 주식 일시금 KRX `005930.KS`·NYSE `XLK`(원화 원금, 재투자), 주식 적립식 `005930.KS` 매달
@@ -86,11 +86,11 @@ description: "Task list for 013-investment-comparison"
     - 정기예금 시중은행, 정기 적금 시중은행, 부동산 헬리오시티 30평대
   - `end`를 고정한다(`2026-09-30` — 받는 경로만). 부동산은 `end`가 없으니 T080을 같은 KST 날짜에 하거나 날짜 차이만 걸러 견준다. 받은 시각·조건을 `meta.json`에 적는다.
     202면 수집이 끝난 뒤 다시 받는다.
-- [ ] T002 구현 전 기존 검사의 통과 상태를 기록한다 (SC-009)
+- [X] T002 구현 전 기존 검사의 통과 상태를 기록한다 (SC-009)
   - 서버를 내린다(`./stop.sh`).
   - 백엔드 `pytest -q --cov=src`·`mypy src`·`ruff check --no-cache src tests`, 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .`를 돌린다.
   - 통과 수를 Notes에 적는다. 실패가 있으면 기능 전의 실패로 기록하고 멈추고 보고한다.
-- [ ] T003 개발 DB 상태를 확인한다 — 머리 리비전이 `a6d2f9c41b83`인지(`backend/.venv/bin/python -m alembic current`). 다르면 멈추고 보고한다 (data-model 1)
+- [X] T003 개발 DB 상태를 확인한다 — 머리 리비전이 `a6d2f9c41b83`인지(`backend/.venv/bin/python -m alembic current`). 다르면 멈추고 보고한다 (data-model 1)
 
 ---
 
@@ -102,7 +102,7 @@ description: "Task list for 013-investment-comparison"
 
 ### Tests for Foundational ⚠️
 
-- [ ] T004 [P] `backend/tests/unit/test_fx_resolve_bisect.py` — `simulation/fx_convert.resolve_rate` (SC-004, SC-009, FR-020)
+- [X] T004 [P] `backend/tests/unit/test_fx_resolve_bisect.py` — `simulation/fx_convert.resolve_rate` (SC-004, SC-009, FR-020)
   - 테스트 안에 옛 방식(전체 훑기 — `max(d for d in by_date if d < on)`)의 참조 구현을 둔다.
   - 고정 시드의 무작위 날짜 집합(주말·공휴일 빈 날 포함) × 조회 날짜(정확 일치, 두 고시일 사이, 첫 고시일 전, 마지막 고시일 뒤)에서 (환율, 쓴 날짜)가 참조와 같다.
   - 이전 고시일이 없으면 `None`. 이후 고시일을 쓰지 않는다.
@@ -110,7 +110,7 @@ description: "Task list for 013-investment-comparison"
 
 ### Implementation for Foundational
 
-- [ ] T005 `backend/src/simulation/fx_convert.py` — `RateLookup`가 정렬된 날짜 튜플을 함께 든다(`field(init=False)` + `__post_init__`의 `object.__setattr__` — 생성자 호출부 그대로). `resolve_rate`의 빗나감 경로를 `bisect`로 바꾼다. 독스트링의 규칙(가장 가까운 이전 고시일, 이후 고시일 금지, 쓴 날짜 반환)은 그대로다 (SC-004, research R13-13)
+- [X] T005 `backend/src/simulation/fx_convert.py` — `RateLookup`가 정렬된 날짜 튜플을 함께 든다(`field(init=False)` + `__post_init__`의 `object.__setattr__` — 생성자 호출부 그대로). `resolve_rate`의 빗나감 경로를 `bisect`로 바꾼다. 독스트링의 규칙(가장 가까운 이전 고시일, 이후 고시일 금지, 쓴 날짜 반환)은 그대로다 (SC-004, research R13-13)
 
 **Checkpoint**: T004 통과. 기존 환율·주식·가상자산 테스트가 그대로 통과한다.
 
@@ -550,6 +550,11 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
 - 커밋 전에 비밀 검사 스크립트를 돌린다. `.env`가 추적되지 않는지, 스테이징된 내용에 키·DB 비밀번호가 없는지, `.venv/`·`node_modules/`·`.next/`·`logs/`
   경로가 없는지 본다.
 - 개발 서버를 띄운 채 통합 테스트를 돌리지 않는다(같은 MySQL 스키마를 다시 만든다).
+- **2026-10-08 T001 기준 응답**: 저장소 밖 작업 폴더(`013-baseline/before/`)에 메뉴 표 경로 첫 쪽의 머리(`rows` 제외)와 `/series`를 저장했다(`end=2026-09-30` 고정).
+  주식 KRX 005930.KS·NYSE XLK(원화 원금), 가상자산 BTC, 정기예금 시중은행, 부동산 헬리오시티 30평대, 적립식 주식(국내 매달)·가상자산(매일), 적금 시중은행 — 8개. 12:34Z
+- **2026-10-08 T002 기준 게이트(서버를 내린 채)**: 백엔드 2,838 passed(커버리지 96.14%, 8분 56초), mypy 230 파일·ruff(`--no-cache`) 통과 / 프론트엔드
+  166 파일·1,421 passed, tsc·eslint — 모두 종료 코드 0
+- **2026-10-08 T003**: 개발 DB 머리 리비전 `a6d2f9c41b83`(head)
 - 커밋 메시지는 한국어이고 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`을 단다. 푸시는 요청이 있을 때만 한다.
 
 ## 요구사항 ↔ 태스크

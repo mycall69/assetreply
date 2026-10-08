@@ -11,7 +11,8 @@
 from __future__ import annotations
 
 import datetime as dt
-from dataclasses import dataclass
+from bisect import bisect_left
+from dataclasses import dataclass, field
 from decimal import Decimal
 
 from src.simulation.money import quantize_money, quantize_rate
@@ -71,9 +72,18 @@ def to_principal(amount: Decimal, base_rate: Decimal, currency: str) -> Decimal:
 
 @dataclass(frozen=True, slots=True)
 class RateLookup:
-    """날짜별 매매기준율. 조회만 하는 자료구조라 순수 함수에 넘길 수 있다."""
+    """날짜별 매매기준율. 조회만 하는 자료구조라 순수 함수에 넘길 수 있다.
+
+    `dates`는 만들 때 한 번 정렬한 고시일이다 — 고시가 없는 날의 "가장 가까운 이전
+    고시일"을 이분 탐색으로 찾는다(013 research R13-13). 찾을 때마다 모든 날짜를 훑으면
+    가상자산 일봉처럼 빗나가는 날이 많은 계산에서 대상 하나에 수백만 번 비교가 된다.
+    """
 
     by_date: dict[dt.date, Decimal]
+    dates: tuple[dt.date, ...] = field(init=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "dates", tuple(sorted(self.by_date)))
 
 
 def resolve_rate(
@@ -95,10 +105,11 @@ def resolve_rate(
     if exact is not None:
         return exact, on
 
-    earlier = [d for d in lookup.by_date if d < on]
-    if not earlier:
+    # 정렬된 고시일에서 `on`보다 앞인 마지막 날 — 그날 고시는 위에서 이미 빗나갔다.
+    index = bisect_left(lookup.dates, on)
+    if index == 0:
         return None
-    used = max(earlier)
+    used = lookup.dates[index - 1]
     return lookup.by_date[used], used
 
 

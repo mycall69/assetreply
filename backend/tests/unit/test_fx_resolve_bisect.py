@@ -1,7 +1,7 @@
 """환율 찾기의 이분 탐색 (013 T004) — research R13-13, SC-004, SC-009.
 
-`resolve_rate`가 그날 고시가 없을 때 모든 날짜를 훑던 것을 이분 탐색으로 바꾼다. 돌려주는 값(환율, 쓴 날짜)은
-옛 방식과 같아야 한다 — 다르면 메뉴의 평가 값이 바뀐다(FR-020).
+`resolve_rate`가 그날 고시가 없을 때 모든 날짜를 훑던 것을 이분 탐색으로 바꾼다.
+돌려주는 값(환율, 쓴 날짜)은 옛 방식과 같아야 한다 — 다르면 메뉴의 평가 값이 바뀐다(FR-020).
 
 옛 방식의 참조 구현을 이 파일에 둔다. 무작위 날짜는 시드를 고정한다.
 """
@@ -38,7 +38,8 @@ def quotes(seed: int, days: int = 900) -> dict[dt.date, Decimal]:
         day = start + dt.timedelta(days=offset)
         if day.weekday() >= 5 or rng.random() < 0.06:
             continue
-        picked.append((day, Decimal(1100 + rng.randint(0, 300)) + Decimal(rng.randint(0, 99)) / 100))
+        rate = Decimal(1100 + rng.randint(0, 300)) + Decimal(rng.randint(0, 99)) / 100
+        picked.append((day, rate))
     rng.shuffle(picked)
     return dict(picked)
 
