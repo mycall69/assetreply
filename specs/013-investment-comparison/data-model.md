@@ -84,6 +84,7 @@ Alembic 리비전 하나(`down_revision = "a6d2f9c41b83"`, 파일 이름 `<rev>_
 | `lineEnd` | `{date, holdingReturnRate, afterSaleReturnRate}` | 선 끝 — `date = asOf`, 매도 후는 메뉴가 매도를 가정하는 대상만(그 밖·비움은 `null`) |
 | `provisional` | 문자열 목록 | 잠정 까닭 — `unpublished_rate`·`provisional_price`·`estimated_price`·`not_final`. 없으면 빈 목록 |
 | `fx` | 객체 \| `null` | 외화 대상만 — `{currency, valuationRate, valuationRateDate, source, exchange}`. `exchange`는 메뉴 응답의 원금 환전(없으면 `null`) |
+| `unitPrice` | 객체 \| `null` | 반복 2026-10-09 — 단가 등락(3.2, spec FR-011a). 메뉴 응답(`summary`·`series`)에는 없다 |
 
 ### 3.1 `costs`
 
@@ -123,6 +124,26 @@ Alembic 리비전 하나(`down_revision = "a6d2f9c41b83"`, 파일 이름 `<rev>_
 - 참조값: 항목 합 = 그 몫의 `total`, `reflected.total + sale.total = total`. 해외 주식 일시금은 `buy_fee + sale_fee = saleCost.feesKrw`, 적립식 둘은
   `buy_fee = buyFeeTotal`, 정기 적금은 `interest_tax_matured = taxTotal`, 부동산은 `acquisition_tax + … + brokerage_buy = acquisition.total`
 
+### 3.2 `unitPrice` (반복 2026-10-09 — spec FR-011a, research R13-18)
+
+비교 표의 단가 열 셋(시작일 단가·기준일 단가·등락)의 값. `simulation/unit_price.py`(순수)가 차이·등락률을 `Decimal`로 계산하고 `api/services/comparison_metrics.py`가 블록에 싣는다.
+화면은 형식만 입힌다(원칙 VI).
+
+| 칸 | 형 | 뜻 |
+|----|----|----|
+| `kind` | `"share" \| "coin" \| "home" \| "rate"` | 단위 — 1주·1개·1채·금리 |
+| `basis` | `"split_adjusted_close" \| "daily_open" \| "market_price" \| "published_rate"` | 값의 기준 — 주식 수정주가(분할만 반영한 종가), 가상자산 UTC 일봉 시가, 부동산 그 달 시세, 예금 발표 금리 |
+| `currency` | 문자열 \| `null` | 주식 상장국 통화·가상자산 시세 통화·부동산 `KRW`, 금리 `null` |
+| `start` | `{date, value, provisional, estimated}` | 시작일 단가 — `date`는 값의 실제 날짜(휴장이면 매수일, 금리·부동산은 그 달 1일), `value` 소수 문자열 |
+| `asOf` | `{date, value \| null, provisional, estimated, missing}` | 기준일 단가 — 없으면 `value: null`, `missing` 까닭(`no_price`·`no_trades`). 금리는 미발표 달이면 마지막 발표 달(`date`)의 금리와 `provisional: true` |
+| `change` | 문자열 \| `null` | 기준일 − 시작일(금리는 %p). 어느 한쪽이 없으면 `null` |
+| `changeRate` | 문자열 \| `null` | 차이 ÷ 시작일 — 비율 값(`returnRate`와 같은 표기, `quantize_rate`). 금리는 늘 `null` |
+| `split` | `{ratio}` \| `null` | 주식 — 시작일 뒤 기준일까지 분할·병합이 있으면 누적 비율 글자(예 `"50:1"`, 병합 `"1:10"`) |
+
+- 주식 시작일 단가 = `split_restated_close(그 날 원주가 종가, 그 날, 구간 안 분할)` — 메뉴 `/series` 첫 점의 `price`와 같다. 기준일 단가 = 기준일 원주가 종가(그 뒤 분할이 없다)
+- 수정주가는 저장하지 않는다 — 실행마다 그 실행의 분할 기록으로 다시 계산한다(원칙 V)
+- 투자 원금·현재 가치·투자 수익·수익률은 이 칸과 무관하다(spec SC-001)
+
 ## 4. 계산 모듈의 더함 (값은 그대로)
 
 | 모듈 | 더함 | 지키는 것 |
@@ -131,6 +152,7 @@ Alembic 리비전 하나(`down_revision = "a6d2f9c41b83"`, 파일 이름 `<rev>_
 | `simulation/installment_ladder.py` | 요약에 `open_tax: Decimal = 0` — 진행 중 적금 계약·정기예금의 경과 이자 소득세 | 기존 값 불변. 평가액 = 납입·원금 + 경과 이자 − `open_tax`(참조값) |
 | `simulation/comparison_costs.py`(신규) | 주식 일시금 행에서 매수 수수료·배당 소득세 원화 합, 가상자산 일시금 매수 수수료 원화 | 버림 규칙 = 주식 적립식(R13-3) |
 | `simulation/fx_convert.py` | `RateLookup`에 정렬된 날짜 튜플, `resolve_rate`의 빗나감 경로를 이분 탐색으로 | 돌려주는 환율·쓴 날짜가 옛 방식과 같다(R13-13) |
+| `simulation/unit_price.py`(신규 — 반복 2026-10-09) | 단가 차이·등락률(`Decimal`, 금리는 %p·등락률 없음), 분할 누적 비율 글자 | 메뉴 계산을 바꾸지 않는다 — 비교 블록에만 쓴다(R13-18) |
 
 ## 5. 화면 상태 — `stores/compareStore.ts`
 

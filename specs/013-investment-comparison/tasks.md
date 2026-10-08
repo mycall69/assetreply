@@ -20,6 +20,7 @@ description: "Task list for 013-investment-comparison"
 - US2(적립식·정기 적금, P2)와 US3(그래프, P2)는 US1의 화면·스토어 위에 더한다.
 - US4(저장·불러오기, P3)는 백엔드가 US1과 무관하고, 화면은 US1의 스토어 위에 더한다.
 - 환율 찾기 이분 탐색(모든 비교 경로의 성능 — SC-004)은 Foundational이다.
+- 반복 2026-10-09(단가 등락 — US1 확장)은 Phase 8이다.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -455,6 +456,67 @@ Independent Test, quickstart 5-10).
 
 ---
 
+## Phase 8: 반복 2026-10-09 — 단가 등락 (US1 확장)
+
+**Goal**: 비교 표의 '투자 원금'과 '현재 가치' 사이에 시작일 단가·기준일 단가·등락(차이·등락률)을 보인다. 주식은 상장국 통화의 수정주가(분할만 반영한 종가), 가상자산은
+UTC 일봉 시가, 예금은 발표 금리와 %p 차이(등락률 "—"), 부동산은 그 달 시세다. 값은 서버가 `Decimal`로 계산해 `comparison.unitPrice`(data-model 3.2)로 낸다. 투자 원금·현재
+가치·투자 수익·수익률과 메뉴 응답은 바뀌지 않는다(spec FR-011a, SC-010, research R13-18).
+
+**Independent Test**: 주식 삼성전자·SK하이닉스·XLK를 2010-01-04 일시금으로 비교한다. 삼성전자 시작일 단가가 메뉴 성과 추이 첫 점의 주가(수정 종가)와 같고 "분할 반영 50:1"이
+달리며, XLK는 $이고, 등락률 = 차이 ÷ 시작일 단가다. 정기예금 비교의 단가는 금리, 등락은 %p, 등락률은 "—"다(spec US1 시나리오 13·14, quickstart 5-13).
+
+### Preparation for 반복 2026-10-09
+
+- [ ] T084 [US1] 기존 테스트 변경 승인을 받는다 — T006과 같은 절차(구현 T089~T092를 작업 트리에 둔 채 전체 스위트를 돌려 **실제로 실패한** 기존 테스트로 "지금 단언 → 새 단언"을 만든다) (FR-011, FR-011a)
+  - 예상: `frontend/tests/CompareTable.test.tsx`의 열 머리 목록, `frontend/tests/support/compareFixtures.ts`의 `block()`(필수 형 `unitPrice` 기본값)
+  - 목록 밖의 실패는 결함으로 보고 멈춘다. 고친 줄 위에 `013 승인 YYYY-MM-DD` 주석
+
+### Tests for 반복 2026-10-09 ⚠️
+
+- [ ] T085 [P] [US1] `backend/tests/unit/test_unit_price.py` — `simulation/unit_price` (FR-011a, SC-010, research R13-18)
+  - 차이·등락률(`Decimal`, `quantize_rate` — 기존 `returnRate`와 같은 비율 표기). 금리는 차이만(%p), 등락률 `None`
+  - 시작일 단가가 0이거나 없으면 등락 `None`. 기준일 값이 없으면 `missing` 까닭, 차이·등락률 `None`(메우지 않는다)
+  - 분할 누적 비율 글자 — 시작일 뒤 기준일까지의 분할만(`50:1`, 둘이면 곱, 병합 `1:10`), 없으면 `None`
+  - 모듈에 DB·HTTP 임포트가 없다(헌법 원칙 IV)
+- [ ] T086 [P] [US1] `backend/tests/unit/test_comparison_metrics_unit_price.py` — `api/services/comparison_metrics` (FR-011a)
+  - 비교 블록에 `unitPrice` — 가족별 `kind`·`basis`·`currency`(주식 상장국 통화, 가상자산 시세 통화, 부동산 `KRW`, 금리 `null`), `start`·`asOf`의 `date`·`value`·잠정·추정
+  - 넘기지 않으면 `unitPrice: None` — 기존 호출·기존 칸은 그대로
+- [ ] T087 [P] [US1] `backend/tests/integration/test_comparison_unit_price.py` — 일곱 비교 경로 (FR-011a, SC-001, SC-010, contracts/rest-api.md 1.2)
+  - 주식 일시금·적립식: 시작일 단가 = 메뉴 `/series` 첫 점 `price`(수정 종가), 기준일 단가 = 기준일 원주가 종가. 분할이 낀 고정 데이터에서 `split.ratio`와 수정주가 등락률.
+    휴장 시작일이면 시작일 단가의 `date`가 매수일. 해외 종목 `currency = USD`
+  - 가상자산 일시금·적립식: 매수 일봉·기준일 일봉 시가
+  - 정기예금·정기 적금: 가입 달·기준일 달 발표 금리, 미발표 달이면 마지막 발표 달과 `provisional`
+  - 부동산: `summary.buyPrice`·`summary.value`(그 달), 기준일 시세가 없으면 `asOf.value = null`·`missing`
+  - 같은 질의의 메뉴 `summary`·`series`가 그대로다(비교 경로가 메뉴 값을 바꾸지 않는다)
+- [ ] T088 [P] [US1] `frontend/tests/CompareTableUnitPrice.test.tsx` — `components/compare/CompareTable`의 단가 열 셋 (FR-011, FR-011a, FR-012)
+  - 열 차례: 대상, 기준일, 투자 원금, 시작일 단가, 기준일 단가, 등락, 현재 가치, 비용, 투자 수익, 수익률
+  - 통화 형식(₩·$·¥, 가상자산은 007 유효 숫자 형식, 금리 `3.45%`), 날짜 글자, 휴장 시작일의 매수일
+  - 등락: ▲/▼와 색(오름 빨강·내림 파랑), 등락률 둘째 줄. 예금은 `%p`와 등락률 "—". 값 없음은 "—"와 까닭, 잠정·추정 ⏳, "분할 반영 50:1"
+  - 칸 도움말 문구(spec FR-011a). "등락" 머리 정렬(등락률, 예금은 %p — `lib/decimalOrder` 문자열 견주기, 값 없는 줄은 끝)
+  - 화면은 계산하지 않는다(`tests/compareNoClientFinance` 그대로 통과)
+
+### Implementation for 반복 2026-10-09
+
+- [ ] T089 [US1] `backend/src/simulation/unit_price.py`(신규, 순수) — 차이·등락률·분할 누적 비율 글자, 기준일 값 없음의 까닭 (FR-011a, data-model 3.2)
+- [ ] T090 [US1] `backend/src/api/services/comparison_metrics.py` — `comparison_block(..., unit_price=None)` → 블록 `unitPrice`(기본값 `None` — 기존 호출 그대로) (FR-011a)
+- [ ] T091 [US1] `backend/src/api/routes/comparison.py` — 일곱 경로에서 시작·기준일 값을 모아 넘긴다(출처 research R13-18) (FR-011a, SC-001, SC-010)
+  - 주식 일시금: `SimulationResult.closes`·`splits`·첫 행(매수일)·`as_of`, 시작일 단가는 `split_restated_close`(010 차트와 같은 함수). 주식 적립식: 결과 행의 `close_price`·`splits`
+  - 가상자산: 매수(첫 납입) 일봉·기준일 일봉의 시가. 예금: 금리 해석기의 가입 달·기준일 달 발표 금리. 부동산: 요약의 `buyPrice`·`value`·`valueMonth`·`estimated`·`provisional`
+  - 메뉴 경로·메뉴 서비스의 값·응답을 바꾸지 않는다. 결과에 필요한 값이 없으면 결과의 끝 칸(기본값 있는 필드)으로만 더한다
+- [ ] T092 [US1] 화면 (FR-011, FR-011a, FR-012, ui-wireframes F5)
+  - `frontend/src/lib/types.ts`: `UnitPrice`, `ComparisonBlock.unitPrice`
+  - `frontend/src/components/compare/CompareTable.tsx`: 열 셋, 셀 형식, 도움말, 정렬 키 `unitChange`
+  - `frontend/src/stores/compareStore.ts`: `SortKey`에 `unitChange`
+- [ ] T093 [US1] 검증 — quickstart 5-13을 개발 서버·브라우저로 확인하고 실행 기록에 적는다 (FR-011a, SC-010)
+- [ ] T094 품질 게이트·불변 대조·문서 (FR-020, SC-009)
+  - 서버를 내린 채 백엔드 `pytest -q --cov=src`·`mypy src`·`ruff check --no-cache src tests`, 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .` — 통과 수·종료 코드를 Notes에
+  - T080 불변 대조를 다시 돌린다 — 메뉴 경로 16개 파일 차이 0(부동산은 같은 KST 날짜)
+  - `CLAUDE.md` 013 줄과 주의 문단에 단가 등락 한 줄, `README.md` 013 줄, `spec.md` Status
+
+**Checkpoint**: 반복 완결 — 비교 표에 단가 등락이 보이고 메뉴 가격 선·보드와 같은 값이며, 메뉴 결과는 그대로다.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -466,6 +528,8 @@ Independent Test, quickstart 5-10).
 - **US3 (Phase 5)**: US1 뒤. US2와는 파일이 겹친다(`compareStore.ts`·`page.tsx`·`CompareTable.tsx`) — 차례로 한다.
 - **US4 (Phase 6)**: 백엔드(T061~T063·T083·T069~T073)는 T002 뒤면 시작할 수 있다. 화면(T064~T068·T074~T077)은 US1 뒤, **T060(대역)이 T077보다 먼저다.**
 - **Polish (Phase 7)**: 모든 스토리 뒤
+- **반복 2026-10-09 (Phase 8)**: Phase 7 뒤(US1 비교 경로·블록·표를 넓힌다). **T084(승인)가 이 페이즈의 테스트 커밋을 막는다** — T089~T092 구현을 작업 트리에 둔 뒤 목록을
+  만든다. 테스트 T085~T088은 함께 쓴다. 백엔드는 T089 → T090 → T091, 화면 T092는 T088 뒤. T093·T094는 맨 끝
 
 스토리를 하나씩 끝내려면 US1 → US2 → US3 → US4 차례다.
 
@@ -481,18 +545,18 @@ Independent Test, quickstart 5-10).
 | 파일 | 태스크 |
 |------|--------|
 | `backend/src/simulation/comparison_costs.py` | T024(US1), T047(US2) |
-| `backend/src/api/services/comparison_metrics.py` | T025(US1), T048(US2) |
-| `backend/src/api/routes/comparison.py` | T026(US1), T049(US2) |
+| `backend/src/api/services/comparison_metrics.py` | T025(US1), T048(US2), T090(반복) |
+| `backend/src/api/routes/comparison.py` | T026(US1), T049(US2), T091(반복) |
 | `backend/src/api/main.py` | T027(US1), T073(US4) |
-| `frontend/src/lib/types.ts` | T028(US1), T074(US4) |
+| `frontend/src/lib/types.ts` | T028(US1), T074(US4), T092(반복) |
 | `frontend/src/lib/compareApi.ts` | T034(US1), T050(US2), T074(US4) |
-| `frontend/src/stores/compareStore.ts` | T035(US1), T050(US2), T057(US3), T077(US4) |
+| `frontend/src/stores/compareStore.ts` | T035(US1), T050(US2), T057(US3), T077(US4), T092(반복) |
 | `frontend/src/app/compare/page.tsx` | T037(US1), T057(US3), T077(US4) |
-| `frontend/src/components/compare/CompareTable.tsx` | T036(US1), T050(US2), T057(US3) |
+| `frontend/src/components/compare/CompareTable.tsx` | T036(US1), T050(US2), T057(US3), T092(반복) |
 | `frontend/src/components/compare/CompareConditionForm.tsx` | T036(US1), T050(US2) |
 | `frontend/src/stores/realEstateStore.ts`·`stockStore.ts` | T033, T032 |
 | `frontend/tests/setup.ts`(더하기만) | T060 |
-| `specs/013-…/quickstart.md`(실행 기록) | T038, T051, T058, T078, T079, T080 |
+| `specs/013-…/quickstart.md`(실행 기록) | T038, T051, T058, T078, T079, T080, T093 |
 
 ### Parallel Opportunities
 
@@ -501,6 +565,7 @@ Independent Test, quickstart 5-10).
 - US2 테스트 T040~T045는 함께 쓴다.
 - US3 테스트 T052~T054는 함께 쓴다.
 - US4 테스트 T061~T068·T083은 함께 쓴다(화면 쪽은 T060 뒤). US4 백엔드는 US1 화면 작업과 나란히 할 수 있다.
+- 반복 2026-10-09 테스트 T085~T088은 함께 쓴다. 백엔드 구현(T089~T091)과 화면 구현(T092)은 나란히 할 수 있다.
 
 ---
 
@@ -533,6 +598,7 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
 3. US3 — 그래프
 4. US4 — 저장·불러오기
 5. Polish — 성능·불변 대조·문서·게이트
+6. 반복 2026-10-09 — 단가 등락(승인 C — T084)
 
 ---
 
@@ -600,8 +666,9 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
 | FR-008 | T010, T026, T036, T038 |
 | FR-009 | T010, T018, T026, T034, T035 |
 | FR-010 | T014, T018, T020, T031, T035, T036, T038, T044 |
-| FR-011 | T007, T008, T009, T010, T011, T019, T021, T023, T024, T025, T026, T027, T028, T036, T040, T041, T042, T043, T045, T046, T047, T048, T049, T050 |
-| FR-012 | T012, T019, T029, T036, T057 |
+| FR-011 | T007, T008, T009, T010, T011, T019, T021, T023, T024, T025, T026, T027, T028, T036, T040, T041, T042, T043, T045, T046, T047, T048, T049, T050, T084, T088, T092 |
+| FR-011a | T084, T085, T086, T087, T088, T089, T090, T091, T092, T093, T094 |
+| FR-012 | T012, T019, T029, T036, T057, T088, T092 |
 | FR-012a | T013, T018, T020, T030, T035, T036, T044, T054, T057, T067, T068 |
 | FR-013 | T014, T018, T019, T020, T031, T035, T036, T054 |
 | FR-014 | T014, T019, T020, T031, T036 |
@@ -610,8 +677,8 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
 | FR-017 | T063, T067, T068, T077, T078 |
 | FR-018 | T063, T065, T067, T068, T070, T072, T073, T074, T076, T078, T083 |
 | FR-019 | T063, T065, T067, T068, T076, T077, T078 |
-| FR-020 | T001, T010, T018, T026, T035, T043, T067, T080 |
-| SC-001 | T007, T008, T009, T010, T011, T038, T040, T041, T043, T051 |
+| FR-020 | T001, T010, T018, T026, T035, T043, T067, T080, T094 |
+| SC-001 | T007, T008, T009, T010, T011, T038, T040, T041, T043, T051, T087, T091 |
 | SC-002 | T010, T018, T043 |
 | SC-003 | T014, T018, T038 |
 | SC-004 | T004, T005, T079 |
@@ -619,4 +686,5 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
 | SC-006 | T061, T063, T067, T071, T078, T083 |
 | SC-007 | T010, T018, T038, T067 |
 | SC-008 | T020, T038 |
-| SC-009 | T001, T002, T004, T080, T082 |
+| SC-009 | T001, T002, T004, T080, T082, T094 |
+| SC-010 | T085, T087, T091, T093 |

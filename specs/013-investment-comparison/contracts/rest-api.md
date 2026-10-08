@@ -48,6 +48,30 @@
 
 정기 적금은 메뉴 응답의 `contracts`·`deposits`, 정기예금은 `terms`, 모든 자산군의 `rows`를 담지 않는다(표가 없다 — FR-011).
 
+**반복 2026-10-09 — `comparison.unitPrice`**(data-model 3.2, spec FR-011a). 메뉴 응답(`summary`·`series`)은 바뀌지 않는다 — `unitPrice`는 비교 블록에만 있다. 값은 보기다.
+
+```json
+{"unitPrice": {
+  "kind": "share", "basis": "split_adjusted_close", "currency": "KRW",
+  "start": {"date": "2010-01-04", "value": "16180.000000", "provisional": false, "estimated": false},
+  "asOf": {"date": "2026-10-07", "value": "55000.000000", "provisional": false, "estimated": false, "missing": null},
+  "change": "38820.000000", "changeRate": "2.399258", "split": {"ratio": "50:1"}
+}}
+```
+
+```json
+{"unitPrice": {
+  "kind": "rate", "basis": "published_rate", "currency": null,
+  "start": {"date": "2015-01-01", "value": "2.100000", "provisional": false, "estimated": false},
+  "asOf": {"date": "2026-08-01", "value": "2.450000", "provisional": true, "estimated": false, "missing": null},
+  "change": "0.350000", "changeRate": null, "split": null
+}}
+```
+
+- 주식 `start.value`는 시작일 이후 첫 거래일 원주가 종가를 그 날 뒤 분할 비율로 나눈 수정주가 — 메뉴 `/series` 첫 점의 `price`와 같다. 기준일 값이 없으면 `asOf.value: null`과
+  `missing`(`no_price`·`no_trades`), `change`·`changeRate`는 `null`
+- 예금은 기준일 달이 미발표면 `asOf.date`가 마지막 발표 달이고 `provisional: true`
+
 ### 1.3 202 — 수집 중
 
 메뉴 경로의 202 본문과 **같다**(research 조사 표). 화면은 `jobId`(와 주식·가상자산의 `fx`)로 진행 스트림을 구독한다(R13-7).
