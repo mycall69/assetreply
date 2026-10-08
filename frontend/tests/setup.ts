@@ -55,15 +55,22 @@ if (typeof Storage === "function" && typeof localStorage?.clear !== "function") 
 // 아닌 테스트는 빈 이력과 성공하는 저장을 본다. 그 밖의 경로는 원래 `fetch`로 넘긴다(지금과 같다). 테스트마다 비운다.
 import { beforeEach } from "vitest";
 import { handleHistory, resetHistoryStub } from "./support/historyStub";
-// 013 T060 — `/api/comparison/saved` 대역(이력 대역과 같은 틀). 저장한 비교가 주제가 아닌 테스트는 빈 목록과 성공하는 저장을 본다.
 import { handleSavedComparisons, resetSavedComparisonStub } from "./support/savedComparisonStub";
 
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-  const answered = (await handleHistory(input, init)) ?? (await handleSavedComparisons(input, init));
+  const answered = await handleHistory(input, init);
   return answered ?? originalFetch(input, init);
 };
 beforeEach(() => {
   resetHistoryStub();
+});
+
+// 013 T060 — `/api/comparison/saved` 대역(이력 대역과 같은 틀). 이력 대역을 감싼 `fetch`를 한 겹 더 감싼다 — 저장한 비교가 주제가 아닌 테스트는
+// 빈 목록과 성공하는 저장을 본다.
+const historyFetch = globalThis.fetch;
+globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> =>
+  (await handleSavedComparisons(input, init)) ?? historyFetch(input, init);
+beforeEach(() => {
   resetSavedComparisonStub();
 });

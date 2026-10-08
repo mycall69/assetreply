@@ -437,19 +437,19 @@ Independent Test, quickstart 5-10).
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T079 성능을 잰다 (SC-004, research R13-13, quickstart 4)
+- [X] T079 성능을 잰다 (SC-004, research R13-13, quickstart 4)
   - 받아 둔 주식 10개(국내·미국 섞음) × 20년 일시금 원화, 원화 원금 가상자산 10개 × 가능한 최장 일시금 — "비교 실행"부터 표·그래프가 다 보일 때까지.
   - 5초 넘으면 대상별 응답 시간을 기록하고 멈추고 보고한다.
-- [ ] T080 불변 대조 (FR-020, SC-009, quickstart 6)
+- [X] T080 불변 대조 (FR-020, SC-009, quickstart 6)
   - 서버를 띄우고 T001의 입력으로 메뉴 경로를 다시 받아 `summary`·`condition`·`/series`를 견준다. 표 `rows`는 견주지 않는다.
   - 다른 키·값이 있으면 멈추고 보고한다(부동산은 같은 KST 날짜이거나 날짜 차이만이어야 한다).
-- [ ] T081 문서를 갱신한다
+- [X] T081 문서를 갱신한다
   - `CLAUDE.md` "현재 상태" 표에 013 한 줄을 더한다.
   - 주의 문단: 비교 경로는 메뉴 경로의 짝이고 같은 함수를 같은 차례로 부른다, 비교는 이력을 쓰지 않는다, 비용 몫(`simulation/comparison_costs.py`)과 `accrued_tax`·`open_tax`,
     `resolve_rate` 이분 탐색, `saved_comparison`(보관 기간 없음 — 개발 DB `alembic upgrade head`), 저장 라우터를 먼저 등록, 부동산 스토어 생성기의 비교 인스턴스, 비교 스토어의 대상별 구독,
     화면 테스트의 저장 대역(`tests/setup.ts`).
   - `README.md` 기능 설명, `spec.md` Status.
-- [ ] T082 품질 게이트를 돌린다(서버를 내린 채) — 백엔드 `pytest -q --cov=src`(커버리지 80% 이상)·`mypy src`·`ruff check --no-cache src tests`, 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .` (헌법 품질 게이트, SC-009)
+- [X] T082 품질 게이트를 돌린다(서버를 내린 채) — 백엔드 `pytest -q --cov=src`(커버리지 80% 이상)·`mypy src`·`ruff check --no-cache src tests`, 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .` (헌법 품질 게이트, SC-009)
   - 통과 수와 종료 코드를 Notes에 적는다.
   - 이 기능 전 커밋(`71003d4`)과 견주어 바뀌거나 지워진 기존 테스트 파일이 승인 목록(T006·T039)과 `tests/setup.ts`(더하기만)뿐인지 `git diff --stat --diff-filter=MD`로 확인한다.
 
@@ -575,6 +575,13 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
   테스트가 없어 승인할 목록이 없다 — 백엔드 2,998 passed(커버리지 96%), 화면 186 파일·1,630 passed. 저장 시각은 초 단위로 자른다(DB `DATETIME` 반올림 — 응답의
   `entry`와 목록이 1초 어긋나지 않게). 화면 배치는 `TableWithHistory` — 결과 칸(저장 단추·표·그래프, `compare-result`가 표와 그래프를 함께 흐린다)과 오른쪽 저장한
   비교(흐리지 않는다 — 흐린 동안에도 불러올 수 있다). 이번 페이즈의 새 테스트 `ComparePageSaved.test.tsx`의 쓰지 않는 모의 매개변수 둘(eslint 경고)을 지웠다(단언 불변)
+- **2026-10-09 T082 품질 게이트(서버를 내린 채)**: 백엔드 **2,998 passed**(커버리지 96.42%, 9분 27초)·mypy 238 파일·ruff(`--no-cache`) 통과 / 프론트엔드 **186 파일·
+  1,630 passed**·tsc·eslint(경고 0) — 모두 종료 코드 0. 첫 백엔드 실행은 1건 실패였다 — `test_stale_provisional.py::test_오늘_잠정은_잔존이_아니다`(002, 이 기능에서 바뀌지
+  않음). 실행 중에 KST 자정을 넘어(2026-10-08 → 10-09) 모듈을 읽을 때 정한 `TODAY = dt.date.today()`가 서버의 오늘과 하루 어긋난 까닭이다. 자정 뒤 그 파일만 5 passed, 전체를
+  다시 돌려 위 결과다(테스트는 고치지 않았다 — 날짜 경계에서 흔들리는 기존 테스트로 보고만 한다)
+- **2026-10-09 T082 기존 테스트 변경 범위**: `git diff --stat --diff-filter=MD 71003d4 -- backend/tests frontend/tests` → `Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts`
+  (T006 승인)·`tests/setup.ts`뿐이다. `setup.ts`는 **더하기만**이다 — 처음엔 이력 대역 줄에 저장 대역을 이어 한 줄을 바꿨던 것을, 기존 감싸기를 그대로 두고 한 겹 더
+  감싸는 추가로 고쳤다. T057 승인 변경(`ComparePage.test.tsx`)은 이 기능이 더한 파일이라 목록에 나오지 않는다. 백엔드 기존 테스트 변경은 없다
 - 커밋 메시지는 한국어이고 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`을 단다. 푸시는 요청이 있을 때만 한다.
 
 ## 요구사항 ↔ 태스크
