@@ -174,6 +174,17 @@ describe("뉴스 칸 묶음", () => {
     expect(screen.getByTestId("news-sources")).toHaveTextContent("기사 본문은 가져오지 않습니다");
   });
 
+  it("칸 묶음은 줄바꿈 flex다 — 화면 폭 경계 상수가 없다(contracts D1, T083 실측)", async () => {
+    // 1024px 창에서 세 칸이 240px씩 나란히 눌렸다(경계 `lg:`가 창 폭이라 사이드바를 뺀 본문 폭을 모른다). 칸의 최소 폭으로 감긴다.
+    vi.spyOn(apiClient, "get").mockImplementation(() => new Promise(() => undefined));
+    render(<NewsSection />);
+    const columns = screen.getAllByTestId("news-column");
+    const wrap = columns[0].parentElement as HTMLElement;
+    expect(wrap.className).toContain("flex-wrap");
+    expect(wrap.className).not.toMatch(/(^|\s)(sm|md|lg|xl|2xl):/);
+    for (const column of columns) expect(column.className).toMatch(/(^|\s)basis-/);
+  });
+
   it("실패한 칸의 다시 시도는 그 칸만 부른다", async () => {
     const get = vi.spyOn(apiClient, "get").mockImplementation(async (path: string) => {
       if (path.endsWith("/us")) return failedOf("us", { reason: "connection", message: "x", retryAfterSeconds: null });
