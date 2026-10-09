@@ -74,7 +74,8 @@ def utc_now() -> dt.datetime:
 
 
 def _iso(moment: dt.datetime) -> str:
-    return moment.astimezone(dt.UTC).replace(tzinfo=None).isoformat() + "Z"
+    """초까지의 UTC(contracts A5 — `2026-10-09T13:12:30Z`). 마이크로초는 버린다(T081 실측)."""
+    return moment.astimezone(dt.UTC).replace(tzinfo=None, microsecond=0).isoformat() + "Z"
 
 
 def _item_json(item: NewsItem) -> Json:

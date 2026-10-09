@@ -35,6 +35,10 @@ from src.ingestion.news.types import NewsItem, NewsList, SourceKey, TextFetcher
 
 #: 연결 오류 뒤 다시 시도하기 전 기다림(초).
 RETRY_DELAY_SECONDS: Final = 1.0
+#: 응답 머리 한 줄의 최대 바이트. Yahoo Finance 화면의 `Content-Security-Policy`가 약
+#: 19.5KB다(2026-10-10 실측 — T081).
+#: aiohttp 기본값(8,190)이면 본문을 받기 전에 400 오류가 나 칸이 늘 "연결 실패"다.
+MAX_HEADER_FIELD_BYTES: Final = 65_536
 
 Fetch = Callable[[TextFetcher, str], Awaitable[list[NewsItem]]]
 
@@ -63,7 +67,9 @@ class NewsClient:
     async def __aenter__(self) -> Self:
         if self._session is None:
             timeout = aiohttp.ClientTimeout(total=self._settings.news_request_timeout_seconds)
-            self._session = aiohttp.ClientSession(timeout=timeout)
+            self._session = aiohttp.ClientSession(
+                timeout=timeout, max_field_size=MAX_HEADER_FIELD_BYTES
+            )
         return self
 
     async def __aexit__(
