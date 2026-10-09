@@ -15,6 +15,9 @@ dependencies = [
     "cryptography",
     # 저장소 루트 .env 로딩 — 전이 의존성이 아닌 직접 선언
     "python-dotenv",
+    # 014 — `zoneinfo`의 시간대 자료. Windows에는 시스템 시간대 자료가 없다(헌법 크로스 플랫폼 MUST, research R14-3).
+    # 맥·리눅스는 시스템 자료가 먼저라 동작이 바뀌지 않는다.
+    "tzdata",
 ]
 
 [project.optional-dependencies]

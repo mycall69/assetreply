@@ -83,17 +83,17 @@ description: "Task list for 014-market-dashboard"
 
 **Purpose**: 구현 전의 기준(불변 대조용 응답·기존 검사 통과 상태·DB 머리)과 의존성
 
-- [ ] T001 구현 전 기준 응답을 남긴다 (FR-026, SC-010, quickstart 6)
+- [X] T001 구현 전 기준 응답을 남긴다 (FR-026, SC-010, quickstart 6)
   - 서버를 띄운다(`./start.sh`).
   - 013의 기준 스크립트(작업용 임시 폴더의 `013-baseline/fetch.py`)로 다섯 메뉴·비교 경로 응답을 `014-baseline/before/`에 받는다.
   - 외환 `/api/fx/latest?currency=USD|JPY|EUR`, `/api/fx/series`(USD 2025-01-01~2026-09-30)도 받는다.
   - 받은 시각을 `meta.json`에 적는다.
-- [ ] T002 구현 전 기존 검사의 통과 상태를 기록한다 (SC-010)
+- [X] T002 구현 전 기존 검사의 통과 상태를 기록한다 (SC-010)
   - 서버를 내린다(`./stop.sh`).
   - 백엔드 `pytest -q --cov=src`·`mypy src`·`ruff check --no-cache src tests`, 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .`를 돌린다.
   - 통과 수와 종료 코드를 Notes에 적는다. 실패가 있으면 기능 전 실패로 기록하고 멈추고 보고한다.
-- [ ] T003 개발 DB의 머리 리비전이 `b3e7d5a1c924`인지 확인한다(`backend/.venv/bin/python -m alembic current`). 다르면 멈추고 보고한다 (data-model 1)
-- [ ] T004 `backend/pyproject.toml`에 `tzdata`를 더하고 `.venv`에 설치한다 (plan Technical Context — 크로스 플랫폼, R14-3)
+- [X] T003 개발 DB의 머리 리비전이 `b3e7d5a1c924`인지 확인한다(`backend/.venv/bin/python -m alembic current`). 다르면 멈추고 보고한다 (data-model 1)
+- [X] T004 `backend/pyproject.toml`에 `tzdata`를 더하고 `.venv`에 설치한다 (plan Technical Context — 크로스 플랫폼, R14-3)
   - 기존 설치 방식(`.venv/bin/python -m pip install -e .` 등 — `pyproject.toml`·README의 안내를 따른다)으로 설치한다.
   - 맥·리눅스에서는 시스템 시간대가 먼저라 동작이 바뀌지 않는다.
 
@@ -614,7 +614,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
   - 작업용 비밀 검사 스크립트를 돌린다(푸시 때는 `"@{u}..HEAD"` 범위).
   - 커밋 메시지는 한국어이고 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`을 단다. 푸시는 요청이 있을 때만 한다.
 - 기록:
-  - T002 기준 게이트: (구현 중 채움)
+  - T002 기준 게이트(2026-10-09, 서버를 내린 채): 백엔드 `pytest` 3,034 passed(9분 43초)·커버리지 96%·`mypy` 239파일 통과·`ruff` 통과, 프론트엔드 `vitest` 193파일 1,702 passed·`tsc`·`eslint` 통과(모두 종료 코드 0). 기준 응답(T001)은 작업용 임시 폴더 `014-baseline/before/` 29파일
   - T018 승인: (구현 중 채움)
   - T080 파싱 시간: (구현 중 채움)
   - T086 게이트: (구현 중 채움)
