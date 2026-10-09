@@ -198,14 +198,14 @@ description: "Task list for 014-market-dashboard"
 
 ### Tests for User Story 1 ⚠️
 
-- [ ] T018 [US1] 기존 테스트 변경 승인을 받는다 — research R14-16의 목록 (FR-001)
+- [X] T018 [US1] 기존 테스트 변경 승인을 받는다 — research R14-16의 목록 (FR-001)
   - 절차: 이 페이즈의 테스트(T019~T030)를 쓰고 구현(T031~T040)을 마친다. 구현을 작업 트리에 둔 채 전체 스위트를 돌려 **실제로 실패한** 기존 테스트로 목록을 만든다.
   - 예상:
     - `frontend/tests/Sidebar.test.tsx` — 준비 안 된 항목 `["대시보드"]` → 없음, "준비중" 1 → 0, 대시보드 `li`의 초점 대상 0 단언 삭제, 링크 목록에 `/dashboard`
     - `frontend/tests/noUnbuiltAssetRoutes.test.ts` — `UNBUILT = ["dashboard"]` → `[]`, 링크 목록에 `/dashboard`, API 호출 금지 정규식에서 `dashboard`
     - (표가 전체를 고정하면) `frontend/tests/TopBarTitle.test.ts`
   - 테스트마다 "지금 단언 → 새 단언"으로 보이고 승인을 받는다. 고친 줄에 `// 014 승인 YYYY-MM-DD`를 단다. 목록 밖의 실패는 결함으로 보고 멈춘다.
-- [ ] T019 [P] [US1] `backend/tests/unit/test_market_session.py` — `simulation/market_session` (FR-006, FR-007, SC-009, R14-7, data-model 3)
+- [X] T019 [P] [US1] `backend/tests/unit/test_market_session.py` — `simulation/market_session` (FR-006, FR-007, SC-009, R14-7, data-model 3)
   - **krx**: 출처 세션 시작이 10-08인데 현지 오늘이 10-09 → `holiday`. 거래일 08:30 → `pre_open`, 10:00 → `open`, 15:31 → `closed`(출처의 15:00을 쓰지 않는다).
   - **tse**: 11:45 → `break`. **hkex**: 12:30 → `break`. **sse**: 12:00 → `break`.
   - **us_equity 서머타임**: 2026-03-09(월) 한국 22:30 → `open`, 2026-03-06(금) 한국 22:30 → `pre_open`. 2026-11-02(월) 한국 23:30 → `open`, 22:45 → `pre_open`.
@@ -215,7 +215,7 @@ description: "Task list for 014-market-dashboard"
   - **갱신 없는 세션**(I1 — R14-7): cme 성탄절에 일정상 세션 안이고 값 시각이 전날 세션이면 시작 30분 뒤 `pre_open`, 2시간 뒤 `holiday`다. fx 1월 1일도 같다.
     값 시각이 이번 세션 시작 뒤면 `open`이다.
   - 주말은 늘 `holiday`다.
-- [ ] T020 [P] [US1] `backend/tests/unit/test_market_quote.py` — `simulation/market_quote` (FR-004, FR-005, FR-007, SC-003, R14-8, R14-9, data-model 4)
+- [X] T020 [P] [US1] `backend/tests/unit/test_market_quote.py` — `simulation/market_quote` (FR-004, FR-005, FR-007, SC-003, R14-8, R14-9, data-model 4)
   - **휴장 KS11**: 값 10-08 종가, 이력 전일 10-07 → 차이·등락률(`quantize_rate` 자리)이 나오고 0이 아니다.
   - **장중**: 값 − 이력의 `sessionDate` 앞 마지막 종가다.
   - **이력이 닿지 않음**(커버리지 끝 < `sessionDate − 1일`) → `from = "source"`, `date = None`, 값 − `fulldayChange` 사용.
@@ -226,30 +226,30 @@ description: "Task list for 014-market-dashboard"
   - **`provisional`**: `open`·`break` 참, 오늘 `closed` 참, 지난 거래일 `closed`·`holiday`·`pre_open` 거짓.
   - **지연**: 장중 받은 시각 − 값 시각 = 600초 → `delayMinutes = 10`, 120초 → `None`, 닫힌 장은 `None`.
   - 금액·비율 결과는 모두 `Decimal`이다.
-- [ ] T021 [P] [US1] `backend/tests/contract/test_yahoo_market_quotes.py` — `ingestion/yahoo/market` 시세 쪽 (FR-009, FR-018, R14-6)
+- [X] T021 [P] [US1] `backend/tests/contract/test_yahoo_market_quotes.py` — `ingestion/yahoo/market` 시세 쪽 (FR-009, FR-018, R14-6)
   - `spark_v7_1d.json` → 15개 `SourceQuote`(가격·값 시각·`fulldayChange`·`chartPreviousClose`·세션 시작·시간대)를 `Decimal`로 읽는다.
   - 빠진 한 심볼만 `chart?range=1d&interval=1d`로 다시 부른다(요청 기록). spark가 429이면 다시 부르지 않고 관문을 쉬게 한다.
   - 요청 질의는 `symbols`가 15개, `range=1d`·`interval=1d`다.
   - 깨진 본문은 `invalid_body`, 404는 `not_found`다.
-- [ ] T022 [P] [US1] `backend/tests/unit/test_market_quotes_service.py` — `api/services/market_quotes` (FR-008, FR-009, SC-007, R14-6)
+- [X] T022 [P] [US1] `backend/tests/unit/test_market_quotes_service.py` — `api/services/market_quotes` (FR-008, FR-009, SC-007, R14-6)
   - 가짜 `MarketQuoteSource`·`MarketHistoryRepository`를 쓴다.
   - 30초 안 두 호출 = 출처 한 번. 동시에 온 두 호출도 한 번이다(단일 비행). 31초 뒤는 다시 부른다.
   - 출처 실패는 10초만 기억한다. 마지막 성공 값이 있으면 그 지표는 `stale: true` + `failure`, 없으면 `status: "failed"` + `quote: None`이다.
   - 한 심볼만 빠지면 그 지표만 실패다.
   - 이력 전일·커버리지를 저장소 Protocol로 읽는다.
-- [ ] T023 [P] [US1] `backend/tests/integration/test_dashboard_quotes_api.py` — `GET /api/dashboard/quotes` (FR-003, FR-004, FR-005, FR-009, FR-018, SC-003, contracts A1)
+- [X] T023 [P] [US1] `backend/tests/integration/test_dashboard_quotes_api.py` — `GET /api/dashboard/quotes` (FR-003, FR-004, FR-005, FR-009, FR-018, SC-003, contracts A1)
   - 스텁 출처를 쓴다. 응답은 15개이고 `order` 차례다. 칸 이름·형이 contracts A1과 같다(값은 문자열).
   - `market_indicator_daily`에 10-07 행 + 커버리지를 두면 `previous.from = "history"`이고 `date = 2026-10-07`이다. 행을 지우면 `"source"`다.
   - 환율 셋은 `source_fx`이고 `notes`에 `market_fx`, 선물 둘은 `future_roll`이다.
   - `refreshAfterSeconds`는 설정값이다. 출처 전체 실패여도 200이다.
   - `fx_rate`에 아무것도 쓰지 않는다(행 수 전후 같음).
-- [ ] T024 [P] [US1] `frontend/tests/kstClock.test.ts` — `lib/kstClock` (FR-002, R14-15)
+- [X] T024 [P] [US1] `frontend/tests/kstClock.test.ts` — `lib/kstClock` (FR-002, R14-15)
   - 브라우저 시간대를 `America/New_York`로 두어도 한국 날짜·요일이다(`2026년 10월 9일 (금)`).
   - 한국 23:59:30에서 다음 자정까지 30초다.
-- [ ] T025 [P] [US1] `frontend/tests/TodayHeader.test.tsx` — `components/dashboard/TodayHeader` (FR-002, FR-008)
+- [X] T025 [P] [US1] `frontend/tests/TodayHeader.test.tsx` — `components/dashboard/TodayHeader` (FR-002, FR-008)
   - 가짜 시계로 한국 자정을 넘기면 날짜 글자가 바뀐다.
   - 받은 시각과 [새로고침] 단추가 있고, 누르면 `onRefresh`가 불린다(contracts D1).
-- [ ] T026 [P] [US1] `frontend/tests/IndicatorCard.test.tsx` — `components/dashboard/IndicatorCard`·`QuoteStateLine` (FR-004, FR-005, FR-006, FR-007, FR-009, FR-015, FR-018, SC-009, contracts D2)
+- [X] T026 [P] [US1] `frontend/tests/IndicatorCard.test.tsx` — `components/dashboard/IndicatorCard`·`QuoteStateLine` (FR-004, FR-005, FR-006, FR-007, FR-009, FR-015, FR-018, SC-009, contracts D2)
   - **상태**: 다섯 상태의 글자와 ⏳·`확정 전`·`약 10분 지연`이 보인다.
   - **색**: 오르면 ▲·`text-red-700`, 내리면 ▼·`text-blue-700`, flat은 회색·화살표 없음이다.
   - **전일**: `previous.from = "source"` → "전일 값: 출처(이력에 아직 없음)", `source_fx` → "런던 0시 기준"이다.
@@ -258,39 +258,39 @@ description: "Task list for 014-market-dashboard"
   - **등락률 없음**: `changeRate null` → "—"와 설명(`title`)이다.
   - **형식**: 등락률은 `formatPercent`(천 단위 쉼표), 값은 `formatRate`다.
   - **링크**: 카드는 `href="/dashboard/{id}"`이고 접근 이름은 "{이름} 추이 보기"다.
-- [ ] T027 [P] [US1] `frontend/tests/marketQuotesStore.test.ts` — `stores/marketQuotesStore` (FR-008, FR-009)
+- [X] T027 [P] [US1] `frontend/tests/marketQuotesStore.test.ts` — `stores/marketQuotesStore` (FR-008, FR-009)
   - `startPolling`이 `refreshAfterSeconds`마다 부른다(가짜 시계).
   - `visibilityState = "hidden"`이면 부르지 않고, `visibilitychange`로 보이면 곧바로 부른다.
   - 늦게 온 옛 응답(`seq`)은 버린다. `retry(id)`는 같은 경로를 다시 부른다.
   - `stopPolling` 뒤에는 부르지 않는다.
   - `startPolling`을 두 번 불러도 타이머는 하나다(대시보드 → 지표 화면으로 옮겨도 갱신이 두 번 걸리지 않는다 — U1).
-- [ ] T028 [P] [US1] `frontend/tests/DashboardPage.test.tsx` — `app/dashboard/page.tsx` (FR-001, FR-003, FR-008, FR-009, contracts D1)
+- [X] T028 [P] [US1] `frontend/tests/DashboardPage.test.tsx` — `app/dashboard/page.tsx` (FR-001, FR-003, FR-008, FR-009, contracts D1)
   - 묶음 다섯이 이름표(한국·미국·일본·중국·환율·원자재·변동성)와 함께 `order` 차례로 보인다.
   - 한 지표 `failed`에도 나머지 14개가 보인다.
   - 출처 줄(Yahoo Finance·한국은행 ECOS)이 있다.
   - 사이드바의 "대시보드"는 `/dashboard` 링크이고 선택된 상태다(`AppShell`과 함께 그릴 때).
   - [새로고침]을 누르면 시세 경로가 한 번 더 불리고, 뉴스 경로는 불리지 않는다(U3 — contracts D1).
-- [ ] T029 [P] [US1] `frontend/tests/RootRedirect.test.tsx` — `app/page.tsx`가 `next/navigation`의 `redirect("/dashboard")`를 부른다(모의). 옛 안내 글("준비 중입니다")이 없다 (FR-001)
-- [ ] T030 [P] [US1] `frontend/tests/dashboardNoClientFinance.test.ts` — `components/dashboard/`·`stores/marketQuotesStore.ts`·`stores/indicatorSeriesStore.ts`·`stores/newsStore.ts`·`lib/dashboardApi.ts`에 `Number(`·`parseFloat(`·`parseInt(`가 없다 (FR-004, 원칙 VI — 013 `compareNoClientFinance`와 같은 꼴)
+- [X] T029 [P] [US1] `frontend/tests/RootRedirect.test.tsx` — `app/page.tsx`가 `next/navigation`의 `redirect("/dashboard")`를 부른다(모의). 옛 안내 글("준비 중입니다")이 없다 (FR-001)
+- [X] T030 [P] [US1] `frontend/tests/dashboardNoClientFinance.test.ts` — `components/dashboard/`·`stores/marketQuotesStore.ts`·`stores/indicatorSeriesStore.ts`·`stores/newsStore.ts`·`lib/dashboardApi.ts`에 `Number(`·`parseFloat(`·`parseInt(`가 없다 (FR-004, 원칙 VI — 013 `compareNoClientFinance`와 같은 꼴)
   - 차트의 그리기 전용 변환은 `IndicatorChart.tsx` 한 파일만 허용하고, 사유 주석을 요구한다.
 
 ### Implementation for User Story 1
 
-- [ ] T031 [P] [US1] `backend/src/simulation/market_session.py` — R14-7 표의 시간표(`time` 값)·`trading_date`·`market_state`·`MarketState`. `zoneinfo` (FR-006, FR-007, SC-009)
-- [ ] T032 [P] [US1] `backend/src/simulation/market_quote.py` — `compose_quote(indicator, source_quote, history_previous, coverage_through, now, fetched_at, settings값)` → `MarketQuote`(data-model 4). `Decimal`과 `quantize_rate` (FR-004, FR-005, FR-007, SC-003)
-- [ ] T033 [US1] `backend/src/ingestion/yahoo/market_parse.py`(시세 쪽) + `backend/src/ingestion/yahoo/market.py`(`YahooMarketClient.fetch_quotes(symbols)`) (FR-009, FR-018, R14-6)
+- [X] T031 [P] [US1] `backend/src/simulation/market_session.py` — R14-7 표의 시간표(`time` 값)·`trading_date`·`market_state`·`MarketState`. `zoneinfo` (FR-006, FR-007, SC-009)
+- [X] T032 [P] [US1] `backend/src/simulation/market_quote.py` — `compose_quote(indicator, source_quote, history_previous, coverage_through, now, fetched_at, settings값)` → `MarketQuote`(data-model 4). `Decimal`과 `quantize_rate` (FR-004, FR-005, FR-007, SC-003)
+- [X] T033 [US1] `backend/src/ingestion/yahoo/market_parse.py`(시세 쪽) + `backend/src/ingestion/yahoo/market.py`(`YahooMarketClient.fetch_quotes(symbols)`) (FR-009, FR-018, R14-6)
   - `async with`로 세션을 연다(UA·`Accept: application/json` — 주식 클라이언트와 같은 꼴). 늘 `YahooGate`를 지난다.
   - 재시도·백오프는 `MARKET_RETRY_*`, 오류 분류는 `ingestion/yahoo/errors.raise_for_response`를 쓴다.
   - spark에 빠진 심볼만 차트 `range=1d`로 받는다. 본문은 `json.loads(parse_float=Decimal)`로 읽는다.
-- [ ] T034 [US1] `backend/src/api/services/market_quotes.py` — Protocol `MarketQuoteSource`·`MarketHistoryRepository`, 캐시(30초)·단일 비행(`asyncio.Lock`)·실패 기억(10초)·지표별 마지막 성공 값, 응답 JSON 조립(contracts A1) (FR-005, FR-008, FR-009, SC-007)
-- [ ] T035 [US1] `backend/src/api/routes/dashboard_quotes.py` + `backend/src/api/main.py` (FR-003, FR-009, contracts A1)
+- [X] T034 [US1] `backend/src/api/services/market_quotes.py` — Protocol `MarketQuoteSource`·`MarketHistoryRepository`, 캐시(30초)·단일 비행(`asyncio.Lock`)·실패 기억(10초)·지표별 마지막 성공 값, 응답 JSON 조립(contracts A1) (FR-005, FR-008, FR-009, SC-007)
+- [X] T035 [US1] `backend/src/api/routes/dashboard_quotes.py` + `backend/src/api/main.py` (FR-003, FR-009, contracts A1)
   - `lifespan`에서 `YahooMarketClient`를 열고 닫는다. 시세 서비스를 앱 상태에 둔다.
   - 라우터는 기존 라우터 뒤에 등록한다.
-- [ ] T036 [P] [US1] `frontend/src/lib/types.ts`(대시보드 시세 타입 — contracts A1) + `frontend/src/lib/dashboardApi.ts`(`fetchQuotes` — 공통 `request`) (FR-003, FR-004)
-- [ ] T037 [P] [US1] `frontend/src/lib/kstClock.ts` — `Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", … })`, `msUntilNextKstMidnight(now)` (FR-002, R14-15)
-- [ ] T038 [US1] `frontend/src/stores/marketQuotesStore.ts` — data-model 7 (`load`·`startPolling`·`stopPolling`·`retry`, `seq`, `document.visibilityState`) (FR-008, FR-009)
-- [ ] T039 [US1] `frontend/src/components/dashboard/TodayHeader.tsx`·`IndicatorGroups.tsx`·`IndicatorCard.tsx`·`QuoteStateLine.tsx` — contracts D1·D2. 값은 서버 문자열에 형식만 입힌다. `TodayHeader`의 [새로고침]은 `marketQuotesStore.load()`다 (FR-002, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-015, FR-018)
-- [ ] T040 [US1] 화면 경로를 붙인다 (FR-001, R14-14, contracts D6)
+- [X] T036 [P] [US1] `frontend/src/lib/types.ts`(대시보드 시세 타입 — contracts A1) + `frontend/src/lib/dashboardApi.ts`(`fetchQuotes` — 공통 `request`) (FR-003, FR-004)
+- [X] T037 [P] [US1] `frontend/src/lib/kstClock.ts` — `Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", … })`, `msUntilNextKstMidnight(now)` (FR-002, R14-15)
+- [X] T038 [US1] `frontend/src/stores/marketQuotesStore.ts` — data-model 7 (`load`·`startPolling`·`stopPolling`·`retry`, `seq`, `document.visibilityState`) (FR-008, FR-009)
+- [X] T039 [US1] `frontend/src/components/dashboard/TodayHeader.tsx`·`IndicatorGroups.tsx`·`IndicatorCard.tsx`·`QuoteStateLine.tsx` — contracts D1·D2. 값은 서버 문자열에 형식만 입힌다. `TodayHeader`의 [새로고침]은 `marketQuotesStore.load()`다 (FR-002, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-015, FR-018)
+- [X] T040 [US1] 화면 경로를 붙인다 (FR-001, R14-14, contracts D6)
   - `frontend/src/app/dashboard/page.tsx`(마운트에 `load`·`startPolling`, 언마운트에 `stopPolling`).
   - `frontend/src/app/page.tsx` → `redirect("/dashboard")`(옛 안내 자리 삭제).
   - `frontend/src/components/shell/Sidebar.tsx` → `{ label: "대시보드", href: "/dashboard" }`.
@@ -615,7 +615,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
   - 커밋 메시지는 한국어이고 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`을 단다. 푸시는 요청이 있을 때만 한다.
 - 기록:
   - T002 기준 게이트(2026-10-09, 서버를 내린 채): 백엔드 `pytest` 3,034 passed(9분 43초)·커버리지 96%·`mypy` 239파일 통과·`ruff` 통과, 프론트엔드 `vitest` 193파일 1,702 passed·`tsc`·`eslint` 통과(모두 종료 코드 0). 기준 응답(T001)은 작업용 임시 폴더 `014-baseline/before/` 29파일
-  - T018 승인: (구현 중 채움)
+  - T018 승인(2026-10-10 — 사용자 사전 승인 "중간에 승인이 필요하면 모두 승인"): 실제 실패 7개 = 예상 목록(R14-16)과 같다. `Sidebar.test.tsx` 넷(링크 아님 → 모든 항목 링크, 준비중 1 → 0, 초점 대상 0 → 링크 하나, 링크 목록 + `/dashboard`), `noUnbuiltAssetRoutes.test.ts` 셋(`UNBUILT` → `[]`, 경로 + `/dashboard`, API 정규식에서 `dashboard`). `TopBarTitle.test.ts`는 변경 없음
   - T080 파싱 시간: (구현 중 채움)
   - T086 게이트: (구현 중 채움)
 

@@ -22,7 +22,8 @@ export interface MenuItem {
 
 /** 헌법 원칙 IX가 고정한 자산군 순서를 따른다. */
 export const MENU: readonly MenuItem[] = [
-  { label: "대시보드" },
+  // 014 — 대시보드. 최상위 `/`가 아니라 `/dashboard`다 — 선택 판정이 경로 앞부분 일치라 `/`면 모든 화면에서 선택된다.
+  { label: "대시보드", href: "/dashboard" },
   { label: "외환", href: "/fx" },
   // 007 — 가상자산을 구현했다. 순서는 원칙 IX대로 외환 → 가상자산 → 주식이다(005가 주식을 먼저 만들며 앞에 두었다).
   { label: "가상자산", href: "/crypto" },

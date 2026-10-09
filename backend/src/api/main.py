@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     import asyncio
     import contextlib
 
-    from src.api.services import apt_naver_link
+    from src.api.services import apt_naver_link, market_quotes
     from src.config.settings import load_settings
     from src.db.session import get_session_factory
     from src.ingestion.datagokr.client import DataGoKrClient
@@ -80,6 +80,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from src.ingestion.naver_land.client import NaverLandClient
     from src.ingestion.yahoo.client import YahooStockClient
     from src.ingestion.yahoo.gate import get_yahoo_gate
+    from src.ingestion.yahoo.market import YahooMarketClient
     from src.observability.logging_config import configure_logging
     from src.repository.apt_usage import ApiUsageCounter
     from src.worker import apt_worker
@@ -159,6 +160,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     naver_client = NaverLandClient(settings)
     await naver_client.__aenter__()
     apt_naver_link.set_shared_client(naver_client)
+    # 014 — 대시보드 지표 출처(주식과 같은 Yahoo — 관문을 함께 지난다, R14-10). 현재 시세 서비스가
+    # 30초 캐시·단일 비행으로
+    # 탭이 여럿이어도 출처를 한 번만 부른다(R14-6).
+    market_client = YahooMarketClient(settings, gate=get_yahoo_gate(settings))
+    await market_client.__aenter__()
+    market_quotes.set_shared_service(market_quotes.MarketQuoteService(
+        market_client, market_quotes.DbMarketHistory(factory), settings))
 
     tasks = [
         asyncio.create_task(worker_loop(
@@ -200,6 +208,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await apt_client.__aexit__(None, None, None)
         apt_naver_link.set_shared_client(None)
         await naver_client.__aexit__(None, None, None)
+        market_quotes.set_shared_service(None)
+        await market_client.__aexit__(None, None, None)
         await shutdown_engine()
 
 
@@ -449,6 +459,7 @@ def create_app() -> FastAPI:
     from src.api.routes import crypto_settings as crypto_settings_routes
     from src.api.routes import crypto_simulation as crypto_simulation_routes
     from src.api.routes import daily as daily_routes
+    from src.api.routes import dashboard_quotes as dashboard_quotes_routes
     from src.api.routes import deposit_installment as deposit_installment_routes
     from src.api.routes import deposit_institutions as deposit_institutions_routes
     from src.api.routes import deposit_progress as deposit_progress_routes
@@ -525,6 +536,8 @@ def create_app() -> FastAPI:
     # 경로가 앞 경로를 잡지 않게 한다(012 `settings`와 같은 까닭).
     app.include_router(saved_comparison_routes.router)
     app.include_router(comparison_routes.router)
+    # 014 — 대시보드. 기존 경로 뒤에 둔다(contracts A6 — 기존 응답 불변).
+    app.include_router(dashboard_quotes_routes.router)
 
     return app
 

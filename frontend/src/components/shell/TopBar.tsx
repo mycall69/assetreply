@@ -22,6 +22,8 @@ const TITLES: ReadonlyArray<readonly [string, string]> = [
   ["/realestate", "부동산"],
   ["/compare", "투자 비교"],
   ["/settings", "설정"],
+  // 014 — 대시보드와 지표 화면(`/dashboard/{지표}`).
+  ["/dashboard", "대시보드"],
   ["/", "대시보드"],
 ];
 

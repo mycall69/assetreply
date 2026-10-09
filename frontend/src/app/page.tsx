@@ -1,26 +1,11 @@
 /**
- * 대시보드 자리 (T016) — research R2-10.
+ * 최상위 주소 (014 T040) — FR-001, research R14-14.
  *
- * 자산군을 하나씩 완결하는 헌법 원칙 IX에 따라 대시보드는 아직 만들지 않는다.
- * 사이드바에서 이 항목은 선택할 수 없으나, 최상위 경로로 들어온 사용자가 빈 화면을
- * 만나지 않도록 안내를 둔다.
+ * 앱을 처음 여는 주소는 대시보드로 옮긴다. 대시보드를 `/`에 두지 않는 까닭은 사이드바의 선택 판정이 경로 앞부분 일치라
+ * `href: "/"`면 모든 화면에서 "대시보드"가 선택되기 때문이다(FR-001 실패 양상).
  */
+import { redirect } from "next/navigation";
 
-import Link from "next/link";
-
-export default function DashboardPlaceholder() {
-  return (
-    <section className="mx-auto max-w-lg py-20 text-center">
-      <h2 className="text-lg font-semibold text-gray-900">대시보드는 준비 중입니다</h2>
-      <p className="mt-2 text-sm text-gray-600">
-        자산군을 하나씩 완결하며 넓혀가고 있습니다. 현재는 외환을 이용할 수 있습니다.
-      </p>
-      <Link
-        href="/fx"
-        className="mt-6 inline-block rounded bg-gray-900 px-5 py-2 text-sm text-white"
-      >
-        외환으로 이동
-      </Link>
-    </section>
-  );
+export default function Home() {
+  redirect("/dashboard");
 }

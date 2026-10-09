@@ -1718,3 +1718,63 @@ export interface SavedComparisonList {
 export interface SavedComparisonCreated extends SavedComparisonList {
   entry: SavedComparison;
 }
+
+/* ───────────────────────── 014: 대시보드 ───────────────────────── */
+
+/** 장 상태(014 data-model 3). */
+export type MarketState = "pre_open" | "open" | "break" | "closed" | "holiday";
+
+export type DashboardGroup = "korea" | "us" | "asia" | "fx" | "commodity";
+
+/** 카드의 현재 값(contracts A1 `quote`). 값·차이·등락률은 서버 문자열이다(원칙 VI). */
+export interface DashboardQuote {
+  value: DecimalString;
+  /** 값의 시각(UTC ISO). */
+  valueTime: string;
+  /** 값의 거래일(그 시장의 현지 날짜) — 휴장이면 마지막 거래일. */
+  sessionDate: string;
+  state: MarketState;
+  provisional: boolean;
+  delayMinutes: number | null;
+  previous: {
+    close: DecimalString;
+    date: string | null;
+    /** `history` 이력, `source` 이력이 아직 닿지 않아 출처 값, `source_fx` 시장 환율(늘 출처). */
+    from: "history" | "source" | "source_fx";
+  } | null;
+  change: DecimalString | null;
+  /** 비율(0.01 = 1%). */
+  changeRate: DecimalString | null;
+  changeRateBlank: "non_positive_base" | "no_previous" | null;
+  direction: "up" | "down" | "flat" | null;
+}
+
+export interface DashboardFailure {
+  kind: string;
+  message: string;
+}
+
+/** 지표 하나(contracts A1). */
+export interface DashboardIndicator {
+  id: string;
+  name: string;
+  group: DashboardGroup;
+  order: number;
+  unit: string;
+  kind: "index" | "fx" | "future" | "volatility";
+  market: { key: string; timezone: string };
+  notes: ("future_roll" | "market_fx")[];
+  status: "ok" | "failed";
+  quote: DashboardQuote | null;
+  /** 이번에 받지 못해 마지막 성공 값을 보인다. */
+  stale: boolean;
+  failure: DashboardFailure | null;
+}
+
+/** `GET /api/dashboard/quotes`. 늘 15개다. */
+export interface DashboardQuotesResponse {
+  fetchedAt: string;
+  refreshAfterSeconds: number;
+  source: string;
+  indicators: DashboardIndicator[];
+}
