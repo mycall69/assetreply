@@ -22,11 +22,12 @@ const bodyRows = () => screen.getAllByRole("row").slice(1);
 
 describe("열", () => {
   // 013 승인 2026-10-09 — 반복(단가 등락)으로 투자 원금 뒤에 열이 셋 늘어 칸 번호가 3씩 밀렸다.
-  it("열 개의 열이다", () => {
+  // 013 승인 2026-10-09 — 반복 2026-10-09b(투자 시뮬레이션 모달)로 줄 끝에 열이 하나 늘었다.
+  it("열한 개의 열이다", () => {
     renderTable([row("a", "XLK")]);
     const heads = screen.getAllByRole("columnheader").map((h) => h.textContent ?? "");
     expect(heads.map((h) => h.replace(/[▲▼ⓘ]/g, "").trim())).toEqual(
-      ["대상", "기준일", "투자 원금", "시작일 단가", "기준일 단가", "등락", "현재 가치", "비용", "투자 수익", "수익률"]);
+      ["대상", "기준일", "투자 원금", "시작일 단가", "기준일 단가", "등락", "현재 가치", "비용", "투자 수익", "수익률", "투자 시뮬레이션"]);
   });
 
   it("값은 서버 문자열에 형식만 입힌다", () => {
@@ -184,7 +185,8 @@ describe("수집 중·실패", () => {
     expect(within(all[0]).getAllByRole("cell")[0].textContent).toContain("XLK");
     const cells = within(all[1]).getAllByRole("cell");
     // 013 승인 2026-10-09 — 반복(단가 등락)으로 투자 원금 뒤에 열이 셋 늘어 칸 번호가 3씩 밀렸다.
-    expect(cells.slice(1).map((c) => c.textContent)).toEqual(["", "", "", "", "", "", "", "", ""]);
+    // 013 승인 2026-10-09 — 반복 2026-10-09b(투자 시뮬레이션 모달)로 줄 끝에 열이 하나 늘었다.
+    expect(cells.slice(1).map((c) => c.textContent)).toEqual(["", "", "", "", "", "", "", "", "", ""]);
   });
 
   it("수집 중은 받는 구간과 진행이다", () => {
