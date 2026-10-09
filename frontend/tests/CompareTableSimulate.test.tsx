@@ -56,4 +56,13 @@ describe("투자 시뮬레이션 열", () => {
     expect(within(last).getByText("투자 시뮬레이션").className).toContain("sr-only");
     expect(within(last).queryByRole("button")).toBeNull();
   });
+
+  it("대상 칸은 최소 폭이 있고 낱말 단위로 꺾이며, 단추는 두 줄로 꺾일 수 있다", () => {
+    // T104 실측 — 열이 열한 개가 되자 1440px에서 부동산 표가 칸 폭을 넘어 대상 칸이 41px로 눌렸다(이름이 한 글자씩 세로로), 단추가 잘렸다.
+    renderTable([okRow("a", "헬리오시티아파트 30평대(국평)")], vi.fn());
+    const name = within(screen.getAllByRole("row")[1]).getAllByRole("cell")[0];
+    expect(name.className).toContain("min-w-[8rem]");
+    expect(name.className).toContain("break-keep");
+    expect(screen.getByRole("button", { name: /투자 시뮬레이션$/ }).className).not.toContain("whitespace-nowrap");
+  });
 });
