@@ -12,9 +12,8 @@ from __future__ import annotations
 import datetime as dt
 import inspect
 
-from src.worker.market_runner import IndicatorState, plan_round
-
 from src.worker import market_runner
+from src.worker.market_runner import IndicatorState, plan_round
 
 D = dt.date
 Y = D(2026, 10, 8)

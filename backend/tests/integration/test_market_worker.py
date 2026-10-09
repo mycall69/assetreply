@@ -20,7 +20,6 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-from src.worker.market_runner import run_round
 
 from src.config.settings import Settings, load_settings
 from src.db.models import MarketCloseRevision, MarketIndicatorRaw
@@ -30,6 +29,7 @@ from src.ingestion.yahoo.market_parse import DailyChunk
 from src.repository import market_daily
 from src.simulation.market_indicators import market_indicators
 from src.worker import market_runner, market_worker
+from src.worker.market_runner import run_round
 
 D = dt.date
 NOW = dt.datetime(
@@ -159,7 +159,9 @@ async def test_같은_현지_날짜에는_다시_받지_않는다(session_factor
     await run_round(session_factory, source, settings=settings, now=NOW)
     raws = await _count(session_factory, MarketIndicatorRaw)
     again = await run_round(
-        session_factory, source, settings=settings, now=NOW + dt.timedelta(hours=1)
+        # 한국 23:30 — 같은 현지 날짜다. 한 시간 뒤(15:00 UTC)면 한국·도쿄가 새 날이라
+        # 이어 받기가 생기는 것이 맞다
+        session_factory, source, settings=settings, now=NOW + dt.timedelta(minutes=30)
     )
     assert (again.succeeded, again.planned) == (0, 0)
     assert await _count(session_factory, MarketIndicatorRaw) == raws

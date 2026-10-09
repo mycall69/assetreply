@@ -102,6 +102,7 @@ class Test스트림_머리글:
         from src.api.routes.collection import get_stream
         from src.api.routes.crypto_list_progress import get_list_progress
         from src.api.routes.crypto_progress import get_progress as get_crypto_progress
+        from src.api.routes.dashboard_series import get_progress as get_indicator_progress
         from src.api.routes.deposit_progress import get_progress as get_deposit_progress
         from src.api.routes.realestate_progress import get_progress as get_apt_progress
         from src.api.routes.stock_progress import get_progress
@@ -119,6 +120,8 @@ class Test스트림_머리글:
             await get_deposit_progress(session=None, job_id=1),  # type: ignore[arg-type]
             # 009 — 부동산 수집 진행(FR-011)
             await get_apt_progress(session=None, job_id=1),  # type: ignore[arg-type]
+            # 014 승인 2026-10-10 — 대시보드 지표 이력 수집 진행(FR-016)
+            await get_indicator_progress(session=None, indicator_id="kospi"),  # type: ignore[arg-type]
         ]
         for response in responses:
             cache_control = response.headers["cache-control"]
@@ -132,7 +135,8 @@ class Test스트림_머리글:
         api = Path(__file__).resolve().parents[2] / "src" / "api"
         files = sorted(p.name for p in api.rglob("*.py")
                        if 'media_type="text/event-stream"' in p.read_text(encoding="utf-8"))
+        # 014 승인 2026-10-10 — `dashboard_series.py`(대시보드 지표 이력 수집 진행)를 더했다
         assert files == ["collect.py", "collection.py", "crypto_list_progress.py",
-                         "crypto_progress.py", "deposit_progress.py", "realestate_progress.py",
-                         "stock_progress.py"]
+                         "crypto_progress.py", "dashboard_series.py", "deposit_progress.py",
+                         "realestate_progress.py", "stock_progress.py"]
 
