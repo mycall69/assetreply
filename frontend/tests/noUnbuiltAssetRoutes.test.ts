@@ -34,7 +34,9 @@ const APP = join(process.cwd(), "src", "app");
  * Complexity Tracking에 기록돼 있으며, 가상자산은 006으로 수행한다.
  */
 // 013 승인 2026-10-08 — 013이 투자 비교 화면(`src/app/compare`)을 만들어 `compare`를 뺐다.
-const UNBUILT = ["dashboard"];
+// 014 승인 2026-10-10 — 014가 대시보드(`src/app/dashboard`)를 만들어 `dashboard`를 뺐다. 준비되지 않은 화면이 더 없다 —
+// 새 화면을 미리 막아 둘 때 여기에 이름을 더한다.
+const UNBUILT: string[] = [];
 
 describe("미구현 자산군", () => {
   it("라우트 디렉토리가 존재하지 않는다", () => {
@@ -46,7 +48,8 @@ describe("미구현 자산군", () => {
     const src = readFileSync(join(process.cwd(), "src/components/shell/Sidebar.tsx"), "utf-8");
     const hrefs = [...src.matchAll(/href:\s*"([^"]+)"/g)].map((m) => m[1]).sort();
     // 013 승인 2026-10-08 — 사이드바에 투자 비교(`/compare`)가 더해졌다.
-    expect(hrefs).toEqual(["/compare", "/crypto", "/deposit", "/fx", "/realestate", "/settings", "/stocks"]);
+    // 014 승인 2026-10-10 — 사이드바에 대시보드(`/dashboard`)가 더해졌다.
+    expect(hrefs).toEqual(["/compare", "/crypto", "/dashboard", "/deposit", "/fx", "/realestate", "/settings", "/stocks"]);
   });
 
   /**
@@ -65,7 +68,8 @@ describe("미구현 자산군", () => {
         return statSync(full).isDirectory() ? walk(full) : [full];
       });
     const offenders = walk(join(process.cwd(), "src"))
-      .filter((f) => /\/api\/(compare|dashboard)\b/.test(readFileSync(f, "utf-8")));
+      // 014 승인 2026-10-10 — 014가 `/api/dashboard/*`를 부른다. 남은 것은 없는 경로 `/api/compare`(013의 경로는 `/api/comparison`)다.
+      .filter((f) => /\/api\/compare\b/.test(readFileSync(f, "utf-8")));
     expect(offenders).toEqual([]);
   });
 });
