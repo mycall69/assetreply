@@ -13,24 +13,34 @@ contracts A2.
   경로**(`collection_gate.ensure_background_job`)에 넘긴다 —
   대시보드가 ECOS를 부르지 않는다(FR-018)
 - 수집 상태(마지막 성공·성공 뒤의 실패)를 싣는다(FR-019 — 원칙 V 커버리지 조회)
+- **환율도 같은 진행 경로다**(반복 2026-10-10 — FR-018). 외환 진행 스트림은 사건 이름·모양이 달라
+  화면이 읽지 못한다
+- 그 통화의 마지막 외환 수집이 실패했고 지금 받는 중(점유·큐)이 아니면 실패를 보이고 **외환 수집을
+  다시 요청하지 않는다** — 다시 물을 때마다 요청하면 인증 만료처럼 풀리지 않는 실패에 ECOS를 계속
+  부른다
 """
 
 from __future__ import annotations
 
 import datetime as dt
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Final, Protocol
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.services.collection_gate import CollectionDecision, CollectionTicket, decide_collection
 from src.api.services.market_quotes import dec, indicator_json
 from src.api.services.series_query import compute_gaps, missing_days
 from src.config.settings import Settings
-from src.db.models import Currency, MarketIndicatorCoverage
+from src.db.models import Currency, FxCollectionLock, JobStatus, MarketIndicatorCoverage
+from src.observability.events import mask_secrets
 from src.repository import coverage as fx_coverage
 from src.repository import fx_rate, market_daily
+from src.repository import job as fx_job
+from src.repository.collection_lock import SCOPE_COLLECTION
 from src.simulation.downsample import Point, lttb
 from src.simulation.indicator_periods import UNITS, PeriodPoint, Unit, build_points
 from src.simulation.market_gaps import Sibling, missing_ranges
@@ -43,6 +53,9 @@ _DAY: Final = dt.timedelta(days=1)
 _KST: Final = "krx"
 
 EnsureJob = Callable[[AsyncSession, str], Awaitable[CollectionTicket]]
+
+#: 실패로 보는 외환 수집 작업의 끝 상태 — 일부만 받고 실패한 것도 이력이 모자라면 실패다.
+_FX_FAILED: Final = (JobStatus.FAILED, JobStatus.PARTIAL)
 
 
 class QuoteLookup(Protocol):
@@ -138,6 +151,91 @@ def _indicator_block(indicator: Indicator) -> Json:
     return block
 
 
+def _day(day: dt.date | None) -> str | None:
+    return None if day is None else day.isoformat()
+
+
+@dataclass(frozen=True, slots=True)
+class FxState:
+    """환율 그래프의 이력 상태 — 그래프 경로(202·200)와 진행 SSE가 같은 판정을 쓴다."""
+
+    complete: bool
+    #: contracts A4 `snapshot`과 같은 칸 — 외환 커버리지(남은 날 = 빠진 날 수)
+    progress: Json
+    #: 마지막 외환 수집이 실패했고 지금 받는 중이 아니면 `{kind, message, at}`
+    failure: Json | None
+    start: dt.date | None
+    end: dt.date
+    covered_from: dt.date | None
+    covered_through: dt.date | None
+    #: 외환 커버리지의 마지막 갱신 — 200의 `history.lastSuccessAt`
+    last_updated_at: dt.datetime | None
+
+
+async def _fx_running(session: AsyncSession, code: str) -> bool:
+    """그 통화의 외환 수집 점유가 있는가(실행 중)."""
+    held = await session.execute(
+        select(FxCollectionLock.job_id).where(
+            FxCollectionLock.scope == SCOPE_COLLECTION,
+            FxCollectionLock.currency_code == code,
+        )
+    )
+    return held.scalar_one_or_none() is not None
+
+
+async def _fx_failure(session: AsyncSession, code: str) -> Json | None:
+    """그 통화의 마지막 외환 수집 작업이 실패로 끝났으면 그 까닭."""
+    jobs = await fx_job.list_jobs(session, currency_code=code, limit=1)
+    if not jobs or jobs[0].status not in _FX_FAILED or not jobs[0].last_error:
+        return None
+    last = jobs[0]
+    # 외환 작업의 종료 시각은 서버 지역 시각이다(001 관례) — UTC로 바꿔 낸다
+    at = None if last.finished_at is None else last.finished_at.astimezone(dt.UTC)
+    return {"kind": "fx_collection", "message": mask_secrets(last.last_error), "at": _iso(at)}
+
+
+async def fx_state(
+    session: AsyncSession,
+    indicator: Indicator,
+    *,
+    settings: Settings,
+    now: dt.datetime,
+    fx_busy: str | None,
+) -> FxState:
+    """외환 고시 이력이 그래프에 충분한가, 받는 중인가, 실패했는가. `fx_busy`는 외환 시작 큐가 처리
+    중인 통화."""
+    code = indicator.fx_currency or ""
+    currency = await session.get(Currency, code)
+    cov = await fx_coverage.get_coverage(session, code)
+    end = trading_date(_KST, now)
+    start = currency.first_available_date if currency is not None else None
+    if start is None and cov is not None:
+        start = cov.covered_from
+    missing = None if start is None else await missing_days(session, code, start, end)
+    covered_from = None if cov is None else cov.covered_from
+    covered_through = None if cov is None else cov.covered_through
+    progress: Json = {
+        "firstDay": _day(start),
+        "coveredFrom": _day(covered_from),
+        "coveredThrough": _day(covered_through),
+        "remainingDays": missing,
+    }
+    # 받은 이력이 없으면(첫 날도 커버리지도 없음) 모자란 것이다
+    complete = missing is not None and (
+        decide_collection(
+            missing_days=missing, threshold_days=settings.collection_sync_threshold_days
+        )
+        is not CollectionDecision.BACKGROUND
+    )
+    failure = None
+    if not complete and fx_busy != code and not await _fx_running(session, code):
+        failure = await _fx_failure(session, code)
+    last_updated_at = None if cov is None else cov.last_updated_at
+    return FxState(
+        complete, progress, failure, start, end, covered_from, covered_through, last_updated_at
+    )
+
+
 async def _fx_series(
     session: AsyncSession,
     indicator: Indicator,
@@ -146,31 +244,31 @@ async def _fx_series(
     settings: Settings,
     now: dt.datetime,
     ensure_job: EnsureJob,
+    fx_busy: str | None,
 ) -> tuple[int, Json]:
     code = indicator.fx_currency or ""
-    currency = await session.get(Currency, code)
-    cov = await fx_coverage.get_coverage(session, code)
-    end = trading_date(_KST, now)
-    start = currency.first_available_date if currency is not None else None
-    if start is None and cov is not None:
-        start = cov.covered_from
-    # 받은 이력이 없으면(첫 날도 커버리지도 없음) 곧바로 외환 수집 경로에 넘긴다.
-    decision = CollectionDecision.BACKGROUND
-    if start is not None:
-        decision = decide_collection(
-            missing_days=await missing_days(session, code, start, end),
-            threshold_days=settings.collection_sync_threshold_days,
-        )
-    if start is None or decision is CollectionDecision.BACKGROUND:
+    state = await fx_state(session, indicator, settings=settings, now=now, fx_busy=fx_busy)
+    if not state.complete or state.start is None:
+        head: Json = {"indicator": {"id": indicator.id, "name": indicator.name}}
+        if state.failure is not None:
+            # 다시 요청하지 않는다 — [다시 시도](A3)만 외환 수집 경로에 넘긴다
+            return 202, {
+                "status": "failed",
+                **head,
+                "progress": state.progress,
+                "failure": state.failure,
+                "progressUrl": progress_url(indicator.id),
+            }
         ticket = await ensure_job(session, code)
         return 202, {
             "status": "collecting",
-            "indicator": {"id": indicator.id, "name": indicator.name},
-            "progress": None,
+            **head,
+            "progress": state.progress,
             "failure": None,
-            "progressUrl": ticket.progress_url,
+            "progressUrl": progress_url(indicator.id),
             "jobId": ticket.job_id,
         }
+    start, end = state.start, state.end
     rows = await fx_rate.series(session, code, start, end)
     closes = [(r.quote_date, r.base_rate) for r in rows]
     provisional = {r.quote_date for r in rows if r.is_provisional}
@@ -178,8 +276,8 @@ async def _fx_series(
         start,
         end,
         {d for d, _ in closes},
-        cov.covered_from if cov else None,
-        cov.covered_through if cov else None,
+        state.covered_from,
+        state.covered_through,
     )
     points = build_points(closes, unit, today=end, provisional_dates=provisional)
     reduced, downsampled = _reduce(points, settings.dashboard_series_max_points)
@@ -191,7 +289,7 @@ async def _fx_series(
             "firstDate": closes[0][0].isoformat() if closes else None,
             "lastDate": closes[-1][0].isoformat() if closes else None,
             "tailPending": False,
-            "lastSuccessAt": _iso(cov.last_updated_at) if cov is not None else None,
+            "lastSuccessAt": _iso(state.last_updated_at),
             "lastFailure": None,
         },
         "points": _points_json(reduced),
@@ -225,11 +323,18 @@ async def series_response(
     settings: Settings,
     now: dt.datetime,
     ensure_job: EnsureJob,
+    fx_busy: str | None = None,
 ) -> tuple[int, Json]:
-    """contracts A2 — (상태 코드, 본문)."""
+    """contracts A2 — (상태 코드, 본문). `fx_busy`는 외환 시작 큐가 처리 중인 통화(환율만 쓴다)."""
     if indicator.history == "fx":
         return await _fx_series(
-            session, indicator, unit, settings=settings, now=now, ensure_job=ensure_job
+            session,
+            indicator,
+            unit,
+            settings=settings,
+            now=now,
+            ensure_job=ensure_job,
+            fx_busy=fx_busy,
         )
     row = await market_daily.get_coverage(session, indicator.id)
     if not complete(row):

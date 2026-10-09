@@ -308,7 +308,13 @@ class Test사건:
                     "source": "us",
                     "status": "failed",
                     "reason": "connection",
-                    "message": "연결하지 못했습니다.",
+                    "detail": "연결하지 못했습니다.",
                 },
             )
         ]
+
+    def test_실제_로거에_남겨도_예외가_없다(self) -> None:
+        """`message` 같은 `LogRecord` 예약 이름을 칸으로 쓰면 로거가 예외를 낸다(대역은 모른다)."""
+        news_cache._event(
+            "news_fetch", source="us", status="failed", reason="connection", detail="연결 실패"
+        )

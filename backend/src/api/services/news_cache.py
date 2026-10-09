@@ -13,13 +13,15 @@
 - **칸마다 따로다** — 잠금·기억이 칸마다라 느리거나 실패한 칸이 다른 칸을 막지 않는다(FR-024). 같은
   칸의 동시 요청은
   출처를 한 번 부른다(단일 비행)
+- **출처를 부를 때마다 수집 로그에 한 줄**(`news_fetch` — 반복 2026-10-10, FR-023·SC-008). 캐시·실패
+  기억 안의 재요청은 출처를 부르지 않으므로 줄도 없다 — 운영자가 캐시가 출처 호출을 막는지 이 줄로
+  본다
 """
 
 from __future__ import annotations
 
 import asyncio
 import datetime as dt
-import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Final, Protocol
@@ -27,9 +29,9 @@ from typing import Final, Protocol
 from src.config.settings import Settings
 from src.ingestion.news.errors import FailureReason, NewsError
 from src.ingestion.news.types import NewsItem, NewsList, SourceKey
+from src.observability.logging_config import collection_logger
 
 Json = dict[str, object]
-_log = logging.getLogger(__name__)
 _SECOND: Final = dt.timedelta(seconds=1)
 
 
@@ -71,6 +73,12 @@ class _Failure:
 
 def utc_now() -> dt.datetime:
     return dt.datetime.now(dt.UTC)
+
+
+def _event(name: str, **fields: object) -> None:
+    """수집 로그 한 줄. 칸 이름에 `message` 같은 `LogRecord` 예약 이름을 쓰지 않는다(쓰면 로거가
+    예외를 낸다)."""
+    collection_logger().info(name, extra={"event": name, **fields})
 
 
 def _iso(moment: dt.datetime) -> str:
@@ -129,7 +137,6 @@ class NewsCache:
             remembered = self._failure.get(source)
             if remembered is not None and now < remembered.until:
                 return self._failed(source, remembered, now)
-            _log.info("뉴스 출처 요청: %s", source)
             try:
                 listed = await self._source.fetch(source)
             except NewsError as exc:
@@ -137,11 +144,14 @@ class NewsCache:
                 failure = _Failure(exc.reason, str(exc), now + self._hold(count), count)
                 self._failure[source] = failure
                 self._success.pop(source, None)
-                _log.warning("뉴스 출처 실패: %s %s", source, exc.reason)
+                _event(
+                    "news_fetch", source=source, status="failed", reason=exc.reason, detail=str(exc)
+                )
                 return self._failed(source, failure, now)
             self._failure.pop(source, None)
             seconds = dt.timedelta(seconds=self._settings.news_cache_seconds)
             self._success[source] = _Success(listed, now + seconds)
+            _event("news_fetch", source=source, status="ok", items=len(listed.items))
             return self._ok(source, listed)
 
     def _head(self, source: SourceKey) -> Json:

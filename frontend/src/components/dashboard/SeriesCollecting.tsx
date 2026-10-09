@@ -2,6 +2,7 @@
  * 지표 화면 — 받는 중·실패 (014 T060) — FR-016, contracts D4.
  *
  * 받는 중에는 그래프를 그리지 않는다 — 받은 만큼만 그린 선을 완성된 것처럼 보이지 않는다(FR-016). 진행은 받은 기간과 첫 날이다.
+ * 외환 수집 실패(`fx_collection`)는 외환 수집 기록의 문구를 함께 보인다 — 종류 글자만으로는 무엇을 고칠지 모른다(인증 만료 등, FR-018).
  */
 import { failureLabel } from "@/components/dashboard/IndicatorHeader";
 import { KST_ZONE, formatZonedTime } from "@/lib/kstClock";
@@ -20,6 +21,7 @@ export function SeriesCollecting({ collecting, name, onRetry }: {
           이력을 받지 못했습니다 — {failureLabel(failure?.kind)}
           {failure?.at && <> · {formatZonedTime(failure.at, KST_ZONE)}</>}
         </p>
+        {failure?.kind === "fx_collection" && failure.message && <p className="mt-1 text-xs">{failure.message}</p>}
         <button type="button" onClick={onRetry} className="mt-2 underline">다시 시도</button>
       </section>
     );

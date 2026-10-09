@@ -533,20 +533,20 @@ description: "Task list for 014-market-dashboard"
 **Independent Test**: 외환 이력이 모자란 통화의 지표 화면이 대시보드 진행 경로로 진행을 보이고, 마지막 외환 수집이 실패했으면 "외환 수집 실패"와 그 문구를 보이며 외환 수집을 다시 요청하지 않는다. `collection.log`에 뉴스 출처 호출과 카드 출처 실패가 한 줄씩 남는다.
 
 - [X] T087 문서 보강 — `spec.md`(원칙 II 보관 범위, FR-005·FR-009·FR-016·FR-018·FR-019·FR-020~FR-024, SC-001·SC-007·SC-011, Assumptions·Dependencies), `research.md`(R14-4·R14-6·R14-10·R14-13), `contracts/rest-api.md`(A0 실패 종류 표, A2·A4 환율), `contracts/ui-wireframes.md`(D4), `plan.md` 추적성, README·`.env.example`(차단 복구) (FR-005, FR-009, FR-016, FR-018~FR-024, SC-001, SC-007, SC-011)
-- [ ] T088 [P] `backend/tests/integration/test_dashboard_series_api.py` — 환율 경로 (FR-016, FR-018)
+- [X] T088 [P] `backend/tests/integration/test_dashboard_series_api.py` — 환율 경로 (FR-016, FR-018)
   - 이력이 모자라면 202 `collecting`이고 `progressUrl`은 `/api/dashboard/indicators/{id}/progress`, `progress`는 외환 커버리지다(014의 기존 기대 `"/api/fx/collection/stream?…"`을 바꾼다 — 결함을 담고 있었다).
   - 마지막 외환 수집 작업이 `failed`(또는 오류 있는 `partial`)이고 점유·큐가 없으면 202 `failed` + `failure{kind: "fx_collection", message, at}`이고 외환 수집 요청이 0번이다.
   - 큐가 그 통화를 처리 중이면 실패 기록이 있어도 `collecting`이다.
   - 진행 SSE(`stream_body`): 환율은 외환 커버리지의 `snapshot`, 실패 조건이면 `failed{kind: "fx_collection"}`, 이력이 충분해지면 `completed`다.
-- [ ] T089 [P] `backend/tests/unit/test_news_cache.py`·`backend/tests/unit/test_market_quotes_service.py` — 출처 사건 (FR-009, FR-023, SC-008)
+- [X] T089 [P] `backend/tests/unit/test_news_cache.py`·`backend/tests/unit/test_market_quotes_service.py` — 출처 사건 (FR-009, FR-023, SC-008)
   - 뉴스: 출처를 부를 때마다 `news_fetch` 한 줄(성공 `items`, 실패 `reason`)이고, 캐시·실패 기억 안의 재요청은 0줄이다.
-  - 카드: 응답 전체 실패는 `market_quotes_failed{kind, message}` 한 줄, 실패 기억 안의 재요청은 0줄, 일부 지표만 실패면 `market_quotes_partial{failed}` 한 줄이다. 성공만이면 0줄이다.
-- [ ] T090 [P] `frontend/tests/IndicatorPage.test.tsx` — 환율 그래프의 `fx_collection` 실패 (FR-016, FR-018)
+  - 카드: 응답 전체 실패는 `market_quotes_failed{kind, detail}` 한 줄, 실패 기억 안의 재요청은 0줄, 일부 지표만 실패면 `market_quotes_partial{failed}` 한 줄이다. 성공만이면 0줄이다.
+- [X] T090 [P] `frontend/tests/IndicatorPage.test.tsx` — 환율 그래프의 `fx_collection` 실패 (FR-016, FR-018)
   - "이력을 받지 못했습니다 — 외환 수집 실패"와 외환 수집 기록의 문구, [다시 시도]가 보인다.
-- [ ] T091 `backend/src/api/services/indicator_series.py`(`fx_state` — 외환 커버리지·작업·점유·큐로 완성·받는 중·실패를 판정, 실패면 요청하지 않음) + `backend/src/api/routes/dashboard_series.py`(경로에 큐 상태를 넘기고, 진행 SSE의 환율 갈래) (FR-016, FR-018)
-- [ ] T092 `backend/src/api/services/news_cache.py`(`news_fetch`)·`backend/src/api/services/market_quotes.py`(`market_quotes_failed`·`market_quotes_partial`) — `collection.log` 사건 (FR-009, FR-023)
-- [ ] T093 `frontend/src/components/dashboard/IndicatorHeader.tsx`(`FAILURE_LABELS`에 `fx_collection`) + `frontend/src/stores/indicatorSeriesStore.ts`(외환 진행 스트림 주석 정리) (FR-016, FR-018)
-- [ ] T094 게이트(서버를 내린 채)와 `CLAUDE.md`(대시보드 사건 이름·환율 경로) (SC-007, SC-010)
+- [X] T091 `backend/src/api/services/indicator_series.py`(`fx_state` — 외환 커버리지·작업·점유·큐로 완성·받는 중·실패를 판정, 실패면 요청하지 않음) + `backend/src/api/routes/dashboard_series.py`(경로에 큐 상태를 넘기고, 진행 SSE의 환율 갈래) (FR-016, FR-018)
+- [X] T092 `backend/src/api/services/news_cache.py`(`news_fetch`)·`backend/src/api/services/market_quotes.py`(`market_quotes_failed`·`market_quotes_partial`) — `collection.log` 사건 (FR-009, FR-023)
+- [X] T093 `frontend/src/components/dashboard/IndicatorHeader.tsx`(`FAILURE_LABELS`에 `fx_collection`) + `frontend/src/stores/indicatorSeriesStore.ts`(외환 진행 스트림 주석 정리) (FR-016, FR-018)
+- [X] T094 게이트(서버를 내린 채)와 `CLAUDE.md`(대시보드 사건 이름·환율 경로) (SC-007, SC-010)
 
 ---
 
@@ -646,6 +646,10 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
   - US2 구현(2026-10-10): 기존 테스트 승인 변경 5건(사용자 사전 승인) — lifespan 태스크 수 8 → 9(부동산·가상자산·예금 워커 테스트), SSE 머리글 검사에 지표 수집 진행·SSE 파일 목록에 `dashboard_series.py`. 예상 목록(R14-16)에 없던 변경이다 — 아홉째 태스크와 새 SSE 경로가 기존 테스트의 목록에 걸렸다. 구현을 치운 상태에서 5건 실패 확인 뒤 `test(014)` 커밋. `indicator_series`는 세션과 저장소 모듈을 받는다(외환 `series_query`와 같은 꼴 — 시세 캐시만 Protocol `QuoteLookup`). `lib/chartSeries.splitSeriesAtGaps`의 결측 인자를 사유 글자로 넓혔다(형만 — 지표의 `missing`도 끊는다, 동작 불변)
   - T080 파싱 시간(2026-10-10, 100번 평균): 네이버 JSON 10.7KB 0.09ms · Yahoo US 줄인 본 47KB 2.16ms(원본 952KB 14.35ms) · Yahoo JP 줄인 본 8.7KB 0.11ms(원본 86KB 0.14ms) — 모두 50ms 아래라 `run_in_executor`로 옮기지 않았다. 원본 두 본문에서도 줄인 본과 같은 10개를 읽는다
   - US3 구현(2026-10-10): 계약 테스트 T065의 기대 제목 하나를 고쳤다 — 출처 제목에 `&nbsp;`(U+00A0) 둘이 있는데 받아 적을 때 공백으로 보였다. 파서는 원문 그대로가 맞다(FR-021 — 같은 기사 가리기만 공백으로 접는다). 테스트 쪽 받아 적기 잘못이라 기대값을 고쳤다(사용자 사전 승인). 새 모듈이 생겨 ruff가 테스트 임포트 차례를 다시 정렬했다(I001)
+  - 반복 2026-10-10(T087~T094 — 체크리스트 `checklists/sources.md` 반영): 게이트(서버를 내린 채) 백엔드 `pytest` 3,258 passed(10분 18초)·커버리지 96%·`mypy` 265파일·`ruff` 통과, 프론트엔드 `npm test` 206파일 1,814 passed·`tsc`·`eslint` 통과(모두 종료 코드 0)
+    - 검토 중 찾은 결함 둘을 고쳤다: 환율 지표 화면이 외환 진행 스트림을 구독해 진행이 비고 외환 수집 실패가 보이지 않으며 다시 물을 때마다(15초) 외환 수집을 다시 요청함 → 대시보드 진행 경로·`fx_collection` 실패·재요청 안 함. 카드·뉴스 출처의 실패와 뉴스 호출이 로그에 없음 → `collection.log` 사건 셋
+    - 014의 기존 기대 하나를 바꿨다(`test_환율_이력이_모자라면_외환_수집_경로`의 진행 주소 — 결함을 담고 있었다). 빨간 커밋 뒤 사건 칸 이름을 `message` → `detail`로 고쳤다(`LogRecord` 예약 이름 — 실제 로거가 예외를 낸다) — 실제 로거를 부르는 테스트를 더했다
+    - 실측은 하지 않았다 — 개발 DB의 환율 이력이 충분해 외환 수집 실패 경로를 만들 수 없다(통합 테스트로만 확인)
   - T086 게이트(2026-10-10, 서버를 내린 채): 백엔드 `pytest` 3,246 passed(10분 28초)·커버리지 96%·`mypy` 265파일 통과·`ruff` 통과, 프론트엔드 `npm test` 206파일 1,813 passed·`tsc`·`eslint` 통과(모두 종료 코드 0)
     - `90e848b` 이후 바뀐 기존 테스트 파일은 여섯이고 지운 파일은 없다(`git diff --stat --diff-filter=MD`) — 승인 목록과 같다
       - T018 승인: `Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts`

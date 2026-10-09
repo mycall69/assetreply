@@ -322,20 +322,25 @@ NULL = 100%)다. 비과세의 거주 2년 요건은 늘 적용한다(조정대�
 관문 전체가 물러선다. 시세 클라이언트 하나를 현재 시세 서비스와 수집 워커가 함께 쓰고 **lifespan이 연다·닫는다**(워커가 닫으면 카드가 함께 멈춘다).
 심볼 ↔ 지표는 `ingestion/yahoo/market_symbols.py`에만 있다(엔은 ×100 — 고시 단위). 날짜는 **`zoneinfo`의 거래소 시간대**로 바꾼다(고정 오프셋이면
 서머타임 여름 봉이 하루 당겨진다). 대시보드는 **ECOS를 부르지 않는다** — 환율 그래프는 외환 고시 이력을 읽고 모자라면 외환 수집 경로에 넘긴다.
+**환율 그래프도 대시보드 진행 경로다**(`indicator_series.fx_state` — 반복 2026-10-10): 외환 진행 스트림은 사건 이름·모양이 달라 지표 화면이 읽지 못한다.
+그 통화의 마지막 외환 수집 작업이 `failed`·`partial`이고 점유·큐가 없으면 202 `failed{kind: "fx_collection"}`이고 **외환 수집을 다시 요청하지 않는다**
+(화면이 15초마다 다시 물어 인증 만료에 ECOS를 계속 불렀다) — [다시 시도](POST collect)만 요청한다. 외환 작업의 `finished_at`은 서버 지역 시각이라 UTC로 바꿔 낸다.
 카드의 시장 환율은 **저장하지 않는다**(고시 `fx_rate`와 다른 계열). 출처 일봉의 빈 종가 행(휴일 자리 표시·늦은 확정)은 버리고 다음 현지 날짜의 겹쳐
 받기에서 채운다(T062 — 니케이 10-09). 결측 가드(`test_no_interpolation`)가 src에서 `backfill`·"전일 값"·"이전 값" 같은 글자를 찾는다 — 과거 구간
 수집은 "과거 구간"·"older"로, 전일은 "전일 종가"로 쓴다. 새 테이블 넷이라 개발 DB에 `alembic upgrade head`가 필요하다. 처음 기동의 과거 구간 수집은
 12개 지표 254청크 약 8분이다(T062).
 
 **대시보드 뉴스(014)는 저장하지 않는다.** `api/services/news_cache`가 칸마다 메모리에 성공 10분(`NEWS_CACHE_SECONDS`)·실패 60초부터 두 배씩 600초까지
-(백오프) 둔다 — 기억이 남은 동안의 재요청은 출처를 부르지 않는다. 클라이언트(`ingestion/news/client.NewsClient`)는 lifespan에 하나이고 **수집
+(백오프) 둔다 — 기억이 남은 동안의 재요청은 출처를 부르지 않는다. 출처를 부를 때마다 `collection.log`에 `news_fetch` 한 줄이고(캐시 효과를 이 줄로 본다),
+카드 출처 실패는 `market_quotes_failed`(응답 전체)·`market_quotes_partial`(일부 지표) 한 줄이다(성공은 남기지 않는다 — 30초마다). 사건 칸에 `message` 같은
+`LogRecord` 예약 이름을 쓰면 로거가 예외를 낸다 — 문구는 `detail`이다(대역 `_event`로는 드러나지 않아 실제 로거를 부르는 테스트가 있다). 클라이언트(`ingestion/news/client.NewsClient`)는 lifespan에 하나이고 **수집
 태스크가 없다**(요청 경로만). 브라우저형 사용자 에이전트(`NEWS_USER_AGENT`)가 없으면 Yahoo가 곧바로 429다. **Yahoo 화면의 응답 머리 한 줄이
 약 19.5KB라** 세션을 머리 한도를 넓혀 연다(aiohttp 기본 8,190바이트면 본문 전에 400 오류 — T081). 파서는 표준 라이브러리뿐이다(`html.parser`·
 `json.raw_decode` — 한 번 약 0.1~14ms, 실행기 불필요). 출처 화면이 바뀌어 0건이면 실패(`parse_empty`)다 — 픽스처(`tests/contract/fixtures/news/`)를
 다시 받을 때 Yahoo JP 상태의 `pageInfo.jwtToken`을 지운다.
 
 **로그는 두 곳으로 나뉜다.** `logs/backend.log`는 웹서버 표준출력이고,
-`logs/collection.log`는 수집 전용 구조화 로그다. 섞으면 접근 로그와 뒤엉켜 운영자가
+`logs/collection.log`는 수집 전용 구조화 로그다(014부터 대시보드 출처의 호출·실패 사건도 여기다). 섞으면 접근 로그와 뒤엉켜 운영자가
 걸러내야 한다.
 
 **개발 서버를 띄운 채 통합 테스트를 돌리지 말 것.** 테스트가 같은 MySQL의 스키마를

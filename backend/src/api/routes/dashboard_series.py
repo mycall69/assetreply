@@ -8,6 +8,8 @@
   `crypto_progress`와 같다 — 브로드캐스터 없음).
   **프레임마다 읽기 트랜잭션을 끝낸다** — 끝내지 않으면 MySQL이 첫 스냅샷을 계속 보여 `completed`가
   오지 않는다(006 R6-19)
+- 환율도 같은 진행 경로다(반복 2026-10-10 — FR-018). 외환 커버리지·외환 수집 작업을 읽어 같은 세
+  사건을 낸다(`indicator_series.fx_state`). 외환 시작 큐가 처리 중인 통화는 실패보다 받는 중이다
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ from src.api.services.collection_gate import ensure_background_job
 from src.api.services.indicator_series import (
     complete,
     failure_after_success,
+    fx_state,
     progress_json,
     series_response,
     unit_of,
@@ -36,6 +39,7 @@ from src.db.session import get_session
 from src.repository import market_daily
 from src.simulation.market_indicators import Indicator, get
 from src.worker import market_worker
+from src.worker.queue import get_queue
 
 router = APIRouter(prefix="/api/dashboard/indicators", tags=["dashboard"])
 
@@ -77,6 +81,7 @@ async def get_series(
         settings=load_settings(),
         now=utc_now(),
         ensure_job=ensure_background_job,
+        fx_busy=get_queue().in_progress,
     )
     return body if status == 200 else JSONResponse(status_code=status, content=body)
 
@@ -100,6 +105,11 @@ async def stream_body(
 ) -> AsyncIterator[str]:
     """과거 구간이 다 받아지거나 실패할 때까지 진행을 내보낸다. `max_frames`가 0보다 크면
     그만큼만(테스트용)."""
+    indicator = _indicator(indicator_id)
+    if indicator is not None and indicator.history == "fx":
+        async for frame in _fx_stream(session, indicator, max_frames=max_frames):
+            yield frame
+        return
     frames = 0
     while True:
         await session.rollback()
@@ -115,6 +125,40 @@ async def stream_body(
                 {"id": indicator_id, "kind": failure["kind"], "message": failure["message"]},
             )
             return
+        frames += 1
+        if max_frames and frames >= max_frames:
+            return
+        await asyncio.sleep(POLL_SECONDS)
+
+
+async def _fx_stream(
+    session: AsyncSession, indicator: Indicator, *, max_frames: int
+) -> AsyncIterator[str]:
+    """환율 — 외환 이력이 충분해지면 `completed`, 외환 수집이 실패했으면 `failed{fx_collection}`."""
+    frames = 0
+    while True:
+        await session.rollback()
+        state = await fx_state(
+            session,
+            indicator,
+            settings=load_settings(),
+            now=utc_now(),
+            fx_busy=get_queue().in_progress,
+        )
+        if state.complete:
+            yield format_sse("completed", {"id": indicator.id})
+            return
+        if state.failure is not None:
+            yield format_sse(
+                "failed",
+                {
+                    "id": indicator.id,
+                    "kind": state.failure["kind"],
+                    "message": state.failure["message"],
+                },
+            )
+            return
+        yield format_sse("snapshot", state.progress)
         frames += 1
         if max_frames and frames >= max_frames:
             return

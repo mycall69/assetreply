@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.config.settings import Settings
 from src.ingestion.yahoo.market import Failure, QuoteFetch, failure_kind
 from src.ingestion.yahoo.market_symbols import multiplier_of
+from src.observability.logging_config import collection_logger
 from src.repository import market_daily
 from src.simulation.market_indicators import INDICATORS, Indicator
 from src.simulation.market_indicators import get as get_indicator
@@ -35,6 +36,15 @@ Json = dict[str, object]
 
 #: 화면이 보이는 출처 이름(FR-025).
 SOURCE_NAME: Final = "Yahoo Finance"
+
+
+def _event(name: str, **fields: object) -> None:
+    """수집 로그 한 줄(반복 2026-10-10 — FR-009). 출처 실패만 남긴다 — 성공은 30초마다라 로그가
+    넘친다.
+
+    칸 이름에 `message` 같은 `LogRecord` 예약 이름을 쓰지 않는다(쓰면 로거가 예외를 낸다).
+    """
+    collection_logger().info(name, extra={"event": name, **fields})
 
 
 class MarketQuoteSource(Protocol):
@@ -169,6 +179,9 @@ class MarketQuoteService:
                 Exception
             ) as exc:  # 출처의 어떤 실패도 카드 실패로 보인다 — 화면 전체를 막지 않는다(FR-009)
                 self._failure = Failure(failure_kind(exc), str(exc) or "시세 출처가 실패했습니다.")
+                _event(
+                    "market_quotes_failed", kind=self._failure.kind, detail=self._failure.message
+                )
                 self._failure_until = now + dt.timedelta(
                     seconds=self._settings.market_quote_failure_cache_seconds
                 )
@@ -176,6 +189,11 @@ class MarketQuoteService:
                 return None, self._failure, now
             self._failure, self._failure_until = None, None
             self._fetch, self._fetched_at = fetch, now
+            if fetch.failures:
+                _event(
+                    "market_quotes_partial",
+                    failed={key: failure.kind for key, failure in sorted(fetch.failures.items())},
+                )
             for indicator_id, quote in fetch.quotes.items():
                 self._last_good[indicator_id] = (quote, now)
             return fetch, None, now

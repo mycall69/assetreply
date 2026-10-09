@@ -130,7 +130,7 @@
   - 실패는 `MARKET_QUOTE_FAILURE_CACHE_SECONDS`(기본 10)만 기억한다
 - **빠진 심볼**: spark 응답에 없거나 값이 깨진 심볼만 `chart?range=1d&interval=1d`로 따로 부른다. spark 자체가 실패하면(429·5xx) 따로 부르지 않는다 — 한도 신호를 키우지 않는다
 - **마지막 성공 값**: 지표마다 메모리에 둔다. 실패하면 그 값과 기준 시각을 "새로 받지 못함"과 함께 보인다(FR-009). 앱을 다시 띄우면 없다
-- **실패 기록**(반복 2026-10-10): 출처 실패는 `collection.log`에 사건 한 줄이다 — 응답 전체 실패 `market_quotes_failed{kind, message}`, 일부 지표만 실패 `market_quotes_partial{failed: {지표: 종류}}`.
+- **실패 기록**(반복 2026-10-10): 출처 실패는 `collection.log`에 사건 한 줄이다 — 응답 전체 실패 `market_quotes_failed{kind, detail}`, 일부 지표만 실패 `market_quotes_partial{failed: {지표: 종류}}`.
   실패 기억(10초) 안의 재요청은 출처를 부르지 않으므로 남기지 않는다. 성공은 남기지 않는다(30초마다 — 로그가 넘친다)
 - **저장하지 않는다**: 현재 시세는 DB에 넣지 않는다(시장 환율 포함 — 명확화 2). 잠정 → 확정 추적은 R14-4의 청크 원본·개정 표다(plan Complexity Tracking)
 
@@ -292,7 +292,7 @@
 - **요청 머리**: 브라우저형 UA는 필수다. `us`는 aiohttp 기본 UA·`curl`이면 곧바로 429였다(실측). `NEWS_USER_AGENT`(기본은 주식 클라이언트와 같은 꼴), `Accept-Language`는 칸마다(ko-KR·en-US·ja-JP)
 - **응답 머리 한도**: `us` 화면의 `Content-Security-Policy` 머리 한 줄이 약 19.5KB다(실측 T081). aiohttp 기본(8,190바이트)이면 본문 전에 400 오류라 세션을 `max_field_size` 64KB로 연다
 - **실패 분류**: 연결 오류·시간 초과·5xx는 한 번 더 시도(기본 2번), 403 `blocked`·429 `rate_limited`는 곧바로, 그 밖의 4xx는 `connection`이다(질의 형식이 바뀌어 거절돼도 같다)
-- **실패 기록**(반복 2026-10-10): 출처를 부를 때마다 `collection.log`에 `news_fetch{source, status: ok|failed, items | reason}` 한 줄이다 — 캐시 안의 재요청은 남지 않는다(SC-008 확인 수단)
+- **실패 기록**(반복 2026-10-10): 출처를 부를 때마다 `collection.log`에 `news_fetch{source, status: ok|failed, items | reason·detail}` 한 줄이다 — 캐시 안의 재요청은 남지 않는다(SC-008 확인 수단)
 - **캐시**: 서버 메모리
   - 성공은 `NEWS_CACHE_SECONDS`(기본 600) 동안 둔다
   - 실패는 `NEWS_FAILURE_CACHE_SECONDS`(기본 60)부터 시작해, 연달아 실패하면 두 배씩 600까지 늘린다(백오프)

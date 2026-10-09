@@ -212,7 +212,7 @@ async def test_응답_전체_실패는_한_줄이고_기억_안은_없다(monkey
     assert events == [
         (
             "market_quotes_failed",
-            {"kind": "rate_limited", "message": "시세 출처의 호출 한도를 소진했습니다."},
+            {"kind": "rate_limited", "detail": "시세 출처의 호출 한도를 소진했습니다."},
         )
     ]
 
@@ -232,3 +232,8 @@ async def test_성공만이면_남기지_않는다(monkeypatch: MonkeyPatch) -> 
     clock, source = Clock(), Source()
     await service(source, clock).quotes_body()
     assert events == []
+
+
+def test_실제_로거에_남겨도_예외가_없다() -> None:
+    """`message` 같은 `LogRecord` 예약 이름을 칸으로 쓰면 로거가 예외를 낸다(대역은 모른다)."""
+    market_quotes._event("market_quotes_failed", kind="connection", detail="연결 실패")

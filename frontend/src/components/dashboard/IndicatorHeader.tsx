@@ -15,6 +15,8 @@ export const FAILURE_LABELS: Record<string, string> = {
   blocked: "출처가 막음",
   invalid_body: "출처 응답을 읽지 못함",
   not_found: "출처에 없음",
+  // 환율 그래프 — 외환 수집(001)이 실패했다. 문구는 외환 수집 기록의 것이다(반복 2026-10-10, FR-018)
+  fx_collection: "외환 수집 실패",
 };
 
 export function failureLabel(kind: string | null | undefined): string {
