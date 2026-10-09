@@ -7,8 +7,8 @@
  * (`detail/*`). 응답은 모달 스토어가 메뉴 경로에서 받는다 — 이 부품은 계산하지 않는다(헌법 원칙 VI).
  *
  * - `role="dialog"`·`aria-modal`. ×·Esc·바깥(배경) 누름으로 닫는다
- * - 열면 포커스가 닫기 단추로, 닫으면 연 단추로 돌아간다 — 연 단추가 포커스를 받지 못했으면(단추를 눌러도 포커스를 주지 않는 브라우저) 그 줄의
- *   단추(`data-simulate-key`)를 찾아 돌아간다. **Tab·Shift+Tab은 모달 안에서 돈다** — `aria-modal`만으로는 브라우저가 가두지 않는다
+ * - 열면 포커스가 닫기 단추로, 닫으면 **그 줄의 단추**(`data-simulate-key`)로 돌아간다 — 연 순간의 포커스로 돌아가지 않는다. 단추를 눌러도 포커스를
+ *   주지 않는 경우(프로그램 클릭, macOS Safari) 그 포커스는 검색 칸 같은 다른 곳이다(T104 실측). 그 줄의 단추가 없으면 연 순간의 포커스다. **Tab·Shift+Tab은 모달 안에서 돈다** — `aria-modal`만으로는 브라우저가 가두지 않는다
  *   (뒤의 비교 화면 단추에 닿으면 보이지 않는 곳에서 비교를 다시 실행한다 — FR-011b 실패 양상)
  * - 열린 동안 배경(`body`) 스크롤을 잠그고 닫으면 되돌린다
  * - 수집 중(202)은 진행을 구독하지 않고 까닭과 다시 시도만이다(R13-19)
@@ -96,8 +96,8 @@ export function SimulationModal() {
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = overflow;
-      const back = returnTo.current !== null && document.contains(returnTo.current) ? returnTo.current
-        : document.querySelector<HTMLElement>(`[data-simulate-key="${key.replace(/["\\]/g, "\\$&")}"]`);
+      const row = document.querySelector<HTMLElement>(`[data-simulate-key="${key.replace(/["\\]/g, "\\$&")}"]`);
+      const back = row ?? (returnTo.current !== null && document.contains(returnTo.current) ? returnTo.current : null);
       back?.focus();
     };
   }, [key]);
