@@ -588,7 +588,7 @@ UTC 일봉 시가, 예금은 발표 금리와 %p 차이(등락률 "—"), 부동
 - [X] T108 [P] `frontend/tests/formatPercentGrouping.test.ts` — `lib/format.formatPercent` (FR-021, SC-012)
   - 1,000% 이상은 세 자리마다 쉼표(`"17.6191"` → `+1,761.91%`, 음수 `-1,234.50%`, `+12,345,678.90%`), 1,000% 미만은 그대로(`+999.99%`·`+35.80%`·`-0.50%`·`+0.00%`)
   - 소수 자리 인자(`digits`)·자르기(반올림하지 않음) 규칙은 그대로, `lib/format.ts`에 숫자 변환이 늘지 않는다(문자열로만)
-- [ ] T109 `frontend/src/lib/format.ts` — `formatPercent`가 정수부를 문자열로 끊는다 (FR-021)
+- [X] T109 `frontend/src/lib/format.ts` — `formatPercent`가 정수부를 문자열로 끊는다 (FR-021)
 - [ ] T110 검증·게이트·문서 — quickstart 5-15(비교 표·막대·차트 상자, 주식 메뉴 보드의 같은 값), 서버를 내린 채 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .`(백엔드 변경 없음),
   `CLAUDE.md` 013 줄 한 줄, `spec.md` Status (FR-021, SC-012)
 

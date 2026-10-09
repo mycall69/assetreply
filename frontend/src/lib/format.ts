@@ -99,11 +99,18 @@ export function formatAxisNumber(value: number, fractionDigits: number): string 
  * 비율을 백분율로 표시한다. 부호를 항상 붙인다.
  *
  * **색만으로 손익을 구별하지 않는다**(접근성). 부호가 있어야 흑백·저대비에서도 읽힌다.
+ *
+ * 013 반복 2026-10-09c(FR-021) — 정수부를 세 자리마다 쉼표로 끊는다(`+1,761.91%`). 장기 비교에서 수익률이 천 % 단위로 흔해 쉼표가 없으면 자릿수를
+ * 잘못 읽는다. 비교 화면과 네 메뉴 화면이 이 함수 하나를 쓴다 — 같은 값이 화면마다 같은 글자다. 쉼표는 문자열로만 넣는다(헌법 원칙 VI).
  */
 export function formatPercent(value: DecimalString, digits = 2): string {
   const scaled = shiftDecimal(value, 2);
   const sign = scaled.startsWith("-") ? "" : "+";
-  return `${sign}${trimTo(scaled, digits)}%`;
+  const trimmed = trimTo(scaled, digits);
+  const negative = trimmed.startsWith("-");
+  const [whole, fraction] = (negative ? trimmed.slice(1) : trimmed).split(".");
+  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${sign}${negative ? "-" : ""}${grouped}${fraction === undefined ? "" : `.${fraction}`}%`;
 }
 
 /**
