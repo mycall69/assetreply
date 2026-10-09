@@ -22,7 +22,9 @@ export function NewsSection() {
   return (
     <section aria-labelledby="news-heading" className="space-y-3">
       <h2 id="news-heading" className="text-base font-semibold text-gray-900">오늘의 주요 경제 뉴스</h2>
-      <div className="grid gap-4 lg:grid-cols-3">
+      {/* 줄바꿈 flex — 칸의 최소 폭(`NewsColumn`)으로 감긴다. 창 폭 경계(`lg:`)는 사이드바를 뺀 본문 폭을 몰라 1024px에서 세 칸이
+          240px씩 눌렸다(T083) */}
+      <div className="flex flex-wrap gap-4">
         {NEWS_SOURCES.map((source) => (
           <NewsColumn key={source} source={source} state={columns[source]} onRetry={() => void retry(source)} />
         ))}

@@ -56,7 +56,8 @@ export function NewsColumn({ source, state, onRetry, now }: {
   const reference = now ? now.toISOString() : list?.fetchedAt ?? null;
   const ready = state.status === "ready" && list !== null;
   return (
-    <section data-testid="news-column" data-source={source} className="min-w-0 rounded-lg border border-gray-200 p-4">
+    <section data-testid="news-column" data-source={source}
+      className="min-w-0 flex-1 basis-80 rounded-lg border border-gray-200 p-4">
       <header data-testid="news-head" className="mb-2 space-y-0.5">
         <h3 className="text-sm font-semibold text-gray-900">
           {COUNTRY[source]} ·{" "}
