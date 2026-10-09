@@ -6,6 +6,10 @@
 - 출처 실패는 10초만 기억한다
 - 마지막 성공 값이 있으면 그 지표는 `stale` + 실패, 없으면 `failed` + 값 없음이다
 - 한 심볼이 빠지면 그 지표만 실패다
+- **사건**(반복 2026-10-10 T089 — FR-009)
+  - 응답 전체 실패는 `market_quotes_failed`, 일부 지표만 실패는 `market_quotes_partial` 한 줄이다
+  - 실패 기억 안의 재요청은 출처를 부르지 않으므로 줄도 없다
+  - 성공은 남기지 않는다(30초마다라 로그가 넘친다)
 """
 
 from __future__ import annotations
@@ -16,6 +20,9 @@ import datetime as dt
 from collections.abc import Sequence
 from decimal import Decimal
 
+from _pytest.monkeypatch import MonkeyPatch
+
+from src.api.services import market_quotes
 from src.api.services.market_quotes import MarketQuoteService
 from src.config.settings import load_settings
 from src.ingestion.yahoo.errors import StockSourceRateLimited
@@ -183,3 +190,45 @@ async def test_한_지표의_값() -> None:
     q = await svc.quote("sp500")
     assert q is not None and q.value == Decimal("100.000000")
     assert await svc.quote("kospii") is None
+
+
+Events = list[tuple[str, dict[str, object]]]
+
+
+def capture(monkeypatch: MonkeyPatch) -> Events:
+    seen: Events = []
+    monkeypatch.setattr(market_quotes, "_event", lambda name, **fields: seen.append((name, fields)))
+    return seen
+
+
+async def test_응답_전체_실패는_한_줄이고_기억_안은_없다(monkeypatch: MonkeyPatch) -> None:
+    events = capture(monkeypatch)
+    clock, source = Clock(), Source()
+    source.fail = StockSourceRateLimited("시세 출처의 호출 한도를 소진했습니다.")
+    quotes = service(source, clock)
+    await quotes.quotes_body()
+    clock.now += dt.timedelta(seconds=5)
+    await quotes.quotes_body()
+    assert events == [
+        (
+            "market_quotes_failed",
+            {"kind": "rate_limited", "message": "시세 출처의 호출 한도를 소진했습니다."},
+        )
+    ]
+
+
+async def test_일부_지표만_실패는_한_줄이다(monkeypatch: MonkeyPatch) -> None:
+    events = capture(monkeypatch)
+    clock, source = Clock(), Source()
+    source.missing = {"shanghai", "vix"}
+    await service(source, clock).quotes_body()
+    assert events == [
+        ("market_quotes_partial", {"failed": {"shanghai": "not_found", "vix": "not_found"}})
+    ]
+
+
+async def test_성공만이면_남기지_않는다(monkeypatch: MonkeyPatch) -> None:
+    events = capture(monkeypatch)
+    clock, source = Clock(), Source()
+    await service(source, clock).quotes_body()
+    assert events == []

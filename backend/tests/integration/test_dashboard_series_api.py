@@ -8,6 +8,9 @@ contracts A2~A4.
 - 점 한도를 넘으면 실제 점을 골라 줄인다
 - 환율 그래프는 외환 메뉴의 고시 이력과 같은 날 같은 값이다(SC-004). 모자라면 외환 수집 경로에
   넘긴다 — ECOS를 부르지 않는다
+- 반복 2026-10-10(T088): 환율도 대시보드의 진행 경로다(외환 진행 스트림은 사건 이름·모양이 다르다).
+  마지막 외환 수집이 실패했고 받는 중이 아니면 202 `failed{kind: "fx_collection"}`이고 외환 수집을
+  다시 요청하지 않는다 — 다시 물을 때마다 요청하면 풀리지 않는 실패에 ECOS를 계속 부른다
 """
 
 from __future__ import annotations
@@ -25,7 +28,7 @@ from src.api.main import create_app
 from src.api.routes import dashboard_series
 from src.api.services import market_quotes
 from src.config.settings import load_settings
-from src.db.models import FxCoverage, FxRate
+from src.db.models import FxCollectionJob, FxCoverage, FxRate, JobStatus
 from src.db.session import get_session
 from src.repository import market_daily
 from src.simulation.market_quote import MarketQuote, Previous
@@ -269,9 +272,14 @@ async def test_환율은_외환_고시_이력과_같다(client: AsyncClient, ses
     assert all(p["value"] != "7800.000000" for p in body["points"])
 
 
-async def test_환율_이력이_모자라면_외환_수집_경로(client: AsyncClient, monkeypatch) -> None:
-    requested: list[str] = []
+class Queue:
+    """외환 시작 큐 대역 — `in_progress`만 쓴다."""
 
+    def __init__(self, busy: str | None) -> None:
+        self.in_progress = busy
+
+
+def recorder(requested: list[str]):  # type: ignore[no-untyped-def]
     async def ticket(session, code, **_):  # type: ignore[no-untyped-def]
         requested.append(code)
         from src.api.services.collection_gate import CollectionTicket
@@ -280,15 +288,137 @@ async def test_환율_이력이_모자라면_외환_수집_경로(client: AsyncC
             code, "queued", None, None, f"/api/fx/collection/stream?currency={code}"
         )
 
-    monkeypatch.setattr(dashboard_series, "ensure_background_job", ticket)
+    return ticket
+
+
+FINISHED = dt.datetime(2026, 10, 9, 22, 0)  # 외환 작업의 종료 시각은 서버 지역 시각(001 관례)
+
+
+async def failed_fx_job(
+    factory: async_sessionmaker[AsyncSession],
+    code: str = "JPY",
+    *,
+    status: JobStatus = JobStatus.FAILED,
+    error: str = "ECOS 인증키가 유효하지 않습니다.",
+) -> None:
+    async with factory() as s:
+        s.add(
+            FxCollectionJob(
+                currency_code=code,
+                range_start=D(1990, 1, 1),
+                range_end=D(2026, 10, 9),
+                status=status,
+                chunks_total=10,
+                chunks_done=0 if status is JobStatus.FAILED else 3,
+                finished_at=FINISHED,
+                last_error=error,
+            )
+        )
+        await s.commit()
+
+
+def utc_z(local: dt.datetime) -> str:
+    return local.astimezone(dt.UTC).replace(tzinfo=None).isoformat() + "Z"
+
+
+async def test_환율_이력이_모자라면_외환_수집_경로(client: AsyncClient, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    requested: list[str] = []
+    monkeypatch.setattr(dashboard_series, "ensure_background_job", recorder(requested))
+    monkeypatch.setattr(dashboard_series, "get_queue", lambda: Queue(None))
     res = await client.get("/api/dashboard/indicators/jpy/series")
     assert res.status_code == 202
     body = res.json()
-    assert (
-        body["status"] == "collecting"
-        and body["progressUrl"] == "/api/fx/collection/stream?currency=JPY"
-    )
+    # 014 승인 2026-10-10 — 진행 주소가 외환 진행 스트림이 아니라 대시보드 진행 경로다(T088)
+    assert body["status"] == "collecting" and body["failure"] is None
+    assert body["progressUrl"] == "/api/dashboard/indicators/jpy/progress"
+    assert set(body["progress"]) == {"firstDay", "coveredFrom", "coveredThrough", "remainingDays"}
     assert requested == ["JPY"]
+
+
+@pytest.mark.parametrize("status", [JobStatus.FAILED, JobStatus.PARTIAL])
+async def test_환율_외환_수집이_실패했으면_failed이고_다시_요청하지_않는다(
+    client: AsyncClient, session_factory, monkeypatch, status: JobStatus
+) -> None:  # type: ignore[no-untyped-def]
+    requested: list[str] = []
+    monkeypatch.setattr(dashboard_series, "ensure_background_job", recorder(requested))
+    monkeypatch.setattr(dashboard_series, "get_queue", lambda: Queue(None))
+    await failed_fx_job(session_factory, status=status)
+    res = await client.get("/api/dashboard/indicators/jpy/series")
+    assert res.status_code == 202
+    body = res.json()
+    assert body["status"] == "failed"
+    assert body["failure"] == {
+        "kind": "fx_collection",
+        "message": "ECOS 인증키가 유효하지 않습니다.",
+        "at": utc_z(FINISHED),
+    }
+    assert body["progressUrl"] == "/api/dashboard/indicators/jpy/progress"
+    assert requested == []
+
+
+async def test_환율_큐가_그_통화를_처리_중이면_실패보다_받는_중이다(
+    client: AsyncClient, session_factory, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    requested: list[str] = []
+    monkeypatch.setattr(dashboard_series, "ensure_background_job", recorder(requested))
+    monkeypatch.setattr(dashboard_series, "get_queue", lambda: Queue("JPY"))
+    await failed_fx_job(session_factory)
+    body = (await client.get("/api/dashboard/indicators/jpy/series")).json()
+    assert body["status"] == "collecting" and body["failure"] is None
+
+
+async def test_환율_다시_시도는_외환_수집을_요청한다(
+    client: AsyncClient, session_factory, monkeypatch
+) -> None:  # type: ignore[no-untyped-def]
+    requested: list[str] = []
+    monkeypatch.setattr(dashboard_series, "ensure_background_job", recorder(requested))
+    await failed_fx_job(session_factory)
+    res = await client.post("/api/dashboard/indicators/jpy/collect")
+    assert res.status_code == 202
+    assert requested == ["JPY"]
+
+
+async def test_환율_진행_스트림(session_factory, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    monkeypatch.setattr(dashboard_series, "utc_now", lambda: NOW)
+    monkeypatch.setattr(dashboard_series, "get_queue", lambda: Queue(None))
+    async with session_factory() as s:
+        frames = [f async for f in dashboard_series.stream_body(s, "jpy", max_frames=1)]
+    event, data = frames[0].strip().split("\n")
+    assert event == "event: snapshot"
+    assert set(json.loads(data.removeprefix("data: "))) == {
+        "firstDay",
+        "coveredFrom",
+        "coveredThrough",
+        "remainingDays",
+    }
+    await failed_fx_job(session_factory)
+    async with session_factory() as s:
+        frames = [f async for f in dashboard_series.stream_body(s, "jpy", max_frames=3)]
+    event, data = frames[-1].strip().split("\n")
+    assert event == "event: failed"
+    assert json.loads(data.removeprefix("data: ")) == {
+        "id": "jpy",
+        "kind": "fx_collection",
+        "message": "ECOS 인증키가 유효하지 않습니다.",
+    }
+    days = weekdays(D(2026, 9, 1), D(2026, 10, 8))
+    async with session_factory() as s:
+        for i, d in enumerate(days):
+            s.add(
+                FxRate(
+                    currency_code="JPY",
+                    quote_date=d,
+                    base_rate=Decimal("900") + i,
+                    quote_unit=100,
+                    source="ecos",
+                    is_provisional=False,
+                )
+            )
+        s.add(FxCoverage(currency_code="JPY", covered_from=days[0], covered_through=D(2026, 10, 9)))
+        await s.commit()
+    async with session_factory() as s:
+        frames = [f async for f in dashboard_series.stream_body(s, "jpy", max_frames=3)]
+    assert frames[-1].startswith("event: completed")
 
 
 async def test_없는_지표는_404(client: AsyncClient) -> None:

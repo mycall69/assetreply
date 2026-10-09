@@ -7,6 +7,9 @@
   시간이 `retryAfterSeconds`다
 - **단일 비행**: 같은 칸의 동시 요청은 출처를 한 번 부른다
 - **칸 사이**: 한 칸의 실패가 다른 칸에 영향이 없다
+- **사건**(반복 2026-10-10 T089 — FR-023, SC-008): 출처를 부를 때마다 `news_fetch` 한 줄이다
+  - 캐시·실패 기억 안의 재요청은 출처를 부르지 않으므로 줄도 없다
+  - 운영자가 캐시가 출처 호출을 막는지 이 줄로 본다
 """
 
 from __future__ import annotations
@@ -15,6 +18,9 @@ import asyncio
 import dataclasses
 import datetime as dt
 
+from _pytest.monkeypatch import MonkeyPatch
+
+from src.api.services import news_cache
 from src.api.services.news_cache import NewsCache
 from src.config.settings import load_settings
 from src.ingestion.news.errors import NewsConnectionError, NewsError, NewsParseEmpty
@@ -265,3 +271,44 @@ class Test칸_사이:
         assert kr["status"] == "ok" and not pending.done()
         hold.set()
         assert (await pending)["status"] == "ok"
+
+
+Events = list[tuple[str, dict[str, object]]]
+
+
+def capture(monkeypatch: MonkeyPatch) -> Events:
+    seen: Events = []
+    monkeypatch.setattr(news_cache, "_event", lambda name, **fields: seen.append((name, fields)))
+    return seen
+
+
+class Test사건:
+    async def test_부를_때마다_한_줄이고_캐시_안은_없다(self, monkeypatch: MonkeyPatch) -> None:
+        events = capture(monkeypatch)
+        clock = Clock()
+        news = cache(clock, FakeSource(clock))
+        await news.body("kr")
+        clock.advance(599)
+        await news.body("kr")
+        assert events == [("news_fetch", {"source": "kr", "status": "ok", "items": 1})]
+
+    async def test_실패는_까닭과_함께이고_기억_안은_없다(self, monkeypatch: MonkeyPatch) -> None:
+        events = capture(monkeypatch)
+        clock = Clock()
+        source = FakeSource(clock)
+        source.failures["us"] = NewsConnectionError("연결하지 못했습니다.")
+        news = cache(clock, source)
+        await news.body("us")
+        clock.advance(30)
+        await news.body("us")
+        assert events == [
+            (
+                "news_fetch",
+                {
+                    "source": "us",
+                    "status": "failed",
+                    "reason": "connection",
+                    "message": "연결하지 못했습니다.",
+                },
+            )
+        ]

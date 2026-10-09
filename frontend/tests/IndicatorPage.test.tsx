@@ -130,6 +130,21 @@ describe("받는 중·실패·없는 지표", () => {
     expect(screen.getByRole("button", { name: "다시 시도" })).toBeInTheDocument();
   });
 
+  it("환율 그래프의 외환 수집 실패는 그 까닭과 외환 수집 기록의 문구(반복 2026-10-10 T090)", async () => {
+    // 외환 수집이 실패하면 "받는 중"에 머물지 않는다. 문구는 외환 수집 기록의 것이다 — 종류 글자만으로는 무엇을 고칠지 모른다(FR-018).
+    mockGet(collectingOf({
+      status: "failed",
+      indicator: { id: "jpy", name: "엔(100엔)" },
+      failure: { kind: "fx_collection", message: "ECOS 인증키가 유효하지 않습니다.", at: "2026-10-09T13:00:00Z" },
+      progressUrl: "/api/dashboard/indicators/jpy/progress",
+    }));
+    render(<IndicatorView id="jpy" unit="daily" />);
+    await waitFor(() => expect(screen.getByText(/이력을 받지 못했습니다 — 외환 수집 실패/)).toBeInTheDocument());
+    expect(screen.getByText("ECOS 인증키가 유효하지 않습니다.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "다시 시도" })).toBeInTheDocument();
+    expect(screen.queryByText(/이력을 받는 중입니다/)).toBeNull();
+  });
+
   it("없는 지표는 안내와 대시보드 링크", async () => {
     mockGet(new ApiError(404, "unknown_indicator", "없는 지표입니다"));
     render(<IndicatorView id="kospii" unit="daily" />);
