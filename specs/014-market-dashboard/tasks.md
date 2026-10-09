@@ -517,7 +517,7 @@ description: "Task list for 014-market-dashboard"
     - 주의 문단: 대시보드 수집 워커(아홉째 태스크)·Yahoo 관문을 주식과 함께 씀, 대시보드는 ECOS를 부르지 않음, 시장 환율은 저장하지 않음, `zoneinfo` 날짜, 가드 글자(`backfill`·"전일 값"), 개발 DB `alembic upgrade head`.
   - `README.md`: 기능 설명과 출처 표기(Yahoo Finance·한국은행 ECOS·네이버 증권·Yahoo Finance·Yahoo!ファイナンス).
   - `spec.md` Status를 갱신한다.
-- [ ] T086 품질 게이트를 돌린다(서버를 내린 채) (헌법 품질 게이트, SC-010)
+- [X] T086 품질 게이트를 돌린다(서버를 내린 채) (헌법 품질 게이트, SC-010)
   - 백엔드 `pytest -q --cov=src`(커버리지 80% 이상)·`mypy src`·`ruff check --no-cache src tests`, 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .`를 돌린다.
   - 통과 수와 종료 코드를 Notes에 적는다.
   - 이 기능 전 커밋(`90e848b`)과 견주어 바뀌거나 지워진 기존 테스트 파일이 승인 목록(T018)뿐인지 `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests`로 확인한다.
@@ -619,7 +619,11 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
   - US2 구현(2026-10-10): 기존 테스트 승인 변경 5건(사용자 사전 승인) — lifespan 태스크 수 8 → 9(부동산·가상자산·예금 워커 테스트), SSE 머리글 검사에 지표 수집 진행·SSE 파일 목록에 `dashboard_series.py`. 예상 목록(R14-16)에 없던 변경이다 — 아홉째 태스크와 새 SSE 경로가 기존 테스트의 목록에 걸렸다. 구현을 치운 상태에서 5건 실패 확인 뒤 `test(014)` 커밋. `indicator_series`는 세션과 저장소 모듈을 받는다(외환 `series_query`와 같은 꼴 — 시세 캐시만 Protocol `QuoteLookup`). `lib/chartSeries.splitSeriesAtGaps`의 결측 인자를 사유 글자로 넓혔다(형만 — 지표의 `missing`도 끊는다, 동작 불변)
   - T080 파싱 시간(2026-10-10, 100번 평균): 네이버 JSON 10.7KB 0.09ms · Yahoo US 줄인 본 47KB 2.16ms(원본 952KB 14.35ms) · Yahoo JP 줄인 본 8.7KB 0.11ms(원본 86KB 0.14ms) — 모두 50ms 아래라 `run_in_executor`로 옮기지 않았다. 원본 두 본문에서도 줄인 본과 같은 10개를 읽는다
   - US3 구현(2026-10-10): 계약 테스트 T065의 기대 제목 하나를 고쳤다 — 출처 제목에 `&nbsp;`(U+00A0) 둘이 있는데 받아 적을 때 공백으로 보였다. 파서는 원문 그대로가 맞다(FR-021 — 같은 기사 가리기만 공백으로 접는다). 테스트 쪽 받아 적기 잘못이라 기대값을 고쳤다(사용자 사전 승인). 새 모듈이 생겨 ruff가 테스트 임포트 차례를 다시 정렬했다(I001)
-  - T086 게이트: (구현 중 채움)
+  - T086 게이트(2026-10-10, 서버를 내린 채): 백엔드 `pytest` 3,246 passed(10분 28초)·커버리지 96%·`mypy` 265파일 통과·`ruff` 통과, 프론트엔드 `npm test` 206파일 1,813 passed·`tsc`·`eslint` 통과(모두 종료 코드 0)
+    - `90e848b` 이후 바뀐 기존 테스트 파일은 여섯이고 지운 파일은 없다(`git diff --stat --diff-filter=MD`) — 승인 목록과 같다
+      - T018 승인: `Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts`
+      - US2 승인: `test_apt_worker.py`·`test_crypto_worker.py`·`test_deposit_worker.py`·`test_progress_sse.py`
+    - 실측 결함 셋은 `test(014)` → `fix(014)`로 고쳤다 — Yahoo 긴 응답 머리·받은 시각의 마이크로초(T081), 1024px 뉴스 칸(T083)
 
 ---
 
