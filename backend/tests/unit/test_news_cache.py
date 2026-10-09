@@ -16,10 +16,9 @@ import dataclasses
 import datetime as dt
 
 from src.api.services.news_cache import NewsCache
+from src.config.settings import load_settings
 from src.ingestion.news.errors import NewsConnectionError, NewsError, NewsParseEmpty
 from src.ingestion.news.types import NewsItem, NewsList, SourceKey
-
-from src.config.settings import load_settings
 
 START = dt.datetime(2026, 10, 9, 13, 0, tzinfo=dt.UTC)
 

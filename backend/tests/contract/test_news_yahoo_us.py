@@ -19,11 +19,11 @@ from pathlib import Path
 from typing import Self
 
 import pytest
+
+from src.config.settings import load_settings
 from src.ingestion.news import yahoo_us
 from src.ingestion.news.client import NewsClient
 from src.ingestion.news.errors import NewsParseEmpty, NewsRateLimited
-
-from src.config.settings import load_settings
 
 FIX = Path(__file__).parent / "fixtures" / "news"
 UA = "Mozilla/5.0 (테스트) Chrome/154.0.0.0 Safari/537.36"
@@ -38,7 +38,8 @@ FIRST_TEN = [
     "Oracle trucks natural gas to AI data centers amid pipeline delays",
     "Cash App $15 million data breach settlement payments October 2026",
     "Blue Origin plans $555 million satellite factory in Hutto, Texas",
-    "Wall St set to open higher as oil slips; telecoms hit by SpaceX spectrum deal",
+    # 출처 제목의 `&nbsp;`(U+00A0)는 원문 그대로다(FR-021) — 같은 기사 가리기만 공백으로 접는다
+    "Wall St set to open higher as oil slips;\xa0telecoms hit\xa0by SpaceX spectrum deal",
     "ExxonMobil blocked $5B Kashagan environmental fine settlement",
 ]
 

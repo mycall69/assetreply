@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     import asyncio
     import contextlib
 
-    from src.api.services import apt_naver_link, market_quotes
+    from src.api.services import apt_naver_link, market_quotes, news_cache
     from src.config.settings import load_settings
     from src.db.session import get_session_factory
     from src.ingestion.datagokr.client import DataGoKrClient
@@ -78,6 +78,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from src.ingestion.investing.client import InvestingClient
     from src.ingestion.kiwoom.client import KiwoomClient
     from src.ingestion.naver_land.client import NaverLandClient
+    from src.ingestion.news.client import NewsClient
     from src.ingestion.yahoo.client import YahooStockClient
     from src.ingestion.yahoo.gate import get_yahoo_gate
     from src.ingestion.yahoo.market import YahooMarketClient
@@ -168,6 +169,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await market_client.__aenter__()
     market_quotes.set_shared_service(market_quotes.MarketQuoteService(
         market_client, market_quotes.DbMarketHistory(factory), settings))
+    # 014 — 대시보드 뉴스 세 칸. 저장하지 않고 메모리 캐시뿐이다(FR-023). 요청 경로만 쓴다 — 수집
+    # 태스크가 없다.
+    news_client = NewsClient(settings)
+    await news_client.__aenter__()
+    news_cache.set_shared_service(news_cache.NewsCache(news_client, settings))
 
     tasks = [
         asyncio.create_task(worker_loop(
@@ -215,6 +221,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await naver_client.__aexit__(None, None, None)
         market_quotes.set_shared_service(None)
         await market_client.__aexit__(None, None, None)
+        news_cache.set_shared_service(None)
+        await news_client.__aexit__(None, None, None)
         await shutdown_engine()
 
 
@@ -464,6 +472,7 @@ def create_app() -> FastAPI:
     from src.api.routes import crypto_settings as crypto_settings_routes
     from src.api.routes import crypto_simulation as crypto_simulation_routes
     from src.api.routes import daily as daily_routes
+    from src.api.routes import dashboard_news as dashboard_news_routes
     from src.api.routes import dashboard_quotes as dashboard_quotes_routes
     from src.api.routes import dashboard_series as dashboard_series_routes
     from src.api.routes import deposit_installment as deposit_installment_routes
@@ -545,6 +554,7 @@ def create_app() -> FastAPI:
     # 014 — 대시보드. 기존 경로 뒤에 둔다(contracts A6 — 기존 응답 불변).
     app.include_router(dashboard_quotes_routes.router)
     app.include_router(dashboard_series_routes.router)
+    app.include_router(dashboard_news_routes.router)
 
     return app
 

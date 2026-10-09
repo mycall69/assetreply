@@ -1830,3 +1830,39 @@ export interface IndicatorCollecting {
   progressUrl: string;
   jobId?: number | null;
 }
+
+/** 뉴스 칸(014 US3 — contracts A5). */
+export type NewsSourceKey = "kr" | "us" | "jp";
+
+export type NewsFailureReason = "connection" | "blocked" | "rate_limited" | "parse_empty" | "invalid_body";
+
+/** 뉴스 한 줄. 시각은 셋 가운데 하나만 있거나 없다 — 정확한 시각·날짜만·상대 표기 글자. */
+export interface NewsItem {
+  rank: number;
+  title: string;
+  url: string;
+  publisher: string | null;
+  publishedAt: string | null;
+  publishedDate: string | null;
+  publishedText: string | null;
+  paid: boolean;
+}
+
+export interface NewsFailure {
+  reason: NewsFailureReason;
+  message: string;
+  /** 실패 기억이 남은 초. 그 안의 다시 시도는 출처를 부르지 않고 같은 실패다. */
+  retryAfterSeconds: number | null;
+}
+
+/** `GET /api/dashboard/news/{source}`. 출처가 실패해도 200이다(`status: "failed"`). */
+export interface NewsListResponse {
+  source: NewsSourceKey;
+  sourceName: string;
+  sourceUrl: string;
+  list: string;
+  status: "ok" | "failed";
+  fetchedAt: string | null;
+  items: NewsItem[];
+  failure: NewsFailure | null;
+}

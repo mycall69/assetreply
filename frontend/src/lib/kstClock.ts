@@ -54,6 +54,14 @@ export function formatZonedDate(iso: string, timeZone: string): string {
   return `${p.month}-${p.day}`;
 }
 
+/** 그 시간대의 "YYYY-MM-DD" — 두 시각이 같은 날인지 견준다. 읽을 수 없으면 글자 그대로. */
+export function formatZonedDay(iso: string, timeZone: string): string {
+  const date = parse(iso);
+  if (!date) return iso;
+  const p = parts(date, timeZone);
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
 /** 거래일 "YYYY-MM-DD" → "MM-DD". */
 export function shortDate(day: string): string {
   return day.length >= 10 ? day.slice(5, 10) : day;

@@ -407,7 +407,7 @@ description: "Task list for 014-market-dashboard"
 - [X] T060 [US2] `frontend/src/components/dashboard/IndicatorHeader.tsx`·`UnitPicker.tsx`·`IndicatorChart.tsx`·`SeriesCollecting.tsx` — contracts D3·D4 (FR-010~FR-016, FR-018)
   - `IndicatorChart`는 새 부품이다. `FxChart`·`PerformanceChart`를 고치지 않는다.
 - [X] T061 [US2] `frontend/src/app/dashboard/[indicator]/page.tsx` — 서버 컴포넌트가 `params`·`searchParams`(Promise)를 풀어 클라이언트 부품(`components/dashboard/IndicatorView.tsx`)에 `id`·`unit`을 넘긴다. 틀린 단위는 `daily`다. `IndicatorView`는 마운트에 `marketQuotesStore.load()`·`startPolling()`, 언마운트에 `stopPolling()`을 부른다(머리 값도 보이는 동안 다시 받는다) (FR-008, FR-010, FR-011, R14-14)
-- [ ] T062 [US2] 실측 확인 — quickstart 5-4~5-6을 확인하고 `quickstart.md` 8에 기록한다 (FR-010, FR-016, FR-017, FR-018, SC-004, SC-006)
+- [X] T062 [US2] 실측 확인 — quickstart 5-4~5-6을 확인하고 `quickstart.md` 8에 기록한다 (FR-010, FR-016, FR-017, FR-018, SC-004, SC-006)
   - **5-5**: 임시 백엔드(환경 변수로 DB 이름·포트를 덮는다)의 빈 표에서 처음 과거 구간 수집 시간·청크 수·429 유무를 잰다.
   - 저장된 첫 날을 지표마다 출처 `firstTradeDate`와 대조한다.
 
@@ -426,7 +426,7 @@ description: "Task list for 014-market-dashboard"
 
 ### Preparation for User Story 3
 
-- [ ] T063 [US3] 뉴스 픽스처를 옮긴다 — `backend/tests/contract/fixtures/news/` + `README.md` (FR-020, R14-13)
+- [X] T063 [US3] 뉴스 픽스처를 옮긴다 — `backend/tests/contract/fixtures/news/` + `README.md` (FR-020, R14-13)
   - 작업용 임시 폴더 `scratchpad/014-news/`의 본문만 옮긴다(주소·머리 없이).
   - 옮길 것:
     - `naver_api_mainnews_p1_s20.json` — MBN 중복 두 건 포함, 15개로 줄인 사본
@@ -438,58 +438,58 @@ description: "Task list for 014-market-dashboard"
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T064 [P] [US3] `backend/tests/contract/test_news_naver.py` — `ingestion/news/naver` (FR-020, FR-021, FR-022, FR-024, SC-007, SC-008)
+- [X] T064 [P] [US3] `backend/tests/contract/test_news_naver.py` — `ingestion/news/naver` (FR-020, FR-021, FR-022, FR-024, SC-007, SC-008)
   - 주요뉴스 15개 → 같은 제목은 한 번(MBN), 위에서부터 10개다.
   - 칸: 제목 원문·언론사, `datetime` KST → UTC, 링크 `https://n.news.naver.com/article/{officeId}/{articleId}`.
   - `n.news.naver.com` 밖 링크가 없다.
   - 요청 질의: `category=MAINNEWS`·`page=1`·`pageSize=15`. UA·`Accept-Language: ko-KR`이 붙는다.
   - `articles` 없는 본문 → `parse_empty`, 403 → `blocked`, 429 → `rate_limited`, 연결 오류 → `connection`이다.
-- [ ] T065 [P] [US3] `backend/tests/contract/test_news_yahoo_us.py` — `ingestion/news/yahoo_us` (FR-020, FR-021, FR-022, FR-024, SC-007, SC-008)
+- [X] T065 [P] [US3] `backend/tests/contract/test_news_yahoo_us.py` — `ingestion/news/yahoo_us` (FR-020, FR-021, FR-022, FR-024, SC-007, SC-008)
   - 스트림 카드 10개, 광고 칸(`ad-container`) 제외다.
   - 칸: `a[title]` 제목·`href` 절대 주소·`span.publisher`·`span.published-date` 글자 그대로(`publishedText`), `publishedAt`은 `None`.
   - `finance.yahoo.com` 밖·`javascript:` 링크 줄은 버리고, 상대 주소는 절대 주소로 바꾼다(가공 본문).
   - 목록 칸 없는 HTML → `parse_empty`, 429 본문 → `rate_limited`다.
-- [ ] T066 [P] [US3] `backend/tests/contract/test_news_yahoo_jp.py` — `ingestion/news/yahoo_jp` (FR-020, FR-021, FR-022, FR-024, SC-007, SC-008)
+- [X] T066 [P] [US3] `backend/tests/contract/test_news_yahoo_jp.py` — `ingestion/news/yahoo_jp` (FR-020, FR-021, FR-022, FR-024, SC-007, SC-008)
   - `__PRELOADED_STATE__` → `title.name == "ヘッドライン"` 목록의 위 10개다.
   - **시각**: `"22:20"` + `currentDateTime`의 JST 날짜 → `publishedAt`, `"10/8"` → `publishedDate`. 기준이 1월인데 `"12/30"`이면 지난해다.
   - `isPaidArticle` → `paid`다.
   - `finance.yahoo.co.jp` 밖 링크 줄은 버린다.
   - 상태 키 없는 HTML → `parse_empty`다.
-- [ ] T067 [P] [US3] `backend/tests/unit/test_news_cache.py` — `api/services/news_cache` (FR-023, FR-024, R14-13)
+- [X] T067 [P] [US3] `backend/tests/unit/test_news_cache.py` — `api/services/news_cache` (FR-023, FR-024, R14-13)
   - 가짜 `NewsSource`와 가짜 시계를 쓴다.
   - **성공 캐시**: 600초 안 재요청은 출처 0회, 601초 뒤는 1회다.
   - **실패 기억**: 60초 → 연속 실패 120 → 240 → 480 → 600(상한)이고, 성공하면 처음으로 돌아간다. 남은 시간이 `retryAfterSeconds`다.
   - **단일 비행**: 동시 두 요청 = 출처 한 번이다.
   - **칸 사이**: 한 칸의 실패가 다른 칸에 영향이 없다.
-- [ ] T068 [P] [US3] `backend/tests/integration/test_dashboard_news_api.py` — A5 (FR-020, FR-023, FR-024, SC-007, SC-008, contracts A5)
+- [X] T068 [P] [US3] `backend/tests/integration/test_dashboard_news_api.py` — A5 (FR-020, FR-023, FR-024, SC-007, SC-008, contracts A5)
   - 칸 셋의 성공 본문 칸 이름이 contracts A5와 같다(`sourceName`·`sourceUrl`·`list`·`items`).
   - 한 칸 실패여도 200이고 `status: "failed"` + `failure`다. 다른 칸은 성공이다.
   - 틀린 `source`는 404다. 캐시 안 재요청은 출처 스텁 호출 0이다.
-- [ ] T069 [P] [US3] `frontend/tests/newsStore.test.ts` — `stores/newsStore` (FR-024)
+- [X] T069 [P] [US3] `frontend/tests/newsStore.test.ts` — `stores/newsStore` (FR-024)
   - `loadAll`이 셋을 동시에 부르고 온 것부터 상태를 바꾼다.
   - `retry(source)`는 그 칸만 다시 부른다.
-- [ ] T070 [P] [US3] `frontend/tests/NewsSection.test.tsx` — `components/dashboard/NewsSection`·`NewsColumn` (FR-020, FR-021, FR-022, FR-024, FR-025, SC-008, contracts D5)
+- [X] T070 [P] [US3] `frontend/tests/NewsSection.test.tsx` — `components/dashboard/NewsSection`·`NewsColumn` (FR-020, FR-021, FR-022, FR-024, FR-025, SC-008, contracts D5)
   - **칸 머리**: 나라·출처 이름(출처 화면 링크 — 새 탭)·목록 이름·받은 시각이다.
   - **링크**: 줄마다 `target="_blank"`·`rel="noopener noreferrer"`다.
   - **시각**: `publishedAt` → 한국 `HH:mm`(오늘 아니면 `MM-DD HH:mm`), `publishedDate` → `MM-DD`, `publishedText`는 그대로다.
   - **유료**: `paid`면 "유료"를 단다.
   - **실패**: `parse_empty` → "읽지 못함 — 출처 화면이 바뀌었을 수 있음" + [다시 시도]다. 그 밖의 실패 → 까닭 + [다시 시도], `retryAfterSeconds`가 남았으면 "n초 뒤 다시 시도할 수 있습니다"다.
   - **적음**: 10개보다 적으면 있는 만큼이다.
-- [ ] T071 [P] [US3] `frontend/tests/DashboardPageNews.test.tsx` — 대시보드에 뉴스 칸 (FR-024, SC-001, SC-007)
+- [X] T071 [P] [US3] `frontend/tests/DashboardPageNews.test.tsx` — 대시보드에 뉴스 칸 (FR-024, SC-001, SC-007)
   - 뉴스 응답을 붙잡아 둔 채(풀지 않은 Promise) 카드 15개가 먼저 보인다.
   - 세 칸이 응답 차례대로 채워진다. 한 칸 실패에도 다른 칸·카드가 그대로다.
 
 ### Implementation for User Story 3
 
-- [ ] T072 [US3] `backend/src/ingestion/news/types.py`(`NewsItem`·`NewsList` — data-model 6) + `errors.py`(실패 종류) + `client.py`(`NewsClient` — 공통 aiohttp 세션, `NEWS_USER_AGENT`, 칸마다 `Accept-Language`, 타임아웃·재시도) (FR-020, FR-024)
-- [ ] T073 [P] [US3] `backend/src/ingestion/news/naver.py` — 요청 + 순수 파서(`json`) (FR-020, FR-021, FR-022, R14-13)
-- [ ] T074 [P] [US3] `backend/src/ingestion/news/yahoo_us.py` — 요청 + 순수 파서(`html.parser.HTMLParser` 상속 — `data-testid` 기준, 해시 클래스 `yf-*` 금지) (FR-020, FR-021, FR-022, R14-13)
-- [ ] T075 [P] [US3] `backend/src/ingestion/news/yahoo_jp.py` — 요청 + 순수 파서(`window.__PRELOADED_STATE__ =` 뒤를 `json.JSONDecoder().raw_decode`) (FR-020, FR-021, FR-022, R14-13)
-- [ ] T076 [US3] `backend/src/api/services/news_cache.py` — Protocol `NewsSource`, 칸마다 캐시·실패 백오프·단일 비행, 응답 JSON(contracts A5) (FR-023, FR-024)
-- [ ] T077 [US3] `backend/src/api/routes/dashboard_news.py` + `backend/src/api/main.py` — `lifespan`의 `NewsClient`, 라우터 등록 (FR-020, FR-024, contracts A5)
-- [ ] T078 [US3] `frontend/src/lib/dashboardApi.ts`(`fetchNews`) + `frontend/src/lib/types.ts`(뉴스 타입) + `frontend/src/stores/newsStore.ts` — data-model 7 (FR-024)
-- [ ] T079 [US3] `frontend/src/components/dashboard/NewsSection.tsx`·`NewsColumn.tsx` + `frontend/src/app/dashboard/page.tsx`(뉴스 칸·출처 줄) — contracts D1·D5 (FR-020~FR-022, FR-024, FR-025)
-- [ ] T080 [US3] 파싱 시간을 잰다 — 픽스처 본문 셋을 파서로 100번 돌린 평균 (원칙 I, plan Constitution Check)
+- [X] T072 [US3] `backend/src/ingestion/news/types.py`(`NewsItem`·`NewsList` — data-model 6) + `errors.py`(실패 종류) + `client.py`(`NewsClient` — 공통 aiohttp 세션, `NEWS_USER_AGENT`, 칸마다 `Accept-Language`, 타임아웃·재시도) (FR-020, FR-024)
+- [X] T073 [P] [US3] `backend/src/ingestion/news/naver.py` — 요청 + 순수 파서(`json`) (FR-020, FR-021, FR-022, R14-13)
+- [X] T074 [P] [US3] `backend/src/ingestion/news/yahoo_us.py` — 요청 + 순수 파서(`html.parser.HTMLParser` 상속 — `data-testid` 기준, 해시 클래스 `yf-*` 금지) (FR-020, FR-021, FR-022, R14-13)
+- [X] T075 [P] [US3] `backend/src/ingestion/news/yahoo_jp.py` — 요청 + 순수 파서(`window.__PRELOADED_STATE__ =` 뒤를 `json.JSONDecoder().raw_decode`) (FR-020, FR-021, FR-022, R14-13)
+- [X] T076 [US3] `backend/src/api/services/news_cache.py` — Protocol `NewsSource`, 칸마다 캐시·실패 백오프·단일 비행, 응답 JSON(contracts A5) (FR-023, FR-024)
+- [X] T077 [US3] `backend/src/api/routes/dashboard_news.py` + `backend/src/api/main.py` — `lifespan`의 `NewsClient`, 라우터 등록 (FR-020, FR-024, contracts A5)
+- [X] T078 [US3] `frontend/src/lib/dashboardApi.ts`(`fetchNews`) + `frontend/src/lib/types.ts`(뉴스 타입) + `frontend/src/stores/newsStore.ts` — data-model 7 (FR-024)
+- [X] T079 [US3] `frontend/src/components/dashboard/NewsSection.tsx`·`NewsColumn.tsx` + `frontend/src/app/dashboard/page.tsx`(뉴스 칸·출처 줄) — contracts D1·D5 (FR-020~FR-022, FR-024, FR-025)
+- [X] T080 [US3] 파싱 시간을 잰다 — 픽스처 본문 셋을 파서로 100번 돌린 평균 (원칙 I, plan Constitution Check)
   - 한 번이 50ms를 넘는 파서는 `run_in_executor`로 옮기고 계약 테스트를 다시 돌린다.
   - 결과를 Notes에 적는다.
 - [ ] T081 [US3] 실측 확인 — quickstart 5-7·5-8(임시 백엔드에서 `NEWS_US_URL`을 없는 주소로 덮어 한 칸 실패)을 확인하고 `quickstart.md` 8에 기록한다 (FR-020, FR-022, FR-024, SC-007, SC-008)
@@ -617,7 +617,8 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
   - T002 기준 게이트(2026-10-09, 서버를 내린 채): 백엔드 `pytest` 3,034 passed(9분 43초)·커버리지 96%·`mypy` 239파일 통과·`ruff` 통과, 프론트엔드 `vitest` 193파일 1,702 passed·`tsc`·`eslint` 통과(모두 종료 코드 0). 기준 응답(T001)은 작업용 임시 폴더 `014-baseline/before/` 29파일
   - T018 승인(2026-10-10 — 사용자 사전 승인 "중간에 승인이 필요하면 모두 승인"): 실제 실패 7개 = 예상 목록(R14-16)과 같다. `Sidebar.test.tsx` 넷(링크 아님 → 모든 항목 링크, 준비중 1 → 0, 초점 대상 0 → 링크 하나, 링크 목록 + `/dashboard`), `noUnbuiltAssetRoutes.test.ts` 셋(`UNBUILT` → `[]`, 경로 + `/dashboard`, API 정규식에서 `dashboard`). `TopBarTitle.test.ts`는 변경 없음
   - US2 구현(2026-10-10): 기존 테스트 승인 변경 5건(사용자 사전 승인) — lifespan 태스크 수 8 → 9(부동산·가상자산·예금 워커 테스트), SSE 머리글 검사에 지표 수집 진행·SSE 파일 목록에 `dashboard_series.py`. 예상 목록(R14-16)에 없던 변경이다 — 아홉째 태스크와 새 SSE 경로가 기존 테스트의 목록에 걸렸다. 구현을 치운 상태에서 5건 실패 확인 뒤 `test(014)` 커밋. `indicator_series`는 세션과 저장소 모듈을 받는다(외환 `series_query`와 같은 꼴 — 시세 캐시만 Protocol `QuoteLookup`). `lib/chartSeries.splitSeriesAtGaps`의 결측 인자를 사유 글자로 넓혔다(형만 — 지표의 `missing`도 끊는다, 동작 불변)
-  - T080 파싱 시간: (구현 중 채움)
+  - T080 파싱 시간(2026-10-10, 100번 평균): 네이버 JSON 10.7KB 0.09ms · Yahoo US 줄인 본 47KB 2.16ms(원본 952KB 14.35ms) · Yahoo JP 줄인 본 8.7KB 0.11ms(원본 86KB 0.14ms) — 모두 50ms 아래라 `run_in_executor`로 옮기지 않았다. 원본 두 본문에서도 줄인 본과 같은 10개를 읽는다
+  - US3 구현(2026-10-10): 계약 테스트 T065의 기대 제목 하나를 고쳤다 — 출처 제목에 `&nbsp;`(U+00A0) 둘이 있는데 받아 적을 때 공백으로 보였다. 파서는 원문 그대로가 맞다(FR-021 — 같은 기사 가리기만 공백으로 접는다). 테스트 쪽 받아 적기 잘못이라 기대값을 고쳤다(사용자 사전 승인). 새 모듈이 생겨 ruff가 테스트 임포트 차례를 다시 정렬했다(I001)
   - T086 게이트: (구현 중 채움)
 
 ---

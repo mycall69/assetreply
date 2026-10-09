@@ -20,6 +20,8 @@ from typing import Self
 
 import aiohttp
 import pytest
+
+from src.config.settings import Settings, load_settings
 from src.ingestion.news import naver
 from src.ingestion.news.client import NewsClient
 from src.ingestion.news.errors import (
@@ -29,8 +31,6 @@ from src.ingestion.news.errors import (
     NewsParseEmpty,
     NewsRateLimited,
 )
-
-from src.config.settings import Settings, load_settings
 
 FIX = Path(__file__).parent / "fixtures" / "news"
 UA = "Mozilla/5.0 (테스트) Chrome/154.0.0.0 Safari/537.36"

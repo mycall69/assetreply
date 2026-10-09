@@ -20,12 +20,12 @@ from typing import Self
 
 import pytest
 from httpx2 import ASGITransport, AsyncClient
-from src.api.services.news_cache import NewsCache
-from src.ingestion.news.client import NewsClient
 
 from src.api.main import create_app
 from src.api.services import news_cache
+from src.api.services.news_cache import NewsCache
 from src.config.settings import load_settings
+from src.ingestion.news.client import NewsClient
 
 FIX = Path(__file__).parents[1] / "contract" / "fixtures" / "news"
 NOW = dt.datetime(2026, 10, 9, 13, 30, tzinfo=dt.UTC)

@@ -24,11 +24,11 @@ from pathlib import Path
 from typing import Self
 
 import pytest
+
+from src.config.settings import load_settings
 from src.ingestion.news import yahoo_jp
 from src.ingestion.news.client import NewsClient
 from src.ingestion.news.errors import NewsInvalidBody, NewsParseEmpty
-
-from src.config.settings import load_settings
 
 FIX = Path(__file__).parent / "fixtures" / "news"
 UA = "Mozilla/5.0 (테스트) Chrome/154.0.0.0 Safari/537.36"
