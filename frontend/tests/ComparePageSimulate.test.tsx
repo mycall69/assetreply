@@ -74,6 +74,20 @@ describe("투자 시뮬레이션 모달", () => {
     expect([menuAfter.input, menuAfter.summary, menuAfter.rows]).toEqual([menuBefore.input, menuBefore.summary, menuBefore.rows]);
   });
 
+  it("열 때 다른 칸에 포커스가 있었어도 닫으면 그 줄의 단추로 돌아온다", async () => {
+    // T104 실측 — 검색 칸에 포커스가 남은 채 단추를 누르면(단추가 포커스를 받지 못하는 경우) 닫은 뒤 검색 칸으로 돌아갔다.
+    route();
+    render(<ComparePage />);
+    fireEvent.click(screen.getByRole("button", { name: "비교 실행" }));
+    await screen.findByRole("table", { name: "비교 표" });
+    screen.getByRole("searchbox").focus();
+    fireEvent.click(screen.getByRole("button", { name: "SK하이닉스 투자 시뮬레이션" }));
+    await screen.findByRole("dialog");
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "SK하이닉스 투자 시뮬레이션" }));
+  });
+
   it("흐린 동안에도 열리고 그 줄을 낸 실행의 조건으로 부른다", async () => {
     const get = route();
     render(<ComparePage />);
