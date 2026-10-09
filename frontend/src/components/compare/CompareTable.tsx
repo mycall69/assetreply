@@ -62,6 +62,9 @@ const PROVISIONAL_TEXT: Record<ProvisionalKind, string> = {
 
 const won = (value: string | null): string => (value === null ? "—" : formatMoneyWithSymbol(value, "KRW"));
 
+/** 마지막 열("투자 시뮬레이션")은 표의 오른쪽에 붙는다 — 좁은 창에서 표가 가로로 밀려도 단추가 보인다(반복 2026-10-09b, T104 실측). */
+const STICKY_END = "sticky right-0 bg-white";
+
 export const UNIT_HELP = "단가 등락은 1단위 가격만의 변화입니다 — 배당·수수료·세금·환율·적립 시점이 빠져 수익률과 다릅니다. "
   + "주식은 수정주가(분할 반영)입니다";
 
@@ -190,7 +193,8 @@ function OkCells({ row, block, method, summary, onSimulate }: {
   const tone = block.profit === null ? "" : negative ? "text-blue-700" : "text-red-700";
   return (
     <>
-      <td className="px-3 py-2 align-top">
+      {/* 반복 2026-10-09b — 열이 열한 개라 좁은 창에서 이름 칸이 한 글자 폭으로 눌리지 않게 최소 폭, 낱말 단위로 꺾는다(T104 실측). */}
+      <td className="min-w-[8rem] break-keep px-3 py-2 align-top">
         <ExternalLink href={row.href} label={`${row.name} 새 탭에서 보기`}>{row.name}</ExternalLink>
         {block.fx !== null && (
           <p className="text-xs text-gray-500">
@@ -219,10 +223,10 @@ function OkCells({ row, block, method, summary, onSimulate }: {
         {block.returnRate === null ? "—" : formatPercent(block.returnRate)}
         <p className="text-xs text-gray-500">{basis}</p>
       </td>
-      <td className="px-3 py-2 text-right align-top">
+      <td className={`${STICKY_END} px-3 py-2 text-right align-top`}>
         {onSimulate !== undefined && (
           <button type="button" aria-label={`${row.name} 투자 시뮬레이션`} data-simulate-key={row.key} onClick={() => onSimulate(row.key)}
-            className="whitespace-nowrap rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50">
+            className="break-keep rounded border border-gray-300 px-2 py-1 text-xs leading-tight text-gray-700 hover:bg-gray-50">
             투자 시뮬레이션
           </button>
         )}
@@ -267,7 +271,7 @@ function PendingCells({ row, onRetry }: { row: CompareRow; onRetry: (key: string
         {row.name}
         <p className="text-xs text-gray-500">{status}</p>
       </td>
-      {COLUMNS.slice(1).map((c) => <td key={c.key} className="px-3 py-2" />)}
+      {COLUMNS.slice(1).map((c) => <td key={c.key} className={c.key === "simulate" ? `${STICKY_END} px-3 py-2` : "px-3 py-2"} />)}
     </>
   );
 }
@@ -293,7 +297,7 @@ export function CompareTable({ rows, method, sort, onSort, onRetry, onSimulate }
               const active = sort?.key === c.key;
               const key = c.key;
               return (
-                <th key={c.key} scope="col" className="px-3 py-2 font-medium"
+                <th key={c.key} scope="col" className={key === "simulate" ? `${STICKY_END} px-3 py-2 font-medium` : "px-3 py-2 font-medium"}
                   aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : undefined}>
                   {key === "simulate" ? <span className="sr-only">{c.label}</span>
                     : key === "unitStart" || key === "unitAsOf" ? c.label : (
