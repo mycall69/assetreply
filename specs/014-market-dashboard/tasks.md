@@ -492,7 +492,7 @@ description: "Task list for 014-market-dashboard"
 - [X] T080 [US3] 파싱 시간을 잰다 — 픽스처 본문 셋을 파서로 100번 돌린 평균 (원칙 I, plan Constitution Check)
   - 한 번이 50ms를 넘는 파서는 `run_in_executor`로 옮기고 계약 테스트를 다시 돌린다.
   - 결과를 Notes에 적는다.
-- [ ] T081 [US3] 실측 확인 — quickstart 5-7·5-8(임시 백엔드에서 `NEWS_US_URL`을 없는 주소로 덮어 한 칸 실패)을 확인하고 `quickstart.md` 8에 기록한다 (FR-020, FR-022, FR-024, SC-007, SC-008)
+- [X] T081 [US3] 실측 확인 — quickstart 5-7·5-8(임시 백엔드에서 `NEWS_US_URL`을 없는 주소로 덮어 한 칸 실패)을 확인하고 `quickstart.md` 8에 기록한다 (FR-020, FR-022, FR-024, SC-007, SC-008)
   - 10분 안 다시 열기에서 출처 호출이 없음을 서버 로그로 본다.
 
 **Checkpoint**: 세 칸이 따로 보이고 따로 실패한다. 카드가 뉴스를 기다리지 않는다.
