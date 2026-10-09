@@ -510,7 +510,7 @@ description: "Task list for 014-market-dashboard"
   - 서버를 띄우고 T001의 입력으로 다시 받아 `014-baseline/after/`와 견준다. 부동산은 KST 날짜 차이만 허용한다.
   - 외환 `/latest`·`/series`가 같다(그날 새 고시가 생겼으면 그 날짜 차이만).
   - 다른 키·값이 있으면 멈추고 보고한다.
-- [ ] T085 문서를 갱신한다 (FR-025, FR-026)
+- [X] T085 문서를 갱신한다 (FR-025, FR-026)
   - `CLAUDE.md`:
     - "현재 상태" 표에 014 한 줄을 더한다.
     - 원칙 II 이탈 목록에 014 넷(Yahoo 확장·네이버 내부 API·Yahoo US HTML·Yahoo JP 내장 JSON)을 더한다.
