@@ -65,4 +65,16 @@ describe("투자 시뮬레이션 열", () => {
     expect(name.className).toContain("break-keep");
     expect(screen.getByRole("button", { name: /투자 시뮬레이션$/ }).className).not.toContain("whitespace-nowrap");
   });
+
+  it("마지막 열은 표의 오른쪽에 붙어 표가 가로로 밀려도 단추가 보인다", () => {
+    // T104 실측 — 1440px에서 부동산 표가 칸보다 넓어(1,267px > 1,168px) 줄 끝 단추가 가로 스크롤 밖으로 밀렸다.
+    renderTable([okRow("a", "삼성전자"), pending], vi.fn());
+    const heads = screen.getAllByRole("columnheader");
+    for (const cell of [heads[heads.length - 1], lastCell("삼성전자"), lastCell("SK하이닉스")]) {
+      expect(cell.className).toContain("sticky");
+      expect(cell.className).toContain("right-0");
+      expect(cell.className).toContain("bg-white");
+    }
+  });
 });
+
