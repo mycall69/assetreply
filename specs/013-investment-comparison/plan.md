@@ -19,6 +19,9 @@
 - **US4 (P3) 저장·불러오기** — 새 테이블 `saved_comparison`과 `/api/comparison/saved`(R13-10). 이름을 붙여 저장, 지울 때까지 남는다(명확화 3)
 - **반복 2026-10-09 단가 등락(US1 확장)** — 비교 표의 투자 원금과 현재 가치 사이에 단가 열 셋(시작일 단가·기준일 단가·등락). 주식 수정주가(상장국 통화)·가상자산 일봉
   시가·예금 발표 금리(%p)·부동산 그 달 시세. 비교 블록의 `comparison.unitPrice`(data-model 3.2)를 순수 모듈 `simulation/unit_price.py`가 계산한다(R13-18, spec FR-011a)
+- **반복 2026-10-09b 투자 시뮬레이션 모달(US1 확장)** — 비교 표의 계산된 줄 끝에 "투자 시뮬레이션" 단추. 누르면 그 줄의 조건으로 메뉴의 표 경로·`/series`를 불러 메뉴와 같은 부품
+  (보드·안내·성과 추이·일자별 표)으로 모달에 그린다. 메뉴 스토어·백엔드는 바뀌지 않는다. 메뉴 화면은 보드 안내 줄을 만드는 함수만 `lib/boardNotes`로 꺼낸다
+  (동작 불변). 이력을 쓰지 않는다(R13-19, spec FR-011b)
 
 **설계 중 확인한 것**
 
@@ -94,6 +97,17 @@
 | 메뉴 결과 불변(FR-020·SC-009) | ✅ | `unitPrice`는 비교 블록에만 있다. 메뉴 경로·메뉴 요약·시계열은 바뀌지 않는다 — T094가 T080 불변 대조를 다시 돌린다 |
 | 바뀌는 기존 테스트 | ⚠ 승인 필요 | 예상: `CompareTable.test.tsx` 열 머리 목록, `tests/support/compareFixtures.ts` `block()`(필수 형 `unitPrice`). T084가 실제 실패로 목록을 확정한다 |
 
+### 반복 2026-10-09b 재평가 — 투자 시뮬레이션 모달 (spec FR-011b, R13-19)
+
+| 원칙 | 판정 | 근거 |
+|------|------|------|
+| II. 데이터 소스 격리 | ✅ | 새 출처·새 경로가 없다. 모달은 메뉴의 표 경로·`/series`를 같은 질의로 부른다 — 백엔드는 바뀌지 않는다 |
+| IV. 모듈화 | ✅ | 모달 스토어는 메뉴 스토어를 쓰지 않고 메뉴의 질의 함수만 함께 쓴다(비교 경로에서 `/comparison`을 뺀 경로) |
+| V. 결측 | ✅ | 메뉴 경로의 202·오류는 까닭과 다시 시도다. 결측·잠정 표시는 메뉴 부품 그대로다 |
+| VI. 금융 정확성 | ✅ | 화면은 계산하지 않는다 — 기존 `compareNoClientFinance` 목록은 고치지 않고, 새 파일의 숫자 변환 없음은 T097이 같은 검사로 본다 |
+| 메뉴·이력 불변(FR-020·SC-009) | ✅ | 메뉴 스토어를 고치지 않는다. 메뉴 화면(예금·가상자산)은 안내 줄 함수를 꺼낼 뿐이고, 메뉴 화면 테스트를 고치지 않고 통과해야 한다(못 하면 멈춘다). 모달은 `/api/history` PUT을 하지 않는다(명확화 2026-10-09). T105가 불변 대조를 다시 돌린다 |
+| 바뀌는 기존 테스트 | ⚠ 승인 필요 | 예상: `CompareTable.test.tsx`(열 머리 목록·수집 중 줄의 빈 칸 수), `CompareTableUnitPrice.test.tsx`(열 머리 목록). T095가 실제 실패로 목록을 확정한다. `onSimulate`는 선택 속성이라 기존 렌더 도우미는 바뀌지 않는다 |
+
 ## Project Structure
 
 ### Documentation (this feature)
@@ -102,7 +116,7 @@
 specs/013-investment-comparison/
 ├── spec.md
 ├── plan.md                  # 이 파일
-├── research.md              # R13-1 ~ R13-18
+├── research.md              # R13-1 ~ R13-19
 ├── data-model.md            # 테이블 · 비교 조건 · comparison 블록 · 계산 모듈 더함 · 화면 상태
 ├── quickstart.md            # 검증 안내 · 실행 기록
 ├── contracts/
@@ -151,13 +165,16 @@ backend/
 frontend/
 ├── src/
 │   ├── app/compare/page.tsx              (신규)
+│   ├── app/deposit/page.tsx · app/crypto/page.tsx (변경 — 반복 2026-10-09b, 보드 안내 줄을 `lib/boardNotes`로 — 동작 불변)
 │   ├── stores/
 │   │   ├── compareStore.ts               (신규 — data-model 5)
+│   │   ├── compareDetailStore.ts         (신규 — 반복 2026-10-09b 투자 시뮬레이션 모달, data-model 5.3, R13-19)
 │   │   ├── compareRealEstatePicker.ts    (신규 — 같은 생성기로 만든 비교 화면의 고르기 인스턴스, R13-9)
 │   │   ├── realEstateStore.ts            (변경 — 상태 생성기 `realEstateStateCreator`를 내보내고 구독·실행 차례를 인스턴스 안으로, `simulationQuery` 내보냄)
 │   │   └── stockStore.ts                 (변경 — `registerStock` 사용)
 │   ├── lib/
-│   │   ├── compareApi.ts                 (신규 — 비교 경로·저장 경로 요청)
+│   │   ├── boardNotes.ts                 (신규 — 반복 2026-10-09b, 예금·가상자산 보드 안내 줄 — 메뉴 화면과 모달이 함께 쓴다, R13-19)
+│   │   ├── compareApi.ts                 (신규 — 비교 경로·저장 경로 요청. 반복 2026-10-09b — `menuPath`·`menuSeriesPath`)
 │   │   ├── compareBlock.ts               (신규, 순수 — 막힘 갈래·비교 전체 상태·제안, R13-6)
 │   │   ├── compareCondition.ts           (신규, 순수 — 정규 조건·같음·자동 이름·고를 수 있는 통화)
 │   │   ├── decimalOrder.ts               (신규, 순수 — R13-11)
@@ -166,7 +183,8 @@ frontend/
 │   └── components/
 │       ├── compare/                      (신규 — AssetPicker · TargetChips · CompareTargetPicker · InstitutionChecklist · CompareConditionForm ·
 │       │                                   CompareBlockedPanel · CompareTable · CostCell · StaleBanner · CompareReturnChart · CompareMetricBars ·
-│       │                                   SaveComparisonForm · SavedComparisons)
+│       │                                   SaveComparisonForm · SavedComparisons. 반복 2026-10-09b — SimulationModal ·
+│       │                                   detail/StockDetail · detail/CryptoDetail · detail/DepositDetail · detail/RealEstateDetail)
 │       ├── history/HistoryStates.tsx     (변경 — 빈 목록 문구 속성, 처음 값 그대로)
 │       └── shell/Sidebar.tsx · TopBar.tsx (변경 — `/compare`)
 └── tests/
@@ -175,7 +193,8 @@ frontend/
     └── ComparePage*.test.tsx · compareStore*.test.ts · compareBlock.test.ts · compareCondition.test.ts · decimalOrder.test.ts ·
         CompareTable.test.tsx · CompareReturnChart.test.tsx · CompareMetricBars.test.tsx · InstitutionChecklist.test.tsx · SavedComparisons.test.tsx ·
         SaveComparisonForm.test.tsx · HistoryStatesEmptyText.test.tsx · registerStock.test.ts · compareNoClientFinance.test.ts ·
-        compareRealEstatePicker.test.ts · CompareTableUnitPrice.test.tsx(반복 2026-10-09)   (신규)
+        compareRealEstatePicker.test.ts · CompareTableUnitPrice.test.tsx(반복 2026-10-09) · compareDetailStore.test.ts ·
+        SimulationModal.test.tsx · CompareTableSimulate.test.tsx · ComparePageSimulate.test.tsx · boardNotes.test.ts(반복 2026-10-09b)   (신규)
 ```
 
 **Structure Decision**: 기존 웹 앱 구조(backend/frontend)를 그대로 쓴다. 비교는 새 자산군이 아니라 기존 계산을 함께 쓰는 화면이므로, 백엔드는 경로·순수 정규화·
@@ -198,8 +217,9 @@ frontend/
 | FR-008 (부동산 매입가 = 그 달 시세) | R13-2, A1.1, F3·F5, Q5-9, tasks T010·T026·T036·T038 |
 | FR-009 (지금 설정값, 조건 동일) | R13-1·R13-2, Q2, tasks T010·T018·T026·T034·T035 |
 | FR-010 (막힘·제안·늦은 막힘) | R13-6, DM5.1, A1.4, F4, Q1·Q5-4, tasks T014·T018·T020·T031·T035·T036·T038·T044 |
-| FR-011 (표 칸·비용 몫·주 값·잠정·환율) | R13-3·R13-4, DM3·DM4, A1.2, F5, Q1·Q2·Q5-2, tasks T007·T008·T009·T010·T011·T019·T021·T023·T024·T025·T026·T027·T028·T036·T040·T041·T042·T043·T045·T046·T047·T048·T049·T050·T084·T088·T092 |
+| FR-011 (표 칸·비용 몫·주 값·잠정·환율) | R13-3·R13-4, DM3·DM4, A1.2, F5, Q1·Q2·Q5-2, tasks T007·T008·T009·T010·T011·T019·T021·T023·T024·T025·T026·T027·T028·T036·T040·T041·T042·T043·T045·T046·T047·T048·T049·T050·T084·T088·T092·T095·T098·T103 |
 | FR-011a (단가 등락 — 반복 2026-10-09) | R13-18, DM3.2, A1.2, F5, Q5-13, tasks T084·T085·T086·T087·T088·T089·T090·T091·T092·T093·T094 |
+| FR-011b (투자 시뮬레이션 모달 — 반복 2026-10-09b) | R13-19, DM5.3, A1(메모), F5·F10, Q5-14, tasks T095·T096·T097·T098·T099·T100·T101·T102·T103·T104·T105·T106 |
 | FR-012 (정렬) | R13-11, F5, Q1, tasks T012·T019·T029·T036·T057·T088·T092 |
 | FR-012a (조건이 바뀜 — 흐림) | R13-7·R13-8, DM5, F8, Q5-6, tasks T013·T018·T020·T030·T035·T036·T044·T054·T057·T067·T068 |
 | FR-013 (계산된 대상부터, 수집·실패) | R13-1·R13-7, DM5.1, A1.3, F4·F5, Q5-5, tasks T014·T018·T019·T020·T031·T035·T036·T054 |
@@ -209,17 +229,18 @@ frontend/
 | FR-017 (불러오면 다시 실행) | R13-10, F9, Q5-8·Q5-11, tasks T063·T067·T068·T077·T078 |
 | FR-018 (삭제) | R13-10, A4, F9, Q5-11, tasks T063·T065·T067·T068·T070·T072·T073·T074·T076·T078·T083 |
 | FR-019 (저장 실패 알림) | R13-10, DM5.2, F9, tasks T063·T065·T067·T068·T076·T077·T078 |
-| FR-020 (메뉴·이력 불변) | R13-14·R13-16, A1.5, Q5-12·Q6, tasks T001·T010·T018·T026·T035·T043·T067·T080 |
+| FR-020 (메뉴·이력 불변) | R13-14·R13-16·R13-19, A1.5, Q5-12·Q5-14·Q6, tasks T001·T010·T018·T026·T035·T043·T067·T080·T096·T099·T105 |
 | SC-001 (메뉴와 같은 값) | R13-1·R13-3, A1.2, Q1·Q2·Q5-2, tasks T007·T008·T009·T010·T011·T038·T040·T041·T043·T051 |
 | SC-002 (조건 동일·흐림·섞임 없음) | R13-2·R13-7·R13-8, Q2·Q5-6, tasks T010·T018·T043 |
 | SC-003 (막힘·제안·수집 중 표시) | R13-6, Q1·Q5-4·Q5-5, tasks T014·T018·T038 |
 | SC-004 (10개 × 20년 또는 최장, 5초) | R13-13, Q4, tasks T004·T005·T079 |
 | SC-005 (그래프 = 표, 끝 점, 메우지 않음) | R13-5·R13-12, Q1·Q5-10, tasks T009·T052·T053·T058 |
 | SC-006 (불러오기 동일·결과 저장 없음·사라지지 않음) | R13-10, A3, Q2·Q5-11, tasks T061·T063·T067·T071·T078·T083 |
-| SC-007 (자산군 섞임·이력 기록 없음) | R13-8·R13-14, Q2·Q5-12, tasks T010·T018·T038·T067 |
+| SC-007 (자산군 섞임·이력 기록 없음) | R13-8·R13-14·R13-19, Q2·Q5-12·Q5-14, tasks T010·T018·T038·T067·T096·T099 |
 | SC-008 (한 화면에서 끝냄) | F2·F3, Q5-2, tasks T020·T038 |
-| SC-009 (메뉴 결과 불변) | R13-13·R13-16, Q6, tasks T001·T002·T004·T080·T082·T094 |
+| SC-009 (메뉴 결과 불변) | R13-13·R13-16, Q6, tasks T001·T002·T004·T080·T082·T094·T105 |
 | SC-010 (단가 = 메뉴 가격 선·보드, 분할 낀 등락률 = 수정주가 — 반복 2026-10-09) | R13-18, DM3.2, Q5-13, tasks T085·T087·T093 |
+| SC-011 (모달 = 메뉴 응답, 이력 불변 — 반복 2026-10-09b) | R13-19, DM5.3, Q5-14, tasks T096·T099·T104 |
 
 ## Complexity Tracking
 

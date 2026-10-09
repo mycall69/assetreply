@@ -204,3 +204,17 @@ Alembic 리비전 하나(`down_revision = "a6d2f9c41b83"`, 파일 이름 `<rev>_
 | `loading` / `loadError` | 목록 받기 상태 — 실패하면 문구 + 다시 시도(012 `HistoryContent`) |
 | `saveError` / `removeError` | 저장·삭제 실패 문구 — 결과는 그대로(FR-019) |
 | `saving` | 이름 칸 열림·보내는 중 |
+
+### 5.3 투자 시뮬레이션 모달 (반복 2026-10-09b — `stores/compareDetailStore.ts`, spec FR-011b, research R13-19)
+
+| 칸 | 뜻 |
+|----|----|
+| `open` | 열린 대상 — `{key, name, href, condition, target}` 또는 `null`. `condition`은 그 줄을 낸 실행의 정규 조건(`run.condition`) |
+| `seq` | 차례 번호 — 늦은 응답을 버린다(다른 줄을 열거나 닫으면 올린다) |
+| `status` | `loading` · `ok` · `collecting`(메뉴 경로 202) · `failed`(까닭) |
+| `menu` | 메뉴 표 경로 응답 그대로(자산군별 형 — 요약·행·부동산 취득 비용·적금 계약 등) |
+| `series` · `seriesError` | 메뉴 `/series` 응답, 실패 문구 — 표와 따로 실패한다 |
+| `period` · `rows` · `hasMore` · `oldestReturned` · `loadingMore` · `loadMoreError` · `tableLoading` · `tableError` | 일자별 표(주식·가상자산) — 메뉴 스토어와 같은 뜻·같은 질의(`before`·`period`) |
+
+- 메뉴 스토어를 쓰지 않는다 — 메뉴 화면의 입력·결과가 바뀌지 않고 이력이 쌓이지 않는다(FR-020)
+- `/api/history` PUT이 없다
