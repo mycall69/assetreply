@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import inspect
 
-from src.simulation.market_indicators import GROUP_LABELS, INDICATORS, get
-
 from src.simulation import market_indicators
+from src.simulation.market_indicators import GROUP_LABELS, INDICATORS, get
 
 ORDER = [
     "kospi",

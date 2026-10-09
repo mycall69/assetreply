@@ -107,7 +107,7 @@ description: "Task list for 014-market-dashboard"
 
 ### Preparation
 
-- [ ] T005 Yahoo 픽스처를 옮긴다 — `backend/tests/contract/fixtures/market/` + `README.md` (FR-017, FR-009, R14-1)
+- [X] T005 Yahoo 픽스처를 옮긴다 — `backend/tests/contract/fixtures/market/` + `README.md` (FR-017, FR-009, R14-1)
   - 작업용 임시 폴더 `scratchpad/014-yahoo/raw/`의 본문만 옮긴다. 주소·응답 머리는 옮기지 않는다.
   - 크기는 줄인다(구간을 잘라도 JSON 구조는 그대로).
   - 옮길 것:
@@ -123,7 +123,7 @@ description: "Task list for 014-market-dashboard"
 
 ### Tests for Foundational ⚠️
 
-- [ ] T006 [P] `backend/tests/unit/test_market_indicators.py` — `simulation/market_indicators` (FR-003, FR-015, FR-018, data-model 2)
+- [X] T006 [P] `backend/tests/unit/test_market_indicators.py` — `simulation/market_indicators` (FR-003, FR-015, FR-018, data-model 2)
   - 정확히 15개이고 `order` 1~15다.
   - 묶음 `korea`·`us`·`asia`·`fx`·`commodity`의 구성·차례가 data-model 2 표와 같다.
   - 단위 글자: 포인트·원·원(100엔당)·USD/배럴·USD/트로이온스.
@@ -132,24 +132,24 @@ description: "Task list for 014-market-dashboard"
   - 이력 원천: `fx` 셋만 외환이다. 주석: `future` → `future_roll`, `fx` → `market_fx`.
   - `get(id)`는 없는 id에 `None`이다.
   - 이 모듈은 출처 심볼을 담지 않는다 — `"^"`·`"=F"`·`"=X"` 글자가 없다.
-- [ ] T007 [P] `backend/tests/unit/test_settings_market.py` — `config/settings` (FR-006, FR-008, FR-019, FR-023, data-model 8)
+- [X] T007 [P] `backend/tests/unit/test_settings_market.py` — `config/settings` (FR-006, FR-008, FR-019, FR-023, data-model 8)
   - data-model 8 표의 모든 env(24개)에 값이 없으면 표의 기본값이다(예: `MARKET_CHUNK_DAYS=730`, `MARKET_QUOTE_CACHE_SECONDS=30`, `MARKET_HOLIDAY_DETECT_SECONDS=3600`, `DASHBOARD_SERIES_MAX_POINTS=30000`, `NEWS_CACHE_SECONDS=600`, `YAHOO_MAX_CONCURRENT_REQUESTS=2`).
   - 값을 주면 그 값이다. 최솟값(`minimum=`) 아래는 거절한다(기존 `_env_int` 관례).
   - `NEWS_*_URL` 기본값이 R14-13의 요청 주소다.
-- [ ] T008 [P] `backend/tests/contract/test_yahoo_gate.py` — `ingestion/yahoo/gate` (FR-019, FR-026, R14-10)
+- [X] T008 [P] `backend/tests/contract/test_yahoo_gate.py` — `ingestion/yahoo/gate` (FR-019, FR-026, R14-10)
   - 동시 자리는 `YAHOO_MAX_CONCURRENT_REQUESTS`를 넘지 않는다.
   - 한 쪽이 `pause(s)`하면 그동안 다른 쪽의 `slot()`이 기다린다. 대기는 호출 시점의 `asyncio.sleep`을 찾는다 — 테스트가 가로챈다(`EcosGate` 테스트와 같은 꼴).
   - 이벤트 루프마다 관문이 따로다.
   - `YahooStockClient(settings, session=스텁)`(gate 없음)은 429 뒤 재시도·백오프가 지금 그대로다.
   - `YahooStockClient(settings, session=스텁, gate=관문)`은 429에 관문을 쉬게 하고, 같은 스텁 응답에서 돌려주는 `ChartFetch`가 gate 없을 때와 같다.
-- [ ] T009 [P] `backend/tests/integration/test_market_schema.py` — 마이그레이션·모델 (FR-017, SC-006, data-model 1)
+- [X] T009 [P] `backend/tests/integration/test_market_schema.py` — 마이그레이션·모델 (FR-017, SC-006, data-model 1)
   - 새 리비전의 `down_revision == "b3e7d5a1c924"`. `upgrade`·`downgrade`가 된다.
   - `market_indicator_daily`: PK `(indicator_id, trade_date)`, `indicator_id` `String(32)`, `close` `DECIMAL(20,6)` NOT NULL, `source` `String(64)` NOT NULL, `ingested_at` 기본값.
-  - `market_indicator_raw.body`는 MEDIUMTEXT, `(indicator_id, received_at)` 색인.
+  - `market_indicator_raw.body`는 `Text(16_777_215)`(utf8mb4에서 LONGTEXT — 005·007 원본 표와 같다, T009 실측으로 고침), `(indicator_id, received_at)` 색인.
   - `market_indicator_coverage`: `indicator_id` PK, `first_day`·`covered_from`·`covered_through` NULL 허용, `last_failure_kind` `String(32)`, `last_failure_message` `String(500)`.
   - `market_close_revision`: `stored_close`·`source_close` `DECIMAL(20,6)`, 같은 `(indicator_id, trade_date, source_close)`는 한 번만(유일 색인).
   - 기존 `test_금액_컬럼에_부동소수점이_없다`가 새 표에도 통과한다.
-- [ ] T010 [P] `backend/tests/integration/test_market_repository.py` — `repository/market_daily` (FR-005, FR-017, FR-019, SC-003, SC-006, data-model 1)
+- [X] T010 [P] `backend/tests/integration/test_market_repository.py` — `repository/market_daily` (FR-005, FR-017, FR-019, SC-003, SC-006, data-model 1)
   - `store_closes`: 없는 날만 넣고, 넣은 수를 돌려준다.
   - 있는 날의 값이 같으면 아무것도 하지 않는다. 다르면 저장 값은 그대로 두고 `market_close_revision` 한 줄을 넣는다. 같은 개정을 다시 받아도 한 줄이다. 개정 목록을 돌려준다.
   - `store_raw`는 본문을 그대로 넣는다.
@@ -159,22 +159,22 @@ description: "Task list for 014-market-dashboard"
 
 ### Implementation for Foundational
 
-- [ ] T011 `backend/src/config/settings.py` + 저장소 루트 `.env.example` — data-model 8 표의 설정을 그 이름·기본값 그대로 더한다 (FR-006, FR-008, FR-019, FR-023)
+- [X] T011 `backend/src/config/settings.py` + 저장소 루트 `.env.example` — data-model 8 표의 설정을 그 이름·기본값 그대로 더한다 (FR-006, FR-008, FR-019, FR-023)
   - `# ── 014 대시보드 ──` 묶음에 둔다. 초 단위 env는 기존 도우미(`_env_seconds_ms` 등)의 관례를 따른다.
   - `.env.example`에 줄마다 한국어 설명을 단다.
-- [ ] T012 [P] `backend/src/simulation/market_indicators.py` — 고정 15개(data-model 2): `Indicator`(frozen dataclass), `INDICATORS`, `get(id)`, 묶음 이름표. 출처 심볼 없음 (FR-003, FR-015, FR-018)
-- [ ] T013 [P] `backend/src/ingestion/yahoo/market_symbols.py` — 지표 id ↔ 차트·spark 심볼·값 배수(`jpy` = `Decimal(100)`, 나머지 1). 대응의 유일한 곳이다 (FR-003, FR-018, R14-1)
-- [ ] T014 `backend/src/ingestion/yahoo/gate.py` + `backend/src/ingestion/yahoo/client.py` (FR-019, FR-026, R14-10)
+- [X] T012 [P] `backend/src/simulation/market_indicators.py` — 고정 15개(data-model 2): `Indicator`(frozen dataclass), `INDICATORS`, `get(id)`, 묶음 이름표. 출처 심볼 없음 (FR-003, FR-015, FR-018)
+- [X] T013 [P] `backend/src/ingestion/yahoo/market_symbols.py` — 지표 id ↔ 차트·spark 심볼·값 배수(`jpy` = `Decimal(100)`, 나머지 1). 대응의 유일한 곳이다 (FR-003, FR-018, R14-1)
+- [X] T014 `backend/src/ingestion/yahoo/gate.py` + `backend/src/ingestion/yahoo/client.py` (FR-019, FR-026, R14-10)
   - `YahooGate(limit)`의 `slot()`·`pause(seconds)`, `get_yahoo_gate(settings)`(이벤트 루프마다 하나 — `ingestion/ecos/gate.py`와 같은 꼴).
   - `YahooStockClient.__init__`에 키워드 인자 `gate: YahooGate | None = None`을 더한다. `_get`은 gate가 있으면 `slot()` 안에서 보내고, 429면 백오프만큼 `pause`한다. 없으면 지금 그대로다.
-- [ ] T015 `backend/src/db/models.py` + `backend/src/db/migrations/versions/<12hex>_대시보드_지표.py` — data-model 1의 테이블 넷 (FR-017, FR-019, SC-006)
-  - 형·제약을 data-model 1 그대로 둔다: `PRICE = Numeric(20, 6)`, `String(32)`·`String(64)`·`String(500)`, MEDIUMTEXT `Text(16_777_215)`, `TS = DateTime(timezone=False)`, 개정 유일 색인.
+- [X] T015 `backend/src/db/models.py` + `backend/src/db/migrations/versions/<12hex>_대시보드_지표.py` — data-model 1의 테이블 넷 (FR-017, FR-019, SC-006)
+  - 형·제약을 data-model 1 그대로 둔다: `PRICE = Numeric(20, 6)`, `String(32)`·`String(64)`·`String(500)`, `Text(16_777_215)`(LONGTEXT), `TS = DateTime(timezone=False)`, 개정 유일 색인.
   - 독스트링 관례: 제목(014)·설명·Revision ID·Revises·Create Date.
-- [ ] T016 `backend/src/repository/market_daily.py` — T010의 함수들 (FR-005, FR-017, FR-019, SC-006)
+- [X] T016 `backend/src/repository/market_daily.py` — T010의 함수들 (FR-005, FR-017, FR-019, SC-006)
   - `SOURCE = "yahoo:chart"`.
   - 종가는 ORM 조회 + 삽입(1000개씩). 커버리지는 `db/dialect.upsert`(`preserve=()`).
   - 개정은 유일 색인 충돌을 무시하지 않고 미리 조회해 거른다(방언 문법 없음).
-- [ ] T017 `backend/src/api/main.py` + `backend/src/api/routes/stock_search.py` — 관문을 주식 클라이언트에 넘긴다 (FR-019, FR-026, R14-10)
+- [X] T017 `backend/src/api/main.py` + `backend/src/api/routes/stock_search.py` — 관문을 주식 클라이언트에 넘긴다 (FR-019, FR-026, R14-10)
   - `lifespan`의 `YahooStockClient(settings, gate=get_yahoo_gate(settings))`, 검색 경로의 요청마다 클라이언트도 같다.
   - 주식 수집 통합 테스트·검색 테스트가 고치지 않고 통과한다.
 

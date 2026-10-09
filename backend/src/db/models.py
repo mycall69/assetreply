@@ -1177,3 +1177,79 @@ class SavedComparison(Base):
     condition: Mapped[str] = mapped_column(Text, nullable=False)
     #: 저장 시각(UTC, 초 단위). 목록 차례다.
     saved_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+
+# ───────────────────────── 014: 대시보드 지표 ─────────────────────────
+
+
+class MarketIndicatorDaily(Base):
+    """대시보드 지표의 확정 종가 (014 data-model 1.1). `trade_date`는 **그 시장의 현지
+    거래일**이다(R14-3).
+
+    없는 날만 넣는다 — 있는 날의 값이 출처에서 바뀌면 덮어쓰지 않고 `market_close_revision`에
+    남긴다(원칙 V 재현성). 오늘(현지)의
+    봉과 종가가 빈 행(휴일 자리 표시)은 넣지 않는다 — 잠정 열이 없는 까닭이다. 환율 셋은 이 표가
+    아니라 외환 고시 이력이다.
+    """
+
+    __tablename__ = "market_indicator_daily"
+
+    indicator_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    trade_date: Mapped[dt.date] = mapped_column(Date, primary_key=True)
+    #: 종가. 음수가 될 수 있다(WTI 2020-04-20 −37.63).
+    close: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    ingested_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False, server_default=func.now())
+
+
+class MarketIndicatorRaw(Base):
+    """지표 청크의 원본 응답 본문 그대로(오늘 봉 포함) — 잠정에서 확정으로 바뀐 값을 사후에 되짚는
+    근거다(014 data-model 1.2)."""
+
+    __tablename__ = "market_indicator_raw"
+    __table_args__ = (Index("ix_market_raw_received", "indicator_id", "received_at"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    indicator_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    requested_from: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    requested_to: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    status_code: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    body: Mapped[str] = mapped_column(Text(length=16_777_215), nullable=False)
+    received_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+
+class MarketIndicatorCoverage(Base):
+    """지표마다의 수집 상태 (014 data-model 1.3) — 발견한 첫 날, **요청한** 연속 구간, 마지막
+    성공·실패(FR-019)."""
+
+    __tablename__ = "market_indicator_coverage"
+
+    indicator_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    #: 출처의 첫 거래일 — 응답의 첫 거래일 정보에서 발견해 기록한다(코드에 날짜를 두지 않는다).
+    first_day: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    covered_from: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    covered_through: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    last_success_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    last_failure_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    #: `connection`·`rate_limited`·`blocked`·`invalid_body`·`not_found`
+    last_failure_kind: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    last_failure_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    updated_at: Mapped[dt.datetime | None] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())
+
+
+class MarketCloseRevision(Base):
+    """확정으로 저장한 날의 값이 다시 받을 때 달랐던 사실 (014 data-model 1.4). 저장 값은 그대로다.
+    """
+
+    __tablename__ = "market_close_revision"
+    __table_args__ = (
+        UniqueConstraint(
+            "indicator_id", "trade_date", "source_close", name="ux_market_close_revision"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    indicator_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    trade_date: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    stored_close: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
+    source_close: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
+    detected_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)

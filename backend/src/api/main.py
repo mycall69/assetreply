@@ -79,6 +79,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from src.ingestion.kiwoom.client import KiwoomClient
     from src.ingestion.naver_land.client import NaverLandClient
     from src.ingestion.yahoo.client import YahooStockClient
+    from src.ingestion.yahoo.gate import get_yahoo_gate
     from src.observability.logging_config import configure_logging
     from src.repository.apt_usage import ApiUsageCounter
     from src.worker import apt_worker
@@ -126,7 +127,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 한 루프에 섞으면 환율 수집이 주식 수집을 막으면서 그 이유가 화면에 드러나지
     # 않는다 (research R5-7). 002·003이 얻은 교훈이 여기에도 그대로 적용된다 —
     # 엔진만 만들고 호출하는 주체를 두지 않으면 작업이 "진행 중"으로 박힌 채 멈춘다.
-    stock_client = YahooStockClient(settings)
+    # 014 — 대시보드와 같은 Yahoo 출처라 관문 하나로 동시 수·429 백오프를 함께 지킨다(research
+    # R14-10).
+    stock_client = YahooStockClient(settings, gate=get_yahoo_gate(settings))
     # 006 — 검색용 목록 갱신 워커. 등록하지 않으면 갱신 요청이 큐에 쌓이기만 하고
     # 실행되지 않는다(003·005가 겪은 일). 클라이언트는 수명 내내 하나 — 토큰을 메모리에
     # 두고 만료 10분 전에 갱신한다.

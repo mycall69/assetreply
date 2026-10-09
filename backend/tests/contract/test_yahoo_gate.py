@@ -20,11 +20,11 @@ from pathlib import Path
 from typing import Self
 
 import pytest
-from src.ingestion.yahoo.gate import YahooGate, get_yahoo_gate
 
 from src.config.settings import Settings, load_settings
 from src.ingestion.yahoo.client import YahooStockClient
 from src.ingestion.yahoo.errors import StockSourceRateLimited
+from src.ingestion.yahoo.gate import YahooGate, get_yahoo_gate
 
 STOCK = Path(__file__).parent / "fixtures" / "stock"
 NOW = dt.datetime(2026, 10, 3, 0, 0, tzinfo=dt.UTC)

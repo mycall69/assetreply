@@ -247,6 +247,45 @@ class Settings:
     #: 추석에 대체·임시공휴일이 겹친 경우)를 덮는 값이다. 넘으면 시세 단절로 알린다(005 FR-014a).
     stock_holiday_tolerance_weekdays: int = 7
 
+    # ── 014 대시보드 — 지표 시세·이력 (research R14-1·R14-2·R14-6, data-model 8) ──
+    #
+    # 주식(005)과 **같은 Yahoo 비공식 엔드포인트**다(005 이탈의 확장 — 014 plan Complexity Tracking,
+    # 사용자 승인 2026-10-09).
+    # 요청은 주식과 함께 Yahoo 관문을 지난다(`YAHOO_MAX_CONCURRENT_REQUESTS`, R14-10).
+    market_source_base_url: str = "https://query1.finance.yahoo.com"
+    market_chunk_days: int = 730
+    market_chunk_delay_ms: int = 1500
+    market_collect_interval_seconds: int = 1800
+    market_recheck_overlap_days: int = 5
+    market_retry_max_attempts: int = 4
+    market_retry_base_delay_ms: int = 1000
+    market_request_timeout_seconds: int = 20
+    #: 현재 시세(spark)를 서버가 묶어 두는 시간 — 탭이 여럿이어도 출처를 한 번만 부른다(FR-008).
+    market_quote_cache_seconds: int = 30
+    market_quote_failure_cache_seconds: int = 10
+    #: 장중 값의 시각이 받은 시각보다 이만큼 넘게 뒤처지면 "약 N분 지연"(FR-007, R14-9).
+    market_delay_notice_seconds: int = 180
+    #: 거래 시간인데 오늘 세션의 값이 이만큼 넘게 없으면 휴장(선물·외환의 거래소 휴일 — R14-7).
+    market_holiday_detect_seconds: int = 3600
+    dashboard_refresh_seconds: int = 60
+    dashboard_series_max_points: int = 30000
+    yahoo_max_concurrent_requests: int = 2
+
+    # ── 014 대시보드 — 뉴스 (research R14-13) ──
+    #
+    # 세 출처 모두 공개 API가 아니다(원칙 II 이탈 — 014 plan Complexity Tracking, 사용자 승인
+    # 2026-10-09). 저장하지 않고
+    # 메모리에 짧게 둔다. 브라우저형 사용자 에이전트가 없으면 미국 출처가 곧바로 429다(실측).
+    news_user_agent: str = INVESTING_DEFAULT_USER_AGENT
+    news_cache_seconds: int = 600
+    news_failure_cache_seconds: int = 60
+    news_failure_cache_max_seconds: int = 600
+    news_request_timeout_seconds: int = 10
+    news_retry_max_attempts: int = 2
+    news_kr_url: str = "https://stock.naver.com/api/domestic/news/list"
+    news_us_url: str = "https://finance.yahoo.com/topic/latest-news/"
+    news_jp_url: str = "https://finance.yahoo.co.jp/news/headline"
+
     # ── 검색용 종목 목록 — 키움증권 REST API (006 research R6-1·R6-3) ──
     #
     # **목록에만 쓴다.** 시세·배당·분할은 005의 출처 그대로다 (006 FR-012).
@@ -429,6 +468,32 @@ def load_settings(env_file: Path | None = None) -> Settings:
         stock_request_timeout_seconds=_env_int(
             "STOCK_REQUEST_TIMEOUT_SECONDS", 20, minimum=1),
         stock_holiday_tolerance_weekdays=_env_int("STOCK_HOLIDAY_TOLERANCE_WEEKDAYS", 7),
+        market_source_base_url=_env_str("MARKET_SOURCE_BASE_URL", "https://query1.finance.yahoo.com"),
+        market_chunk_days=_env_int("MARKET_CHUNK_DAYS", 730, minimum=1),
+        market_chunk_delay_ms=_env_int("MARKET_CHUNK_DELAY_MS", 1500),
+        market_collect_interval_seconds=_env_int(
+            "MARKET_COLLECT_INTERVAL_SECONDS", 1800, minimum=1),
+        market_recheck_overlap_days=_env_int("MARKET_RECHECK_OVERLAP_DAYS", 5),
+        market_retry_max_attempts=_env_int("MARKET_RETRY_MAX_ATTEMPTS", 4, minimum=1),
+        market_retry_base_delay_ms=_env_int("MARKET_RETRY_BASE_DELAY_MS", 1000),
+        market_request_timeout_seconds=_env_int("MARKET_REQUEST_TIMEOUT_SECONDS", 20, minimum=1),
+        market_quote_cache_seconds=_env_int("MARKET_QUOTE_CACHE_SECONDS", 30, minimum=1),
+        market_quote_failure_cache_seconds=_env_int(
+            "MARKET_QUOTE_FAILURE_CACHE_SECONDS", 10, minimum=1),
+        market_delay_notice_seconds=_env_int("MARKET_DELAY_NOTICE_SECONDS", 180, minimum=1),
+        market_holiday_detect_seconds=_env_int("MARKET_HOLIDAY_DETECT_SECONDS", 3600, minimum=1),
+        dashboard_refresh_seconds=_env_int("DASHBOARD_REFRESH_SECONDS", 60, minimum=1),
+        dashboard_series_max_points=_env_int("DASHBOARD_SERIES_MAX_POINTS", 30000, minimum=2),
+        yahoo_max_concurrent_requests=_env_int("YAHOO_MAX_CONCURRENT_REQUESTS", 2, minimum=1),
+        news_user_agent=_env_user_agent("NEWS_USER_AGENT", INVESTING_DEFAULT_USER_AGENT),
+        news_cache_seconds=_env_int("NEWS_CACHE_SECONDS", 600, minimum=1),
+        news_failure_cache_seconds=_env_int("NEWS_FAILURE_CACHE_SECONDS", 60, minimum=1),
+        news_failure_cache_max_seconds=_env_int("NEWS_FAILURE_CACHE_MAX_SECONDS", 600, minimum=1),
+        news_request_timeout_seconds=_env_int("NEWS_REQUEST_TIMEOUT_SECONDS", 10, minimum=1),
+        news_retry_max_attempts=_env_int("NEWS_RETRY_MAX_ATTEMPTS", 2, minimum=1),
+        news_kr_url=_env_str("NEWS_KR_URL", "https://stock.naver.com/api/domestic/news/list"),
+        news_us_url=_env_str("NEWS_US_URL", "https://finance.yahoo.com/topic/latest-news/"),
+        news_jp_url=_env_str("NEWS_JP_URL", "https://finance.yahoo.co.jp/news/headline"),
         kiwoom_mode=_env_choice("KIWOOM_MODE", "real", KIWOOM_MODES),
         kiwoom_app_key=_Secret(_env_str("KIWOOM_APP_KEY")),
         kiwoom_app_secret=_Secret(_env_str("KIWOOM_APP_SECRET")),

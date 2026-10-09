@@ -38,6 +38,7 @@ from src.api.services.listing_refresh import (
 from src.config.settings import Settings, load_settings
 from src.db.session import get_session
 from src.ingestion.yahoo.client import YahooStockClient
+from src.ingestion.yahoo.gate import get_yahoo_gate
 from src.ingestion.yahoo.parse import StockQuote
 from src.search.match import MatchKind
 from src.worker import listing_queue
@@ -68,9 +69,15 @@ class SearchSource(Protocol):
     ) -> None: ...
 
 
-def get_source() -> SearchSource:
-    """외부 검색 출처. 테스트는 의존성 오버라이드로 스텁을 넣는다."""
-    return YahooStockClient(load_settings())
+async def get_source() -> SearchSource:
+    """외부 검색 출처. 테스트는 의존성 오버라이드로 스텁을 넣는다.
+
+    014 — 요청마다 새 클라이언트라도 Yahoo 관문은 하나다(대시보드·주식 수집과 함께 — R14-10). 관문이
+    이벤트 루프에 묶이므로
+    비동기 의존성으로 루프 안에서 얻는다.
+    """
+    settings = load_settings()
+    return YahooStockClient(settings, gate=get_yahoo_gate(settings))
 
 
 def get_now() -> dt.datetime:

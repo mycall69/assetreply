@@ -19,9 +19,11 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import datetime as dt
 import random
 from collections.abc import Callable
+from contextlib import AbstractAsyncContextManager
 from types import TracebackType
 from typing import Self
 
@@ -30,9 +32,11 @@ import aiohttp
 from src.config.settings import Settings
 from src.ingestion.yahoo.errors import (
     StockSourceError,
+    StockSourceRateLimited,
     StockSourceUnavailable,
     raise_for_response,
 )
+from src.ingestion.yahoo.gate import YahooGate
 from src.ingestion.yahoo.parse import (
     ChartFetch,
     RawBody,
@@ -70,6 +74,7 @@ class YahooStockClient:
         *,
         session: aiohttp.ClientSession | None = None,
         now: Callable[[], dt.datetime] = _utc_now,
+        gate: YahooGate | None = None,
     ) -> None:
         self._settings = settings
         # 넘겨받은 세션은 닫지 않는다 — 수명은 넘겨준 쪽이 관리한다
@@ -78,6 +83,9 @@ class YahooStockClient:
         self._owns_session = session is None
         self._now = now
         self._gate = asyncio.Semaphore(settings.stock_max_concurrent)
+        # 014 — 대시보드와 함께 지나는 관문(R14-10). **선택 인자다** — 넘기지 않으면 014 전과
+        # 같다(FR-026).
+        self._shared_gate = gate
 
     async def __aenter__(self) -> Self:
         if self._session is None:
@@ -167,7 +175,7 @@ class YahooStockClient:
         for attempt in range(attempts):
             async with self._gate:
                 try:
-                    async with self._session.get(url, params=params) as response:
+                    async with self._slot(), self._session.get(url, params=params) as response:
                         raw = await response.text()
                         status = response.status
                         body = _as_json(raw)
@@ -183,9 +191,21 @@ class YahooStockClient:
                     last.__cause__ = exc
 
             if attempt + 1 < attempts:
-                await asyncio.sleep(self._backoff_seconds(attempt))
+                delay = self._backoff_seconds(attempt)
+                if self._shared_gate is not None and isinstance(last, StockSourceRateLimited):
+                    # 014 — 한도 신호를 관문에 알린다. 그 백오프 동안 대시보드의 Yahoo 요청도
+                    # 기다린다(R14-10).
+                    await self._shared_gate.pause(delay)
+                else:
+                    await asyncio.sleep(delay)
 
         raise last if last is not None else StockSourceUnavailable("알 수 없는 실패")
+
+    def _slot(self) -> AbstractAsyncContextManager[None]:
+        """관문의 자리. 관문이 없으면 아무것도 하지 않는다(014 전과 같다)."""
+        if self._shared_gate is None:
+            return contextlib.nullcontext()
+        return self._shared_gate.slot()
 
     def _backoff_seconds(self, attempt: int) -> float:
         """지수 백오프 + 지터.

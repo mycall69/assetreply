@@ -28,7 +28,7 @@
 | `indicator_id` | `String(32)` | |
 | `requested_from` · `requested_to` | `Date` | 청크 범위(현지 날짜) |
 | `status_code` | `SmallInteger` | |
-| `body` | `Text(16_777_215)`(MEDIUMTEXT) | 응답 본문 그대로 — 주소는 남기지 않는다 |
+| `body` | `Text(16_777_215)`(utf8mb4에서 LONGTEXT — 005·007 원본 표와 같다) | 응답 본문 그대로 — 주소는 남기지 않는다 |
 | `received_at` | `TS` | |
 
 색인은 `(indicator_id, received_at)`이다. 하루 한 번 이어 받기라 지표마다 하루 한 줄 남짓 쌓인다(R14-4).

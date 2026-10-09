@@ -95,7 +95,8 @@ async def test_일별_종가(engine: AsyncEngine) -> None:
 
 async def test_원본(engine: AsyncEngine) -> None:
     cols = await columns(engine, "market_indicator_raw")
-    assert cols["body"]["type"] == "mediumtext"
+    # `Text(16_777_215)`는 utf8mb4에서 LONGTEXT다 — 005·007 원본 표와 같다(014 T009 실측으로 고침).
+    assert cols["body"]["type"] == "longtext"
     assert {
         "id",
         "indicator_id",
