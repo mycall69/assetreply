@@ -65,7 +65,8 @@ describe("성과 보드", () => {
 
   it("수익률에는 기호가 없고 기준 줄은 그대로다", () => {
     render(<PerformanceBoard summary={summary} currency="KRW" />);
-    expect(valueOf("수익률")).toBe("+1881.31%");
+    // 013 승인 2026-10-09 — 반복 2026-10-09c(FR-021): 백분율의 정수부를 세 자리마다 쉼표로 끊는다.
+    expect(valueOf("수익률")).toBe("+1,881.31%");
     expect(screen.getByText(/KRW 기준/)).toBeInTheDocument();
   });
 

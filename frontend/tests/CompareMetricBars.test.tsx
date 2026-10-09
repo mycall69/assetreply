@@ -27,7 +27,8 @@ describe("CompareMetricBars", () => {
 
   it("글자 값은 표와 같은 형식이다", () => {
     render(<CompareMetricBars items={ITEMS} />);
-    expect(rows("수익률")[0]).toHaveTextContent("+2045.57%");
+    // 013 승인 2026-10-09 — 반복 2026-10-09c(FR-021): 백분율의 정수부를 세 자리마다 쉼표로 끊는다.
+    expect(rows("수익률")[0]).toHaveTextContent("+2,045.57%");
     expect(rows("투자 수익")[0]).toHaveTextContent("₩409,114,677");
     expect(rows("투자 수익")[1]).toHaveTextContent("-₩1,250,000");
   });

@@ -22,6 +22,7 @@ description: "Task list for 013-investment-comparison"
 - 환율 찾기 이분 탐색(모든 비교 경로의 성능 — SC-004)은 Foundational이다.
 - 반복 2026-10-09(단가 등락 — US1 확장)은 Phase 8이다.
 - 반복 2026-10-09b(투자 시뮬레이션 모달 — US1 확장)는 Phase 9다.
+- 반복 2026-10-09c(백분율 천 단위 쉼표 — 표시 규칙, 메뉴 화면 포함)는 Phase 10이다.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -575,6 +576,26 @@ UTC 일봉 시가, 예금은 발표 금리와 %p 차이(등락률 "—"), 부동
 
 ---
 
+## Phase 10: 반복 2026-10-09c — 백분율 천 단위 쉼표
+
+**Goal**: 화면의 백분율 글자(공유 형식 함수 `lib/format.formatPercent`)의 정수부를 세 자리마다 쉼표로 끊는다 — `+1761.91%` → `+1,761.91%`. 비교 화면과 네 메뉴 화면이 함께 바뀌고
+값·계산은 그대로다(spec FR-021, FR-020 예외, SC-012, research R13-20).
+
+**Independent Test**: 삼성전자·SK하이닉스·XLK 2010-01-04 비교 표의 수익률·등락률이 "+1,903.14%"처럼 쉼표로 끊기고, 같은 값이 주식 메뉴 보드에서도 같은 글자다(quickstart 5-15).
+
+- [X] T107 기존 테스트 변경 승인을 받는다 — T006과 같은 절차(구현 T109를 작업 트리에 둔 채 전체 스위트를 돌려 **실제로 실패한** 기존 테스트로 "지금 단언 → 새 단언"을 만든다) (FR-021)
+  - 예상: 1,000% 이상 백분율을 단언하는 `CompareReturnChart.test.tsx`(2곳)·`CompareMetricBars.test.tsx`·`CompareTable.test.tsx`·`PerformanceBoardCurrency.test.tsx`(주식 메뉴 보드 — 013 전 테스트)
+- [X] T108 [P] `frontend/tests/formatPercentGrouping.test.ts` — `lib/format.formatPercent` (FR-021, SC-012)
+  - 1,000% 이상은 세 자리마다 쉼표(`"17.6191"` → `+1,761.91%`, 음수 `-1,234.50%`, `+12,345,678.90%`), 1,000% 미만은 그대로(`+999.99%`·`+35.80%`·`-0.50%`·`+0.00%`)
+  - 소수 자리 인자(`digits`)·자르기(반올림하지 않음) 규칙은 그대로, `lib/format.ts`에 숫자 변환이 늘지 않는다(문자열로만)
+- [ ] T109 `frontend/src/lib/format.ts` — `formatPercent`가 정수부를 문자열로 끊는다 (FR-021)
+- [ ] T110 검증·게이트·문서 — quickstart 5-15(비교 표·막대·차트 상자, 주식 메뉴 보드의 같은 값), 서버를 내린 채 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .`(백엔드 변경 없음),
+  `CLAUDE.md` 013 줄 한 줄, `spec.md` Status (FR-021, SC-012)
+
+**Checkpoint**: 반복 완결 — 1,000% 이상 백분율이 화면 어디서나 같은 쉼표 글자다.
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -590,6 +611,7 @@ UTC 일봉 시가, 예금은 발표 금리와 %p 차이(등락률 "—"), 부동
   만든다. 테스트 T085~T088은 함께 쓴다. 백엔드는 T089 → T090 → T091, 화면 T092는 T088 뒤. T093·T094는 맨 끝
 - **반복 2026-10-09b (Phase 9)**: Phase 8 뒤(비교 표·화면을 넓힌다). **T095(승인)가 이 페이즈의 테스트 커밋을 막는다** — T100~T103 구현을 작업 트리에 둔 뒤 목록을 만든다.
   테스트 T096~T099·T106은 함께 쓴다. 구현은 T100 → T101 → T102 → T103. T104·T105는 맨 끝. 백엔드 변경 없음
+- **반복 2026-10-09c (Phase 10)**: Phase 9 뒤. **T107(승인)이 이 페이즈의 테스트 커밋을 막는다** — T109를 작업 트리에 둔 뒤 목록을 만든다. T108 → T109 → T110. 백엔드 변경 없음
 
 스토리를 하나씩 끝내려면 US1 → US2 → US3 → US4 차례다.
 
@@ -662,6 +684,7 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
 5. Polish — 성능·불변 대조·문서·게이트
 6. 반복 2026-10-09 — 단가 등락(승인 C — T084)
 7. 반복 2026-10-09b — 투자 시뮬레이션 모달(승인 D — T095)
+8. 반복 2026-10-09c — 백분율 천 단위 쉼표(승인 E — T107)
 
 ---
 
@@ -732,6 +755,9 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
   tsc·eslint — 모두 종료 코드 0. 반복 명세 커밋(`691faf2`) 뒤 바뀐 기존 테스트 파일은 T095 승인 목록(`CompareTable.test.tsx`·`CompareTableUnitPrice.test.tsx`)뿐이다
   (`git diff --stat --diff-filter=MD`). 불변 대조는 quickstart 실행 기록(T105)
 - **2026-10-09 T104 실측**: 포커스 복귀(`2761018` → `6d299e2`), 열한 열 표의 대상 칸·단추 꺾임·오른쪽 붙임(`737c0a9`·`017e9ad` → `7ad8eb8`)
+- **2026-10-09 T107 승인(사용자 — 앱 전체)**: 구현 T109를 작업 트리에 둔 채 화면 전체 스위트를 돌렸다 — **실제로 실패한** 기존 테스트 5건(예상 그대로):
+  `CompareReturnChart.test.tsx` 둘(커서 상자 "+2,550.00%"·"+2,596.48% · 매도 후 +2,045.57%"), `CompareMetricBars.test.tsx`·`CompareTable.test.tsx`("+2,045.57%"),
+  `PerformanceBoardCurrency.test.tsx`(주식 메뉴 보드 — 013 전 테스트, "+1,881.31%"). 값은 그대로이고 쉼표만 더했다. 고친 줄 위에 `013 승인 2026-10-09` 주석
 - 커밋 메시지는 한국어이고 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`을 단다. 푸시는 요청이 있을 때만 한다.
 
 ## 요구사항 ↔ 태스크
@@ -763,6 +789,7 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
 | FR-018 | T063, T065, T067, T068, T070, T072, T073, T074, T076, T078, T083 |
 | FR-019 | T063, T065, T067, T068, T076, T077, T078 |
 | FR-020 | T001, T010, T018, T026, T035, T043, T067, T080, T094, T096, T099, T105 |
+| FR-021 | T107, T108, T109, T110 |
 | SC-001 | T007, T008, T009, T010, T011, T038, T040, T041, T043, T051, T087, T091 |
 | SC-002 | T010, T018, T043 |
 | SC-003 | T014, T018, T038 |
@@ -774,3 +801,4 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
 | SC-009 | T001, T002, T004, T080, T082, T094, T105 |
 | SC-010 | T085, T087, T091, T093 |
 | SC-011 | T096, T099, T104 |
+| SC-012 | T108, T110 |

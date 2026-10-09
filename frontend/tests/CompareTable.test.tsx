@@ -39,7 +39,8 @@ describe("열", () => {
     expect(cells[6].textContent).toContain("₩539,297,203");
     expect(cells[7].textContent).toContain("-₩113,030,970");
     expect(cells[8].textContent).toContain("₩409,114,677");
-    expect(cells[9].textContent).toContain("+2045.57%");
+    // 013 승인 2026-10-09 — 반복 2026-10-09c(FR-021): 백분율의 정수부를 세 자리마다 쉼표로 끊는다.
+    expect(cells[9].textContent).toContain("+2,045.57%");
   });
 });
 

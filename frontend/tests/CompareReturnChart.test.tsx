@@ -129,14 +129,16 @@ describe("커서 상자", () => {
     act(() => chart.move?.({ time: "2026-10-01", point: { x: 10, y: 10 }, sourceEvent: { clientX: 200, clientY: 120 } }));
     const box = screen.getByTestId("compare-hover");
     expect(box).toHaveTextContent("2026-10-01");
-    expect(box).toHaveTextContent("XLK +2550.00%");
+    // 013 승인 2026-10-09 — 반복 2026-10-09c(FR-021): 백분율의 정수부를 세 자리마다 쉼표로 끊는다.
+    expect(box).toHaveTextContent("XLK +2,550.00%");
     expect(box).toHaveTextContent("삼성전자 값 없음");
   });
 
   it("기준일에는 보유 중·매도 후 두 값이다", () => {
     render(<CompareReturnChart items={[item("a", "XLK")]} />);
     act(() => chart.move?.({ time: "2026-10-06", point: { x: 10, y: 10 }, sourceEvent: { clientX: 200, clientY: 120 } }));
-    expect(screen.getByTestId("compare-hover")).toHaveTextContent("XLK 보유 중 +2596.48% · 매도 후 +2045.57%");
+    // 013 승인 2026-10-09 — 반복 2026-10-09c(FR-021): 백분율의 정수부를 세 자리마다 쉼표로 끊는다.
+    expect(screen.getByTestId("compare-hover")).toHaveTextContent("XLK 보유 중 +2,596.48% · 매도 후 +2,045.57%");
   });
 
   it("차트를 벗어나면 사라진다", () => {
