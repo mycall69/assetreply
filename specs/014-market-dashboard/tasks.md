@@ -501,12 +501,12 @@ description: "Task list for 014-market-dashboard"
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T082 성능을 잰다 (SC-001, SC-002, FR-012, quickstart 7)
+- [X] T082 성능을 잰다 (SC-001, SC-002, FR-012, quickstart 7)
   - 이력을 받아 둔 상태에서 `/dashboard` 탐색 시작부터 카드 15개가 그려질 때까지 잰다(2초 이내).
   - `/dashboard/sp500`의 일 단위 그래프가 그려질 때까지, 단위 전환까지 잰다(각 1초 이내).
   - 응답 크기·서버 시간·`setData` 시간을 적는다. 넘으면 멈추고 보고한다.
-- [ ] T083 화면 폭 확인 — quickstart 5-9(1440px·1024px에서 카드 줄바꿈·뉴스 칸 쌓임·가로 넘침 없음). 결과를 `quickstart.md` 8에 적는다 (FR-003, FR-020)
-- [ ] T084 불변 대조 (FR-026, SC-010, quickstart 6)
+- [X] T083 화면 폭 확인 — quickstart 5-9(1440px·1024px에서 카드 줄바꿈·뉴스 칸 쌓임·가로 넘침 없음). 결과를 `quickstart.md` 8에 적는다 (FR-003, FR-020)
+- [X] T084 불변 대조 (FR-026, SC-010, quickstart 6)
   - 서버를 띄우고 T001의 입력으로 다시 받아 `014-baseline/after/`와 견준다. 부동산은 KST 날짜 차이만 허용한다.
   - 외환 `/latest`·`/series`가 같다(그날 새 고시가 생겼으면 그 날짜 차이만).
   - 다른 키·값이 있으면 멈추고 보고한다.
