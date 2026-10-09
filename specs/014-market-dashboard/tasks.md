@@ -524,11 +524,38 @@ description: "Task list for 014-market-dashboard"
 
 ---
 
+## Phase 7: 반복 2026-10-10 — 출처·실패 요구 보강 (체크리스트 `checklists/sources.md`)
+
+**Goal**: 체크리스트 37개의 권장 수정안을 반영한다. 문서로 지금 동작을 확정하고, 검토 중 찾은 결함 둘을 고친다.
+- 환율 지표 화면이 외환 진행 스트림(사건 이름·모양이 다름)을 구독해 진행이 비고, 외환 수집이 실패해도 "받는 중"에 머물며, 다시 물을 때마다(15초) 외환 수집을 다시 요청한다
+- 카드·뉴스 출처의 실패와 뉴스 출처 호출이 운영자가 볼 수 있는 로그에 남지 않는다
+
+**Independent Test**: 외환 이력이 모자란 통화의 지표 화면이 대시보드 진행 경로로 진행을 보이고, 마지막 외환 수집이 실패했으면 "외환 수집 실패"와 그 문구를 보이며 외환 수집을 다시 요청하지 않는다. `collection.log`에 뉴스 출처 호출과 카드 출처 실패가 한 줄씩 남는다.
+
+- [X] T087 문서 보강 — `spec.md`(원칙 II 보관 범위, FR-005·FR-009·FR-016·FR-018·FR-019·FR-020~FR-024, SC-001·SC-007·SC-011, Assumptions·Dependencies), `research.md`(R14-4·R14-6·R14-10·R14-13), `contracts/rest-api.md`(A0 실패 종류 표, A2·A4 환율), `contracts/ui-wireframes.md`(D4), `plan.md` 추적성, README·`.env.example`(차단 복구) (FR-005, FR-009, FR-016, FR-018~FR-024, SC-001, SC-007, SC-011)
+- [ ] T088 [P] `backend/tests/integration/test_dashboard_series_api.py` — 환율 경로 (FR-016, FR-018)
+  - 이력이 모자라면 202 `collecting`이고 `progressUrl`은 `/api/dashboard/indicators/{id}/progress`, `progress`는 외환 커버리지다(014의 기존 기대 `"/api/fx/collection/stream?…"`을 바꾼다 — 결함을 담고 있었다).
+  - 마지막 외환 수집 작업이 `failed`(또는 오류 있는 `partial`)이고 점유·큐가 없으면 202 `failed` + `failure{kind: "fx_collection", message, at}`이고 외환 수집 요청이 0번이다.
+  - 큐가 그 통화를 처리 중이면 실패 기록이 있어도 `collecting`이다.
+  - 진행 SSE(`stream_body`): 환율은 외환 커버리지의 `snapshot`, 실패 조건이면 `failed{kind: "fx_collection"}`, 이력이 충분해지면 `completed`다.
+- [ ] T089 [P] `backend/tests/unit/test_news_cache.py`·`backend/tests/unit/test_market_quotes_service.py` — 출처 사건 (FR-009, FR-023, SC-008)
+  - 뉴스: 출처를 부를 때마다 `news_fetch` 한 줄(성공 `items`, 실패 `reason`)이고, 캐시·실패 기억 안의 재요청은 0줄이다.
+  - 카드: 응답 전체 실패는 `market_quotes_failed{kind, message}` 한 줄, 실패 기억 안의 재요청은 0줄, 일부 지표만 실패면 `market_quotes_partial{failed}` 한 줄이다. 성공만이면 0줄이다.
+- [ ] T090 [P] `frontend/tests/IndicatorPage.test.tsx` — 환율 그래프의 `fx_collection` 실패 (FR-016, FR-018)
+  - "이력을 받지 못했습니다 — 외환 수집 실패"와 외환 수집 기록의 문구, [다시 시도]가 보인다.
+- [ ] T091 `backend/src/api/services/indicator_series.py`(`fx_state` — 외환 커버리지·작업·점유·큐로 완성·받는 중·실패를 판정, 실패면 요청하지 않음) + `backend/src/api/routes/dashboard_series.py`(경로에 큐 상태를 넘기고, 진행 SSE의 환율 갈래) (FR-016, FR-018)
+- [ ] T092 `backend/src/api/services/news_cache.py`(`news_fetch`)·`backend/src/api/services/market_quotes.py`(`market_quotes_failed`·`market_quotes_partial`) — `collection.log` 사건 (FR-009, FR-023)
+- [ ] T093 `frontend/src/components/dashboard/IndicatorHeader.tsx`(`FAILURE_LABELS`에 `fx_collection`) + `frontend/src/stores/indicatorSeriesStore.ts`(외환 진행 스트림 주석 정리) (FR-016, FR-018)
+- [ ] T094 게이트(서버를 내린 채)와 `CLAUDE.md`(대시보드 사건 이름·환율 경로) (SC-007, SC-010)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
 
 - **Setup (Phase 1)**: 바로 시작한다. **T001·T002는 다른 모든 코드 변경보다 먼저다.**
+- **반복 2026-10-10 (Phase 7)**: Phase 6 뒤. T087(문서) → 테스트 T088~T090(함께 — 최초 실패 확인 뒤 `test(014)`) → 구현 T091~T093 → T094
 - **Foundational (Phase 2)**: T002·T004 뒤. US1·US2를 막는다. US3는 T011(설정) 뒤면 시작할 수 있다.
 - **US1 (Phase 3)**: Foundational 뒤. **T018(승인)이 이 페이즈의 테스트 커밋을 막는다** — T031~T040 구현을 작업 트리에 둔 뒤 목록을 만든다. 백엔드(T019~T023·T031~T035)와 화면(T024~T030·T036~T040)은 나란히 할 수 있다. MVP다.
 - **US2 (Phase 4)**: US1 뒤(시세 서비스의 캐시가 잠정 꼬리·머리 값을 준다. `main.py`·`types.ts`·`dashboardApi.ts`가 겹친다). 승인 목록이 없을 것으로 본다 — 구현 뒤 목록 밖의 실패는 결함으로 보고 멈춘다.
@@ -637,35 +664,36 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-002 | T024, T025, T037, T039 |
 | FR-003 | T006, T012, T013, T023, T028, T035, T036, T083 |
 | FR-004 | T020, T023, T026, T030, T032, T036, T039 |
-| FR-005 | T010, T016, T020, T023, T026, T032, T034, T039, T041 |
+| FR-005 | T010, T016, T020, T023, T026, T032, T034, T039, T041, T087 |
 | FR-006 | T007, T011, T019, T026, T031, T039, T041 |
 | FR-007 | T019, T020, T026, T031, T032, T039 |
 | FR-008 | T007, T011, T022, T025, T027, T028, T034, T038, T039, T061 |
-| FR-009 | T005, T021, T022, T023, T026, T027, T028, T033, T034, T035, T038, T039 |
+| FR-009 | T005, T021, T022, T023, T026, T027, T028, T033, T034, T035, T038, T039, T087, T089, T092 |
 | FR-010 | T047, T048, T050, T057, T058, T059, T060, T061, T062 |
 | FR-011 | T044, T048, T049, T050, T053, T059, T060, T061 |
 | FR-012 | T044, T047, T049, T053, T056, T060, T082 |
 | FR-013 | T044, T049, T053, T060 |
 | FR-014 | T043, T047, T049, T052, T056, T060 |
 | FR-015 | T006, T012, T026, T039, T050, T060 |
-| FR-016 | T046, T047, T048, T050, T056, T057, T058, T059, T060, T062 |
+| FR-016 | T046, T047, T048, T050, T056, T057, T058, T059, T060, T062, T087, T088, T090, T091, T093 |
 | FR-017 | T005, T009, T010, T015, T016, T042, T045, T046, T051, T054, T062 |
-| FR-018 | T006, T012, T013, T021, T023, T026, T033, T039, T047, T050, T056, T060, T062 |
-| FR-019 | T007, T008, T010, T011, T014, T015, T016, T017, T042, T045, T046, T047, T050, T051, T054, T055, T056, T057 |
-| FR-020 | T063, T064, T065, T066, T068, T070, T072, T073, T074, T075, T077, T079, T081, T083 |
-| FR-021 | T064, T065, T066, T070, T073, T074, T075, T079 |
-| FR-022 | T064, T065, T066, T070, T073, T074, T075, T079, T081 |
-| FR-023 | T007, T011, T067, T068, T076 |
-| FR-024 | T064, T065, T066, T067, T068, T069, T070, T071, T072, T076, T077, T078, T079, T081 |
+| FR-018 | T006, T012, T013, T021, T023, T026, T033, T039, T047, T050, T056, T060, T062, T087, T088, T090, T091, T093 |
+| FR-019 | T007, T008, T010, T011, T014, T015, T016, T017, T042, T045, T046, T047, T050, T051, T054, T055, T056, T057, T087 |
+| FR-020 | T063, T064, T065, T066, T068, T070, T072, T073, T074, T075, T077, T079, T081, T083, T087 |
+| FR-021 | T064, T065, T066, T070, T073, T074, T075, T079, T087 |
+| FR-022 | T064, T065, T066, T070, T073, T074, T075, T079, T081, T087 |
+| FR-023 | T007, T011, T067, T068, T076, T087, T089, T092 |
+| FR-024 | T064, T065, T066, T067, T068, T069, T070, T071, T072, T076, T077, T078, T079, T081, T087 |
 | FR-025 | T070, T079, T085 |
 | FR-026 | T001, T002, T008, T014, T017, T084, T085, T086 |
-| SC-001 | T071, T082 |
+| SC-001 | T071, T082, T087 |
 | SC-002 | T047, T056, T082 |
 | SC-003 | T010, T020, T023, T032, T041 |
 | SC-004 | T047, T056, T062 |
 | SC-005 | T043, T044, T052, T053 |
 | SC-006 | T009, T010, T015, T016, T046, T054, T062 |
-| SC-007 | T022, T034, T064, T065, T066, T068, T071, T081 |
-| SC-008 | T064, T065, T066, T068, T070, T081 |
+| SC-007 | T022, T034, T064, T065, T066, T068, T071, T081, T087, T094 |
+| SC-008 | T064, T065, T066, T068, T070, T081, T089, T092 |
 | SC-009 | T019, T026, T031 |
-| SC-010 | T001, T002, T084, T086 |
+| SC-010 | T001, T002, T084, T086, T094 |
+| SC-011 | T062, T087 |

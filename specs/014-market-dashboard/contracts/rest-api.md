@@ -3,6 +3,18 @@
 접두사는 `/api/dashboard`다. 값·차이·등락률은 모두 **문자열 Decimal**이다(원칙 VI) — 화면은 형식만 입힌다. 시각은 ISO 8601 UTC(`Z`), 날짜는 그 시장의 현지 날짜(`YYYY-MM-DD`)다.
 오류 본문은 기존 관례 `{"status": "...", "message": "..."}`(`api/main.py`의 `_json`)를 따른다.
 
+## A0. 실패 종류 — 경로마다 같은 이름은 같은 뜻이다(반복 2026-10-10)
+
+| 이름 | 뜻 | 쓰는 곳 |
+|------|----|---------|
+| `connection` | 연결 오류·시간 초과·5xx. 지표 출처는 HTTP 200이어도 오류 칸(`chart.error`)이 있으면 이것이다(주식 005와 같은 분류 — 다시 시도한다). 뉴스는 403·429 밖의 4xx도 이것이다 | A1 `failure.kind` · A2/A4 `kind` · A5 `failure.reason` |
+| `rate_limited` | 429 — 출처가 요청을 제한했다. 지표 출처는 Yahoo 관문 전체가 물러선다 | A1 · A2/A4 · A5 |
+| `blocked` | 403(지표는 401도) — 출처가 막았다. 기다려도 풀리지 않는다(사용자 에이전트 설정) | A1 · A2/A4 · A5 |
+| `invalid_body` | 본문을 읽을 수 없다 — JSON이 아니거나(지표·한국 뉴스) 상태 JSON이 깨졌다(일본 뉴스) | A1 · A2/A4 · A5 |
+| `not_found` | 404 또는 그 심볼의 값이 비었다 — 출처에 그 지표가 없다 | A1 · A2/A4 |
+| `parse_empty` | 기사를 하나도 읽지 못했다 — 목록 표지가 없거나 0건(출처 화면이 바뀐 신호). 1~9건은 실패가 아니다 | A5 |
+| `fx_collection` | 그 통화의 마지막 외환 수집(001)이 실패했다 — 문구는 외환 수집 기록의 것이다(FR-018) | A2/A4(환율만) |
+
 ## A1. `GET /api/dashboard/quotes` — 지표 15개의 현재 시세
 
 같은 순간의 요청은 서버 캐시(R14-6)를 함께 쓴다. 출처가 실패해도 **200**이다 — 실패는 지표마다 `status: "failed"`로 싣는다(FR-009).
@@ -106,7 +118,11 @@
 
 - `status: "failed"`: 마지막 수집이 실패했고 그 뒤 성공이 없다. `failure{kind, message, at}`를 싣는다. 화면은 까닭과 "다시 시도"(A3)를 보인다
 - `firstDay: null`: 아직 첫 응답 전이다
-- 환율(`usd`·`jpy`·`eur`)은 외환의 커버리지를 본다. 모자라면 외환 수집 경로(`collection_gate.ensure_background_job`)의 수집 표를 그대로 싣는다(`jobId`·`progressUrl` — 외환 진행 스트림). 대시보드가 ECOS를 부르지 않는다(FR-018)
+- 환율(`usd`·`jpy`·`eur`)은 외환의 커버리지를 본다(대시보드가 ECOS를 부르지 않는다 — FR-018). 반복 2026-10-10에 바꿨다 — 전에는 외환 진행 스트림 주소를 실었다:
+  - 모자라면 외환 수집 경로(`collection_gate.ensure_background_job`)에 요청하고 `status: "collecting"` + `jobId`(있으면)다. **`progressUrl`은 다른 지표와 같은 A4 경로**
+    (`/api/dashboard/indicators/usd/progress`)이고 `progress`는 외환 커버리지다 — `firstDay`(통화의 첫 고시일)·`coveredFrom`·`coveredThrough`·`remainingDays`(빠진 날 수)
+  - 그 통화의 마지막 외환 수집 작업이 `failed`·`partial`(오류 있음)이고 지금 받는 중(점유·큐)이 아니면 `status: "failed"` + `failure{kind: "fx_collection", message, at}`다.
+    **이때 외환 수집을 요청하지 않는다** — 다시 요청은 A3(다시 시도)뿐이다
 
 ## A3. `POST /api/dashboard/indicators/{id}/collect` — 다시 시도
 
@@ -117,6 +133,7 @@
 ## A4. `GET /api/dashboard/indicators/{id}/progress` — SSE
 
 `text/event-stream`, 머리는 `api/collection_stream.SSE_HEADERS`다. 2초마다 커버리지 행을 읽는다(007 `crypto_progress`와 같다).
+환율은 외환 커버리지·외환 수집 작업을 읽어 같은 세 사건을 낸다 — 이력이 충분해지면 `completed`, A2의 실패 조건이면 `failed{kind: "fx_collection"}`(반복 2026-10-10).
 
 | 사건 | data |
 |------|------|

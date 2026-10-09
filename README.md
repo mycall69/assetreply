@@ -301,7 +301,7 @@ MySQL을 쓰지만 **교체 가능성을 전제로 설계한다.** DB 종속 문
 지점은 `backend/src/ingestion/yahoo/` 한 곳이며, 정적 검사가 그 경계를 지킨다
 (`tests/unit/test_layer_boundaries.py`).
 
-**대시보드 출처도 잠정이다**(014). 지표는 주식과 같은 Yahoo 비공식 엔드포인트를 지수·원자재·VIX·시장 환율로 넓혀 쓰고, 뉴스는 세 사이트의 화면이 부르는 경로를 읽는다 — 네이버 증권은 robots.txt가 모두 막고 약관이 자동 수집을 금지하며, Yahoo Finance 약관도 허가 없는 자동 수집을 금지한다. 모두 **개인 이용 전제의 사용자 승인 결정**이다(`specs/014-market-dashboard/plan.md`의 Complexity Tracking, 2026-10-09). 뉴스는 칸마다 10분에 많아야 한 번 부르고, 저장·재배포하지 않으며(메모리에만), 제목·링크만 보이고 출처를 밝힌다. 어댑터는 `backend/src/ingestion/news/`, 지표 심볼은 `backend/src/ingestion/yahoo/market_symbols.py` 한 곳이다.
+**대시보드 출처도 잠정이다**(014). 지표는 주식과 같은 Yahoo 비공식 엔드포인트를 지수·원자재·VIX·시장 환율로 넓혀 쓰고, 뉴스는 세 사이트의 화면이 부르는 경로를 읽는다 — 네이버 증권은 robots.txt가 모두 막고 약관이 자동 수집을 금지하며, Yahoo Finance 약관도 허가 없는 자동 수집을 금지한다. 모두 **개인 이용 전제의 사용자 승인 결정**이다(`specs/014-market-dashboard/plan.md`의 Complexity Tracking, 2026-10-09). 뉴스는 칸마다 10분에 많아야 한 번 부르고, 저장·재배포하지 않으며(메모리에만), 제목·링크만 보이고 출처를 밝힌다. 어댑터는 `backend/src/ingestion/news/`, 지표 심볼은 `backend/src/ingestion/yahoo/market_symbols.py` 한 곳이다. 뉴스 칸이 "차단"이면 기다려도 풀리지 않는다 — `.env`의 `NEWS_USER_AGENT`를 지금 브라우저의 사용자 에이전트로 고치고 백엔드를 다시 띄운다. 출처 호출·실패는 `logs/collection.log`에 한 줄씩 남는다(`news_fetch`·`market_quotes_failed`·`market_quotes_partial`·`market_chunk_failed`).
 
 **가상자산 출처도 잠정이다**(007). investing.com의 코인 목록·과거 시세 화면이 부르는 내부 API를 쓴다. 약관이 허가
 없는 저장·사용을 금지하므로 Yahoo와 같은 **개인 이용 전제의 사용자 승인 결정**이다(`specs/007-crypto-investment-simulation/plan.md`의
