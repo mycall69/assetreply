@@ -565,8 +565,8 @@ UTC 일봉 시가, 예금은 발표 금리와 %p 차이(등락률 "—"), 부동
   · `frontend/src/lib/boardNotes.ts`(신규 — 예금·가상자산 안내 줄) · `frontend/src/app/deposit/page.tsx`·`frontend/src/app/crypto/page.tsx`(그 함수를 부른다 — 동작 불변, 메뉴 테스트 불변)
 - [X] T103 [US1] `frontend/src/components/compare/CompareTable.tsx`(마지막 열·선택 속성 `onSimulate?`) · `frontend/src/app/compare/page.tsx`(모달 연결 — `run.condition`과 그 줄의 대상) (FR-011, FR-011b)
   - `frontend/tests/compareNoClientFinance.test.ts`의 목록은 고치지 않는다 — 새 파일에 계산이 없음은 T097이 본다
-- [ ] T104 [US1] 검증 — quickstart 5-14를 개발 서버·브라우저로 확인하고 실행 기록에 적는다 (FR-011b, SC-011)
-- [ ] T105 품질 게이트·불변 대조·문서 (FR-020, SC-009)
+- [X] T104 [US1] 검증 — quickstart 5-14를 개발 서버·브라우저로 확인하고 실행 기록에 적는다 (FR-011b, SC-011)
+- [X] T105 품질 게이트·불변 대조·문서 (FR-020, SC-009)
   - 서버를 내린 채 백엔드 `pytest -q --cov=src`·`mypy src`·`ruff check --no-cache src tests`, 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .` — 통과 수·종료 코드를 Notes에
   - T080 불변 대조를 다시 돌린다 — 메뉴 경로 16개 파일 차이 0(부동산은 같은 KST 날짜)
   - `CLAUDE.md` 013 줄과 주의 문단에 모달 한 줄, `README.md` 013 줄, `spec.md` Status
@@ -728,6 +728,10 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
   열 머리 목록(끝에 "투자 시뮬레이션"). 기대 값은 그대로. 예금·가상자산 메뉴 화면 테스트는 안내 줄 함수(`lib/boardNotes`)로 바꾼 뒤에도 고치지 않고 통과했다. 백엔드 변경 없음
 - **2026-10-09 반복 2026-10-09b 명세 바로잡음**: 메뉴 일자별 표는 "더 보기" 단추가 아니라 아래로 스크롤하면 이어 받는다(관찰 지점 + 실패 시 "다시 시도") — spec FR-011b·US1-15,
   F10, quickstart 5-14, T096의 "더 보기"를 "이어 받기"로 고쳤다(T097 작성 중 확인)
+- **2026-10-09 T105 품질 게이트(서버를 내린 채)**: 백엔드 **3,034 passed**(커버리지 96.41%)·mypy 239 파일·ruff(`--no-cache`) 통과 / 프론트엔드 **192 파일·1,691 passed**·
+  tsc·eslint — 모두 종료 코드 0. 반복 명세 커밋(`691faf2`) 뒤 바뀐 기존 테스트 파일은 T095 승인 목록(`CompareTable.test.tsx`·`CompareTableUnitPrice.test.tsx`)뿐이다
+  (`git diff --stat --diff-filter=MD`). 불변 대조는 quickstart 실행 기록(T105)
+- **2026-10-09 T104 실측**: 포커스 복귀(`2761018` → `6d299e2`), 열한 열 표의 대상 칸·단추 꺾임·오른쪽 붙임(`737c0a9`·`017e9ad` → `7ad8eb8`)
 - 커밋 메시지는 한국어이고 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`을 단다. 푸시는 요청이 있을 때만 한다.
 
 ## 요구사항 ↔ 태스크
