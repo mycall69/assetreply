@@ -295,7 +295,7 @@ description: "Task list for 014-market-dashboard"
   - `frontend/src/app/page.tsx` → `redirect("/dashboard")`(옛 안내 자리 삭제).
   - `frontend/src/components/shell/Sidebar.tsx` → `{ label: "대시보드", href: "/dashboard" }`.
   - `frontend/src/components/shell/TopBar.tsx` → `["/dashboard", "대시보드"]`를 `/`보다 앞에.
-- [ ] T041 [US1] 실측 확인 — quickstart 5-1~5-3을 헤드리스 Chrome(CDP)으로 확인하고 `quickstart.md` 8에 기록한다 (FR-001, FR-005, FR-006, SC-003)
+- [X] T041 [US1] 실측 확인 — quickstart 5-1~5-3을 헤드리스 Chrome(CDP)으로 확인하고 `quickstart.md` 8에 기록한다 (FR-001, FR-005, FR-006, SC-003)
   - 휴장일이 아니면 주말 또는 다른 시장의 휴장으로 5-3을 확인한다.
   - 카드의 현재 값을 출처의 같은 순간 값과 대조한다.
 
