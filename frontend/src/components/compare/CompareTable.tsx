@@ -5,7 +5,9 @@
  *
  * 대상마다 한 줄이다 — 대상, 기준일, 투자 원금, 시작일 단가, 기준일 단가, 등락, 현재 가치, 비용, 투자 수익, 수익률.
  * 단가 열 셋(반복 2026-10-09)은 서버의 `comparison.unitPrice`다 — 주식은 상장국 통화의 수정주가, 가상자산은 시세 통화의 시가(유효 숫자),
- * 예금은 금리와 %p, 부동산은 그 달 시세. 오름·내림은 글자의 부호로 가른다(계산하지 않는다). 값은 서버의 `comparison` 블록 문자열에 형식만 입힌다 —
+ * 예금은 금리와 %p, 부동산은 그 달 시세. 오름·내림은 글자의 부호로 가른다(계산하지 않는다).
+ * 줄 끝의 "투자 시뮬레이션"(반복 2026-10-09b — FR-011b)은 계산된 줄에만 있고, 누르면 그 줄의 메뉴 결과 모달을 연다(`onSimulate`는 선택 속성 — 주지
+ * 않으면 단추가 없다). 값은 서버의 `comparison` 블록 문자열에 형식만 입힌다 —
  * 표는 합·차이를 계산하지 않는다(헌법 원칙 VI, `tests/compareNoClientFinance`). 정렬은 소수 문자열 견주기다(`lib/decimalOrder`).
  *
  * 수집 중·실패 줄은 맨 아래이고 값 칸은 비운다 — 0이나 빈 막대로 보이면 그 대상이 진 것처럼 읽힌다(FR-013 실패 양상).
@@ -33,7 +35,7 @@ export interface CompareRow {
 }
 
 /** 단가 칸 둘은 정렬 머리가 아니다 — 대상마다 날짜가 달라 견줄 뜻이 없다. 정렬은 "등락"(등락률)이다. */
-type ColumnKey = SortKey | "unitStart" | "unitAsOf";
+type ColumnKey = SortKey | "unitStart" | "unitAsOf" | "simulate";
 
 const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "name", label: "대상" },
@@ -46,6 +48,7 @@ const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "cost", label: "비용" },
   { key: "profit", label: "투자 수익" },
   { key: "returnRate", label: "수익률" },
+  { key: "simulate", label: "투자 시뮬레이션" },
 ];
 
 const BASIS_TEXT: Record<MainBasis, string> = { after_sale: "매도 후", holding: "보유 중", unavailable: "—" };
@@ -178,8 +181,9 @@ function principalCell(block: ComparisonBlock, method: CompareMethod, summary: R
   );
 }
 
-function OkCells({ row, block, method, summary }: {
+function OkCells({ row, block, method, summary, onSimulate }: {
   row: CompareRow; block: ComparisonBlock; method: CompareMethod; summary: Record<string, unknown>;
+  onSimulate?: (key: string) => void;
 }) {
   const basis = BASIS_TEXT[block.mainBasis];
   const negative = block.profit !== null && block.profit.trimStart().startsWith("-");
@@ -214,6 +218,14 @@ function OkCells({ row, block, method, summary }: {
       <td className={`px-3 py-2 text-right align-top tabular-nums ${tone}`}>
         {block.returnRate === null ? "—" : formatPercent(block.returnRate)}
         <p className="text-xs text-gray-500">{basis}</p>
+      </td>
+      <td className="px-3 py-2 text-right align-top">
+        {onSimulate !== undefined && (
+          <button type="button" aria-label={`${row.name} 투자 시뮬레이션`} data-simulate-key={row.key} onClick={() => onSimulate(row.key)}
+            className="whitespace-nowrap rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50">
+            투자 시뮬레이션
+          </button>
+        )}
       </td>
     </>
   );
@@ -260,12 +272,14 @@ function PendingCells({ row, onRetry }: { row: CompareRow; onRetry: (key: string
   );
 }
 
-export function CompareTable({ rows, method, sort, onSort, onRetry }: {
+export function CompareTable({ rows, method, sort, onSort, onRetry, onSimulate }: {
   rows: CompareRow[];
   method: CompareMethod;
   sort: SortState | null;
   onSort: (key: SortKey) => void;
   onRetry: (key: string) => void;
+  /** 반복 2026-10-09b — 줄의 "투자 시뮬레이션". 주지 않으면 단추가 없다. */
+  onSimulate?: (key: string) => void;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -281,7 +295,8 @@ export function CompareTable({ rows, method, sort, onSort, onRetry }: {
               return (
                 <th key={c.key} scope="col" className="px-3 py-2 font-medium"
                   aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : undefined}>
-                  {key === "unitStart" || key === "unitAsOf" ? c.label : (
+                  {key === "simulate" ? <span className="sr-only">{c.label}</span>
+                    : key === "unitStart" || key === "unitAsOf" ? c.label : (
                     <button type="button" onClick={() => onSort(key)}>
                       {c.label}{active ? (sort.direction === "asc" ? " ▲" : " ▼") : ""}
                     </button>
@@ -301,7 +316,8 @@ export function CompareTable({ rows, method, sort, onSort, onRetry }: {
           {sortedRows(rows, sort).map((row) => (
             <tr key={row.key} className="border-b border-gray-100">
               {row.state.status === "ok"
-                ? <OkCells row={row} block={row.state.data.comparison} method={method} summary={row.state.data.summary} />
+                ? <OkCells row={row} block={row.state.data.comparison} method={method} summary={row.state.data.summary}
+                  onSimulate={onSimulate} />
                 : <PendingCells row={row} onRetry={onRetry} />}
             </tr>
           ))}

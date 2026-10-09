@@ -25,7 +25,7 @@ import { CollectingNotice } from "@/components/stock/CollectingNotice";
 import { ComparisonChart } from "@/components/stock/ComparisonChart";
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
 import { PerformanceChart } from "@/components/stock/PerformanceChart";
-import { formatAnnualRate, taxPercent } from "@/lib/format";
+import { depositBoardNotes } from "@/lib/boardNotes";
 import { kstToday } from "@/lib/startDate";
 import { INSTITUTION_NAMES, useDepositStore } from "@/stores/depositStore";
 
@@ -65,15 +65,9 @@ export default function DepositPage() {
   const limit = useMemo(() => kstToday(), []);
 
   // FR-035 — 기준 줄에 투자처·세율·지금 회차를 늘 보인다. 결과가 어느 조건의 것인지 확인할 수 있어야 한다.
-  const notes: string[] = [];
-  if (summary !== null) {
-    notes.push(resultName ?? INSTITUTION_NAMES[input.institution]);
-    if (condition !== null) notes.push(`세율 ${taxPercent(condition.interestTaxRate)}`);
-    const term = summary.currentTerm;
-    if (term !== null) {
-      notes.push(`지금 회차 ${term.joinedOn} 가입 · ${formatAnnualRate(term.rate)} · 만기 ${term.maturesOn}`);
-    }
-  }
+  // 013 반복 2026-10-09b — 글자는 비교 화면의 투자 시뮬레이션 모달과 같은 함수가 만든다(`lib/boardNotes`).
+  const notes = summary === null ? []
+    : depositBoardNotes(summary, condition, resultName ?? INSTITUTION_NAMES[input.institution]);
 
   return (
     <div className="space-y-5">

@@ -8,6 +8,9 @@
  *
  * 비교는 **이력을 쓰지 않는다**(FR-020) — 메뉴 스토어의 실행을 부르지 않고 `useCompareStore`만 쓴다. 일자별 투자 성과표는 없다.
  *
+ * 줄 끝의 "투자 시뮬레이션"(반복 2026-10-09b — FR-011b)은 그 줄을 낸 실행의 조건(`run.condition`)으로 그 메뉴의 결과를 모달로 연다 — 흐린 동안에도
+ * 그 줄의 조건이다. 모달은 이력을 쓰지 않는다.
+ *
  * 결과와 저장한 비교는 메뉴 화면처럼 `TableWithHistory` 배치다 — 왼쪽 결과(저장 단추, 표, 그래프), 오른쪽 저장한 비교(좁으면 아래로 감긴다). 흐림은
  * 결과에만 — 저장한 비교 칸은 흐리지 않는다(흐린 동안에도 불러올 수 있다).
  */
@@ -21,15 +24,17 @@ import { CompareTable, sortedRows, type CompareRow } from "@/components/compare/
 import { CompareTargetPicker } from "@/components/compare/CompareTargetPicker";
 import { SaveComparisonForm } from "@/components/compare/SaveComparisonForm";
 import { SavedComparisons } from "@/components/compare/SavedComparisons";
+import { SimulationModal } from "@/components/compare/SimulationModal";
 import { StaleBanner } from "@/components/compare/StaleBanner";
 import { ProductPicker } from "@/components/deposit/ProductPicker";
 import { InvestmentModeFields } from "@/components/recurring/InvestmentModeFields";
 import { TargetChips } from "@/components/compare/TargetChips";
 import { TableWithHistory } from "@/components/TableWithHistory";
 import { overall, suggestion, type BlockReason } from "@/lib/compareBlock";
-import { autoName, maxTargets, targetName } from "@/lib/compareCondition";
+import { autoName, maxTargets, targetKey, targetName } from "@/lib/compareCondition";
 import { coinLink, complexSearchLink, stockLink } from "@/lib/externalLinks";
 import type { CompareTarget } from "@/lib/types";
+import { useCompareDetailStore } from "@/stores/compareDetailStore";
 import { isStale, runRows, saveBlockReason, useCompareStore } from "@/stores/compareStore";
 
 /** 대상 이름의 바깥 링크 — 메뉴와 같은 규칙(010 반복 1). 예금은 링크가 없다. */
@@ -55,6 +60,10 @@ export default function ComparePage() {
   useEffect(() => {
     void loadSaved();
   }, [loadSaved]);
+  // 화면을 떠나면 모달을 닫는다 — 열린 채 다시 오면 다른 실행의 줄을 보인다.
+  const openDetail = useCompareDetailStore((s) => s.openDetail);
+  const closeDetail = useCompareDetailStore((s) => s.close);
+  useEffect(() => closeDetail, [closeDetail]);
 
   const stale = isStale(store);
   const rows: CompareRow[] = run === null ? [] : runRows(run).map(({ key, target, state }) => ({
@@ -123,7 +132,13 @@ export default function ComparePage() {
             ) : (
               <div className={stale ? "space-y-5 opacity-50" : "space-y-5"} data-testid="compare-result">
                 <CompareTable rows={rows} method={run.condition.method} sort={sort} onSort={toggleSort}
-                  onRetry={(key) => void retryTarget(key)} />
+                  onRetry={(key) => void retryTarget(key)}
+                  onSimulate={(key) => {
+                    const row = rows.find((r) => r.key === key);
+                    const target = run.condition.targets.find((t) => targetKey(t) === key);
+                    if (row === undefined || target === undefined) return;
+                    void openDetail({ key, name: row.name, href: row.href, condition: run.condition, target });
+                  }} />
                 {chartItems.length > 0 && (
                   <>
                     <CompareReturnChart items={chartItems} />
@@ -139,6 +154,8 @@ export default function ComparePage() {
             saveError={saved.saveError} removeError={saved.removeError} onRetry={() => void loadSaved()}
             onLoad={(id) => void openSaved(id)} onRemove={(id) => void removeSaved(id)} />
         )} />
+
+      <SimulationModal />
     </div>
   );
 }

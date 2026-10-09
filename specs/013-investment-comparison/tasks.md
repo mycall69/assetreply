@@ -559,11 +559,11 @@ UTC 일봉 시가, 예금은 발표 금리와 %p 차이(등락률 "—"), 부동
 
 ### Implementation for 반복 2026-10-09b
 
-- [ ] T100 [US1] `frontend/src/lib/compareApi.ts` — `menuPath(condition, target)`(비교 경로에서 `/comparison`을 뺀 것)·`menuSeriesPath`, 공통 요청 함수 (FR-011b)
-- [ ] T101 [US1] `frontend/src/stores/compareDetailStore.ts`(신규) — data-model 5.3 (FR-011b)
-- [ ] T102 [US1] `frontend/src/components/compare/SimulationModal.tsx`·`frontend/src/components/compare/detail/*.tsx`(신규) — 메뉴 부품 조립(spec FR-011b 목록), 모달 동작 (FR-011b, F10)
+- [X] T100 [US1] `frontend/src/lib/compareApi.ts` — `menuPath(condition, target)`(비교 경로에서 `/comparison`을 뺀 것)·`menuSeriesPath`, 공통 요청 함수 (FR-011b)
+- [X] T101 [US1] `frontend/src/stores/compareDetailStore.ts`(신규) — data-model 5.3 (FR-011b)
+- [X] T102 [US1] `frontend/src/components/compare/SimulationModal.tsx`·`frontend/src/components/compare/detail/*.tsx`(신규) — 메뉴 부품 조립(spec FR-011b 목록), 모달 동작 (FR-011b, F10)
   · `frontend/src/lib/boardNotes.ts`(신규 — 예금·가상자산 안내 줄) · `frontend/src/app/deposit/page.tsx`·`frontend/src/app/crypto/page.tsx`(그 함수를 부른다 — 동작 불변, 메뉴 테스트 불변)
-- [ ] T103 [US1] `frontend/src/components/compare/CompareTable.tsx`(마지막 열·선택 속성 `onSimulate?`) · `frontend/src/app/compare/page.tsx`(모달 연결 — `run.condition`과 그 줄의 대상) (FR-011, FR-011b)
+- [X] T103 [US1] `frontend/src/components/compare/CompareTable.tsx`(마지막 열·선택 속성 `onSimulate?`) · `frontend/src/app/compare/page.tsx`(모달 연결 — `run.condition`과 그 줄의 대상) (FR-011, FR-011b)
   - `frontend/tests/compareNoClientFinance.test.ts`의 목록은 고치지 않는다 — 새 파일에 계산이 없음은 T097이 본다
 - [ ] T104 [US1] 검증 — quickstart 5-14를 개발 서버·브라우저로 확인하고 실행 기록에 적는다 (FR-011b, SC-011)
 - [ ] T105 품질 게이트·불변 대조·문서 (FR-020, SC-009)

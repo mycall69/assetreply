@@ -26,7 +26,7 @@ import { CollectingNotice, FxUnavailableNotice } from "@/components/stock/Collec
 import { ComparisonChart } from "@/components/stock/ComparisonChart";
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
 import { PerformanceChart } from "@/components/stock/PerformanceChart";
-import { formatPercent } from "@/lib/format";
+import { cryptoBoardNotes } from "@/lib/boardNotes";
 import { amountLabel } from "@/lib/recurringText";
 import { utcYesterday } from "@/lib/startDate";
 import { CRYPTO_PERIOD_TITLES } from "@/lib/tablePeriod";
@@ -68,12 +68,9 @@ export default function CryptoPage() {
   const limit = useMemo(() => utcYesterday(), []);
   const quote = input.coin?.currency ?? null;
 
-  const notes: string[] = [];
-  if (summary !== null) {
-    // C3 — 매수일이 시작 월 1일이 아니면(1일 결측) 그 날짜가 드러나야 한다. 늘 보이면 조건을 확인하기 쉽다.
-    notes.push(`매수일 ${summary.boughtOn}`);
-    if (condition !== null) notes.push(`수수료 ${formatPercent(condition.tradeFeeRate, 2).replace("+", "")}`);
-  }
+  // C3 — 매수일이 시작 월 1일이 아니면(1일 결측) 그 날짜가 드러나야 한다. 늘 보이면 조건을 확인하기 쉽다.
+  // 013 반복 2026-10-09b — 글자는 비교 화면의 투자 시뮬레이션 모달과 같은 함수가 만든다(`lib/boardNotes`).
+  const notes = summary === null ? [] : cryptoBoardNotes(summary, condition);
 
   return (
     <div ref={workspace} className="space-y-5" style={holdStyle}>
