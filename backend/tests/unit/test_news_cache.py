@@ -126,6 +126,13 @@ class Test응답:
             "failure": None,
         }
 
+    async def test_받은_시각은_초까지다(self) -> None:
+        """contracts A5의 꼴(`2026-10-09T13:12:30Z`) — 실측에서 마이크로초가 붙었다(T081)."""
+        clock = Clock()
+        clock.now = START.replace(microsecond=499_903)
+        body = await cache(clock, FakeSource(clock)).body("kr")
+        assert body["fetchedAt"] == "2026-10-09T13:00:00Z"
+
     async def test_칸의_이름과_목록(self) -> None:
         clock = Clock()
         news = cache(clock, FakeSource(clock))

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Self
 
 import pytest
+from _pytest.monkeypatch import MonkeyPatch
 
 from src.config.settings import load_settings
 from src.ingestion.news import yahoo_us
@@ -148,6 +149,27 @@ class Test요청:
         assert headers["User-Agent"] == UA
         assert headers["Accept-Language"].startswith("en-US")
         assert listed.source == "us" and len(listed.items) == 10
+
+    async def test_긴_응답_머리를_읽는_세션을_연다(self, monkeypatch: MonkeyPatch) -> None:
+        """Yahoo 화면의 `Content-Security-Policy` 머리가 약 19.5KB다(2026-10-10 실측 — T081).
+
+        aiohttp 기본 한도(8,190바이트)면 본문을 받기 전에 400 오류(`Got more than 8190 bytes`)가
+        나 칸이 늘 "연결 실패"다. 본문 픽스처로는 드러나지 않아 세션을 여는 인자를 본다.
+        """
+        opened: dict[str, object] = {}
+
+        class Capture:
+            def __init__(self, **kwargs: object) -> None:
+                opened.update(kwargs)
+
+            async def close(self) -> None:
+                return None
+
+        monkeypatch.setattr("src.ingestion.news.client.aiohttp.ClientSession", Capture)
+        settings = dataclasses.replace(load_settings(), news_user_agent=UA)
+        async with NewsClient(settings):
+            pass
+        assert int(opened.get("max_field_size", 0)) >= 32_768  # type: ignore[call-overload]
 
     async def test_429_본문은_rate_limited다(self) -> None:
         session = Session([Resp(fixture("yahoo_us_latest_noua.html"), 429)])
