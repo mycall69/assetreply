@@ -589,7 +589,7 @@ UTC 일봉 시가, 예금은 발표 금리와 %p 차이(등락률 "—"), 부동
   - 1,000% 이상은 세 자리마다 쉼표(`"17.6191"` → `+1,761.91%`, 음수 `-1,234.50%`, `+12,345,678.90%`), 1,000% 미만은 그대로(`+999.99%`·`+35.80%`·`-0.50%`·`+0.00%`)
   - 소수 자리 인자(`digits`)·자르기(반올림하지 않음) 규칙은 그대로, `lib/format.ts`에 숫자 변환이 늘지 않는다(문자열로만)
 - [X] T109 `frontend/src/lib/format.ts` — `formatPercent`가 정수부를 문자열로 끊는다 (FR-021)
-- [ ] T110 검증·게이트·문서 — quickstart 5-15(비교 표·막대·차트 상자, 주식 메뉴 보드의 같은 값), 서버를 내린 채 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .`(백엔드 변경 없음),
+- [X] T110 검증·게이트·문서 — quickstart 5-15(비교 표·막대·차트 상자, 주식 메뉴 보드의 같은 값), 서버를 내린 채 프론트엔드 `npm test`·`npx tsc --noEmit`·`npx eslint .`(백엔드 변경 없음),
   `CLAUDE.md` 013 줄 한 줄, `spec.md` Status (FR-021, SC-012)
 
 **Checkpoint**: 반복 완결 — 1,000% 이상 백분율이 화면 어디서나 같은 쉼표 글자다.
@@ -758,6 +758,7 @@ Task: "T018 compareStore.test.ts · T019 CompareTable.test.tsx · T020 ComparePa
 - **2026-10-09 T107 승인(사용자 — 앱 전체)**: 구현 T109를 작업 트리에 둔 채 화면 전체 스위트를 돌렸다 — **실제로 실패한** 기존 테스트 5건(예상 그대로):
   `CompareReturnChart.test.tsx` 둘(커서 상자 "+2,550.00%"·"+2,596.48% · 매도 후 +2,045.57%"), `CompareMetricBars.test.tsx`·`CompareTable.test.tsx`("+2,045.57%"),
   `PerformanceBoardCurrency.test.tsx`(주식 메뉴 보드 — 013 전 테스트, "+1,881.31%"). 값은 그대로이고 쉼표만 더했다. 고친 줄 위에 `013 승인 2026-10-09` 주석
+- **2026-10-09 T110**: 프론트엔드 193 파일·1,702 passed·tsc·eslint(종료 코드 0, 백엔드 변경 없음), quickstart 5-15 브라우저 확인(실행 기록)
 - 커밋 메시지는 한국어이고 끝에 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`을 단다. 푸시는 요청이 있을 때만 한다.
 
 ## 요구사항 ↔ 태스크
