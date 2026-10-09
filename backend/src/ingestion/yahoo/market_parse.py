@@ -19,8 +19,10 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Final
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from src.ingestion.yahoo.errors import StockSourceUnavailable
 from src.simulation.market_quote import SourceQuote
@@ -30,6 +32,18 @@ _PLACES: Final = Decimal("0.000001")
 
 class MarketBodyInvalid(StockSourceUnavailable):
     """응답 본문을 읽을 수 없다(구조가 바뀌었거나 값이 깨졌다) — 실패 종류 `invalid_body`."""
+
+
+@dataclass(frozen=True, slots=True)
+class DailyChunk:
+    """일봉 청크 하나의 정규화 결과."""
+
+    #: 확정 종가 — `(현지 거래일, 종가)` 날짜 차례. 오늘 이후의 봉·종가가 빈 행은 없다.
+    closes: list[tuple[dt.date, Decimal]] = field(default_factory=list)
+    #: 오늘(현지) 봉 — 확정이 아니다. 없으면 `None`.
+    today_bar: tuple[dt.date, Decimal] | None = None
+    #: 출처의 첫 거래일(발견). 응답에 없으면 `None`.
+    first_trade_date: dt.date | None = None
 
 
 def load(raw: str) -> object:
@@ -65,6 +79,16 @@ def _first(value: object) -> dict[str, object]:
     items = value if isinstance(value, list) else []
     head = items[0] if items else None
     return head if isinstance(head, dict) else {}
+
+
+def _zone(meta: dict[str, object]) -> ZoneInfo:
+    name = meta.get("exchangeTimezoneName")
+    if not isinstance(name, str):
+        raise MarketBodyInvalid("시세 출처의 응답에 시간대가 없습니다.")
+    try:
+        return ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise MarketBodyInvalid("시세 출처의 응답 시간대를 알 수 없습니다.") from exc
 
 
 def quote_from_meta(meta: dict[str, object]) -> SourceQuote | None:
@@ -111,3 +135,56 @@ def _chart_result(body: object) -> dict[str, object]:
 def parse_quote_chart(body: object) -> SourceQuote | None:
     """차트 응답(`range=1d`) 하나 → 시세."""
     return quote_from_meta(_mapping(_chart_result(body).get("meta")))
+
+
+def parse_daily(body: object, *, current_date: dt.date) -> DailyChunk:
+    """일봉 청크 → 확정 종가·오늘 봉·첫 거래일.
+
+    `current_date`는 그 시장의 지금 거래일이다(`simulation/market_session.trading_date`) — 이 날
+    이후의 봉은 확정이 아니다.
+    구간에 시세가 없으면(상장 전) 빈 결과다.
+    """
+    if body is None:
+        raise MarketBodyInvalid("시세 출처의 응답이 유효하지 않습니다.")
+    chart = _mapping(_mapping(body).get("chart"))
+    results = chart.get("result")
+    if results is None and chart.get("error") is None:
+        raise MarketBodyInvalid("시세 출처의 응답이 유효하지 않습니다.")
+    result = _first(results)
+    if not result:
+        return DailyChunk()
+    meta = _mapping(result.get("meta"))
+    zone = _zone(meta)
+    first_trade = _instant(meta.get("firstTradeDate"))
+    timestamps = result.get("timestamp")
+    quote = _first(_mapping(result.get("indicators")).get("quote"))
+    closes_raw = quote.get("close")
+    if timestamps is None:
+        return DailyChunk(
+            first_trade_date=None if first_trade is None else first_trade.astimezone(zone).date()
+        )
+    if (
+        not isinstance(timestamps, list)
+        or not isinstance(closes_raw, list)
+        or len(timestamps) != len(closes_raw)
+    ):
+        raise MarketBodyInvalid("시세 출처의 일봉이 유효하지 않습니다.")
+    current = current_date
+    by_day: dict[dt.date, Decimal] = {}
+    today_bar: tuple[dt.date, Decimal] | None = None
+    for stamp, raw_close in zip(timestamps, closes_raw, strict=True):
+        instant = _instant(stamp)
+        close = _decimal(raw_close)
+        if instant is None or close is None:
+            continue
+        day = instant.astimezone(zone).date()
+        if day >= current:
+            if day == current:
+                today_bar = (day, close)
+            continue
+        by_day[day] = close
+    return DailyChunk(
+        closes=sorted(by_day.items()),
+        today_bar=today_bar,
+        first_trade_date=None if first_trade is None else first_trade.astimezone(zone).date(),
+    )

@@ -50,11 +50,11 @@ export interface ChartDatum {
 /**
  * **미수집** 구간을 경계로 포인트를 나눈다. 휴장일은 경계로 삼지 않는다 (FR-032).
  *
- * 각 구간은 별도 시리즈로 그려야 선이 이어지지 않는다.
+ * 각 구간은 별도 시리즈로 그려야 선이 이어지지 않는다. 사유는 글자로 받는다 — 대시보드 지표(014)의 `missing`도 끊는다.
  */
 export function splitSeriesAtGaps<T extends { date: string }>(
   points: T[],
-  gaps: SeriesGap[],
+  gaps: readonly (Pick<SeriesGap, "from" | "to"> & { reason: string })[],
 ): T[][] {
   if (points.length === 0) return [];
 

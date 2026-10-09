@@ -317,40 +317,40 @@ description: "Task list for 014-market-dashboard"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T042 [P] [US2] `backend/tests/contract/test_yahoo_market_client.py` — `ingestion/yahoo/market` 일봉 쪽 (FR-017, FR-019, R14-2, R14-3, R14-4)
+- [X] T042 [P] [US2] `backend/tests/contract/test_yahoo_market_client.py` — `ingestion/yahoo/market` 일봉 쪽 (FR-017, FR-019, R14-2, R14-3, R14-4)
   - 겨울 CL=F 자정 행이 뉴욕 날짜다(하루 앞당겨지지 않는다 — `gmtoffset`과 다른 결과를 단언).
   - 종가 `null` 행을 버린다. `firstTradeDate`를 읽는다. 2020-04-20 −37.63을 그대로 읽는다.
   - 오늘(현지) 봉은 `today_bar`로 따로 내고 확정 목록에 넣지 않는다.
   - 청크 요청이 `interval=1d&period1&period2`다. 1970년 이전은 음수 `period1`이다(1927 구간 픽스처).
   - 숫자가 `Decimal`이다.
-- [ ] T043 [P] [US2] `backend/tests/unit/test_market_gaps.py` — `simulation/market_gaps` (FR-014, SC-005, R14-5)
+- [X] T043 [P] [US2] `backend/tests/unit/test_market_gaps.py` — `simulation/market_gaps` (FR-014, SC-005, R14-5)
   - 다우만 빈 평일 → `missing`, 넷 다 빈 평일 → 휴장이다.
   - SOX 첫 날 전에는 다우와 견주지 않는다.
   - 상해 국경절(10-01~10-08 빈 평일) → 휴장, 15일 공백 → 그 사이 평일 `missing`이다.
   - 주말은 늘 휴장, 커버리지 밖은 판정하지 않는다. 결과 구간이 연속 날짜로 합쳐진다.
-- [ ] T044 [P] [US2] `backend/tests/unit/test_indicator_periods.py` — `simulation/indicator_periods` (FR-011, FR-012, FR-013, SC-005, data-model 5)
+- [X] T044 [P] [US2] `backend/tests/unit/test_indicator_periods.py` — `simulation/indicator_periods` (FR-011, FR-012, FR-013, SC-005, data-model 5)
   - **대조**: 같은 거래일 목록에서 주·월 대표일이 012 `period_table.build_table`의 대표일과 같다.
   - **년**: 12-31 이하 마지막 거래일이다.
   - **`shifted`**: 금요일 휴장 → 목요일 대표 + `shifted`, 말일·12-31도 같다.
   - **`ongoing`**: 이번 주·달·해의 점이 `ongoing`이다.
   - **잠정 꼬리**: 일 단위는 마지막 점이 `provisional`이다. 주 단위는 그 주 대표가 꼬리이면 `provisional` + `ongoing`이다.
   - **빈 기간**: 거래일이 없는 주는 점이 없다.
-- [ ] T045 [P] [US2] `backend/tests/unit/test_market_runner_plan.py` — `worker/market_runner`의 할 일 계획(순수 부분) (FR-017, FR-019, R14-2, R14-11)
+- [X] T045 [P] [US2] `backend/tests/unit/test_market_runner_plan.py` — `worker/market_runner`의 할 일 계획(순수 부분) (FR-017, FR-019, R14-2, R14-11)
   - 커버리지 없음 → "최근 청크"(현지 어제에서 끝나는 730일)다.
   - `first_day`가 있고 `covered_from > first_day` → 그 앞 730일 청크(첫 날에서 멈춤)다.
   - `covered_through < 현지 어제` → 이어 받기(겹침 5일)이고, 같은 현지 날짜 안에서는 한 번뿐이다.
   - 여러 지표의 차례: 최근 청크 → 이어 받기 → 과거 구간을 지표마다 돌아가며.
   - **오래 꺼짐**(U2 — R14-2): `covered_through`가 현지 어제보다 1,000일 앞이면 이어 받기 청크 둘(730일 + 나머지)이고, 겹침 5일은 첫 청크에만 있다.
   - 이름에 `backfill` 글자를 쓰지 않는다(가드).
-- [ ] T046 [P] [US2] `backend/tests/integration/test_market_worker.py` — `worker/market_worker`·`market_runner` (FR-016, FR-017, FR-019, SC-006, R14-11)
+- [X] T046 [P] [US2] `backend/tests/integration/test_market_worker.py` — `worker/market_worker`·`market_runner` (FR-016, FR-017, FR-019, SC-006, R14-11)
   - 스텁 `YahooMarketClient`를 쓴다.
   - **첫 바퀴**: 12개 지표의 최근 청크와 `first_day`가 기록된다.
   - **중단과 재개**: 한 청크를 실패시키면 커버리지에 그 범위가 없고 `last_failure_*`가 남는다. 다음 지표는 계속된다. 다음 바퀴에 그 청크부터 받는다.
   - **개정**: 겹친 날 값이 바뀐 응답이면 저장 값 그대로 + 개정 한 줄 + `collection.log`의 `market_close_revised`다.
   - **원본**: 같은 현지 날짜에 두 번 돌려도 원본 행이 늘지 않는다.
   - **깨우기**: 이벤트가 곧바로 한 바퀴를 돈다.
-  - **취소**: 루프 취소가 클라이언트를 닫는다.
-- [ ] T047 [P] [US2] `backend/tests/integration/test_dashboard_series_api.py` — A2·A3·A4 (FR-010, FR-012, FR-014, FR-016, FR-018, SC-002, SC-004, contracts A2~A4)
+  - **취소**: 루프 취소는 클라이언트를 닫지 않는다 — 현재 시세 서비스와 함께 쓰는 클라이언트라 `lifespan`이 연다·닫는다(구현 중 바꿈 2026-10-10. 워커가 닫으면 카드 시세가 함께 멈춘다).
+- [X] T047 [P] [US2] `backend/tests/integration/test_dashboard_series_api.py` — A2·A3·A4 (FR-010, FR-012, FR-014, FR-016, FR-018, SC-002, SC-004, contracts A2~A4)
   - **202**: 과거 구간이 남으면 `collecting` + `progress`, 실패 뒤 성공이 없으면 `failed` + `failure`다.
   - **200**: 단위 넷의 점·`gaps`(결측만)·`tailPending`이 나온다.
   - **잠정 꼬리**: 시세 캐시의 `sessionDate`가 마지막 저장일보다 뒤면 붙는다. 환율에는 붙지 않는다.
@@ -361,18 +361,18 @@ description: "Task list for 014-market-dashboard"
   - **SSE**: `snapshot`·`completed`·`failed`가 나온다(커버리지 행을 바꿔 가며).
   - **수집 상태**(C1 — FR-019): 완성 뒤 실패 기록이 마지막 성공보다 뒤면 200 + `history.lastFailure{kind, message, at}`, 성공이 더 뒤면 `null`이다. `lastSuccessAt`은 커버리지 행의 값이다.
     환율은 외환 커버리지의 마지막 갱신 시각이고 `lastFailure`는 `null`이다.
-- [ ] T048 [P] [US2] `frontend/tests/indicatorSeriesStore.test.ts` — `stores/indicatorSeriesStore` (FR-010, FR-011, FR-016)
+- [X] T048 [P] [US2] `frontend/tests/indicatorSeriesStore.test.ts` — `stores/indicatorSeriesStore` (FR-010, FR-011, FR-016)
   - 202 → 진행 구독(모의 `EventSource`) → `completed`에 다시 요청 → `ready`다.
   - `setUnit`이 주소 바꾸기 콜백을 부른다.
   - 늦은 옛 단위 응답(`seq`)을 버린다.
   - 404 → `not_found`다. `retryCollect`가 POST를 부른다. `close`가 구독을 끊는다.
-- [ ] T049 [P] [US2] `frontend/tests/IndicatorChart.test.tsx` — `components/dashboard/IndicatorChart` (FR-011, FR-012, FR-013, FR-014, contracts D3)
+- [X] T049 [P] [US2] `frontend/tests/IndicatorChart.test.tsx` — `components/dashboard/IndicatorChart` (FR-011, FR-012, FR-013, FR-014, contracts D3)
   - 이 파일 안에서 `lightweight-charts`를 모의한다(`setVisibleLogicalRange` 포함).
   - **선 나눔**: `gaps` 구간마다 `LineSeries`가 나뉜다. 휴장(빈 날)은 나뉘지 않는다.
   - **잠정**: `provisional` 점은 연한 색 계열에 있다.
   - **처음 범위**: 일 = 마지막 약 250점, 주 260, 월 240, 년 전체다.
   - **커서 상자**: 날짜·형식 입힌 값·`📅 옮김`·`⏳ 끝나지 않은 구간`·`⏳ 잠정`이 보인다.
-- [ ] T050 [P] [US2] `frontend/tests/IndicatorPage.test.tsx` — 지표 화면 (FR-010, FR-011, FR-015, FR-016, FR-018, contracts D3·D4)
+- [X] T050 [P] [US2] `frontend/tests/IndicatorPage.test.tsx` — 지표 화면 (FR-010, FR-011, FR-015, FR-016, FR-018, contracts D3·D4)
   - `IndicatorChart`·`next/navigation`을 모의한다.
   - **머리 값**: `marketQuotesStore`의 같은 지표 값이다.
   - **단위 단추**: `aria-pressed`이고 누르면 `router.replace("?unit=monthly", { scroll: false })`다.
@@ -385,28 +385,28 @@ description: "Task list for 014-market-dashboard"
 
 ### Implementation for User Story 2
 
-- [ ] T051 [US2] `backend/src/ingestion/yahoo/market_parse.py`(일봉 쪽) + `backend/src/ingestion/yahoo/market.py`(`fetch_daily(symbol, date_from, date_to)` → 확정 종가·오늘 봉·`firstTradeDate`·원본 본문) (FR-017, FR-019, R14-2~R14-4)
+- [X] T051 [US2] `backend/src/ingestion/yahoo/market_parse.py`(일봉 쪽) + `backend/src/ingestion/yahoo/market.py`(`fetch_daily(symbol, date_from, date_to)` → 확정 종가·오늘 봉·`firstTradeDate`·원본 본문) (FR-017, FR-019, R14-2~R14-4)
   - 날짜는 `zoneinfo.ZoneInfo(meta["exchangeTimezoneName"])`로 바꾼다.
   - 청크 사이 간격은 `MARKET_CHUNK_DELAY_MS`다.
-- [ ] T052 [P] [US2] `backend/src/simulation/market_gaps.py` — R14-5 (FR-014, SC-005)
-- [ ] T053 [P] [US2] `backend/src/simulation/indicator_periods.py` — data-model 5(주·월은 `period_table.period_bounds`를 부른다, 년 추가) (FR-011, FR-012, FR-013, SC-005)
-- [ ] T054 [US2] `backend/src/worker/market_runner.py` — 할 일 계획(순수 함수) + 청크 실행 (FR-017, FR-019, SC-006, R14-11)
+- [X] T052 [P] [US2] `backend/src/simulation/market_gaps.py` — R14-5 (FR-014, SC-005)
+- [X] T053 [P] [US2] `backend/src/simulation/indicator_periods.py` — data-model 5(주·월은 `period_table.period_bounds`를 부른다, 년 추가) (FR-011, FR-012, FR-013, SC-005)
+- [X] T054 [US2] `backend/src/worker/market_runner.py` — 할 일 계획(순수 함수) + 청크 실행 (FR-017, FR-019, SC-006, R14-11)
   - 청크마다 원본 → 종가(새 날만·개정) → 커버리지 순으로 저장하고 커밋한다.
   - 실패 기록은 `mask_secrets`를 거친다. `collection.log` 사건은 `market_chunk`·`market_close_revised`·`market_chunk_failed`다.
   - 이어 받기도 `MARKET_CHUNK_DAYS`로 나눈다(R14-2 — 오래 꺼졌다 켜진 경우).
-- [ ] T055 [US2] `backend/src/worker/market_worker.py` + `backend/src/api/main.py` (FR-019, R14-11)
+- [X] T055 [US2] `backend/src/worker/market_worker.py` + `backend/src/api/main.py` (FR-019, R14-11)
   - `market_worker_loop`는 `MARKET_COLLECT_INTERVAL_SECONDS` 주기 + `asyncio.Event` 깨우기다. 한 지표의 실패가 루프를 끝내지 않는다.
   - `lifespan`의 아홉째 태스크로 둔다. 종료 때 취소한다.
-- [ ] T056 [US2] `backend/src/api/services/indicator_series.py` — `MarketHistoryRepository`로 이력을 읽는다 (FR-012, FR-014, FR-016, FR-018, FR-019, SC-002, SC-004)
+- [X] T056 [US2] `backend/src/api/services/indicator_series.py` — `MarketHistoryRepository`로 이력을 읽는다 (FR-012, FR-014, FR-016, FR-018, FR-019, SC-002, SC-004)
   - 환율은 `repository/fx_rate.series`·커버리지를 읽는다.
   - 단위 묶기·결측·잠정 꼬리(시세 서비스의 캐시)·한도 LTTB(`simulation/downsample.lttb`)·`tailPending`·202 판정을 한다.
   - 수집 상태 `history.lastSuccessAt`·`lastFailure`(contracts A2 — FR-019)를 커버리지 행에서 싣는다.
-- [ ] T057 [US2] `backend/src/api/routes/dashboard_series.py` + `backend/src/api/main.py` — A2·A3·A4. SSE는 `api/collection_stream.SSE_HEADERS`·`format_sse`, 2초 폴링(`session.rollback()`). 200 응답에 수집 상태(`history.lastSuccessAt`·`lastFailure`)를 싣는다 (FR-010, FR-016, FR-019, contracts A2~A4)
-- [ ] T058 [P] [US2] `frontend/src/lib/dashboardApi.ts`(`fetchSeries`·`requestCollect`) + `frontend/src/lib/dashboardProgressStream.ts`(`subscribeIndicatorProgress`) + `frontend/src/lib/types.ts`(그래프 타입 — contracts A2·A4) (FR-010, FR-016)
-- [ ] T059 [US2] `frontend/src/stores/indicatorSeriesStore.ts` — data-model 7 (FR-010, FR-011, FR-016)
-- [ ] T060 [US2] `frontend/src/components/dashboard/IndicatorHeader.tsx`·`UnitPicker.tsx`·`IndicatorChart.tsx`·`SeriesCollecting.tsx` — contracts D3·D4 (FR-010~FR-016, FR-018)
+- [X] T057 [US2] `backend/src/api/routes/dashboard_series.py` + `backend/src/api/main.py` — A2·A3·A4. SSE는 `api/collection_stream.SSE_HEADERS`·`format_sse`, 2초 폴링(`session.rollback()`). 200 응답에 수집 상태(`history.lastSuccessAt`·`lastFailure`)를 싣는다 (FR-010, FR-016, FR-019, contracts A2~A4)
+- [X] T058 [P] [US2] `frontend/src/lib/dashboardApi.ts`(`fetchSeries`·`requestCollect`) + `frontend/src/lib/dashboardProgressStream.ts`(`subscribeIndicatorProgress`) + `frontend/src/lib/types.ts`(그래프 타입 — contracts A2·A4) (FR-010, FR-016)
+- [X] T059 [US2] `frontend/src/stores/indicatorSeriesStore.ts` — data-model 7 (FR-010, FR-011, FR-016)
+- [X] T060 [US2] `frontend/src/components/dashboard/IndicatorHeader.tsx`·`UnitPicker.tsx`·`IndicatorChart.tsx`·`SeriesCollecting.tsx` — contracts D3·D4 (FR-010~FR-016, FR-018)
   - `IndicatorChart`는 새 부품이다. `FxChart`·`PerformanceChart`를 고치지 않는다.
-- [ ] T061 [US2] `frontend/src/app/dashboard/[indicator]/page.tsx` — 서버 컴포넌트가 `params`·`searchParams`(Promise)를 풀어 클라이언트 부품(`components/dashboard/IndicatorView.tsx`)에 `id`·`unit`을 넘긴다. 틀린 단위는 `daily`다. `IndicatorView`는 마운트에 `marketQuotesStore.load()`·`startPolling()`, 언마운트에 `stopPolling()`을 부른다(머리 값도 보이는 동안 다시 받는다) (FR-008, FR-010, FR-011, R14-14)
+- [X] T061 [US2] `frontend/src/app/dashboard/[indicator]/page.tsx` — 서버 컴포넌트가 `params`·`searchParams`(Promise)를 풀어 클라이언트 부품(`components/dashboard/IndicatorView.tsx`)에 `id`·`unit`을 넘긴다. 틀린 단위는 `daily`다. `IndicatorView`는 마운트에 `marketQuotesStore.load()`·`startPolling()`, 언마운트에 `stopPolling()`을 부른다(머리 값도 보이는 동안 다시 받는다) (FR-008, FR-010, FR-011, R14-14)
 - [ ] T062 [US2] 실측 확인 — quickstart 5-4~5-6을 확인하고 `quickstart.md` 8에 기록한다 (FR-010, FR-016, FR-017, FR-018, SC-004, SC-006)
   - **5-5**: 임시 백엔드(환경 변수로 DB 이름·포트를 덮는다)의 빈 표에서 처음 과거 구간 수집 시간·청크 수·429 유무를 잰다.
   - 저장된 첫 날을 지표마다 출처 `firstTradeDate`와 대조한다.
@@ -616,6 +616,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 - 기록:
   - T002 기준 게이트(2026-10-09, 서버를 내린 채): 백엔드 `pytest` 3,034 passed(9분 43초)·커버리지 96%·`mypy` 239파일 통과·`ruff` 통과, 프론트엔드 `vitest` 193파일 1,702 passed·`tsc`·`eslint` 통과(모두 종료 코드 0). 기준 응답(T001)은 작업용 임시 폴더 `014-baseline/before/` 29파일
   - T018 승인(2026-10-10 — 사용자 사전 승인 "중간에 승인이 필요하면 모두 승인"): 실제 실패 7개 = 예상 목록(R14-16)과 같다. `Sidebar.test.tsx` 넷(링크 아님 → 모든 항목 링크, 준비중 1 → 0, 초점 대상 0 → 링크 하나, 링크 목록 + `/dashboard`), `noUnbuiltAssetRoutes.test.ts` 셋(`UNBUILT` → `[]`, 경로 + `/dashboard`, API 정규식에서 `dashboard`). `TopBarTitle.test.ts`는 변경 없음
+  - US2 구현(2026-10-10): 기존 테스트 승인 변경 5건(사용자 사전 승인) — lifespan 태스크 수 8 → 9(부동산·가상자산·예금 워커 테스트), SSE 머리글 검사에 지표 수집 진행·SSE 파일 목록에 `dashboard_series.py`. 예상 목록(R14-16)에 없던 변경이다 — 아홉째 태스크와 새 SSE 경로가 기존 테스트의 목록에 걸렸다. 구현을 치운 상태에서 5건 실패 확인 뒤 `test(014)` 커밋. `indicator_series`는 세션과 저장소 모듈을 받는다(외환 `series_query`와 같은 꼴 — 시세 캐시만 Protocol `QuoteLookup`). `lib/chartSeries.splitSeriesAtGaps`의 결측 인자를 사유 글자로 넓혔다(형만 — 지표의 `missing`도 끊는다, 동작 불변)
   - T080 파싱 시간: (구현 중 채움)
   - T086 게이트: (구현 중 채움)
 

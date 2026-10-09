@@ -35,8 +35,10 @@ from src.ingestion.yahoo.errors import (
 )
 from src.ingestion.yahoo.gate import YahooGate, get_yahoo_gate
 from src.ingestion.yahoo.market_parse import (
+    DailyChunk,
     MarketBodyInvalid,
     load,
+    parse_daily,
     parse_quote_chart,
     parse_spark,
 )
@@ -77,6 +79,17 @@ class QuoteFetch:
 
     quotes: dict[str, SourceQuote] = field(default_factory=dict)
     failures: dict[str, Failure] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class DailyFetch:
+    """일봉 청크 한 번의 결과 — 정규화 결과와 원본 본문."""
+
+    chunk: DailyChunk
+    raw: str
+    status: int
+    requested_from: dt.date
+    requested_to: dt.date
 
 
 class YahooMarketClient:
@@ -146,6 +159,29 @@ class YahooMarketClient:
                 continue
             quotes[indicator_id] = quote
         return QuoteFetch(quotes, failures)
+
+    async def fetch_daily(
+        self, indicator_id: str, date_from: dt.date, date_to: dt.date, *, current_date: dt.date
+    ) -> DailyFetch:
+        """일봉 청크 하나(R14-2). `current_date`(그 시장의 지금 거래일) 이후의 봉은 확정으로 내지
+        않는다.
+
+        `period1`은 첫 거래일이 1970년 이전이면 음수 epoch다 — 날짜에서 계산하므로 상수가 없다.
+        """
+        body, raw, status = await self._get(
+            f"/v8/finance/chart/{symbol_of(indicator_id)}",
+            {
+                "period1": str(_epoch(date_from)),
+                "period2": str(_epoch(date_to) + _SECONDS_PER_DAY - 1),
+                "interval": "1d",
+            },
+        )
+        chunk = parse_daily(body, current_date=current_date)
+        return DailyFetch(chunk, raw, status, date_from, date_to)
+
+    async def delay_between_chunks(self) -> None:
+        """청크 사이의 간격. 공격적 폴링이 차단의 주된 원인이다."""
+        await asyncio.sleep(self._settings.market_chunk_delay_ms / 1000)
 
     def _shared_gate(self) -> YahooGate:
         return self._gate if self._gate is not None else get_yahoo_gate(self._settings)

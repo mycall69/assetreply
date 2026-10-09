@@ -99,6 +99,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from src.worker.listing_queue import get_listing_queue
     from src.worker.listing_worker import listing_worker_loop
     from src.worker.listing_worker import startup as listing_startup
+    from src.worker.market_worker import market_worker_loop
     from src.worker.queue import get_queue
     from src.worker.reconcile import reconcile_loop, reconcile_on_startup
     from src.worker.runner import worker_loop
@@ -192,6 +193,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # 목록 줄로 나뉜다 — 시·군·구 전체 이력(약 280회)이 행정구역 갱신을 막지 않는다.
         asyncio.create_task(apt_worker_loop(
             factory, apt_client, get_apt_trade_queue(), get_apt_list_queue(), settings=settings)),
+        # 014 — 대시보드 지표 이력 수집. **다른 자산군과 따로다** — 대시보드 수집이 주식·외환 수집을
+        # 막지 않는다. 같은 Yahoo
+        # 출처의 한도는 관문이 함께 지킨다(R14-10). 클라이언트는 현재 시세 서비스와 함께 쓴다.
+        asyncio.create_task(market_worker_loop(factory, market_client, settings=settings)),
     ]
     try:
         yield
@@ -460,6 +465,7 @@ def create_app() -> FastAPI:
     from src.api.routes import crypto_simulation as crypto_simulation_routes
     from src.api.routes import daily as daily_routes
     from src.api.routes import dashboard_quotes as dashboard_quotes_routes
+    from src.api.routes import dashboard_series as dashboard_series_routes
     from src.api.routes import deposit_installment as deposit_installment_routes
     from src.api.routes import deposit_institutions as deposit_institutions_routes
     from src.api.routes import deposit_progress as deposit_progress_routes
@@ -538,6 +544,7 @@ def create_app() -> FastAPI:
     app.include_router(comparison_routes.router)
     # 014 — 대시보드. 기존 경로 뒤에 둔다(contracts A6 — 기존 응답 불변).
     app.include_router(dashboard_quotes_routes.router)
+    app.include_router(dashboard_series_routes.router)
 
     return app
 

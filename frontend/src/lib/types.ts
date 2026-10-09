@@ -1778,3 +1778,55 @@ export interface DashboardQuotesResponse {
   source: string;
   indicators: DashboardIndicator[];
 }
+
+export type IndicatorUnit = "daily" | "weekly" | "monthly" | "yearly";
+
+/** 그래프 점(contracts A2). 선택 칸은 참일 때만 온다. */
+export interface IndicatorPoint {
+  date: string;
+  value: DecimalString;
+  shifted?: boolean;
+  ongoing?: boolean;
+  provisional?: boolean;
+}
+
+export interface IndicatorHistoryFailure {
+  kind: string;
+  message: string;
+  at: string;
+}
+
+/** `GET /api/dashboard/indicators/{id}/series` 200. */
+export interface IndicatorSeriesResponse {
+  indicator: Omit<DashboardIndicator, "order" | "status" | "quote" | "stale" | "failure">;
+  unit: IndicatorUnit;
+  history: {
+    source: "yahoo" | "ecos";
+    firstDate: string | null;
+    lastDate: string | null;
+    tailPending: boolean;
+    lastSuccessAt: string | null;
+    lastFailure: IndicatorHistoryFailure | null;
+  };
+  points: IndicatorPoint[];
+  gaps: { from: string; to: string; reason: "missing" }[];
+  downsampled: boolean;
+  sourcePointCount: number;
+}
+
+export interface IndicatorProgress {
+  firstDay: string | null;
+  coveredFrom: string | null;
+  coveredThrough: string | null;
+  remainingDays: number | null;
+}
+
+/** 같은 경로의 202 — 받는 중·실패. */
+export interface IndicatorCollecting {
+  status: "collecting" | "failed";
+  indicator: { id: string; name: string };
+  progress: IndicatorProgress | null;
+  failure: IndicatorHistoryFailure | null;
+  progressUrl: string;
+  jobId?: number | null;
+}
