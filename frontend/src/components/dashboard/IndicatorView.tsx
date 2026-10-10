@@ -6,12 +6,11 @@
  * 머리 → 변화 까닭 → 기간 단추 → 그래프 → 일자별 표. 모달의 껍데기(대화 상자·닫기·포커스)는 `IndicatorModal`이 진다.
  *
  * - 머리 값은 대시보드와 같은 스토어다(FR-010)
- * - 기간 단추는 스토어를 먼저 바꾸고 주소의 `range`를 바꾼다(`router.replace`, 스크롤 유지) — 새로고침·즐겨찾기에서 같은 기간이다.
+ * - 기간 단추는 스토어를 먼저 바꾸고 주소의 `range`를 바꾼다(`history.replaceState` — 반복 2026-10-10c T137) — 새로고침·즐겨찾기에서 같은 기간이다.
  *   주소가 바뀌어 다시 그려질 때 같은 기간을 두 번 받지 않는다
  * - 받는 중·실패는 일봉 기간의 그래프 자리와 표 자리에 같은 글이다(D4). 장중(일·주)은 수집과 무관하게 그린다
  * - 그래프가 다 받아지면(`ready`) 받는 중이던 표도 다시 연다 — 표만 받는 중으로 남지 않게
  */
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { IndicatorChart } from "@/components/dashboard/IndicatorChart";
 import { IndicatorCommentary } from "@/components/dashboard/IndicatorCommentary";
@@ -35,7 +34,6 @@ export function IndicatorView({ id, range, titleId, onClose }: {
   /** 없는 지표 안내의 [닫기]. */
   onClose: () => void;
 }) {
-  const router = useRouter();
   const quotes = useMarketQuotesStore((s) => s.data);
   const status = useIndicatorSeriesStore((s) => s.status);
   const series = useIndicatorSeriesStore((s) => s.series);
@@ -95,7 +93,9 @@ export function IndicatorView({ id, range, titleId, onClose }: {
       <IndicatorHeader card={card} series={series} name={name} onRetry={retry} titleId={titleId} />
       <IndicatorCommentary state={commentary} onRetry={() => void loadCommentary(id)} />
       <RangePicker value={shown} onChange={(next) => {
-        void setRange(next, (r) => router.replace(`?range=${r}`, { scroll: false }));
+        // 주소만 바꾼다(`history.replaceState` — Next 라우터와 맞물린다). `router.replace`는 페이지 조각의 질의를 바꿔 모달 내용을
+        // 통째로 다시 붙였다 — 그래프·표를 다시 받았다(T137 실측). 새로고침·즐겨찾기는 주소의 `range`로 같은 기간을 연다
+        void setRange(next, (r) => window.history.replaceState(null, "", `?range=${r}`));
       }} />
       {status === "ready" && series && <IndicatorChart series={series} range={shown} onRetry={() => void reload()} />}
       {(status === "collecting" || status === "failed") && collecting && (
