@@ -58,7 +58,7 @@
 | 언어(프론트엔드) | TypeScript 5 (`strict`), Next.js 16(App Router — `params`·`searchParams`는 Promise), React 19 |
 | 상태 관리 | Zustand — `marketQuotesStore`·`indicatorSeriesStore`·`newsStore`. 반복 2026-10-10b: `indicatorTableStore`·`indicatorCommentaryStore`, 모달 열림은 주소다 |
 | 화면 경로(반복 2026-10-10b) | 모달 — `app/dashboard/@modal/(.)[indicator]`(대시보드 안 이동 = 가로채기), `app/dashboard/[indicator]`(새로고침·직접 입력 = 대시보드 + 모달) — R14-20 |
-| 차트 | Lightweight Charts — 새 `IndicatorChart`(`LineSeries`, 결측 구간마다 선 나눔, 잠정 꼬리 연한 색, 처음 범위 `setVisibleLogicalRange`). 반복 2026-10-10b: 처음 범위 없음(`fitContent`) — 기간 8개가 범위다, 장중은 잠정 선 |
+| 차트 | Lightweight Charts — 새 `IndicatorChart`(`LineSeries`, 결측 구간마다 선 나눔, 잠정 꼬리 연한 색, 처음 범위 `setVisibleLogicalRange`). 반복 2026-10-10b: 처음 범위 없음(`fitContent`) — 기간 8개가 범위다, 막대 간격 하한 0.01px(기본 0.5px면 "모두"가 끝 2천 점만 보인다 — T123), 장중은 잠정 선·시간 축은 시장 현지 시각 |
 | DB | MySQL 8 — 새 테이블 넷(`market_indicator_daily`·`_raw`·`_coverage`·`market_close_revision`), Alembic 리비전 하나(`down_revision = "b3e7d5a1c924"`). 반복 2026-10-10b: `market_indicator_daily`에 `open_price`·`high_price`·`low_price` 열(Alembic 리비전 하나 — R14-18) |
 | 출처 | Yahoo 차트·spark(지표 — 005 이탈의 확장), ECOS(환율 이력 — 001의 데이터 그대로), 네이버 증권 내부 API·Yahoo Finance HTML·Yahoo!ファイナンス 내장 JSON(뉴스). 반복 2026-10-10b: 변화 까닭의 시황 기사(R14-17), 장중 시세(Yahoo 차트 `interval=5m·30m` — R14-19) — 둘 다 저장 안 함 |
 | 테스트 | pytest + pytest-asyncio(통합은 `assetreplay_test`, 계약은 저장 본문 픽스처 — 네트워크 없음), Vitest + RTL(`lightweight-charts` 모의, 종료 코드 확인) |
@@ -96,7 +96,7 @@
 | 다른 곳에서 일어남 | ✅ | 한국 날짜로 미국 "어제"를 잡으면 `market_quote` 참조값이 깨진다. 고정 오프셋 날짜는 겨울 CL=F 픽스처가 깨뜨린다. 카드·그래프 전일 불일치는 통합 대조(SC-003)로, 시장 환율이 고시 이력에 섞이면 스키마·통합(SC-004)으로 잡힌다. 탭 여럿 → 출처 한 번은 단일 비행 테스트, 허용 도메인 밖 링크는 계약 테스트가 잡는다 |
 | 늦게 일어남 | ✅ | 보이지 않는 탭은 부르지 않는다(가짜 visibility). 자정 날짜는 가짜 시계로 본다. 하루 이어 받기를 놓치면 출처 전일 + 표시다. 백필 완료는 SSE `completed`로 그래프가 된다. 실패 기억은 백오프 상한 10분이다 |
 | 공유 부품 변경 | ✅ | `PerformanceChart`·`FxChart`는 고치지 않는다(새 `IndicatorChart`). `period_table`은 부르기만 한다. `lib/format.ts`는 고치지 않는다(필요하면 새 함수를 더함만) |
-| 반복 2026-10-10b | ⚠ 재승인·승인 필요 | 원칙 II 새 경로 둘(T095). 014가 만든 테스트(`IndicatorPage`·`IndicatorChart`·`indicatorSeriesStore`·`test_indicator_periods`·`test_dashboard_series_api`)는 구현 뒤 실제 실패 목록으로 승인(T111). 014 전 테스트는 바뀌지 않는다 |
+| 반복 2026-10-10b | ✅ 승인됨 | 원칙 II 새 경로 둘 — T095 실측 뒤 사용자 재승인 2026-10-10. 014가 만든 테스트(`IndicatorPage`·`IndicatorChart`·`indicatorSeriesStore`·`indicatorSeriesFixtures`·`dashboardNoClientFinance`·`test_indicator_periods`·`test_dashboard_series_api`)는 구현 뒤 실제 실패 목록으로 사용자 승인 2026-10-10(T111). 014 전 테스트는 바뀌지 않았다 |
 | 바뀌는 기존 테스트 | ⚠ 승인 필요 | R14-16: `Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts`, (필요하면) `TopBarTitle.test.ts`. 구현 뒤 실제 실패 목록으로 승인을 받는다 |
 
 ## Project Structure
