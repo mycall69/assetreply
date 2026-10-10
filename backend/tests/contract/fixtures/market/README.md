@@ -25,3 +25,11 @@ Yahoo 비공식 차트·spark 엔드포인트의 **응답 본문만** 담는다.
 | `intraday_GSPC_5d_30m.json` | `^GSPC` 5일 30분 | 66점 — 10-05~10-09 |
 | `intraday_KRW_X_5d_30m.json` | `KRW=X` 5일 30분 | 240점 중 빈 종가 24 — 건너뛴다 |
 | `intraday_JPYKRW_X_1d_5m.json` | `JPYKRW=X` 1일 5분 | 288점 중 빈 종가 114, 1엔당 값(×100은 어댑터) |
+
+**반복 2026-10-10c(T128 — 2026-10-10 11:4x KST 토요일 실측)** — 넓힌 장중 범위(일 `range=5d&interval=5m`·주 `range=1mo&interval=30m`), 응답 본문만:
+
+| 파일 | 요청 | 담긴 상황 |
+|------|------|-----------|
+| `intraday_GSPC_5d_5m.json` | `^GSPC` 5일 5분 | 391점 — 10-05~10-09(뉴욕) 다섯 세션, 빈 점 없음. 마지막 세션 10-09 13:30~20:00 UTC |
+| `intraday_GSPC_1mo_30m.json` | `^GSPC` 1개월 30분 | 287점 — 09-10~10-09 22세션 |
+| `intraday_KRW_X_1mo_30m.json` | `KRW=X` 1개월 30분 | 1,056점 중 빈 종가 38 — 24시간 거래, 시간대 `Europe/London`(세션 = 런던 날짜) |

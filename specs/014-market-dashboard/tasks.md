@@ -657,7 +657,7 @@ description: "Task list for 014-market-dashboard"
 
 ### Preparation (반복 2026-10-10c)
 
-- [ ] T128 실측·기준선 — `research.md` R14-22·R14-23, `backend/tests/contract/fixtures/market/` + README, 작업용 임시 폴더의 기준선 스크린샷 (FR-011, FR-026, FR-028, FR-030)
+- [X] T128 실측·기준선 — `research.md` R14-22·R14-23, `backend/tests/contract/fixtures/market/` + README, 작업용 임시 폴더의 기준선 스크린샷 (FR-011, FR-026, FR-028, FR-030)
   - (a) Yahoo `range=5d&interval=5m`·`range=1mo&interval=30m`(S&P·KOSPI·USD·JPY)의 점 수·null·세션 경계를 잰다. 픽스처(본문만) `intraday_GSPC_5d_5m.json`·`intraday_GSPC_1mo_30m.json`·
     `intraday_KRW_X_1mo_30m.json`을 남긴다
   - (b) **밝은 테마 기준선 스크린샷**(1440px, 헤드리스 Chrome) — 대시보드·지표 모달·외환·가상자산·주식·예금·부동산·투자 비교·설정. 구현 전에 찍는다(T139가 견준다)
