@@ -269,3 +269,25 @@ R14-7 표가 상수다. 함수는 둘이다:
 | 바꾸기 | `themeStore.toggle()` — 클래스·저장소를 함께 바꾼다. 저장소 쓰기가 실패해도 지금 화면은 바뀐다(그 탭에서만 유지) |
 | 차트 | `lib/chartTheme.ts`의 팔레트(배경·글자·격자·선) — 테마가 바뀌면 차트를 다시 만든다(R14-23) |
 
+
+## 10. 외환 일자별 행의 등락 (반복 2026-10-10d — FR-031, 저장하지 않음)
+
+`GET /api/fx/daily`(001·004)의 행마다 더해지는 칸이다. 요청마다 계산하고 저장하지 않는다.
+
+| 칸 | 꼴 | 뜻 |
+|----|-----|-----|
+| `change` | 객체 \| `null` | 바로 아래 행 대비. 비교 대상이 없으면(저장된 첫 고시) `null` |
+| `change.comparedTo` | 날짜 `YYYY-MM-DD` | 비교한 행의 날짜(주·월은 그 대표일) |
+| `change.absolute` | `Decimal` 문자열 | 그 행 `baseRate` − 비교 행 `baseRate`(저장 정밀도 그대로 — 반올림하지 않는다) |
+| `change.percent` | `Decimal` 문자열 \| `null` | `absolute` ÷ 비교 행 `baseRate` × 100, 소수 둘째 자리(`ROUND_HALF_EVEN` — `Decimal.quantize` 기본). 비교 행이 0 이하면 `null` |
+| `change.direction` | `"up"` · `"down"` · `"flat"` | `absolute`의 부호 |
+
+- **비교 대상**: 그 쪽에서 바로 아래 행이다 — 일 = 직전 고시일, 주·월 = 직전 주·달의 대표값(`period_page`의 행). 쪽의 마지막 행은 `hasMore` 판정을 위해 한 건 더 읽은
+  행과 견준다(추가 질의 없음). 더 읽은 행이 없으면(저장된 첫 고시) `null`이다
+- **계산 함수**: 순수 모듈 `simulation/fx_change.py` 하나 — `/api/fx/latest`의 `change`(요약 칸의 전일 대비)도 이 함수를 부른다. 꼴이 같고(`LatestChange`) 같은 두 날이면
+  같은 글자다. `/latest`는 잠정 값을 직전 **확정** 값과 견주는 지금의 대상 고르기가 그대로이고 응답이 바뀌지 않는다
+  - `/latest`의 지금 규칙은 직전 값이 0이면 `percent`를 `"0"`으로 낸다 — `/latest` 응답 불변을 위해 그 경로는 그대로 두고, 표 행은 `null`("—")이다. 매매기준율이 0 이하인
+    고시는 실제로 없다(R14-24)
+- **화면**: `PeriodRow.change?: DailyChange | null`(선택 칸 — 014 전 테스트의 행 픽스처에 없어도 된다). `DailyChange`는 `LatestChange`와 같은 꼴이고 `percent`만 `null`일
+  수 있다(요약 칸의 `LatestChange`는 그대로). `change`가 없거나 `null`이면 두 칸 모두 "—", `percent`만 `null`이면 등락율만 "—"
+- **CSV**: `…,확정 여부,원래 기준일,진행 중,등락폭,등락율`(맨 끝 — 004가 더한 두 열 뒤) — `absolute`·`percent` 글자 그대로, 없으면 빈 칸

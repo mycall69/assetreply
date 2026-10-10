@@ -236,10 +236,34 @@
 - `items`의 글자는 출처의 것 그대로다. 링크는 허용 도메인·https만이다(spec FR-022·FR-027)
 - 출처 목록·주소는 research R14-17(T095 실측)이다
 
+## A9. `GET /api/fx/daily` 행의 `change` — 외환 일자별 표의 등락 (반복 2026-10-10d — spec FR-031)
+
+001·004 계약의 행에 칸 하나를 더한다. 다른 칸·차례·쪽 넘기기(`before`·`limit`·`hasMore`·`oldestReturned`)·`period`·202 본문은 그대로다.
+
+```json
+{
+  "date": "2026-10-08",
+  "baseRate": "1425.30",
+  "isProvisional": false,
+  "derived": { "…": "001 그대로" },
+  "periodFrom": "2026-10-08",
+  "periodTo": "2026-10-08",
+  "isOngoing": false,
+  "change": { "comparedTo": "2026-10-07", "absolute": "2.30", "percent": "0.16", "direction": "up" }
+}
+```
+
+- `change`는 **늘 있다** — 비교 대상이 없으면(저장된 첫 고시) `null`이다(`isOngoing`처럼 "확인했고 없다"를 밝힌다)
+- 비교 대상 = 그 쪽에서 바로 아래 행이다. 일 = 직전 고시일, 주·월 = 직전 주·달의 대표값. 쪽의 마지막 행은 `hasMore` 판정에 더 읽은 한 건(다음 쪽의 첫 행)과 견준다
+- `absolute` = `baseRate` − 비교 행 `baseRate`(저장 정밀도), `percent` = `absolute` ÷ 비교 행 `baseRate` × 100(소수 둘째 자리 — `/api/fx/latest`의 `change`와 같은 함수). 비교 행이
+  0 이하면 `percent`만 `null`이다. `direction`은 `up`·`down`·`flat`
+- 저장하지 않는다(요청마다 계산 — data-model §10)
+- `/api/fx/latest`의 `change`(요약 칸의 전일 대비)는 같은 꼴·같은 글자다 — 그 경로의 대상 고르기와 응답은 바뀌지 않는다
+
 ## A6. 불변
 
 기존 경로의 응답은 바뀌지 않는다(FR-026):
-- 외환: `/api/fx/*`
+- 외환: `/api/fx/*` — (반복 2026-10-10d) 예외 하나: `/api/fx/daily`의 행에 `change`가 더해진다(A9). `/api/fx/latest`·`/api/fx/series`·수집 경로는 그대로다
 - 주식: `/api/stocks/*`
 - 가상자산: `/api/crypto/*`
 - 예금: `/api/deposit/*`

@@ -24,7 +24,7 @@ description: "Task list for 014-market-dashboard"
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: 병렬 실행 가능 (서로 다른 파일, 미완료 태스크에 의존하지 않음)
-- **[Story]**: 소속 사용자 스토리 (US1~US3)
+- **[Story]**: 소속 사용자 스토리 (US1~US5 — US4·US5는 반복 2026-10-10c·10d)
 - 모든 태스크는 파일 경로와 **검증하는 FR·SC**를 적는다. 참조하는 태스크가 없는 인수 기준은 헌법 위반이다
 - **ID는 안정적 참조다.** 반복으로 추가된 태스크는 번호를 이어 붙이고, 삭제된 태스크는 번호를 재사용하지 않고 취소선으로 남긴다
 
@@ -707,6 +707,53 @@ description: "Task list for 014-market-dashboard"
 
 ---
 
+## Phase 10: 반복 2026-10-10d — 외환 일자별 표의 등락폭·등락율 (spec Iterations)
+
+**Goal**:
+- 외환 메뉴의 일자별 환율 표(일·주·월) 오른쪽 끝(송금 받을 때 뒤)에 **등락폭·등락율** — 바로 아래 행 대비(일 = 직전 고시일, 주·월 = 직전 대표값)(US5 — FR-031)
+- 서버가 `/api/fx/daily` 행마다 `change`를 `Decimal`로 싣고 화면은 형식만 입힌다. 계산은 `/api/fx/latest`와 같은 순수 함수다(`/latest` 응답 불변)
+- 내려받기(CSV)의 맨 끝(004의 진행 중 뒤)에 같은 두 열
+
+**Independent Test**(spec US5 Independent Test):
+- 외환 USD 일 표 첫 쪽 30행의 등락이 이웃 행 매매기준율의 차·비율과 같다. 아래로 더 받은 뒤 앞 쪽 마지막 행에도 값이 있다
+- 주·월로 바꾸면 직전 대표값 대비다. CSV 맨 끝에 두 열이 있고 앞 열은 그대로다. `/api/fx/latest`의 `change`는 014 전과 같다
+
+**완료 작업 영향**: 없음 — 014의 다른 화면·경로는 그대로다. 014 전 테스트는 단언 하나가 바뀔 것으로 본다 — `frontend/tests/csv.test.ts`의 "진행 중 여부가 열로 남는다"(줄 끝 `/예$/` → 진행 중 열의 차례).
+나머지 외환 테스트는 키 부분집합 검사·CSV 머리 이어짐·선택 칸이라 그대로다 — 실제 실패 목록은 T144
+
+### Tests for 반복 2026-10-10d ⚠️
+
+- [ ] T142 [P] [US5] 백엔드 테스트 — 최초 실패 확인 (FR-031, SC-016)
+  - 새 `backend/tests/unit/test_fx_change.py` — 오름·내림·같음(`direction`), `absolute`는 저장 정밀도 그대로, `percent`는 소수 둘째 자리(반올림 경계), 직전 없음 → `None`,
+    직전 0 이하 → `percent` `None`
+  - 새 `backend/tests/integration/test_fx_daily_change.py` — 일: 바로 아래 행(직전 고시일 — 휴장 건너뜀) 대비, 쪽 경계 행 = 쪽 너머 한 건 대비(`before`로 다음 쪽을 받아 견줌),
+    저장된 첫 고시 `null`, 주·월: 직전 대표값 대비(대표일의 하루 전이 아님), 잠정 행(바로 아래 행 대비·`isProvisional` 그대로), `/api/fx/latest`의 `change`가 그대로
+- [ ] T143 [P] [US5] 프론트 테스트 — 최초 실패 확인 (FR-031)
+  - 새 `frontend/tests/DailyTableChange.test.tsx` — 두 열이 송금 받을 때 오른쪽(머리 차례), ▲·빨강/▼·파랑/0·회색, 등락폭 `formatRate`, 등락율 부호·%(서버 글자에 부호만),
+    `change`가 없거나 `null`이면 두 칸 "—", `percent`만 `null`이면 등락율만 "—", 잠정 ⚠ 그대로
+  - 새 `frontend/tests/csvChange.test.ts` — 맨 끝 두 열(`…,확정 여부,원래 기준일,진행 중,등락폭,등락율`), 서버 문자열 그대로, 없으면 빈 칸
+
+### Implementation for 반복 2026-10-10d
+
+- [ ] T144 [US5] 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록. 예상: `frontend/tests/csv.test.ts`의 "진행 중 여부가 열로 남는다"(줄 끝 `/예$/` → 진행 중 열의 차례)
+  하나(뜻은 같다 — 진행 중 여부가 열로 남는다). T111과 같은 절차로 승인받고(`014 승인 2026-10-10`) 구현을 치워 실패를 확인한 뒤 `test(014)`. 목록 밖의 실패는 결함으로
+  보고 멈춘다 (FR-026)
+- [ ] T145 [US5] 백엔드 — 새 `backend/src/simulation/fx_change.py`(순수 — `/latest`의 `_change`를 옮김), `backend/src/api/routes/latest.py`(그 함수를 부름 — 대상 고르기·응답 불변),
+  `backend/src/api/services/daily_query.py`(쪽 너머 한 건을 쪽 마지막 행의 비교 대상으로 — 추가 질의 없음), `backend/src/api/routes/daily.py`(행의 `change`) — contracts A9 (FR-031)
+- [ ] T146 [US5] 프론트 — `frontend/src/lib/types.ts`(`DailyChange`, `PeriodRow.change?: DailyChange | null`), `frontend/src/components/fx/DailyTable.tsx`(오른쪽 끝 두 열),
+  `frontend/src/lib/csv.ts`(맨 끝 두 열) — contracts D10 (FR-031)
+
+### Polish (반복 2026-10-10d)
+
+- [ ] T147 [US5] 실측 — quickstart 5-20(외환 USD·JPY 일·주·월, 더 받기 경계, 잠정 행, CSV, 블랙 배경에서 두 열 대비)을 확인하고 `quickstart.md` 8에 기록한다(헤드리스 Chrome)
+  (FR-031, SC-016)
+- [ ] T148 불변 대조 — `014-baseline/fetch.py`(외환 `/latest`·`/series` 차이 0, 메뉴·비교 차이 0)와 `/api/fx/daily` 행이 `change`만 더해졌는지 (FR-026, SC-010, SC-016)
+- [ ] T149 문서 — `CLAUDE.md`(현재 상태 014 줄·외환 표 주의), `README.md`(외환 표 설명), `spec.md` Status (FR-031)
+- [ ] T150 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144)뿐인지
+  `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -724,6 +771,9 @@ description: "Task list for 014-market-dashboard"
   2. 테스트 T129~T131(함께 — 최초 실패 확인) → 구현 T133~T136 → T132(014 테스트 변경 승인 — 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
   3. T137~T141
   - T128(c)에서 색 변수 재정의가 닿지 않으면 멈추고 사용자에게 알린다(R14-23 대안)
+- **반복 2026-10-10d (Phase 10)**: Phase 9 뒤
+  1. 테스트 T142·T143(함께 — 최초 실패 확인) → 구현 T145·T146 → T144(실제 실패 목록 — 있으면 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
+  2. T147~T150
 - **Foundational (Phase 2)**: T002·T004 뒤. US1·US2를 막는다. US3는 T011(설정) 뒤면 시작할 수 있다.
 - **US1 (Phase 3)**: Foundational 뒤. **T018(승인)이 이 페이즈의 테스트 커밋을 막는다** — T031~T040 구현을 작업 트리에 둔 뒤 목록을 만든다. 백엔드(T019~T023·T031~T035)와 화면(T024~T030·T036~T040)은 나란히 할 수 있다. MVP다.
 - **US2 (Phase 4)**: US1 뒤(시세 서비스의 캐시가 잠정 꼬리·머리 값을 준다. `main.py`·`types.ts`·`dashboardApi.ts`가 겹친다). 승인 목록이 없을 것으로 본다 — 구현 뒤 목록 밖의 실패는 결함으로 보고 멈춘다.
@@ -752,9 +802,12 @@ description: "Task list for 014-market-dashboard"
 | `frontend/src/app/dashboard/page.tsx` | T040(US1), T079(US3) |
 | `frontend/src/components/shell/Sidebar.tsx`·`TopBar.tsx`·`app/page.tsx` | T040 |
 | `frontend/tests/Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts`·(`TopBarTitle.test.ts`) | T018(승인 뒤에만) |
-| `specs/014-…/quickstart.md`(실행 기록) | T041, T062, T081, T082, T083, T084, T123~T127, T137~T141 |
+| `specs/014-…/quickstart.md`(실행 기록) | T041, T062, T081, T082, T083, T084, T123~T127, T137~T141, T147·T148 |
 | `frontend/src/components/dashboard/IndicatorChart.tsx` | T060·T121(이전), T134·T136(반복 2026-10-10c — 차례로) |
 | `frontend/src/components/shell/TopBar.tsx`·`app/layout.tsx`·`app/globals.css` | T040(이전), T135 |
+| `backend/src/api/routes/latest.py`·`api/services/daily_query.py`·`api/routes/daily.py` | T145(반복 2026-10-10d — 001·004 파일) |
+| `frontend/src/components/fx/DailyTable.tsx`·`lib/csv.ts` | T146(반복 2026-10-10d — 001·004 파일) |
+| `frontend/src/lib/types.ts` | T036·T058·T078·T134(이전), T146 |
 
 ### Parallel Opportunities
 
@@ -795,6 +848,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 5. 반복 2026-10-10 — 출처·실패 요구 보강(Phase 7, 완료)
 6. 반복 2026-10-10b — 지표 모달·기간 8개·변화 까닭·일자별 표(Phase 8). 원칙 II 재승인(T095)이 안 되면 까닭·장중을 빼고 모달·일봉 기간 6개·표만 낸다
 7. 반복 2026-10-10c — 차트 앞 구간 스크롤·장중 실선(US2)과 블랙 배경(US4)(Phase 9). 둘은 따로 낼 수 있다 — 블랙 배경(T131·T135·T136)이 막히면(T128(c)) 차트 쪽만 낸다
+8. 반복 2026-10-10d — 외환 일자별 표의 등락폭·등락율(US5)(Phase 10). 014의 다른 화면과 독립이다
 
 ---
 
@@ -862,11 +916,12 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-023 | T007, T011, T067, T068, T076, T087, T089, T092 |
 | FR-024 | T064, T065, T066, T067, T068, T069, T070, T071, T072, T076, T077, T078, T079, T081, T087 |
 | FR-025 | T070, T079, T085, T121, T126, T140 |
-| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139 |
+| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148 |
 | FR-027 | T095, T103, T104, T105, T109, T113, T118, T119, T120, T121, T123 |
 | FR-028 | T095, T102, T104, T105, T107, T112, T116, T121, T123, T128, T129, T132, T133, T137 |
 | FR-029 | T104, T105, T108, T114, T117, T119, T120, T121, T123, T124 |
 | FR-030 | T128, T131, T135, T136, T137, T140 |
+| FR-031 | T142, T143, T145, T146, T147, T149 |
 | SC-001 | T071, T082, T087 |
 | SC-002 | T047, T056, T082, T107, T124, T130, T138 |
 | SC-003 | T010, T020, T023, T032, T041 |
@@ -876,9 +931,10 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-007 | T022, T034, T064, T065, T066, T068, T071, T081, T087, T094 |
 | SC-008 | T064, T065, T066, T068, T070, T081, T089, T092 |
 | SC-009 | T019, T026, T031 |
-| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141 |
+| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141, T148, T150 |
 | SC-011 | T062, T087 |
 | SC-012 | T104, T108, T124 |
 | SC-013 | T103, T109, T123 |
 | SC-014 | T097, T098, T101, T123 |
 | SC-015 | T128, T131, T136, T137, T139 |
+| SC-016 | T142, T147, T148 |
