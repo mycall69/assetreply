@@ -11,6 +11,9 @@ contracts A2.
   환율과 고시는 다른 계열이다
   (명확화 2)
 - 점이 `DASHBOARD_SERIES_MAX_POINTS`(기본 3만)를 넘을 때만 LTTB로 줄인다 — 실제 점을 고른다(R14-12)
+- 일봉 기간은 **그 기간 앞의 마지막 날부터만** 읽는다(T124 — 1년을 보려고 S&P 약 2만 5천 점과 같은
+  시장 지표 셋의 날짜를 모두 읽었다). 결측 판정은 지역적이다 — 그 날의 다른 지표 값과 이웃 두 날의
+  간격만 보므로, 앞의 마지막 날(있는 날)에서 자른 커버리지로 판정해도 기간 안의 결측이 같다
 - 환율은 외환 메뉴(001)의 고시 이력을 읽는다. 모자라면 **외환 수집
   경로**(`collection_gate.ensure_background_job`)에 넘긴다 —
   대시보드가 ECOS를 부르지 않는다(FR-018)
@@ -30,14 +33,14 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Final, Protocol
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.services.collection_gate import CollectionDecision, CollectionTicket, decide_collection
 from src.api.services.market_quotes import dec, indicator_json
 from src.api.services.series_query import compute_gaps, missing_days
 from src.config.settings import Settings
-from src.db.models import Currency, FxCollectionLock, JobStatus, MarketIndicatorCoverage
+from src.db.models import Currency, FxCollectionLock, FxRate, JobStatus, MarketIndicatorCoverage
 from src.observability.events import mask_secrets
 from src.repository import coverage as fx_coverage
 from src.repository import fx_rate, market_daily
@@ -287,9 +290,24 @@ async def _fx_series(
     state = await fx_state(session, indicator, settings=settings, now=now, fx_busy=fx_busy)
     if not state.complete or state.start is None:
         return 202, await fx_pending(session, indicator, state, ensure_job)
-    start, end = state.start, state.end
+    end = state.end
+    window = range_start(end, range_key)
+    # 기간만 읽는다(T124) — 고시의 빈 날 판정(`compute_gaps`)은 그 날의 커버리지만 본다
+    start = state.start if window is None else max(state.start, window)
     rows = await fx_rate.series(session, code, start, end)
     closes = [(r.quote_date, r.base_rate) for r in rows]
+    # 저장된 기간의 첫 날은 기간과 무관하다 — 잘라 읽었으면 따로 묻는다
+    first_date = (
+        (closes[0][0] if closes else None)
+        if window is None
+        else (
+            await session.execute(
+                select(func.min(FxRate.quote_date)).where(
+                    FxRate.currency_code == code, FxRate.quote_date >= state.start
+                )
+            )
+        ).scalar_one_or_none()
+    )
     provisional = {r.quote_date for r in rows if r.is_provisional}
     gaps = compute_gaps(
         start,
@@ -298,7 +316,6 @@ async def _fx_series(
         state.covered_from,
         state.covered_through,
     )
-    window = range_start(end, range_key)
     points = _window(
         build_points(closes, "daily", today=end, provisional_dates=provisional), window
     )
@@ -308,7 +325,7 @@ async def _fx_series(
         "range": range_key,
         "history": {
             "source": "ecos",
-            "firstDate": closes[0][0].isoformat() if closes else None,
+            "firstDate": None if first_date is None else first_date.isoformat(),
             "lastDate": closes[-1][0].isoformat() if closes else None,
             "tailPending": False,
             "lastSuccessAt": _iso(state.last_updated_at),
@@ -330,23 +347,27 @@ async def market_gaps(
     indicator: Indicator,
     row: MarketIndicatorCoverage,
     days: list[dt.date],
+    *,
+    since: dt.date | None = None,
 ) -> list[tuple[dt.date, dt.date]]:
-    """결측 구간(R14-5 — 같은 시장 묶음·14일). 그래프와 일자별 표가 같은 판정을 쓴다."""
+    """결측 구간(R14-5 — 같은 시장 묶음·14일). 그래프와 일자별 표가 같은 판정을 쓴다.
+
+    `since`가 있으면 그 날(값이 있는 날)부터만 판정한다 — `days`도 그 날부터다.
+    """
     assert row.covered_from is not None and row.covered_through is not None
-    sibling_rows = [await _sibling(session, s) for s in siblings(indicator)]
-    return missing_ranges(
-        days, covered=(row.covered_from, row.covered_through), siblings=sibling_rows
-    )
+    sibling_rows = [await _sibling(session, s, since) for s in siblings(indicator)]
+    start = row.covered_from if since is None else max(row.covered_from, since)
+    return missing_ranges(days, covered=(start, row.covered_through), siblings=sibling_rows)
 
 
-async def _sibling(session: AsyncSession, indicator: Indicator) -> Sibling:
+async def _sibling(session: AsyncSession, indicator: Indicator, since: dt.date | None) -> Sibling:
     row = await market_daily.get_coverage(session, indicator.id)
     covered = (
         (row.covered_from, row.covered_through)
         if (row is not None and row.covered_from is not None and row.covered_through is not None)
         else None
     )
-    dates = frozenset(d for d, _ in await market_daily.closes(session, indicator.id))
+    dates = frozenset(await market_daily.trade_dates(session, indicator.id, since))
     return Sibling(dates, covered)
 
 
@@ -377,9 +398,15 @@ async def series_response(
     if not complete(row):
         return 202, market_pending(indicator, row)
     assert row is not None and row.covered_from is not None and row.covered_through is not None
-    closes = await market_daily.closes(session, indicator.id)
-    gaps = await market_gaps(session, indicator, row, [d for d, _ in closes])
     today = trading_date(indicator.market, now)
+    window = range_start(today, range_key)
+    # 기간 앞의 마지막 날부터 읽는다 — 그 날은 값이 있는 날이라 결측 구간이 그 날을 넘지 않는다
+    before = (
+        None if window is None else await market_daily.previous_close(session, indicator.id, window)
+    )
+    since = None if before is None else before[0]
+    closes = await market_daily.closes(session, indicator.id, start=since)
+    gaps = await market_gaps(session, indicator, row, [d for d, _ in closes], since=since)
     series: list[tuple[dt.date, Decimal]] = list(closes)
     provisional: set[dt.date] = set()
     quote = None if quotes is None else await quotes.quote(indicator.id)
@@ -387,7 +414,6 @@ async def series_response(
     if quote is not None and quote.provisional and (last is None or quote.session_date > last):
         series.append((quote.session_date, quote.value))
         provisional.add(quote.session_date)
-    window = range_start(today, range_key)
     points = _window(
         build_points(series, "daily", today=today, provisional_dates=provisional), window
     )

@@ -260,14 +260,32 @@ async def bars(
     start: dt.date | None = None,
     end: dt.date | None = None,
 ) -> list[Bar]:
-    """(구간의) 일봉을 날짜 오름차순으로 — 시가·고가·저가가 없으면 `None`이다."""
-    stmt = select(MarketIndicatorDaily).where(MarketIndicatorDaily.indicator_id == indicator_id)
+    """(구간의) 일봉을 날짜 오름차순으로 — 시가·고가·저가가 없으면 `None`이다.
+
+    열만 고른다 — ORM 객체로 읽으면 S&P 약 2만 5천 행에 일자별 표 한 쪽이 0.4초 넘게 걸렸다(T124).
+    """
+    m = MarketIndicatorDaily
+    stmt = select(m.trade_date, m.open_price, m.high_price, m.low_price, m.close).where(
+        m.indicator_id == indicator_id
+    )
+    if start is not None:
+        stmt = stmt.where(m.trade_date >= start)
+    if end is not None:
+        stmt = stmt.where(m.trade_date <= end)
+    rows = (await session.execute(stmt.order_by(m.trade_date))).all()
+    return [Bar(r[0], r[1], r[2], r[3], r[4]) for r in rows]
+
+
+async def trade_dates(
+    session: AsyncSession, indicator_id: str, start: dt.date | None = None
+) -> list[dt.date]:
+    """(그 날부터의) 값이 있는 날짜 — 같은 시장 묶음의 결측 판정은 날짜만 본다(T124)."""
+    stmt = select(MarketIndicatorDaily.trade_date).where(
+        MarketIndicatorDaily.indicator_id == indicator_id
+    )
     if start is not None:
         stmt = stmt.where(MarketIndicatorDaily.trade_date >= start)
-    if end is not None:
-        stmt = stmt.where(MarketIndicatorDaily.trade_date <= end)
-    rows = (await session.execute(stmt.order_by(MarketIndicatorDaily.trade_date))).scalars()
-    return [Bar(r.trade_date, r.open_price, r.high_price, r.low_price, r.close) for r in rows]
+    return list((await session.execute(stmt)).scalars())
 
 
 async def fill_ohlc(
