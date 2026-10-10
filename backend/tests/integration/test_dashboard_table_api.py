@@ -184,3 +184,31 @@ async def test_환율은_고시_이력이고_시가가_없다(client: AsyncClien
     assert first["date"] == days[-1].isoformat()
     assert (first["open"], first["high"], first["low"]) == (None, None, None)
     assert first["provisional"] is True  # 외환 잠정 고시
+
+
+async def test_환율의_아직_받지_않은_오늘은_결측_행이_아니다(
+    client: AsyncClient, session_factory
+) -> None:  # type: ignore[no-untyped-def]
+    # T123 실측(2026-10-10) — 외환 커버리지가 어제까지면 오늘(한국)이 "결측 — 출처에 값
+    # 없음"으로 보였다. 아직 받지 않은 날은 출처 결측이 아니다(마지막 고시 뒤의 꼬리 — 행을
+    # 두지 않는다)
+    days = weekdays(D(2026, 9, 1), D(2026, 10, 8))
+    async with session_factory() as s:
+        for i, d in enumerate(days):
+            s.add(
+                FxRate(
+                    currency_code="USD",
+                    quote_date=d,
+                    base_rate=Decimal("1300") + i,
+                    quote_unit=1,
+                    source="ecos",
+                    is_provisional=False,
+                )
+            )
+        # 커버리지는 10-08까지 — 10-09(오늘, 한국 23:00)는 아직 받지 않았다
+        s.add(FxCoverage(currency_code="USD", covered_from=days[0], covered_through=D(2026, 10, 8)))
+        await s.commit()
+    body = (await client.get("/api/dashboard/indicators/usd/table?limit=40")).json()
+    missing = [(r["date"], r["dateTo"]) for r in body["rows"] if r["kind"] == "missing"]
+    assert ("2026-10-09", "2026-10-09") not in missing
+    assert body["rows"][0]["date"] == "2026-10-08"

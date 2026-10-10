@@ -34,6 +34,20 @@ describe("성공", () => {
     render(<IndicatorCommentary state={{ status: "ready", body }} onRetry={() => undefined} />);
     expect(screen.getByTestId("indicator-commentary")).toHaveTextContent("18h ago");
   });
+
+  it("상대 표기가 있으면 어림한 시각보다 먼저다", () => {
+    // T123 실측(2026-10-10) — 서버는 Yahoo 상대 표기("19h ago")에서 어림한 `publishedAt`을 함께 싣는다(세션 이후 고르기용).
+    // 어림한 값을 `MM-DD HH:mm`으로 보이면 출처에 없는 정확한 시각을 꾸며 낸다(뉴스 칸과 같은 규칙 — 상대 표기는 글자 그대로)
+    const body = commentaryOf({
+      source: "Yahoo Finance", sourceUrl: "https://finance.yahoo.com/quote/%5EHSI/news/",
+      items: [{ title: "Xiaomi shares surge", summary: null, publisher: "Investing.com", publishedAt: "2026-10-09T06:43:37Z",
+        publishedText: "19h ago", url: "https://finance.yahoo.com/news/x-1.html" }],
+    });
+    render(<IndicatorCommentary state={{ status: "ready", body }} onRetry={() => undefined} />);
+    const region = screen.getByTestId("indicator-commentary");
+    expect(region).toHaveTextContent("19h ago");
+    expect(region).not.toHaveTextContent("10-09 15:43");
+  });
 });
 
 describe("없음·실패·받는 중", () => {

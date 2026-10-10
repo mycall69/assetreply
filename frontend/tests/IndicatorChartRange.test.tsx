@@ -55,6 +55,17 @@ describe("일봉 기간", () => {
   });
 });
 
+describe("기간 전환", () => {
+  it("다른 기간의 그래프로 바뀌면 옛 커서 상자를 남기지 않는다", () => {
+    // T123 실측(2026-10-10) — 기간을 바꿔도 커서가 움직이지 않으면 상자가 옛 기간의 점(날짜·값)을 보였다
+    const { rerender } = render(<IndicatorChart series={rangeSeriesOf({ range: "1y" })} />);
+    act(() => chart.crosshair?.({ time: "2026-10-07" }));
+    expect(screen.getByTestId("indicator-tooltip")).toHaveTextContent("2026-10-07");
+    rerender(<IndicatorChart series={rangeSeriesOf({ range: "5y", points: [{ date: "2021-10-11", value: "4400.000000" }] })} />);
+    expect(screen.queryByTestId("indicator-tooltip")).toBeNull();
+  });
+});
+
 describe("장중", () => {
   it("점이 모두 잠정이라 연한 선 하나이고 시각은 초 단위 숫자다", () => {
     render(<IndicatorChart series={intradayOf()} />);
