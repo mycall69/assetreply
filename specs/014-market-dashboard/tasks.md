@@ -919,10 +919,10 @@ description: "Task list for 014-market-dashboard"
 
 ### Polish (반복 2026-10-11)
 
-- [ ] T179 [US8] 실측 — quickstart 5-24(외환 새로 열기 USD·JPY, 가상자산·주식 일시금·적립식 실행·이력 다시 실행·"일"로 바꾼 뒤 다시 실행, 비교 모달 주식·가상자산·예금, 대시보드 지표 표, 블랙 배경)를
+- [X] T179 [US8] 실측 — quickstart 5-24(외환 새로 열기 USD·JPY, 가상자산·주식 일시금·적립식 실행·이력 다시 실행·"일"로 바꾼 뒤 다시 실행, 비교 모달 주식·가상자산·예금, 대시보드 지표 표, 블랙 배경)를
   헤드리스 Chrome으로 확인하고 `quickstart.md` 8에 기록한다 (FR-035, SC-020)
-- [ ] T180 불변 대조·문서 — `014-baseline/fetch.py`(기준 29파일 — 부동산 기준일·`meta` 말고 차이 0, 서버 변경 없음), `CLAUDE.md`(014 줄·표 단위 주의), `README.md`, `spec.md` Status (FR-026, SC-010, SC-020)
-- [ ] T181 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177)뿐인지
+- [X] T180 불변 대조·문서 — `014-baseline/fetch.py`(기준 29파일 — 부동산 기준일·`meta` 말고 차이 0, 서버 변경 없음), `CLAUDE.md`(014 줄·표 단위 주의), `README.md`, `spec.md` Status (FR-026, SC-010, SC-020)
+- [X] T181 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177)뿐인지
   `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
 
 ---

@@ -583,3 +583,26 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
 - 백엔드: `pytest --cov=src` **3,440 통과**·커버리지 **96.51%**, `mypy src`(strict) 문제 없음(278파일), `ruff check --no-cache src tests` 통과
 - 프론트엔드: `npm test` **228파일·2,036 통과**(종료 코드 0), `tsc --noEmit`·`eslint .` 통과
 - `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests`: 바뀐 기존 테스트 열아홉 — 10f까지의 열여덟 + T169의 `frontend/tests/setup.ts`(상장일 경로 대역 한 겹)뿐이다(T170 — 실패 목록 없음)
+
+### T179 — 반복 2026-10-11 실측(2026-10-11 04:5x KST — 헤드리스 Chrome CDP, 개발 서버, 1440×900, 새 브라우저 문맥)
+
+- **5-24 투자 성과표의 처음 단위 월**
+  - 외환: 새로 연 화면의 일자별 표가 "월" — 행 `2026-10-08📅⏳ 1,339.20`·`2026-09-30 1,358.40`·`2026-08-31`·`2026-07-31`, 요청 `/api/fx/daily?currency=USD&period=monthly`(개발 모드 이중 효과로 두 번 — 단위와
+    무관한 기존 동작). JPY로 바꿔도 "월"(`currency=JPY&period=monthly`), "일"을 누르면 `period=daily`·날마다의 행, 새로 고치면 다시 "월". 블랙 배경 화면 글자 대비 최솟값 5.2(4.5 미만 0)
+  - 가상자산(비트코인 2024-01-02 일시금): "월"·첫 표 요청 `…&principalCurrency=KRW&period=monthly`, 시계열 요청은 단위 없음. "일"로 바꾸면 `period` 없는 요청·날마다의 행이고 보드 글자가 같다(`현재 잔고
+    ₩20,058,952`·`+100.58%`). 그 화면에서 다시 실행해도 "일"이 남는다. 새로 고친 뒤 적립식(매달)도 "월"(`…&frequency=monthly&period=monthly`)
+  - 주식(삼성전자 2024-01-02 일시금): "월"·`…&reinvest=true&period=monthly`, "일"로 바꿔도 보드 글자가 같다. 새로 고친 뒤 **이력 다시 실행**도 "월", 적립식도 "월"
+  - 투자 비교(삼성전자·QLD → 비교 실행 → 투자 시뮬레이션): 모달 표가 "월"이고 첫 표 요청부터 `&period=monthly`(QLD 표에 배당락 행 `2026-09-23◆`이 남는다 — 012 사건 행). 모달에서 "일"을 누르면 `period`
+    없는 요청, 닫고 다른 줄을 열면 다시 "월". 가상자산 비교(비트코인·이더리움) 모달도 "월". 예금 비교 모달은 단위 단추가 없고 요청에 `period`가 없다
+  - 대상 밖: 대시보드 지표 모달(S&P 500)의 일자별 표는 처음 "일", 예금 메뉴에는 단위 단추가 없다
+  - 이 실측이 개발 DB 이력에 비트코인(일시금·적립식 매달)·삼성전자(적립식 매달) 항목을 남기거나 마지막 실행 시각을 갱신했다(2024-01-02·10,000,000원 — 앱의 보통 사용과 같다, 지우지 않음)
+
+### T180 — 불변 대조(2026-10-11 04:58 KST)
+
+- **응답**: T001 입력으로 다시 받은 29파일(`014-baseline/after_iter11/`)이 10g(`after_iterg/`)와 `meta.json`(받은 시각) 말고 같다 — 서버를 고치지 않았다. `period` 없는 표 요청은 그대로 일 표다
+
+### T181 — 게이트(2026-10-11 05:0x~05:1x KST, 서버를 내린 채)
+
+- 백엔드: `pytest --cov=src` **3,440 통과**·커버리지 **96.52%**(서버 변경 없음 — 10g와 같은 수), `mypy src`(strict) 문제 없음(278파일), `ruff check --no-cache src tests` 통과
+- 프론트엔드: `npm test` **229파일·2,060 통과**(종료 코드 0 — 새 `TablePeriodDefault` 24개), `tsc --noEmit`·`eslint .` 통과
+- `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests`: 바뀐 기존 테스트 서른 — 10g까지의 열아홉 + T177 승인 열하나(`ComparePageSimulate.test.tsx`는 T152 승인으로 이미 목록에 있다)뿐이다
