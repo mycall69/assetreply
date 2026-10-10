@@ -792,7 +792,7 @@ description: "Task list for 014-market-dashboard"
   검색 결과, 블랙 배경, 1024px 칩 줄바꿈)을 확인하고 `quickstart.md` 8에 기록한다(헤드리스 Chrome) (FR-032, SC-017)
 - [X] T155 불변 대조 — `014-baseline/fetch.py`(메뉴·비교 응답 차이 0 — 서버를 고치지 않았다)와 가상자산 메뉴 화면이 검색 결과 줄 말고 같은지 (FR-026, SC-010, SC-017)
 - [X] T156 문서 — `CLAUDE.md`(현재 상태 014 줄·013 비교 화면 이름 주의), `README.md`(투자 비교 설명), `spec.md` Status (FR-032)
-- [ ] T157 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152)뿐인지
+- [X] T157 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152)뿐인지
   `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
 
 ---

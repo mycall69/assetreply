@@ -478,3 +478,10 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
 - **밝은 테마 화면**(10c `014c/after` ↔ `014e/screens`, 1440×900 픽셀): 가상자산 메뉴·외환·설정·수집 현황 **0**. 투자 비교는 **저장한 비교 목록의 대상 이름에 티커가 붙은 자리뿐**이다(이 반복 전에 저장한 비교
   — `미국 성장형 ETF`·`가상자산 2개`·`금융지주 3개` 줄, 부동산 줄은 그대로 — FR-032 시나리오 6). 주식·부동산·예금은 최근 시뮬레이션 이력의 차례(10c 뒤 사용자 실행)·입력 깜빡이 자리, 대시보드·지표 모달은
   라이브 값이다
+
+### T157 — 게이트(2026-10-10 15:0x~15:1x KST, 서버를 내린 채)
+
+- 백엔드: `pytest --cov=src` **3,385 통과**·커버리지 **96.47%**, `mypy src`(strict) 문제 없음(276파일), `ruff check --no-cache src tests` 통과 — 이번 반복은 백엔드를 고치지 않았다
+- 프론트엔드: `npm test` **224파일·2,004 통과**(종료 코드 0), `tsc --noEmit`·`eslint .` 통과
+- `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests`: 바뀐 기존 테스트 열둘 — T018·US2 승인분 여섯 + T144 `csv.test.ts` + T152 승인분 다섯
+  (`ComparePage`·`ComparePageCharts`·`ComparePageSimulate`·`SavedComparisons`·`compareCondition`)뿐이다
