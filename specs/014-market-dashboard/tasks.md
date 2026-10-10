@@ -723,32 +723,32 @@ description: "Task list for 014-market-dashboard"
 
 ### Tests for 반복 2026-10-10d ⚠️
 
-- [ ] T142 [P] [US5] 백엔드 테스트 — 최초 실패 확인 (FR-031, SC-016)
+- [X] T142 [P] [US5] 백엔드 테스트 — 최초 실패 확인 (FR-031, SC-016)
   - 새 `backend/tests/unit/test_fx_change.py` — 오름·내림·같음(`direction`), `absolute`는 저장 정밀도 그대로, `percent`는 소수 둘째 자리(반올림 경계), 직전 없음 → `None`,
     직전 0 이하 → `percent` `None`
   - 새 `backend/tests/integration/test_fx_daily_change.py` — 일: 바로 아래 행(직전 고시일 — 휴장 건너뜀) 대비, 쪽 경계 행 = 쪽 너머 한 건 대비(`before`로 다음 쪽을 받아 견줌),
     저장된 첫 고시 `null`, 주·월: 직전 대표값 대비(대표일의 하루 전이 아님), 잠정 행(바로 아래 행 대비·`isProvisional` 그대로), `/api/fx/latest`의 `change`가 그대로
-- [ ] T143 [P] [US5] 프론트 테스트 — 최초 실패 확인 (FR-031)
+- [X] T143 [P] [US5] 프론트 테스트 — 최초 실패 확인 (FR-031)
   - 새 `frontend/tests/DailyTableChange.test.tsx` — 두 열이 송금 받을 때 오른쪽(머리 차례), ▲·빨강/▼·파랑/0·회색, 등락폭 `formatRate`, 등락율 부호·%(서버 글자에 부호만),
     `change`가 없거나 `null`이면 두 칸 "—", `percent`만 `null`이면 등락율만 "—", 잠정 ⚠ 그대로
   - 새 `frontend/tests/csvChange.test.ts` — 맨 끝 두 열(`…,확정 여부,원래 기준일,진행 중,등락폭,등락율`), 서버 문자열 그대로, 없으면 빈 칸
 
 ### Implementation for 반복 2026-10-10d
 
-- [ ] T144 [US5] 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록. 예상: `frontend/tests/csv.test.ts`의 "진행 중 여부가 열로 남는다"(줄 끝 `/예$/` → 진행 중 열의 차례)
+- [X] T144 [US5] 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록. 예상: `frontend/tests/csv.test.ts`의 "진행 중 여부가 열로 남는다"(줄 끝 `/예$/` → 진행 중 열의 차례)
   하나(뜻은 같다 — 진행 중 여부가 열로 남는다). T111과 같은 절차로 승인받고(`014 승인 2026-10-10`) 구현을 치워 실패를 확인한 뒤 `test(014)`. 목록 밖의 실패는 결함으로
   보고 멈춘다 (FR-026)
-- [ ] T145 [US5] 백엔드 — 새 `backend/src/simulation/fx_change.py`(순수 — `/latest`의 `_change`를 옮김), `backend/src/api/routes/latest.py`(그 함수를 부름 — 대상 고르기·응답 불변),
+- [X] T145 [US5] 백엔드 — 새 `backend/src/simulation/fx_change.py`(순수 — `/latest`의 `_change`를 옮김), `backend/src/api/routes/latest.py`(그 함수를 부름 — 대상 고르기·응답 불변),
   `backend/src/api/services/daily_query.py`(쪽 너머 한 건을 쪽 마지막 행의 비교 대상으로 — 추가 질의 없음), `backend/src/api/routes/daily.py`(행의 `change`) — contracts A9 (FR-031)
-- [ ] T146 [US5] 프론트 — `frontend/src/lib/types.ts`(`DailyChange`, `PeriodRow.change?: DailyChange | null`), `frontend/src/components/fx/DailyTable.tsx`(오른쪽 끝 두 열),
+- [X] T146 [US5] 프론트 — `frontend/src/lib/types.ts`(`DailyChange`, `PeriodRow.change?: DailyChange | null`), `frontend/src/components/fx/DailyTable.tsx`(오른쪽 끝 두 열),
   `frontend/src/lib/csv.ts`(맨 끝 두 열) — contracts D10 (FR-031)
 
 ### Polish (반복 2026-10-10d)
 
-- [ ] T147 [US5] 실측 — quickstart 5-20(외환 USD·JPY 일·주·월, 더 받기 경계, 잠정 행, CSV, 블랙 배경에서 두 열 대비)을 확인하고 `quickstart.md` 8에 기록한다(헤드리스 Chrome)
+- [X] T147 [US5] 실측 — quickstart 5-20(외환 USD·JPY 일·주·월, 더 받기 경계, 잠정 행, CSV, 블랙 배경에서 두 열 대비)을 확인하고 `quickstart.md` 8에 기록한다(헤드리스 Chrome)
   (FR-031, SC-016)
-- [ ] T148 불변 대조 — `014-baseline/fetch.py`(외환 `/latest`·`/series` 차이 0, 메뉴·비교 차이 0)와 `/api/fx/daily` 행이 `change`만 더해졌는지 (FR-026, SC-010, SC-016)
-- [ ] T149 문서 — `CLAUDE.md`(현재 상태 014 줄·외환 표 주의), `README.md`(외환 표 설명), `spec.md` Status (FR-031)
+- [X] T148 불변 대조 — `014-baseline/fetch.py`(외환 `/latest`·`/series` 차이 0, 메뉴·비교 차이 0)와 `/api/fx/daily` 행이 `change`만 더해졌는지 (FR-026, SC-010, SC-016)
+- [X] T149 문서 — `CLAUDE.md`(현재 상태 014 줄·외환 표 주의), `README.md`(외환 표 설명), `spec.md` Status (FR-031)
 - [ ] T150 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144)뿐인지
   `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
 
