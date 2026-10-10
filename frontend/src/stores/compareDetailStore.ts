@@ -8,6 +8,8 @@
  * - 메뉴 경로가 202를 주면(비교 뒤 받을 데이터가 생김) 진행을 구독하지 않고 까닭과 다시 시도만 둔다(R13-19)
  * - 일자별 표의 쪽 넘김(`before` = `oldestReturned`)·단위(`period`)는 메뉴 스토어와 같은 질의 규칙이다(주식·가상자산). 차례 번호로 늦은 응답을
  *   버린다 — 다른 줄을 열거나 닫으면 올린다
+ * - 단위는 열 때마다 월부터다(014 반복 2026-10-11 FR-035) — 열 때의 표 요청에도 싣는다(단위 전환 때만 실으면 탭은 월인데 행은 날마다다).
+ *   예금·부동산(쪽을 넘기지 않는 표)은 단추가 없어 싣지 않는다
  */
 import { create } from "zustand";
 import { ApiError, apiClient } from "@/lib/apiClient";
@@ -88,7 +90,7 @@ const isPageable = (body: MenuBody): body is MenuBody & Pageable => "hasMore" in
 
 const CLOSED = {
   open: null, status: "idle" as DetailStatus, reason: null, menu: null, series: null, seriesError: null,
-  period: "daily" as PeriodUnit, loadingMore: false, loadMoreError: null, tableLoading: false, tableError: null,
+  period: "monthly" as PeriodUnit, loadingMore: false, loadMoreError: null, tableLoading: false, tableError: null,
 };
 
 export const useCompareDetailStore = create<DetailState>()((set, get) => {
@@ -116,7 +118,8 @@ export const useCompareDetailStore = create<DetailState>()((set, get) => {
     set({ ...CLOSED, open, seq, status: "loading" });
     const table = (async () => {
       try {
-        const body = await apiClient.get<MenuBody | { status: "collecting" }>(menuPath(open.condition, open.target));
+        const body = await apiClient.get<MenuBody | { status: "collecting" }>(
+          `${menuPath(open.condition, open.target)}${pageable(open.condition) ? periodQuery(get().period) : ""}`);
         if (!live(seq)) return;
         if (collectingBody(body)) {
           set({ status: "collecting", reason: COLLECTING_REASON });

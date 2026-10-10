@@ -95,7 +95,7 @@ interface CryptoState {
   error: string | null;
   loadMoreError: string | null;
 
-  /** 012 — 일자별 표의 단위(처음 일). 주식 스토어와 같은 규칙이다 — 다시 실행해도 남고, 일이면 요청에 `period`가 없다. */
+  /** 012 — 일자별 표의 단위(처음 월 — 014 반복 2026-10-11 FR-035). 주식 스토어와 같은 규칙이다 — 다시 실행해도 남고, 일이면 요청에 `period`가 없다. */
   tablePeriod: PeriodUnit;
   /** 표 요청의 차례 번호. 실행·단위 전환마다 올린다 — 번호가 다른 응답은 버린다(이어 받기 포함, 012 FR-006). */
   tableSeq: number;
@@ -362,7 +362,7 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   loadingMore: false,
   error: null,
   loadMoreError: null,
-  tablePeriod: "daily",
+  tablePeriod: "monthly",
   tableSeq: 0,
   tableLoading: false,
   tableError: null,

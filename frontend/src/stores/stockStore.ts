@@ -128,8 +128,8 @@ interface StockState {
   loadMoreError: string | null;
 
   /**
-   * 012 — 일자별 표의 단위(처음 일). 다시 실행해도 남고, 새로 고치면 처음 값이다(외환의 단위와 같다). 일이면 요청에 `period`를 싣지 않는다 — 기본
-   * 단위의 요청 문자열이 지금과 같다.
+   * 012 — 일자별 표의 단위. 처음은 월이다(014 반복 2026-10-11 FR-035 — 012의 처음 일을 대체). 다시 실행해도 남고, 새로 고치면 처음 값이다(외환의
+   * 단위와 같다). 일이면 요청에 `period`를 싣지 않는다 — 서버의 기본이 일이다.
    */
   tablePeriod: PeriodUnit;
   /**
@@ -503,7 +503,7 @@ export const useStockStore = create<StockState>((set, get) => ({
   loadingMore: false,
   error: null,
   loadMoreError: null,
-  tablePeriod: "daily",
+  tablePeriod: "monthly",
   tableSeq: 0,
   tableLoading: false,
   tableError: null,

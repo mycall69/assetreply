@@ -904,17 +904,17 @@ description: "Task list for 014-market-dashboard"
 
 ### Tests for 반복 2026-10-11 ⚠️
 
-- [ ] T176 [P] [US8] 화면 테스트 — 새 `frontend/tests/TablePeriodDefault.test.tsx`. 외환 화면 처음 "월" 탭·첫 표 요청 `period=monthly`, 주식·가상자산 스토어 처음 값 `monthly`·처음 실행(일시금·적립식)
+- [X] T176 [P] [US8] 화면 테스트 — 새 `frontend/tests/TablePeriodDefault.test.tsx`. 외환 화면 처음 "월" 탭·첫 표 요청 `period=monthly`, 주식·가상자산 스토어 처음 값 `monthly`·처음 실행(일시금·적립식)
   표 요청 `&period=monthly`·시계열 요청에는 없음, 화면의 "월" 탭, 이력 다시 실행도 월, "일"로 바꾼 뒤 다시 실행하면 `period` 없음(고른 단위 유지), 비교 모달 열기의 표 요청 `&period=monthly`(주식·
   가상자산 — 예금·부동산은 없음)·모달 "월" 탭·닫고 다시 열면 월, 대시보드 지표 표 처음 `daily`. 최초 실패 확인 (FR-035, SC-020)
 
 ### Implementation for 반복 2026-10-11
 
-- [ ] T177 [US8] 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(범위 확인: 12파일 22개 — `stockStoreTablePeriod`·`cryptoStoreTablePeriod`의 처음 단위 단언, 처음 표 요청
+- [X] T177 [US8] 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(결과: 범위 확인과 같은 **12파일 22개** — 승인 뒤 229파일 2,060 통과. 범위 확인: 12파일 22개 — `stockStoreTablePeriod`·`cryptoStoreTablePeriod`의 처음 단위 단언, 처음 표 요청
   글자에 `&period=monthly`가 붙은 `cryptoStore`·`stockStoreRecurring`·`cryptoStoreRecurring`·`stockStoreRerun`·`StocksPageRecurring`·`CryptoPageRecurring`·`StocksPageRerun`·`compareDetailStore`·
   `ComparePageSimulate`, 응답 단위를 대조하는 `fxWorkspaceScroll`의 상태). T161과 같은 절차(`014 승인 2026-10-11`)로 승인하고 구현을 치워 실패를 확인한 뒤 `test(014)`. 목록 밖의 실패는
   결함으로 보고 멈춘다 (FR-026)
-- [ ] T178 [US8] 화면 — `frontend/src/stores/fxWorkspaceStore.ts`·`stores/stockStore.ts`·`stores/cryptoStore.ts`(처음 값 `monthly`), `frontend/src/stores/compareDetailStore.ts`(닫힘 상태 `monthly`,
+- [X] T178 [US8] 화면 — `frontend/src/stores/fxWorkspaceStore.ts`·`stores/stockStore.ts`·`stores/cryptoStore.ts`(처음 값 `monthly`), `frontend/src/stores/compareDetailStore.ts`(닫힘 상태 `monthly`,
   열 때의 표 요청에 `periodQuery` — `pageable`일 때만), `frontend/src/lib/tablePeriod.ts`(설명) — DM13, contracts D14 (FR-035)
 
 ### Polish (반복 2026-10-11)

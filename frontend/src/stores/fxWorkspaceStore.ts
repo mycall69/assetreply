@@ -150,7 +150,7 @@ interface FxWorkspaceState {
   /** 화면 전체가 공유하는 하나의 선택 날짜 (FR-008). */
   selectedDate: string | null;
   preset: Preset;
-  /** 표가 행을 고르는 기준 (004 FR-006). 화면 세션 안에서만 유지한다. */
+  /** 표가 행을 고르는 기준 (004 FR-006). 처음은 월이다(014 반복 2026-10-11 FR-035). 화면 세션 안에서만 유지한다. */
   period: PeriodUnit;
   coverage: CoverageRow[];
   latest: LatestResponse | null;
@@ -214,7 +214,7 @@ export const useFxWorkspaceStore = create<FxWorkspaceState>((set, get) => ({
   currency: "USD",
   selectedDate: null,
   preset: "1y",
-  period: "daily",
+  period: "monthly",
   coverage: [],
   latest: null,
   daily: null,
