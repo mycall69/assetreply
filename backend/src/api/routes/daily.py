@@ -28,6 +28,7 @@ from src.api.services.series_query import missing_days
 from src.config.settings import SUPPORTED_CURRENCIES as SUPPORTED
 from src.config.settings import load_settings
 from src.db.session import get_session
+from src.simulation.fx_change import RateChange
 from src.simulation.spread_calc import SpreadSet
 
 router = APIRouter(prefix="/api/fx", tags=["fx"])
@@ -115,6 +116,8 @@ def _row_json(row: PeriodRow, spread: SpreadSet) -> Json:
         "periodFrom": row.period_from.isoformat(),
         "periodTo": row.period_to.isoformat(),
         "isOngoing": row.is_ongoing,
+        # 014 반복 2026-10-10d(FR-031, contracts A9) — 늘 싣는다. 비교할 행이 없으면 `null`
+        "change": _change_json(row.change),
     }
     if row.shifted_from is not None:
         body["shiftedFrom"] = row.shifted_from.isoformat()
@@ -131,4 +134,19 @@ def _derived_json(base_rate: object, spread: SpreadSet) -> dict[str, str]:
         "cashSell": str(d.cash_sell),
         "remitSend": str(d.remit_send),
         "remitReceive": str(d.remit_receive),
+    }
+
+
+def _change_json(change: RateChange | None) -> dict[str, str | None] | None:
+    """행의 등락 — `/api/fx/latest`의 `change`와 같은 꼴이다(014 반복 2026-10-10d).
+
+    요약 칸과 달리 비율이 없으면 `null`이다(화면 "—") — 0을 지어내지 않는다(헌법 원칙 V).
+    """
+    if change is None:
+        return None
+    return {
+        "comparedTo": change.compared_to.isoformat(),
+        "absolute": str(change.absolute),
+        "percent": None if change.percent is None else str(change.percent),
+        "direction": change.direction,
     }

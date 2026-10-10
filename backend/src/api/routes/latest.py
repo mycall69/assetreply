@@ -9,7 +9,6 @@ FR-048: 미수집 구간이 있으면 001의 자동 수집 규칙을 그대로 �
 from __future__ import annotations
 
 import datetime as dt
-from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -29,12 +28,11 @@ from src.db.models import FxRate
 from src.db.session import get_session
 from src.repository.fx_rate import latest as latest_rate
 from src.repository.fx_rate import previous_business_day
+from src.simulation.fx_change import Quote, rate_change
 
 router = APIRouter(prefix="/api/fx", tags=["fx"])
 
 Json = dict[str, object]
-
-_QUANTUM = Decimal("0.01")
 
 
 def _change(current: FxRate, previous: FxRate | None) -> Json | None:
@@ -42,21 +40,20 @@ def _change(current: FxRate, previous: FxRate | None) -> Json | None:
 
     요약이 잠정값일 때 비교 대상은 직전 **확정값**이다 — 잠정끼리 비교하면 의미가 없다.
     백분율은 표시용이라 소수 둘째 자리까지 반올림하지만, 절대값은 저장 정밀도를 유지한다.
+
+    계산은 일자별 표와 같은 순수 함수다(014 반복 2026-10-10d — 같은 두 날이면 같은 글자).
+    비교 고시가 0이면 014 전처럼 `"0"`을 낸다 — 이 응답은 바뀌지 않는다(014 FR-026).
     """
-    if previous is None:
+    change = rate_change(
+        current.base_rate,
+        None if previous is None else Quote(date=previous.quote_date, rate=previous.base_rate))
+    if change is None:
         return None
-    delta = current.base_rate - previous.base_rate
-    percent = (
-        (delta / previous.base_rate * Decimal(100)).quantize(_QUANTUM)
-        if previous.base_rate
-        else Decimal("0")
-    )
-    direction = "up" if delta > 0 else "down" if delta < 0 else "flat"
     return {
-        "comparedTo": previous.quote_date.isoformat(),
-        "absolute": str(delta),
-        "percent": str(percent),
-        "direction": direction,
+        "comparedTo": change.compared_to.isoformat(),
+        "absolute": str(change.absolute),
+        "percent": str(change.percent) if change.percent is not None else "0",
+        "direction": change.direction,
     }
 
 

@@ -8,6 +8,8 @@
  * FR-024: 파생 4종이 "현재 스프레드를 과거에 적용한 가정"임을 밝힌다. 표에서 실측인
  * 열은 매매기준율뿐이다.
  * FR-025: 잠정 행을 확정 행과 구분한다.
+ * 014 FR-031(반복 2026-10-10d): 오른쪽 끝에 바로 아래 행 대비 등락폭·등락율 — 값은 서버가 `Decimal`로 낸 글자이고
+ * 화면은 기호·색·부호만 입힌다(헌법 원칙 VI). 색만으로 전하지 않는다(▲·▼).
  */
 
 import { useEffect, useRef } from "react";
@@ -16,11 +18,39 @@ import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { buildDailyCsv, downloadCsv } from "@/lib/csv";
 import { formatRate } from "@/lib/format";
 import { highlightedRow } from "@/stores/fxWorkspaceStore";
-import type { DailyResponse } from "@/lib/types";
+import type { DailyChange, DailyResponse } from "@/lib/types";
 
 const COLUMNS = [
-  "날짜", "매매기준율", "현금 살 때", "현금 팔 때", "송금 보낼 때", "송금 받을 때",
+  "날짜", "매매기준율", "현금 살 때", "현금 팔 때", "송금 보낼 때", "송금 받을 때", "등락폭", "등락율",
 ] as const;
+
+/** 요약 칸(`RateSummary`)과 같은 색 — 오름 빨강·내림 파랑. 블랙 배경의 값은 `globals.css`의 `.dark` 재정의다. */
+const TONE = { up: "text-red-600", down: "text-blue-600", flat: "text-gray-500" } as const;
+const ARROW = { up: "▲ ", down: "▼ ", flat: "" } as const;
+
+/** 등락 두 칸. 비교할 행이 없으면(저장된 첫 고시) "—" — 0으로 메우지 않는다(헌법 원칙 V). */
+function ChangeCells({ change }: { change: DailyChange | null | undefined }) {
+  const cell = "px-4 py-2 text-right tabular-nums";
+  if (change == null) {
+    return (
+      <>
+        <td className={`${cell} text-gray-500`}>—</td>
+        <td className={`${cell} text-gray-500`}>—</td>
+      </>
+    );
+  }
+  const tone = TONE[change.direction];
+  // 방향은 기호가 전한다 — 등락폭은 크기만(부호를 뗀 서버 글자를 매매기준율과 같은 형식으로).
+  const magnitude = formatRate(change.absolute.replace(/^-/, ""));
+  const percent =
+    change.percent === null ? "—" : `${change.direction === "up" ? "+" : ""}${change.percent}%`;
+  return (
+    <>
+      <td className={`${cell} ${tone}`}>{`${ARROW[change.direction]}${magnitude}`}</td>
+      <td className={`${cell} ${tone}`}>{percent}</td>
+    </>
+  );
+}
 
 export function DailyTable({
   data,
@@ -140,6 +170,7 @@ export function DailyTable({
                   <td className="px-4 py-2 text-right tabular-nums">
                     {formatRate(row.derived.remitReceive)}
                   </td>
+                  <ChangeCells change={row.change} />
                 </tr>
               );
             })}

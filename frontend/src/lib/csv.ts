@@ -10,9 +10,10 @@
 
 import type { DailyResponse, PeriodUnit } from "./types";
 
+// 014 반복 2026-10-10d(FR-031) — 등락 두 열은 **맨 끝**이다. 앞에 끼우면 전에 받은 파일을 읽던 도구가 열을 잘못 읽는다.
 const HEADER =
   "날짜,매매기준율,현금 살 때,현금 팔 때,송금 보낼 때,송금 받을 때,확정 여부," +
-  "원래 기준일,진행 중";
+  "원래 기준일,진행 중,등락폭,등락율";
 
 /** 파일만 봐도 어느 단위인지 알아야 한다 (FR-016a). */
 const UNIT_NAME: Record<PeriodUnit, string> = {
@@ -56,6 +57,9 @@ export function buildDailyCsv(data: DailyResponse): string {
       // 파일만 본 사람은 2026-07-16을 그냥 7월 데이터로 읽는다.
       r.shiftedFrom ?? "",
       r.isOngoing ? "예" : "아니오",
+      // 서버 글자 그대로(기호·`%` 없음). 비교할 행이 없으면 빈 칸이다 — 0으로 메우지 않는다.
+      r.change?.absolute ?? "",
+      r.change?.percent ?? "",
     ]
       .map(quote)
       .join(","),

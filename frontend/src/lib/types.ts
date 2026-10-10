@@ -192,6 +192,16 @@ export interface PeriodRow extends DailyRow {
   periodTo: string;
   shiftedFrom?: string;
   isOngoing: boolean;
+  /**
+   * 바로 아래 행 대비 등락(014 반복 2026-10-10d — FR-031). 서버가 `Decimal`로 낸다. 비교할 행이 없으면(저장된
+   * 첫 고시) `null`이다. 014 전 응답·픽스처에는 없을 수 있어 선택 칸이다 — 없으면 `null`과 같다("—").
+   */
+  change?: DailyChange | null;
+}
+
+/** 표 행의 등락 — 요약 칸의 `LatestChange`와 같은 꼴이고 비교 행이 0 이하면 `percent`만 `null`이다. */
+export interface DailyChange extends Omit<LatestChange, "percent"> {
+  percent: DecimalString | null;
 }
 
 export interface DailyResponse {
