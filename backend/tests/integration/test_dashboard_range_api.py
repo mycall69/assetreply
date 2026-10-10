@@ -14,13 +14,13 @@ from decimal import Decimal
 
 import pytest
 from httpx2 import ASGITransport, AsyncClient
-from src.simulation.indicator_range import range_start
 
 from src.api.main import create_app
 from src.api.routes import dashboard_series
 from src.api.services import indicator_intraday, market_quotes
 from src.db.session import get_session
 from src.repository import market_daily
+from src.simulation.indicator_range import range_start
 from src.simulation.market_indicators import Indicator
 from src.simulation.market_quote import MarketQuote, Previous
 

@@ -4,6 +4,9 @@
 말일 이하의 마지막 거래일) —
 화면마다 규칙이 다르면 같은 달이 다른 값으로 보인다(FR-013 실패 양상). 년은 12-31 이하의 마지막
 거래일이다.
+
+014 승인 2026-10-10(반복 2026-10-10b T111): 년 단위를 지웠다 — 차트는 점을 묶지 않고 보는 기간 8개다
+(`indicator_range`). 단위는 일·주·월 셋이다.
 """
 
 from __future__ import annotations
@@ -35,8 +38,8 @@ DAYS = trading_days(D(2025, 1, 2), D(2026, 10, 8), skip=(D(2026, 10, 2), D(2026,
 TODAY = D(2026, 10, 9)
 
 
-def test_단위는_넷() -> None:
-    assert UNITS == ("daily", "weekly", "monthly", "yearly")
+def test_단위는_셋() -> None:  # 014 승인 2026-10-10 — 년 단위 삭제(D7)
+    assert UNITS == ("daily", "weekly", "monthly")
 
 
 def test_일_단위는_그날마다() -> None:
@@ -62,13 +65,6 @@ def test_월말_휴장이면_전날이_대표이고_옮김() -> None:
     points = {p.date: p for p in build_points(closes(DAYS), "monthly", today=TODAY)}
     assert D(2026, 9, 29) in points and points[D(2026, 9, 29)].shifted  # 09-30 휴장
     assert D(2025, 12, 31) in points and not points[D(2025, 12, 31)].shifted
-
-
-def test_년_대표는_12월_31일_이하의_마지막_거래일() -> None:
-    points = build_points(closes(DAYS), "yearly", today=TODAY)
-    assert [p.date for p in points] == [D(2025, 12, 31), D(2026, 10, 8)]
-    assert not points[0].shifted and not points[0].ongoing
-    assert points[1].ongoing and points[1].shifted
 
 
 def test_끝나지_않은_기간은_ongoing() -> None:

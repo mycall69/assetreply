@@ -9,7 +9,8 @@ export function seriesOf(over: Partial<IndicatorSeriesResponse> = {}): Indicator
       id: "sp500", name: "S&P 500", unit: "포인트", kind: "index", group: "us",
       market: { key: "us_equity", timezone: "America/New_York" }, notes: [],
     },
-    unit: "daily",
+    // 014 승인 2026-10-10(반복 2026-10-10b T111) — 단위 `unit` → 보는 기간 `range`
+    range: "1y",
     history: {
       source: "yahoo", firstDate: "1927-12-30", lastDate: "2026-10-08", tailPending: false,
       lastSuccessAt: "2026-10-09T04:30:02Z", lastFailure: null,

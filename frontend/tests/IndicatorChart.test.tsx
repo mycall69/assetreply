@@ -5,7 +5,8 @@
  *
  * - 결측 `gaps` 구간마다 선을 나눈다. 휴장(빈 날)은 나누지 않는다 — 결측을 이어 그리면 그 기간에 값이 움직이지 않은 것처럼 보인다
  * - 잠정 점은 연한 색 선에 있다(⏳)
- * - 처음 범위는 단위마다 다르다: 일 마지막 약 250점, 주 260, 월 240, 년 전체
+ * - 보는 기간이 곧 범위다 — 받은 점을 모두 보인다(`fitContent`). 처음 범위를 따로 두지 않는다
+ *   (014 승인 2026-10-10 — 반복 2026-10-10b T111: 단위마다 처음 보이는 점 수(일 250·주 260·월 240·년 전체)를 대체)
  * - 커서 상자는 날짜·형식 입힌 값·📅 옮김·⏳ 끝나지 않은 구간·⏳ 잠정을 보인다
  */
 import { act, render, screen } from "@testing-library/react";
@@ -78,20 +79,10 @@ describe("선", () => {
   });
 });
 
-describe("처음 범위", () => {
-  it.each([["daily", 250], ["weekly", 260], ["monthly", 240]] as const)("%s는 마지막 %i점", (unit, span) => {
-    render(<IndicatorChart series={seriesOf({ unit, points: daily(1000), sourcePointCount: 1000 })} />);
-    expect(chart.range).toEqual({ from: 1000 - span, to: 999 });
-  });
-
-  it("년은 전체", () => {
-    render(<IndicatorChart series={seriesOf({ unit: "yearly", points: daily(80), sourcePointCount: 80 })} />);
-    expect(chart.range).toBeNull();
-    expect(chart.fitted).toBe(1);
-  });
-
-  it("점이 범위보다 적으면 전체", () => {
-    render(<IndicatorChart series={seriesOf({ unit: "daily", points: daily(100), sourcePointCount: 100 })} />);
+describe("범위", () => {
+  // 014 승인 2026-10-10 — 처음 범위(단위마다 마지막 n점) → 기간이 범위(늘 전체)
+  it.each(["1m", "1y", "5y", "all"] as const)("%s는 받은 점 전부를 보인다", (range) => {
+    render(<IndicatorChart series={seriesOf({ range, points: daily(1000), sourcePointCount: 1000 })} />);
     expect(chart.range).toBeNull();
     expect(chart.fitted).toBe(1);
   });
@@ -103,7 +94,8 @@ describe("커서 상자", () => {
       { date: "2026-09-30", value: "7702.110000", shifted: true },
       { date: "2026-10-09", value: "7793.420000", ongoing: true, provisional: true },
     ];
-    render(<IndicatorChart series={seriesOf({ unit: "monthly", points })} />);
+    // 014 승인 2026-10-10 — `unit` 칸 삭제(보는 기간은 점을 묶지 않는다)
+    render(<IndicatorChart series={seriesOf({ points })} />);
     act(() => chart.crosshair?.({ time: "2026-09-30" }));
     const box = screen.getByTestId("indicator-tooltip");
     expect(box).toHaveTextContent("2026-09-30");

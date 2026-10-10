@@ -14,6 +14,9 @@ const FILES = [
   ...readdirSync(join(SRC, "components/dashboard")).map((f) => join(SRC, "components/dashboard", f)),
   join(SRC, "stores/marketQuotesStore.ts"),
   join(SRC, "stores/indicatorSeriesStore.ts"),
+  // 014 승인 2026-10-10(반복 2026-10-10b T111) — 지표 모달의 표·까닭 스토어도 값을 계산하지 않는다
+  join(SRC, "stores/indicatorTableStore.ts"),
+  join(SRC, "stores/indicatorCommentaryStore.ts"),
   join(SRC, "stores/newsStore.ts"),
   join(SRC, "lib/dashboardApi.ts"),
 ].filter((f) => existsSync(f));

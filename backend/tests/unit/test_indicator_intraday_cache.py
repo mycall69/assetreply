@@ -13,7 +13,6 @@ import datetime as dt
 from decimal import Decimal
 
 from src.api.services.indicator_intraday import IntradayService
-
 from src.config.settings import load_settings
 from src.ingestion.yahoo.errors import StockSourceRateLimited
 from src.ingestion.yahoo.market import IntradayFetch

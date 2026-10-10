@@ -17,7 +17,6 @@ import datetime as dt
 from decimal import Decimal
 
 from src.simulation.indicator_table import TableBar, table_values
-
 from src.simulation.period_table import build_table
 
 D = dt.date

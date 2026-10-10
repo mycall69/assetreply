@@ -3,7 +3,8 @@ SC-002, SC-004,
 contracts A2~A4.
 
 - 과거 구간이 남았으면 202 + 진행(받는 중), 실패 뒤 성공이 없으면 202 `failed`
-- 완성되면 단위 넷의 점·결측 `gaps`·`tailPending`·수집 상태(`lastSuccessAt`·`lastFailure`)
+- 완성되면 보는 기간의 일봉·결측 `gaps`·`tailPending`·수집 상태(`lastSuccessAt`·`lastFailure`)
+  (014 승인 2026-10-10 — 반복 2026-10-10b T111: 단위 넷 → 보는 기간 `range`, 옛 `unit`은 무시)
 - 오늘 잠정 꼬리는 현재 시세 캐시에서 붙는다. 환율에는 붙지 않는다(다른 계열 — 명확화 2)
 - 점 한도를 넘으면 실제 점을 골라 줄인다
 - 환율 그래프는 외환 메뉴의 고시 이력과 같은 날 같은 값이다(SC-004). 모자라면 외환 수집 경로에
@@ -147,28 +148,25 @@ async def test_실패_뒤_성공이_없으면_failed(client: AsyncClient, sessio
     assert body["failure"]["kind"] == "rate_limited" and body["failure"]["message"] == "한도"
 
 
-async def test_완성되면_단위_넷과_잠정_꼬리(client: AsyncClient, session_factory) -> None:  # type: ignore[no-untyped-def]
+async def test_완성되면_기간의_일봉과_잠정_꼬리(client: AsyncClient, session_factory) -> None:  # type: ignore[no-untyped-def]
+    # 014 승인 2026-10-10 — 단위 넷(묶은 점·ongoing) → 일봉 기간(묶지 않은 일봉, ongoing 없음)
     await seed(session_factory, "sp500", DAYS, first=DAYS[0], through=D(2026, 10, 8))
-    for unit, last in (
-        ("daily", "2026-10-09"),
-        ("weekly", "2026-10-09"),
-        ("monthly", "2026-10-09"),
-        ("yearly", "2026-10-09"),
-    ):
-        res = await client.get(f"/api/dashboard/indicators/sp500/series?unit={unit}")
-        assert res.status_code == 200, unit
+    for range_key in ("1m", "1y", "all"):
+        res = await client.get(f"/api/dashboard/indicators/sp500/series?range={range_key}")
+        assert res.status_code == 200, range_key
         body = res.json()
-        assert body["unit"] == unit
+        assert body["range"] == range_key and "unit" not in body
         point = body["points"][-1]
         assert (
-            point["date"] == last
+            point["date"] == "2026-10-09"
             and point["value"] == "7800.000000"
             and point["provisional"] is True
         )
-        if unit != "daily":
-            assert point["ongoing"] is True
+        assert not any("ongoing" in p or "shifted" in p for p in body["points"])
+    one_year = sum(1 for d in DAYS if d >= D(2025, 10, 9)) + 1
     body = (await client.get("/api/dashboard/indicators/sp500/series")).json()
-    assert body["unit"] == "daily"
+    assert body["range"] == "1y" and body["sourcePointCount"] == one_year
+    body = (await client.get("/api/dashboard/indicators/sp500/series?range=all")).json()
     assert body["history"]["source"] == "yahoo"
     assert body["history"]["firstDate"] == DAYS[0].isoformat()
     assert body["history"]["lastDate"] == "2026-10-08"
@@ -179,10 +177,11 @@ async def test_완성되면_단위_넷과_잠정_꼬리(client: AsyncClient, ses
     assert body["indicator"]["id"] == "sp500" and body["gaps"] == []
 
 
-async def test_틀린_단위는_daily(client: AsyncClient, session_factory) -> None:  # type: ignore[no-untyped-def]
+async def test_옛_unit은_무시하고_1년(client: AsyncClient, session_factory) -> None:  # type: ignore[no-untyped-def]
+    # 014 승인 2026-10-10 — 틀린 단위는 daily → 옛 `unit`은 무시하고 처음 기간(1년)
     await seed(session_factory, "sp500", DAYS, first=DAYS[0], through=D(2026, 10, 8))
     body = (await client.get("/api/dashboard/indicators/sp500/series?unit=hourly")).json()
-    assert body["unit"] == "daily"
+    assert body["range"] == "1y" and "unit" not in body
 
 
 async def test_결측은_gaps이고_휴장은_아니다(client: AsyncClient, session_factory) -> None:  # type: ignore[no-untyped-def]

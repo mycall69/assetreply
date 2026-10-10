@@ -14,12 +14,12 @@ from decimal import Decimal
 
 import pytest
 from httpx2 import ASGITransport, AsyncClient
-from src.api.services.indicator_commentary import CommentaryService
-from src.ingestion.news.commentary import CommentaryItem
 
 from src.api.main import create_app
 from src.api.services import indicator_commentary
+from src.api.services.indicator_commentary import CommentaryService
 from src.config.settings import load_settings
+from src.ingestion.news.commentary import CommentaryItem
 from src.ingestion.news.errors import NewsError, NewsRateLimited
 from src.simulation.market_quote import MarketQuote, Previous
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime as dt
 
 import pytest
+
 from src.simulation.indicator_range import DEFAULT_RANGE, RANGES, is_intraday, range_of, range_start
 
 D = dt.date
