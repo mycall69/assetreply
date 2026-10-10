@@ -811,7 +811,7 @@ description: "Task list for 014-market-dashboard"
 
 ### Preparation (반복 2026-10-10f)
 
-- [ ] T158 실측·픽스처 — Yahoo 차트 `range=1d`(VOO·삼성전자·도요타)의 `meta.firstTradeDate`·응답 크기·시간을 재고 본문만 픽스처로(`backend/tests/contract/fixtures/stock/chart_meta_*.json` + README),
+- [X] T158 실측·픽스처 — Yahoo 차트 `range=1d`(VOO·삼성전자·도요타)의 `meta.firstTradeDate`·응답 크기·시간을 재고 본문만 픽스처로(`backend/tests/contract/fixtures/stock/chart_meta_*.json` + README),
   미국 ETF 몇의 첫 거래일을 기록 — `research.md` R14-26 (FR-033)
 
 ### Tests for 반복 2026-10-10f ⚠️
@@ -824,8 +824,8 @@ description: "Task list for 014-market-dashboard"
   - 새 `backend/tests/integration/test_listing_date_api.py` — 검색 두 응답의 `firstTradeDate`(저장된 종목만, 출처 호출 0), 비교 블록 `listing`(국내 `listing`·미국 `first_trade`·코인 `first_bar`·모름
     `null`·예금·부동산 `null`), 메뉴 시뮬레이션 응답 불변
 - [ ] T160 [P] [US7] 화면 테스트 — 최초 실패 확인 (FR-033)
-  - 새 `frontend/tests/StockSearchListing.test.tsx` — 결과 줄 `상장 …`(국내 `listedOn`, 미국 `firstTradeDate`, 둘 다 없으면 글자 없음)
-  - 새 `frontend/tests/CoinSearchListing.test.tsx` — `상장 …`(`firstAvailableDate`), 없으면 글자 없음
+  - 새 `frontend/tests/StockSearchListing.test.tsx` — 결과 줄 `상장 …`(국내 `listedOn`)·`첫 거래 …`(`firstTradeDate`), 둘 다 없으면 글자 없음
+  - 새 `frontend/tests/CoinSearchListing.test.tsx` — `첫 일봉 …`(`firstAvailableDate`), 없으면 글자 없음
   - 새 `frontend/tests/CompareTableListing.test.tsx` — 주식·가상자산 표의 머리 차례(대상 · 상장일 · 기준일 …), 날짜·기준 작은 글자(`첫 거래일`·`첫 일봉`·키움은 없음), "—"·`title`, 정렬(비운 칸 끝),
     예금·부동산 열 없음
 
