@@ -9,6 +9,8 @@
  *   본문이고(`status: "failed"`), 받는 중(202)으로 읽지 않는다
  * - (반복 2026-10-10c) 일봉 본문은 기간과 무관하게 저장된 일봉 전부다 — 월~모두 사이의 전환은 다시 받지 않고 `range`(처음 보이는 범위)와
  *   주소만 바꾼다. 장중 ↔ 일봉·장중끼리는 받는다(본문이 다르다)
+ * - (반복 2026-10-10c T138) 받는 중인 같은 본문(같은 지표의 일봉 — 또는 같은 장중 기간)은 다시 부르지 않고 그 요청을 나눈다 — 개발 모드의
+ *   이중 효과(닫았다 다시 연다)와 두 번 누름이 일봉 전부(약 1MB)를 두 번 받아 그래프가 1초를 넘었다. 다 받은 뒤에는 다시 부른다
  * - 없는 지표(404)는 `not_found`다
  */
 import { create } from "zustand";
@@ -37,6 +39,23 @@ interface IndicatorSeriesState {
 }
 
 let unsubscribe: (() => void) | null = null;
+// 받는 중인 요청 — 같은 열쇠면 나눈다(상태가 아니다)
+let inflight: { key: string; promise: Promise<IndicatorChartSeries | IndicatorCollecting> } | null = null;
+
+/** 같은 본문의 열쇠 — 일봉 기간은 모두 같은 본문이다. */
+const requestKey = (id: string, range: IndicatorRange) => `${id}|${isIntradayRange(range) ? range : "daily"}`;
+
+function request(id: string, range: IndicatorRange): Promise<IndicatorChartSeries | IndicatorCollecting> {
+  const key = requestKey(id, range);
+  if (inflight?.key === key) return inflight.promise;
+  const mine = { key, promise: fetchSeries(id, range) };
+  inflight = mine;
+  const clear = () => {
+    if (inflight === mine) inflight = null;
+  };
+  mine.promise.then(clear, clear);
+  return mine.promise;
+}
 let recheck: ReturnType<typeof setTimeout> | null = null;
 
 function stopWatching() {
@@ -83,7 +102,7 @@ export const useIndicatorSeriesStore = create<IndicatorSeriesState>((set, get) =
       const seq = get().seq + 1;
       set({ id, range, seq, status: get().series && get().id === id ? get().status : "loading", error: null });
       try {
-        const body = await fetchSeries(id, range);
+        const body = await request(id, range);
         if (get().seq !== seq) return;
         if (isCollecting(body)) {
           set({ collecting: body, status: body.status === "failed" ? "failed" : "collecting" });

@@ -5,6 +5,7 @@
  *   그대로 보인다(행을 섞지 않고 통째로 바꾼다) — 비우면 표와 단위 단추가 사라졌다 붙어 모달이 흔들렸다(T124 실측)
  * - 더 받기는 `before = oldestReturned`이고 뒤에 붙인다(주식 일자별 표와 같은 쪽 넘기기)
  * - 늦게 온 옛 응답은 버린다(`seq`)
+ * - (반복 2026-10-10c T138) 받는 중인 같은 첫 쪽(같은 지표·단위)은 다시 부르지 않고 나눈다 — 개발 모드의 이중 효과·두 번 누름
  * - 202는 그래프와 같은 받는 중·실패다 — 받은 만큼만 보인 표를 완성된 이력처럼 보이지 않는다(FR-016). 다시 받는 시점은 모달이
  *   정한다(그래프가 다 받아지면 표도 다시 연다)
  */
@@ -31,6 +32,21 @@ interface IndicatorTableState {
   close: () => void;
 }
 
+// 받는 중인 첫 쪽 요청 — 같은 열쇠면 나눈다(상태가 아니다)
+let inflight: { key: string; promise: Promise<IndicatorTableResponse | IndicatorCollecting> } | null = null;
+
+function firstPage(id: string, period: IndicatorTablePeriod): Promise<IndicatorTableResponse | IndicatorCollecting> {
+  const key = `${id}|${period}`;
+  if (inflight?.key === key) return inflight.promise;
+  const mine = { key, promise: fetchTable(id, period) };
+  inflight = mine;
+  const clear = () => {
+    if (inflight === mine) inflight = null;
+  };
+  mine.promise.then(clear, clear);
+  return mine.promise;
+}
+
 function isCollecting(body: IndicatorTableResponse | IndicatorCollecting): body is IndicatorCollecting {
   return "status" in body;
 }
@@ -53,7 +69,7 @@ export const useIndicatorTableStore = create<IndicatorTableState>((set, get) => 
     if (get().id === id && get().table !== null) set({ period, seq, status: "loading", loadingMore: false, loadError: null });
     else set({ ...BLANK, id, period, seq, status: "loading" });
     try {
-      const body = await fetchTable(id, period);
+      const body = await firstPage(id, period);
       if (get().seq !== seq) return;
       if (isCollecting(body)) {
         set({ collecting: body, status: body.status === "failed" ? "failed" : "collecting" });
