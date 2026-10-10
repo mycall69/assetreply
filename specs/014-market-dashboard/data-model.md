@@ -328,4 +328,4 @@ R14-7 표가 상수다. 함수는 둘이다:
 - **고르기 규칙**(순수 함수 하나 — `simulation/listing_date.py`): 주식 `(listed_on, first_trade_date) → listing | first_trade | None`, 코인 `first_available_date → first_bar | None`
 - **화면**: 검색 결과 줄은 기준을 밝힌 날짜 — 주식 `listedOn`이면 `상장 YYYY-MM-DD`, 없고 `firstTradedOn`이면 `첫 거래 YYYY-MM-DD`, 코인 `firstAvailableDate`면 `첫 일봉 YYYY-MM-DD`(없으면 그 글자를 뺀다 —
   T158: Yahoo 첫 거래일은 출처의 시세 시작일이라 오래된 종목은 상장일보다 늦다). 비교 표는 `comparison.listing` — 열은 `method`가 일시금·적립식일 때만. (반복 2026-10-10g) 메뉴의 고른
-  줄은 종목명 밑에 같은 글자, 모르면 `상장일 —`(고른 대상 `listing` — 대상이 바뀔 때·그 결과가 올 때 묻는다)
+  줄은 종목명 밑에 같은 글자, 모르면 `상장일 —`(고른 대상 `listing` — 대상이 바뀔 때·그 결과나 시작 가능 날짜 안내가 올 때 묻는다)

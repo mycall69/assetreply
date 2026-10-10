@@ -880,11 +880,11 @@ description: "Task list for 014-market-dashboard"
 
 ### Polish (반복 2026-10-10g)
 
-- [ ] T173 [US7] 실측 — quickstart 5-23(QLD·삼성전자·도요타 고르기, 이력 다시 실행, 비트코인, 첫 일봉을 모르는 코인 → 실행 뒤, 블랙 배경)을 헤드리스 Chrome으로 확인하고 `quickstart.md` 8에
+- [X] T173 [US7] 실측 — quickstart 5-23(QLD·삼성전자·도요타 고르기, 이력 다시 실행, 비트코인, 첫 일봉을 모르는 코인 → 실행 뒤, 블랙 배경)을 헤드리스 Chrome으로 확인하고 `quickstart.md` 8에
   기록한다 (FR-034, SC-019)
-- [ ] T174 불변 대조·문서 — `014-baseline/fetch.py`(기준 29파일 — 부동산 기준일·`meta` 말고 차이 0), 등록·검색 응답 그대로. `CLAUDE.md`(014 줄·상장일 주의), `README.md`, `spec.md` Status
+- [X] T174 불변 대조·문서 — `014-baseline/fetch.py`(기준 29파일 — 부동산 기준일·`meta` 말고 차이 0), 등록·검색 응답 그대로. `CLAUDE.md`(014 줄·상장일 주의), `README.md`, `spec.md` Status
   (FR-026, SC-010, SC-019)
-- [ ] T175 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T170)뿐인지
+- [X] T175 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T170)뿐인지
   `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
 
 ---
