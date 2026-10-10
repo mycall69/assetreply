@@ -42,6 +42,7 @@ from src.ingestion.yahoo.parse import (
     RawBody,
     StockQuote,
     parse_chart,
+    parse_first_trade,
     parse_search,
     parse_splits,
     restore_unadjusted,
@@ -144,6 +145,17 @@ class YahooStockClient:
                 RawBody("splits", history_raw, history_status, date_from, now.date()),
             ],
         )
+
+    async def fetch_first_trade_date(self, symbol: str) -> dt.date | None:
+        """시세 출처가 시세를 가진 첫 날 (014 반복 2026-10-10f — FR-033, research R14-26).
+
+        차트 `range=1d` 한 번 — `meta`만 쓰고 봉·배당·분할은 받지 않는다(응답 약 1.3KB). 이
+        날짜는 **상장일과 다를 수 있다** — 출처의 시세 시작일보다 앞서 상장한 종목(국내 2000년
+        전·일본 1999년 전 등)은 늦다(T158). 출처가 주지 않으면 `None`이다.
+        """
+        body, _, _ = await self._get(
+            f"/v8/finance/chart/{symbol}", {"range": "1d", "interval": "1d"})
+        return parse_first_trade(body)
 
     async def search(self, query: str, limit: int) -> tuple[list[StockQuote], str, int]:
         """종목을 검색한다 (FR-002a).

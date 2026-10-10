@@ -365,6 +365,11 @@ export interface LocalStockResult {
   currency: string;
   kind: StockKind;
   listedOn: string | null;
+  /**
+   * 저장된 시세 출처(Yahoo) 첫 거래일(014 반복 2026-10-10f — FR-033). 한 번 고른 종목만 있다 — 검색은 출처를 부르지 않는다. 014 전 응답에는
+   * 칸이 없을 수 있어 선택 칸이다.
+   */
+  firstTradedOn?: string | null;
   /** `missing` — 목록에서 빠진 종목. 지우지 않고 표시한다(FR-019). */
   listingStatus: "listed" | "missing";
   match: "exact" | "prefix" | "contains";
@@ -386,6 +391,8 @@ export interface ExternalStockResult {
   name: string;
   currency: string;
   kind: StockKind;
+  /** 저장된 시세 출처 첫 거래일(014 FR-033) — 한 번 고른 종목만. */
+  firstTradedOn?: string | null;
 }
 
 export interface ExternalSearchResponse {
@@ -1667,6 +1674,14 @@ export interface UnitPrice {
 }
 
 /** 비교 경로 200의 정규화 블록(data-model 3). 금액은 원화 문자열이다. */
+/** 상장일의 기준 — 키움 국내 상장일·Yahoo 첫 거래일·코인 첫 일봉(014 FR-033). */
+export type ListingBasis = "listing" | "first_trade" | "first_bar";
+
+export interface ListingDate {
+  date: string;
+  basis: ListingBasis;
+}
+
 export interface ComparisonBlock {
   asOf: string;
   isFinal: boolean;
@@ -1682,6 +1697,8 @@ export interface ComparisonBlock {
   fx: ComparisonFx | null;
   /** 반복 2026-10-09 — 단가 등락. 메뉴 응답에는 없다. */
   unitPrice: UnitPrice | null;
+  /** 상장일과 기준(014 반복 2026-10-10f — FR-033). 주식·가상자산만, 모르면 `null`. 014 전 응답에는 칸이 없다. */
+  listing?: ListingDate | null;
 }
 
 /** 비교 경로 200(contracts/rest-api.md 1.2). `summary`·`condition`은 메뉴 응답의 것 그대로다. */

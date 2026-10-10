@@ -10,8 +10,9 @@ upsert는 `db/dialect.py`의 헬퍼만 호출한다. 방언 구문을 직접 쓰
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Collection
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.dialect import upsert
@@ -42,6 +43,34 @@ async def find_us_stock(session: AsyncSession, symbol: str) -> Stock | None:
         select(Stock).where(Stock.symbol == symbol,
                             Stock.market.in_(("NYSE", "NASDAQ", "AMEX")))
         .order_by(Stock.id).limit(1))).scalar_one_or_none()
+
+
+async def record_first_trade_date(session: AsyncSession, stock_id: int, day: dt.date) -> None:
+    """시세 출처의 첫 거래일을 **비었을 때만** 쓴다 — 덮어쓰지 않는다 (014 FR-033, research R14-26).
+
+    표시 전용이다. 시작일 하한(`first_available_date`)에는 쓰지 않는다 — 쓰면 메뉴의 시작일 거절이
+    수집 전에 일어나 거절 날짜가 바뀐다.
+    """
+    await session.execute(
+        update(Stock)
+        .where(Stock.id == stock_id, Stock.first_trade_date.is_(None))
+        .values(first_trade_date=day))
+
+
+async def first_trade_dates(
+    session: AsyncSession, symbols: Collection[str]
+) -> dict[tuple[str, str], dt.date]:
+    """시세 식별자별 저장된 첫 거래일 (014 FR-033). 검색 응답이 쓴다 — **출처를 부르지 않는다**.
+
+    심볼로만 거른다 — 미국 종목은 시장 없이 티커로 맞춰야 한다(006 FR-030a). 고르기는
+    부르는 쪽 몫이다.
+    """
+    if not symbols:
+        return {}
+    rows = await session.execute(
+        select(Stock.market, Stock.symbol, Stock.first_trade_date)
+        .where(Stock.symbol.in_(set(symbols)), Stock.first_trade_date.is_not(None)))
+    return {(market, symbol): day for market, symbol, day in rows.tuples() if day is not None}
 
 
 async def ensure_stock(

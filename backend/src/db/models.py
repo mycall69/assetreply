@@ -271,6 +271,9 @@ class Stock(Base):
     currency: Mapped[str] = mapped_column(String(3))
     # 출처가 실제로 값을 주기 시작한 날. 수집 중 발견해 기록한다 (FR-005).
     first_available_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    # 014 반복 2026-10-10f(FR-033) — 시세 출처(Yahoo)의 첫 거래일. **표시 전용**이다 — 시작일 판정은
+    # 위의 `first_available_date`와 목록의 상장일만 본다. 비었을 때만 쓴다(research R14-26).
+    first_trade_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
     ingested_at: Mapped[dt.datetime] = mapped_column(TS, server_default=func.now())
 
     __table_args__ = (Index("ux_stock_market_symbol", "market", "symbol", unique=True),)

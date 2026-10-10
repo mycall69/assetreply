@@ -55,7 +55,9 @@ from src.api.services.crypto_collect import collecting_body as crypto_collecting
 from src.api.services.realestate_lists import get_realestate_now, get_realestate_settings
 from src.api.services.stock_collect import collecting_body as stock_collecting
 from src.api.services.stock_sale import DOMESTIC_MARKET
+from src.api.services.stock_selection import listing_for
 from src.config.settings import Settings, load_settings
+from src.db.models import Stock
 from src.db.session import get_session
 from src.repository import crypto_daily
 from src.repository.stock import get_coverage
@@ -67,6 +69,7 @@ from src.simulation.comparison_costs import (
     realestate_costs,
     stock_costs,
 )
+from src.simulation.listing_date import ListingDate, coin_listing_date, stock_listing_date
 from src.simulation.split_adjust import split_restated_close
 from src.simulation.unit_price import PricePoint, UnitPrice, split_ratio, unit_price
 from src.worker.apt_trade_runner import kst_date
@@ -181,6 +184,16 @@ def _realestate_unit(result: HoldingResult) -> UnitPrice:
     return unit_price("home", "market_price", "KRW", start, at)
 
 
+async def _stock_listing(session: AsyncSession, stock: Stock) -> ListingDate | None:
+    """상장일 — 키움 국내 상장일 → 시세 출처 첫 거래일 → 없음 (014 반복 2026-10-10f — FR-033).
+
+    시작일 하한(`first_available_date`)은 쓰지 않는다 — 상장일이 아니다.
+    """
+    listing = await listing_for(session, stock.market, stock.symbol)
+    listed_on = None if listing is None else listing.listed_on
+    return stock_listing_date(listed_on, stock.first_trade_date)
+
+
 def _body(*, target: Json, condition: Json, exchange: Json | None, summary: Json, series: Json,
           comparison: Json) -> Json:
     return {"basisCurrency": "KRW", "target": target, "condition": condition,
@@ -247,7 +260,8 @@ async def compare_stock(
                                                price_currency=stock.currency),
         comparison=comparison_block("stock_lump", summary, costs,
                                     principal_currency=principal_currency, fx=fx,
-                                    unit_price=_stock_lump_unit(result, stock.currency)))
+                                    unit_price=_stock_lump_unit(result, stock.currency),
+                                    listing=await _stock_listing(session, stock)))
 
 
 @router.get("/crypto/simulation", response_model=None)
@@ -303,7 +317,8 @@ async def compare_crypto(
                                                 price_currency=coin.quote_currency),
         comparison=comparison_block("crypto_lump", summary, costs,
                                     principal_currency=principal_currency, fx=fx,
-                                    unit_price=_crypto_lump_unit(result, coin.quote_currency)))
+                                    unit_price=_crypto_lump_unit(result, coin.quote_currency),
+                                    listing=coin_listing_date(coin.first_available_date)))
 
 
 @router.get("/deposit/simulation", response_model=None)
@@ -438,7 +453,8 @@ async def compare_stock_recurring(
                                                   price_currency=stock.currency),
         comparison=comparison_block("stock_recurring", summary, costs,
                                     principal_currency=principal_currency, fx=fx,
-                                    unit_price=_stock_recurring_unit(result, stock.currency)))
+                                    unit_price=_stock_recurring_unit(result, stock.currency),
+                                    listing=await _stock_listing(session, stock)))
 
 
 @router.get("/crypto/recurring-simulation", response_model=None)
@@ -482,7 +498,8 @@ async def compare_crypto_recurring(
                                                    price_currency=coin.quote_currency),
         comparison=comparison_block("crypto_recurring", summary, costs,
                                     principal_currency=principal_currency, fx=fx,
-                                    unit_price=_crypto_recurring_unit(result, coin.quote_currency)))
+                                    unit_price=_crypto_recurring_unit(result, coin.quote_currency),
+                                    listing=coin_listing_date(coin.first_available_date)))
 
 
 @router.get("/deposit/installment-simulation", response_model=None)

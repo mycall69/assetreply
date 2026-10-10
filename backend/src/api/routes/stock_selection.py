@@ -17,7 +17,15 @@ from fastapi import APIRouter, Body, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.errors import InvalidQuery
-from src.api.services.stock_selection import Selected, select_external, select_listing
+from src.api.services.stock_selection import (
+    FirstTradeLookup,
+    Selected,
+    fill_first_trade_date,
+    get_shared_first_trade_source,
+    select_external,
+    select_listing,
+)
+from src.config.settings import load_settings
 from src.db.session import get_session
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
@@ -41,10 +49,22 @@ def selected_json(selected: Selected) -> Json:
     }
 
 
+def get_first_trade() -> FirstTradeLookup | None:
+    """등록 때 첫 거래일을 받는 수단 (014 FR-033).
+
+    앱 수명주기의 공유 시세 클라이언트가 없으면 `None`이다.
+    """
+    source = get_shared_first_trade_source()
+    if source is None:
+        return None
+    return FirstTradeLookup(source, load_settings().stock_first_trade_timeout_ms / 1000)
+
+
 @router.post("/selection")
 async def post_selection(
     session: Annotated[AsyncSession, Depends(get_session)],
     payload: Annotated[Json, Body()],
+    first_trade: Annotated[FirstTradeLookup | None, Depends(get_first_trade)],
 ) -> Json:
     source = payload.get("source")
     if source == "listing":
@@ -58,4 +78,6 @@ async def post_selection(
             name=_text(payload, "name"), currency=_text(payload, "currency"))
     else:
         raise InvalidQuery("source는 listing 또는 external이어야 합니다.")
+    # 014 FR-033 — 응답은 그대로다. 첫 거래일은 표시 전용 열에만 남는다.
+    await fill_first_trade_date(session, selected.stock, first_trade)
     return selected_json(selected)

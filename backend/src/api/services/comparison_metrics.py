@@ -23,6 +23,7 @@ from decimal import Decimal
 from typing import Literal
 
 from src.simulation.comparison_costs import CostPart, Costs
+from src.simulation.listing_date import ListingDate
 from src.simulation.unit_price import PricePoint, UnitPrice
 
 Json = dict[str, object]
@@ -162,10 +163,21 @@ def unit_price_json(unit: UnitPrice | None) -> Json | None:
     }
 
 
+def listing_json(listing: ListingDate | None) -> Json | None:
+    """상장일과 기준 (014 반복 2026-10-10f — FR-033, contracts A10). 모르면 `None`."""
+    if listing is None:
+        return None
+    return {"date": listing.date.isoformat(), "basis": listing.basis}
+
+
 def comparison_block(family: Family, summary: Json, costs: Costs, *,
                      principal_currency: str = "KRW", fx: FxInfo | None = None,
-                     unit_price: UnitPrice | None = None) -> Json:
-    """비교 표 한 줄의 칸 — data-model 3. `unit_price`는 반복 2026-10-09의 단가 등락(3.2)이다."""
+                     unit_price: UnitPrice | None = None,
+                     listing: ListingDate | None = None) -> Json:
+    """비교 표 한 줄의 칸 — data-model 3. `unit_price`는 반복 2026-10-09의 단가 등락(3.2)이다.
+
+    `listing`은 014 반복 2026-10-10f의 상장일이다 — 주식·가상자산 경로만 넘긴다(예금·부동산 `None`).
+    """
     basis, profit, rate = _main(family, summary)
     holding_rate = _text(summary.get("returnRate"))
     return {
@@ -183,4 +195,5 @@ def comparison_block(family: Family, summary: Json, costs: Costs, *,
         "provisional": _provisional(family, summary),
         "fx": _fx_json(fx),
         "unitPrice": unit_price_json(unit_price),
+        "listing": listing_json(listing),
     }

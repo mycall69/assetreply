@@ -40,7 +40,9 @@ from src.db.session import get_session
 from src.ingestion.yahoo.client import YahooStockClient
 from src.ingestion.yahoo.gate import get_yahoo_gate
 from src.ingestion.yahoo.parse import StockQuote
+from src.repository.stock import first_trade_dates
 from src.search.match import MatchKind
+from src.search.price_symbol import US_MARKETS
 from src.worker import listing_queue
 from src.worker.listing_queue import ListingQueue
 
@@ -104,7 +106,26 @@ def _iso_utc(value: dt.datetime | None) -> str | None:
     return None if value is None else f"{value.isoformat()}Z"
 
 
-def result_json(view: ListingView, match: MatchKind) -> Json:
+def first_trade_of(
+    dates: dict[tuple[str, str], dt.date], market: str, symbol: str
+) -> dt.date | None:
+    """저장된 첫 거래일 (014 FR-033).
+
+    미국은 **티커로** 맞춘다 — 목록과 시세 출처의 거래소가 다를 수 있다(006 FR-030a).
+    """
+    if market in US_MARKETS:
+        return next((day for (m, sym), day in dates.items() if sym == symbol and m in US_MARKETS),
+                    None)
+    return dates.get((market, symbol))
+
+
+def _iso(day: dt.date | None) -> str | None:
+    return None if day is None else day.isoformat()
+
+
+def result_json(
+    view: ListingView, match: MatchKind, first_trade: dt.date | None = None
+) -> Json:
     """검색 결과 한 줄. `market`·`symbol`은 **005의 시세 식별자**다(FR-030)."""
     return {
         "listingId": view.listing_id,
@@ -120,6 +141,9 @@ def result_json(view: ListingView, match: MatchKind) -> Json:
         "listedOn": view.listed_on.isoformat() if view.listed_on else None,
         "listingStatus": view.status,
         "match": match,
+        # 014 반복 2026-10-10f(FR-033) — 저장된 시세 출처 첫 거래일(표시 전용).
+        # 검색은 출처를 부르지 않는다.
+        "firstTradedOn": _iso(first_trade),
     }
 
 
@@ -147,9 +171,12 @@ async def search_stocks(
         session, now=now, settings=settings, queue=queue, blocker=get_auth_blocker())
     index = await get_listing_index(session)
     outcome = index.search.search(query, limit)
+    views = [(index.views[h.entry.key], h.match) for h in outcome.hits]
+    dates = await first_trade_dates(session, {view.symbol for view, _ in views})
     return {
         "query": query,
-        "results": [result_json(index.views[h.entry.key], h.match) for h in outcome.hits],
+        "results": [result_json(view, match, first_trade_of(dates, view.market, view.symbol))
+                    for view, match in views],
         "truncated": outcome.truncated,
         "lists": [state_json(s) for s in states],
     }
@@ -157,6 +184,7 @@ async def search_stocks(
 
 @router.get("/search/external")
 async def search_external(
+    session: Annotated[AsyncSession, Depends(get_session)],
     source: Annotated[SearchSource, Depends(get_source)],
     q: Annotated[str, Query(description="종목 이름 또는 코드의 일부")],
     limit: Annotated[int, Query(ge=1, le=50)] = 20,
@@ -169,10 +197,14 @@ async def search_external(
     query = _query(q)
     async with source as client:
         results, _, _ = await client.search(query, limit)
+    shown = [r for r in results if r.market in EXTERNAL_MARKETS]
+    # 014 FR-033 — 저장된 첫 거래일만 싣는다. 결과마다 출처를 부르지 않는다.
+    dates = await first_trade_dates(session, {r.symbol for r in shown})
     return {
         "query": query,
         "results": [{
             "market": r.market, "symbol": r.symbol, "name": r.name,
             "currency": r.currency, "kind": r.kind,
-        } for r in results if r.market in EXTERNAL_MARKETS],
+            "firstTradedOn": _iso(first_trade_of(dates, r.market, r.symbol)),
+        } for r in shown],
     }

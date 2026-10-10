@@ -23,7 +23,16 @@ import {
   formatPrice,
   formatRate,
 } from "@/lib/format";
-import type { CompareMethod, ComparisonBlock, MainBasis, ProvisionalKind, UnitPrice, UnitPricePoint } from "@/lib/types";
+import { LISTING_NOTE, LISTING_UNKNOWN, listingTitle } from "@/lib/listingDate";
+import type {
+  CompareMethod,
+  ComparisonBlock,
+  ListingDate,
+  MainBasis,
+  ProvisionalKind,
+  UnitPrice,
+  UnitPricePoint,
+} from "@/lib/types";
 import type { SortKey, SortState } from "@/stores/compareStore";
 import { COST_HELP, CostCell } from "./CostCell";
 
@@ -39,6 +48,7 @@ type ColumnKey = SortKey | "unitStart" | "unitAsOf" | "simulate";
 
 const COLUMNS: { key: ColumnKey; label: string }[] = [
   { key: "name", label: "대상" },
+  { key: "listing", label: "상장일" },
   { key: "asOf", label: "기준일" },
   { key: "principal", label: "투자 원금" },
   { key: "unitStart", label: "시작일 단가" },
@@ -128,6 +138,25 @@ function ChangeCell({ unit }: { unit: UnitPrice | null }) {
   );
 }
 
+/**
+ * 014 반복 2026-10-10f(FR-033) — 상장일 열은 주식·가상자산(일시금·적립식) 표만이다. 예금 투자처·부동산 단지에는 상장일이 없다.
+ */
+function columnsFor(method: CompareMethod) {
+  return method === "lump_sum" || method === "recurring" ? COLUMNS : COLUMNS.filter((c) => c.key !== "listing");
+}
+
+/** 날짜 글자 정렬 — 비운 칸은 오름·내림 모두 끝이다(모르는 상장일을 맨 앞·맨 뒤 날짜로 두지 않는다). */
+function sortByDate(rows: CompareRow[], date: (r: CompareRow) => string | null, direction: "asc" | "desc"): CompareRow[] {
+  const sign = direction === "asc" ? 1 : -1;
+  return rows
+    .map((row, index) => ({ row, index, key: date(row) }))
+    .sort((a, b) => {
+      if (a.key === null || b.key === null) return a.key === b.key ? a.index - b.index : a.key === null ? 1 : -1;
+      return sign * a.key.localeCompare(b.key) || a.index - b.index;
+    })
+    .map((item) => item.row);
+}
+
 /** 정렬 값 — 이름·기준일은 글자, 나머지는 소수 문자열. */
 function sortValue(block: ComparisonBlock, key: SortKey): string | null {
   switch (key) {
@@ -149,7 +178,9 @@ export function sortedRows(rows: CompareRow[], sort: SortState | null): CompareR
   if (sort === null) return [...done, ...rest];
   const blockOf = (r: CompareRow) => (r.state.status === "ok" ? r.state.data.comparison : null);
   let ordered: CompareRow[];
-  if (sort.key === "name" || sort.key === "asOf") {
+  if (sort.key === "listing") {
+    ordered = sortByDate(done, (r) => blockOf(r)?.listing?.date ?? null, sort.direction);
+  } else if (sort.key === "name" || sort.key === "asOf") {
     const text = (r: CompareRow) => (sort.key === "name" ? r.name : blockOf(r)?.asOf ?? "");
     const sign = sort.direction === "asc" ? 1 : -1;
     ordered = [...done].sort((a, b) => sign * text(a).localeCompare(text(b), "ko"));
@@ -184,6 +215,20 @@ function principalCell(block: ComparisonBlock, method: CompareMethod, summary: R
   );
 }
 
+/** 상장일 칸 — 날짜와 기준 작은 글자(키움 상장일은 없음), 모르면 "—"와 까닭. 마우스를 올리면 기준 설명이다. */
+function ListingCell({ listing }: { listing: ListingDate | null }) {
+  if (listing === null) {
+    return <td data-testid="listing-cell" title={LISTING_UNKNOWN} className="px-3 py-2 align-top text-gray-500">—</td>;
+  }
+  const note = LISTING_NOTE[listing.basis];
+  return (
+    <td data-testid="listing-cell" title={listingTitle(listing.basis)} className="px-3 py-2 align-top tabular-nums">
+      <span className="whitespace-nowrap">{listing.date}</span>
+      {note !== null && <p className="text-xs text-gray-500">{note}</p>}
+    </td>
+  );
+}
+
 function OkCells({ row, block, method, summary, onSimulate }: {
   row: CompareRow; block: ComparisonBlock; method: CompareMethod; summary: Record<string, unknown>;
   onSimulate?: (key: string) => void;
@@ -202,6 +247,7 @@ function OkCells({ row, block, method, summary, onSimulate }: {
           </p>
         )}
       </td>
+      {columnsFor(method).some((c) => c.key === "listing") && <ListingCell listing={block.listing ?? null} />}
       <td className="px-3 py-2 align-top tabular-nums">
         {/* 반복 2026-10-09 — 열이 늘어 날짜가 중간에서 꺾이지 않게 한다. */}
         <span className="whitespace-nowrap">{block.asOf}</span>
@@ -235,7 +281,7 @@ function OkCells({ row, block, method, summary, onSimulate }: {
   );
 }
 
-function PendingCells({ row, onRetry }: { row: CompareRow; onRetry: (key: string) => void }) {
+function PendingCells({ row, method, onRetry }: { row: CompareRow; method: CompareMethod; onRetry: (key: string) => void }) {
   const { state } = row;
   let status: React.ReactNode = "계산 중…";
   if (state.status === "collecting") {
@@ -271,7 +317,7 @@ function PendingCells({ row, onRetry }: { row: CompareRow; onRetry: (key: string
         {row.name}
         <p className="text-xs text-gray-500">{status}</p>
       </td>
-      {COLUMNS.slice(1).map((c) => <td key={c.key} className={c.key === "simulate" ? `${STICKY_END} px-3 py-2` : "px-3 py-2"} />)}
+      {columnsFor(method).slice(1).map((c) => <td key={c.key} className={c.key === "simulate" ? `${STICKY_END} px-3 py-2` : "px-3 py-2"} />)}
     </>
   );
 }
@@ -293,7 +339,7 @@ export function CompareTable({ rows, method, sort, onSort, onRetry, onSimulate }
       <table aria-label="비교 표" className="w-full text-sm">
         <thead>
           <tr className="border-b border-gray-200 text-left text-gray-500">
-            {COLUMNS.map((c) => {
+            {columnsFor(method).map((c) => {
               const active = sort?.key === c.key;
               const key = c.key;
               return (
@@ -322,7 +368,7 @@ export function CompareTable({ rows, method, sort, onSort, onRetry, onSimulate }
               {row.state.status === "ok"
                 ? <OkCells row={row} block={row.state.data.comparison} method={method} summary={row.state.data.summary}
                   onSimulate={onSimulate} />
-                : <PendingCells row={row} onRetry={onRetry} />}
+                : <PendingCells row={row} method={method} onRetry={onRetry} />}
             </tr>
           ))}
         </tbody>

@@ -74,6 +74,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         indicator_intraday,
         market_quotes,
         news_cache,
+        stock_selection,
     )
     from src.config.settings import load_settings
     from src.db.session import get_session_factory
@@ -174,6 +175,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 탭이 여럿이어도 출처를 한 번만 부른다(R14-6).
     market_client = YahooMarketClient(settings, gate=get_yahoo_gate(settings))
     await market_client.__aenter__()
+    # 014 반복 2026-10-10f — 종목을 고를 때(등록) 첫 거래일(표시 전용)을 받는 시세 클라이언트.
+    # 주식·대시보드와 같은 관문을 지난다(R14-26). 요청 경로만 쓴다 — 수집 태스크가 없다.
+    first_trade_client = YahooStockClient(settings, gate=get_yahoo_gate(settings))
+    await first_trade_client.__aenter__()
+    stock_selection.set_shared_first_trade_source(first_trade_client)
     quote_service = market_quotes.MarketQuoteService(
         market_client, market_quotes.DbMarketHistory(factory), settings)
     market_quotes.set_shared_service(quote_service)
@@ -240,6 +246,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         indicator_commentary.set_shared_service(None)
         market_quotes.set_shared_service(None)
         await market_client.__aexit__(None, None, None)
+        stock_selection.set_shared_first_trade_source(None)
+        await first_trade_client.__aexit__(None, None, None)
         news_cache.set_shared_service(None)
         await news_client.__aexit__(None, None, None)
         await shutdown_engine()

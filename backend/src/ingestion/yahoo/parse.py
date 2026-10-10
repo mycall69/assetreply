@@ -16,6 +16,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from fractions import Fraction
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from src.ingestion.yahoo.errors import StockSourceUnavailable
 
@@ -214,6 +215,32 @@ def _split_events(first: dict[str, object], offset: int) -> list[SplitEvent]:
     return sorted(splits, key=lambda s: s.effective_date)
 
 
+def _first_trade_date(meta_map: dict[str, object], offset: int) -> dt.date | None:
+    """출처가 시세를 가진 첫 날 — **거래소 시간대**의 날짜 (014 반복 2026-10-10f — FR-033, R14-26).
+
+    응답 시점의 고정 오프셋(`gmtoffset`)으로 바꾸면 출처가 현지 자정을 줄 때 서머타임 차이로 하루
+    어긋난다(014 R14-3). 시간대 이름이 없거나 모르는 이름이면 그 오프셋으로 물러난다. 출처가 주지
+    않으면 `None`이다 — 지어내지 않는다(헌법 원칙 V).
+    """
+    raw = meta_map.get("firstTradeDate")
+    if raw is None:
+        return None
+    epoch = int(str(raw))
+    zone = meta_map.get("exchangeTimezoneName")
+    if isinstance(zone, str) and zone:
+        try:
+            return dt.datetime.fromtimestamp(epoch, ZoneInfo(zone)).date()
+        except (ZoneInfoNotFoundError, ValueError):
+            pass
+    return _local_date(epoch, offset)
+
+
+def parse_first_trade(body: object) -> dt.date | None:
+    """차트 응답의 `meta.firstTradeDate`만 읽는다 — 봉·배당·분할은 보지 않는다(014 FR-033)."""
+    _, meta_map, offset = _first_result(body)
+    return _first_trade_date(meta_map, offset)
+
+
 def parse_splits(body: object) -> list[SplitEvent]:
     """분할 기록 응답(월봉, `events=splits`)에서 분할만 읽는다 (006 FR-034).
 
@@ -235,9 +262,7 @@ def parse_chart(body: object) -> ChartData:
     first, meta_map, offset = _first_result(body)
     currency = str(meta_map.get("currency") or "")
 
-    first_trade = meta_map.get("firstTradeDate")
-    first_trade_date = (
-        _local_date(int(str(first_trade)), offset) if first_trade is not None else None)
+    first_trade_date = _first_trade_date(meta_map, offset)
 
     raw_stamps = first.get("timestamp")
     timestamps = raw_stamps if isinstance(raw_stamps, list) else []

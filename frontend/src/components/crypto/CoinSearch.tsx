@@ -14,9 +14,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink } from "@/components/ExternalLink";
+import { ListingText } from "@/components/ListingText";
 import { ApiError, apiClient } from "@/lib/apiClient";
 import { subscribeCoinListProgress } from "@/lib/cryptoListProgressStream";
 import { coinNameWithSymbol } from "@/lib/displayCode";
+import { coinListingLabel } from "@/lib/listingDate";
 import { coinLink } from "@/lib/externalLinks";
 import { formatKst } from "@/lib/format";
 import { createSequence } from "@/lib/searchSequence";
@@ -259,6 +261,8 @@ export function CoinSearch({
                     </span>
                     <span className="shrink-0 text-xs tabular-nums text-gray-500">
                       {coin.symbol} · {coin.currency}{coin.rank !== null && <> {rankText(coin.rank)}</>}
+                      {/* 014 FR-033 — 출처의 첫 일봉(거래소 상장일이 아님을 밝힌다). 모르면 뺀다. */}
+                      <ListingText label={coinListingLabel(coin.firstAvailableDate)} />
                     </span>
                   </button>
                 </li>

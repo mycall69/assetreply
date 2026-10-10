@@ -18,7 +18,13 @@ from typing import Protocol
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.ingestion.yahoo.parse import ChartFetch
-from src.repository.stock import Range, get_coverage, missing_ranges, record_coverage
+from src.repository.stock import (
+    Range,
+    get_coverage,
+    missing_ranges,
+    record_coverage,
+    record_first_trade_date,
+)
 from src.repository.stock_price import store_chart, store_raw
 
 #: 한 번에 요청하는 날짜 폭. 출처가 한 응답에 수천 행을 담을 수 있지만, 길게 잡으면
@@ -89,6 +95,9 @@ async def collect_range(
                     requested_to=raw.requested_to)
             stored += await store_chart(session, stock_id, fetched.data)
             await record_coverage(session, stock_id, chunk_start, chunk_end)
+            # 014 FR-033 — 응답 meta의 첫 거래일(표시 전용)을 비었을 때만 남긴다. 추가 요청은 없다.
+            if fetched.data.first_trade_date is not None:
+                await record_first_trade_date(session, stock_id, fetched.data.first_trade_date)
 
             # 청크마다 커밋한다. 중단되면 받은 데까지는 남아야 재개가 성립한다.
             await session.commit()

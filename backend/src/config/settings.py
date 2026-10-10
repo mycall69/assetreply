@@ -242,6 +242,9 @@ class Settings:
     stock_retry_max_attempts: int = 4
     stock_retry_base_delay_ms: int = 2000
     stock_request_timeout_seconds: int = 20
+    #: 014 반복 2026-10-10f(FR-033) — 등록 때 첫 거래일을 받는 시간 한도.
+    #: 넘으면 비운 채 등록을 마친다.
+    stock_first_trade_timeout_ms: int = 3000
     #: 마지막 일봉 뒤 계산 끝까지 빈 **평일** 수가 이 값 이하면 휴장으로 본다 — 같은 시장의 다른
     #: 종목도 그 뒤에 거래하지 않았을 때만 쓴다(버그 stock-holiday-stale-warning). 거래소 연휴(설·
     #: 추석에 대체·임시공휴일이 겹친 경우)를 덮는 값이다. 넘으면 시세 단절로 알린다(005 FR-014a).
@@ -474,6 +477,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
         stock_retry_base_delay_ms=_env_int("STOCK_RETRY_BASE_DELAY_MS", 2000),
         stock_request_timeout_seconds=_env_int(
             "STOCK_REQUEST_TIMEOUT_SECONDS", 20, minimum=1),
+        stock_first_trade_timeout_ms=_env_int("STOCK_FIRST_TRADE_TIMEOUT_MS", 3000, minimum=1),
         stock_holiday_tolerance_weekdays=_env_int("STOCK_HOLIDAY_TOLERANCE_WEEKDAYS", 7),
         market_source_base_url=_env_str("MARKET_SOURCE_BASE_URL", "https://query1.finance.yahoo.com"),
         market_chunk_days=_env_int("MARKET_CHUNK_DAYS", 730, minimum=1),

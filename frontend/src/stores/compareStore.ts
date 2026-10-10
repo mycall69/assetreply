@@ -54,7 +54,8 @@ import { depositFailureText } from "./depositStore";
 import { realEstateFailureText } from "./realEstateStore";
 
 /** `unitChange`(반복 2026-10-09)는 단가 등락률 — 예금은 %p 차이로 견준다. */
-export type SortKey = "name" | "asOf" | "principal" | "unitChange" | "currentValue" | "cost" | "profit" | "returnRate";
+// 014 반복 2026-10-10f(FR-033) — 상장일 열도 정렬한다(날짜 글자, 비운 칸은 끝).
+export type SortKey = "name" | "listing" | "asOf" | "principal" | "unitChange" | "currentValue" | "cost" | "profit" | "returnRate";
 
 export interface SortState {
   key: SortKey;
@@ -354,7 +355,7 @@ export const useCompareStore = create<CompareState>()((set, get) => {
       const sort = get().sort;
       set({ sort: sort?.key === key
         ? { key, direction: sort.direction === "asc" ? "desc" : "asc" }
-        : { key, direction: key === "name" || key === "asOf" ? "asc" : "desc" } });
+        : { key, direction: key === "name" || key === "asOf" || key === "listing" ? "asc" : "desc" } });
     },
 
     runComparison: async () => {

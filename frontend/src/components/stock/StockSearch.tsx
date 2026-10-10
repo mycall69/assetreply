@@ -20,10 +20,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink } from "@/components/ExternalLink";
+import { ListingText } from "@/components/ListingText";
 import { ApiError, apiClient } from "@/lib/apiClient";
 import { nameWithCode } from "@/lib/displayCode";
 import { stockLink } from "@/lib/externalLinks";
 import { formatKst } from "@/lib/format";
+import { stockListingLabel } from "@/lib/listingDate";
 import { createSequence } from "@/lib/searchSequence";
 import type {
   ExternalSearchResponse,
@@ -287,9 +289,10 @@ export function StockSearch({
               <span className="ml-2 text-xs text-amber-700">목록에서 빠짐</span>
             )}
           </span>
-          {/* 005 FR-002b — 시장과 통화를 함께 보인다. */}
+          {/* 005 FR-002b — 시장과 통화를 함께 보인다. 014 FR-033 — 기준을 밝힌 상장일(모르면 뺀다). */}
           <span className="shrink-0 text-xs text-gray-500">
             {item.market} · {item.currency}
+            <ListingText label={stockListingLabel(option.source === "listing" ? option.item.listedOn : null, item.firstTradedOn)} />
           </span>
         </button>
       </li>

@@ -11,20 +11,29 @@
 
 **목록의 상장일을 `stock.first_available_date`에 복사하지 않는다**(research R6-8). 상장일은 하한일
 뿐이다.
+
+014 반복 2026-10-10f(FR-033) — 고른 종목의 시세 출처 첫 거래일(`stock.first_trade_date` — 표시
+전용)을 모르면 등록 때 한 번 받는다(`fill_first_trade_date`). **실패해도 등록은 성공한다** — 출처가
+막혀도 종목을 고를 수 있어야 한다. 앱 수명주기의 공유 시세 클라이언트가 있을 때만 받는다 —
+없으면(lifespan 없이 도는 테스트) 부르지 않아 006 등록 테스트가 실제 출처를 부르지 않는다(헌법 원칙
+III).
 """
 
 from __future__ import annotations
 
+import asyncio
 import datetime as dt
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.errors import InvalidQuery, UnknownListing
 from src.db.models import Stock, StockListing
+from src.ingestion.yahoo.errors import StockSourceError
+from src.observability.logging_config import collection_logger
 from src.repository import stock_listing as listing_repo
-from src.repository.stock import ensure_stock, find_us_stock
+from src.repository.stock import ensure_stock, find_us_stock, record_first_trade_date
 from src.search.price_symbol import US_MARKETS, listing_candidates, to_price_symbol
 
 #: 외부 검색이 맡는 시장과 그 통화 (FR-026).
@@ -109,3 +118,60 @@ async def register_from_price_symbol(
     if listing is None:
         return None
     return await _register_listing(session, listing)
+
+
+class FirstTradeSource(Protocol):
+    """시세 출처의 첫 거래일 (014 FR-033) — `YahooStockClient.fetch_first_trade_date`."""
+
+    async def fetch_first_trade_date(self, symbol: str) -> dt.date | None: ...
+
+
+@dataclass(frozen=True, slots=True)
+class FirstTradeLookup:
+    """등록 때 첫 거래일을 받는 수단 — 출처와 시간 한도(초)."""
+
+    source: FirstTradeSource
+    timeout_seconds: float
+
+
+_shared_source: FirstTradeSource | None = None
+
+
+def set_shared_first_trade_source(source: FirstTradeSource | None) -> None:
+    """앱 수명주기가 연 시세 클라이언트를 등록 경로에 넘긴다(닫을 때 `None`)."""
+    global _shared_source
+    _shared_source = source
+
+
+def get_shared_first_trade_source() -> FirstTradeSource | None:
+    return _shared_source
+
+
+async def fill_first_trade_date(
+    session: AsyncSession, stock: Stock, lookup: FirstTradeLookup | None
+) -> None:
+    """고른 종목의 첫 거래일을 모르면 한 번 받아 둔다 (014 FR-033, research R14-26).
+
+    알면 부르지 않는다. 출처 실패·시간 초과·출처가 주지 않음이면 비운 채 돌아간다 — 등록 응답은
+    그대로다. 다음 주식 수집 청크가 채운다(`collect_range`).
+    """
+    if lookup is None or stock.first_trade_date is not None:
+        return
+    try:
+        day = await asyncio.wait_for(
+            lookup.source.fetch_first_trade_date(stock.symbol), lookup.timeout_seconds)
+    except (StockSourceError, TimeoutError) as exc:
+        _event("stock_first_trade", symbol=stock.symbol, status="failed",
+               reason=type(exc).__name__)
+        return
+    _event("stock_first_trade", symbol=stock.symbol, status="ok" if day else "none")
+    if day is None:
+        return
+    await record_first_trade_date(session, stock.id, day)
+    await session.commit()
+    stock.first_trade_date = day
+
+
+def _event(event: str, **fields: object) -> None:
+    """출처를 부를 때마다 수집 로그에 한 줄(014 — 대시보드 출처 사건과 같은 곳)."""
+    collection_logger().info(event, extra={"event": event, **fields})
