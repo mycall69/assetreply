@@ -19,7 +19,7 @@ export const DARK_CHART = {
 /** 밝은 바탕용 선 색 → 블랙 바탕에서 보이는 색. 목록 밖 색(파랑·주황 등)은 두 바탕에서 다 보여 그대로다. */
 const DARK_INK: Record<string, string> = {
   "#1f2937": "#e2e5ea",
-  "#9ca3af": "#7b8494",
+  "#9ca3af": "#8a93a3",
   "#ffffff": DARK_CHART.background,
 };
 
