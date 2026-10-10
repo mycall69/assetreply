@@ -29,6 +29,11 @@
   - 모달 머리에 **변화 까닭** — 지표마다 정한 시황 기사 목록에서 마지막 세션 이후 기사 1~3개를 출처 글자 그대로(R14-17)
   - 차트 아래 **일자별 표**(시가·고가·저가·종가·대비·등락률 — 일·주·월, 012 `period_table` 규칙, R14-21). `market_indicator_daily`에 시가·고가·저가 열을 더하고
     저장해 둔 원본 응답에서 되살린다(R14-18 — 다시 받지 않는다)
+- **반복 2026-10-10c — 앞 구간 스크롤·장중 실선·블랙 배경**(spec Iterations, T128~T141)
+  - 기간은 **처음 보이는 범위**다. 일봉 기간은 저장된 일봉 전부를 한 번 받고(`windows` — 기간마다 시작일) 처음 범위만 점 차례로 놓는다 — 왼쪽으로 끌면 첫 날까지, 월~모두 전환은
+    다시 받지 않는다(R14-22). 장중은 일 = 최근 5세션 5분·주 = 최근 1개월 30분을 받고 `window`(마지막 세션·최근 5세션)로 처음 범위를 놓는다. 장중 선은 진한 실선이다
+  - **블랙 배경**(FR-030) — 상단 바 오른쪽 끝의 단추(스크롤해도 위에 붙음), 전 화면·차트 다섯 종, 브라우저에 기억, 깜빡임 없음. Tailwind v4 색 변수를 `.dark` 아래에서 다시
+    정의해 컴포넌트 클래스를 바꾸지 않는다(밝은 화면·014 전 테스트 불변 — R14-23). 차트는 `lib/chartTheme` 팔레트로 테마가 바뀌면 다시 만든다
 
 **설계 중 확인한 것**
 
@@ -56,15 +61,16 @@
 | 프레임워크 | FastAPI, aiohttp, SQLAlchemy 2.x async + aiomysql, Alembic |
 | 새 의존성 | `tzdata`(백엔드 — Windows `zoneinfo`). HTML·JSON 파싱은 표준 라이브러리(`html.parser`·`json`) — 새 파서 패키지 없음 |
 | 언어(프론트엔드) | TypeScript 5 (`strict`), Next.js 16(App Router — `params`·`searchParams`는 Promise), React 19 |
-| 상태 관리 | Zustand — `marketQuotesStore`·`indicatorSeriesStore`·`newsStore`. 반복 2026-10-10b: `indicatorTableStore`·`indicatorCommentaryStore`, 모달 열림은 주소다 |
+| 상태 관리 | Zustand — `marketQuotesStore`·`indicatorSeriesStore`·`newsStore`. 반복 2026-10-10b: `indicatorTableStore`·`indicatorCommentaryStore`, 모달 열림은 주소다. 반복 2026-10-10c: `themeStore`(브라우저 저장소 — data-model §9), 그래프 스토어가 일봉 본문 한 벌을 지표마다 든다 |
 | 화면 경로(반복 2026-10-10b) | 모달 — `app/dashboard/@modal/(.)[indicator]`(대시보드 안 이동 = 가로채기), `app/dashboard/[indicator]`(새로고침·직접 입력 = 대시보드 + 모달) — R14-20 |
-| 차트 | Lightweight Charts — 새 `IndicatorChart`(`LineSeries`, 결측 구간마다 선 나눔, 잠정 꼬리 연한 색, 처음 범위 `setVisibleLogicalRange`). 반복 2026-10-10b: 처음 범위 없음(`fitContent`) — 기간 8개가 범위다, 막대 간격 하한 0.01px(기본 0.5px면 "모두"가 끝 2천 점만 보인다 — T123), 장중은 잠정 선·시간 축은 시장 현지 시각 |
+| 차트 | Lightweight Charts — 새 `IndicatorChart`(`LineSeries`, 결측 구간마다 선 나눔, 잠정 꼬리 연한 색, 처음 범위 `setVisibleLogicalRange`). 반복 2026-10-10b: 처음 범위 없음(`fitContent`) — 기간 8개가 범위다, 막대 간격 하한 0.01px(기본 0.5px면 "모두"가 끝 2천 점만 보인다 — T123), 장중은 잠정 선·시간 축은 시장 현지 시각. 반복 2026-10-10c: 처음 범위 `setVisibleLogicalRange`(창 시작 차례 ~ 마지막 — 기존 차트 모의에 있는 API), 기간 전환은 다시 받지 않고 범위만, 장중 진한 실선, 테마가 바뀌면 다시 만든다(`applyOptions`를 쓰지 않는다) |
+| 스타일(반복 2026-10-10c) | Tailwind v4 — 색 변수(`--color-*`)를 `.dark` 아래에서 재정의(회색 뒤집기·강조 색 어두운 바탕용), `@custom-variant dark (&:where(.dark, .dark *))`, `<html class="dark">`를 `app/layout.tsx`의 인라인 스크립트가 그리기 전에 단다 — R14-23 |
 | DB | MySQL 8 — 새 테이블 넷(`market_indicator_daily`·`_raw`·`_coverage`·`market_close_revision`), Alembic 리비전 하나(`down_revision = "b3e7d5a1c924"`). 반복 2026-10-10b: `market_indicator_daily`에 `open_price`·`high_price`·`low_price` 열(Alembic 리비전 하나 — R14-18) |
 | 출처 | Yahoo 차트·spark(지표 — 005 이탈의 확장), ECOS(환율 이력 — 001의 데이터 그대로), 네이버 증권 내부 API·Yahoo Finance HTML·Yahoo!ファイナンス 내장 JSON(뉴스). 반복 2026-10-10b: 변화 까닭의 시황 기사(R14-17), 장중 시세(Yahoo 차트 `interval=5m·30m` — R14-19) — 둘 다 저장 안 함 |
 | 테스트 | pytest + pytest-asyncio(통합은 `assetreplay_test`, 계약은 저장 본문 픽스처 — 네트워크 없음), Vitest + RTL(`lightweight-charts` 모의, 종료 코드 확인) |
 | 타입·린트 | mypy strict, ruff `--no-cache`, `tsc --noEmit`, eslint |
 | 계산 | 서버 `Decimal`(차이·등락률·엔 ×100). 화면은 형식만(문자열) |
-| 성능 목표 | 카드 15개 2초(SC-001), 모달 그래프 1초·기간 전환 1초(SC-002 — S&P "모두" 약 2만 5천 점), 표 첫 쪽·단위 전환 1초(SC-012) |
+| 성능 목표 | 카드 15개 2초(SC-001), 모달 그래프 1초·기간 전환 1초(SC-002 — S&P "모두" 약 2만 5천 점, 반복 2026-10-10c: 일봉 전부를 받고 1년이 보이는 그래프 1초, 월~모두 전환은 요청 없이 0.3초), 표 첫 쪽·단위 전환 1초(SC-012) |
 | 제약 | 다섯 메뉴·비교의 응답·이력·수집 불변(FR-026). 백엔드 단일 워커. 대시보드는 ECOS를 부르지 않는다 |
 | 규모 | 일별 행 약 12만 5천(12개 지표), 처음 백필 약 250청크(약 7분), 뉴스 칸마다 10분에 많아야 한 번, 현재 시세 30초에 많아야 한 번 |
 
@@ -75,13 +81,13 @@
 | 원칙 | 판정 | 근거 |
 |------|------|------|
 | I. 비동기 우선 | ✅ | 출처 요청은 aiohttp, DB는 비동기 세션이다. 뉴스 파싱(`html.parser` — 약 1MB 한 장)은 요청 경로의 CPU 작업이지만 10분 캐시 뒤 한 번이다. 측정해 50ms를 넘으면 `run_in_executor`로 옮긴다(태스크에 측정 단계) |
-| II. 데이터 소스 격리 | ⚠ 이탈 넷(사용자 승인 2026-10-09 — Complexity Tracking) + 반복 2026-10-10b 새 경로 둘(시황 기사·장중 시세 — **T095에서 실측 뒤 재승인**) | 어댑터 격리: 출처 응답 형태는 `ingestion/yahoo/market*.py`·`ingestion/news/*` 밖으로 나가지 않는다. 심볼 대응은 `market_symbols.py` 한 곳이다. 한도·재시도·UA·주소는 설정이다(data-model §8). Yahoo 관문으로 주식과 한도를 함께 지킨다(R14-10). 출처를 화면·README에 밝힌다 |
+| II. 데이터 소스 격리 | ⚠ 이탈 넷(사용자 승인 2026-10-09 — Complexity Tracking) + 반복 2026-10-10b 새 경로 둘(시황 기사·장중 시세 — **T095에서 실측 뒤 재승인**). 반복 2026-10-10c는 장중 받는 범위만 넓힌다(같은 엔드포인트 `range=5d·5m`·`1mo·30m` — 승인 그대로, 새 출처 없음, T128 실측) | 어댑터 격리: 출처 응답 형태는 `ingestion/yahoo/market*.py`·`ingestion/news/*` 밖으로 나가지 않는다. 심볼 대응은 `market_symbols.py` 한 곳이다. 한도·재시도·UA·주소는 설정이다(data-model §8). Yahoo 관문으로 주식과 한도를 함께 지킨다(R14-10). 출처를 화면·README에 밝힌다 |
 | III. TDD (NON-NEGOTIABLE) | ✅ | 테스트를 먼저 커밋 → 최초 실패 확인 → 구현. 구현 뒤 실패하면 멈추고 보고한다. 먼저 쓸 테스트는 quickstart 1~4다. 출처 다섯 갈래(차트·spark·뉴스 셋)는 저장 본문 픽스처 계약 테스트다 — 네트워크 없음. 바뀌는 기존 테스트는 R14-16 목록이고 구현 뒤 실제 실패 목록으로 승인을 받는다 |
 | IV. 모듈화 | ✅ | 순수 함수: `simulation/market_indicators.py`·`market_session.py`·`market_quote.py`·`market_gaps.py`·`indicator_periods.py`(DB·HTTP 없음). 서비스는 Protocol에 기댄다: `MarketQuoteSource`(spark), `MarketHistoryRepository`(이력 읽기), `NewsSource`(칸마다 어댑터). 경로가 구체 구현을 주입한다(013 `SavedComparisonRepository` 관례) |
-| V. 정합성·재현성 | ✅ | (지표, 현지 거래일) PK. 새 날만 넣고, 바뀐 확정 값은 덮어쓰지 않고 개정 표에 남긴다. `source`·`ingested_at`, 원본 분리, UTC 저장. 오늘 봉·장중 값은 잠정이고 저장하지 않는다. 휴장·결측을 메우지 않는다(R14-5). 받은 구간만 커버리지다. 발견한 첫 날을 기록한다(날짜 하드코딩 없음). 거래소 현지 날짜는 `zoneinfo`다. 해석 둘을 Complexity Tracking에 기록한다: 거래소 달력 대신 출처 거래일·묶음 판정, 잠정 값은 보이기만 하고 확정 추적은 청크 원본·개정 표. 수집 상태는 그래프 경로(`history.lastSuccessAt`·`lastFailure`)로 조회한다(FR-019). 반복 2026-10-10b: 시가·고가·저가는 종가와 같은 불변식(새 날만·덮지 않음)이고 이미 저장한 날은 원본에서 되살린다(R14-18). 장중 시세는 저장하지 않는다 |
+| V. 정합성·재현성 | ✅ | (지표, 현지 거래일) PK. 새 날만 넣고, 바뀐 확정 값은 덮어쓰지 않고 개정 표에 남긴다. `source`·`ingested_at`, 원본 분리, UTC 저장. 오늘 봉·장중 값은 잠정이고 저장하지 않는다. 휴장·결측을 메우지 않는다(R14-5). 받은 구간만 커버리지다. 발견한 첫 날을 기록한다(날짜 하드코딩 없음). 거래소 현지 날짜는 `zoneinfo`다. 해석 둘을 Complexity Tracking에 기록한다: 거래소 달력 대신 출처 거래일·묶음 판정, 잠정 값은 보이기만 하고 확정 추적은 청크 원본·개정 표. 수집 상태는 그래프 경로(`history.lastSuccessAt`·`lastFailure`)로 조회한다(FR-019). 반복 2026-10-10b: 시가·고가·저가는 종가와 같은 불변식(새 날만·덮지 않음)이고 이미 저장한 날은 원본에서 되살린다(R14-18). 장중 시세는 저장하지 않는다. 반복 2026-10-10c: 장중 세션은 점이 있는 날뿐이다(빈 세션을 꾸미지 않는다) |
 | VI. 금융 정확성 | ✅ | `DECIMAL(20,6)` 열, 출처 숫자는 `Decimal(str(…))`(기존 파서 관례). 차이·등락률·엔 ×100은 서버 `Decimal`이다. 화면은 계산하지 않는다(013 `compareNoClientFinance`와 같은 검사를 새 파일에) |
-| VII. 반응형 UI | ✅(해석 기록) | Zustand 스토어 셋. 백필 진행은 SSE(2초 폴링)다. 차트는 Lightweight Charts다. 점은 3만 점 한도 + LTTB이고, 그 이하는 라이브러리의 보이는 범위 그리기에 맡긴다(Complexity Tracking). 반복 2026-10-10b: 기간 8개는 그 기간의 일봉 전부(한도 넘을 때만 LTTB), 장중은 잠정 선, 표는 쪽 넘기기(012와 같음) |
-| VIII. 한국어 문서화 | ✅ | 문서·주석·커밋 한국어, 식별자 원어 |
+| VII. 반응형 UI | ✅(해석 기록) | Zustand 스토어 셋. 백필 진행은 SSE(2초 폴링)다. 차트는 Lightweight Charts다. 점은 3만 점 한도 + LTTB이고, 그 이하는 라이브러리의 보이는 범위 그리기에 맡긴다(Complexity Tracking). 반복 2026-10-10b: 기간 8개는 그 기간의 일봉 전부(한도 넘을 때만 LTTB), 장중은 잠정 선, 표는 쪽 넘기기(012와 같음). 반복 2026-10-10c: 일봉은 한 번 받고 기간은 처음 범위만(전환에 요청 없음), 테마는 Zustand 스토어 + CSS 변수, 차트 다섯 종은 테마로 다시 그린다 |
+| VIII. 한국어 문서화 | ✅ | 문서·주석·커밋 한국어, 식별자 원어. 반복 2026-10-10c: 테마 단추 이름·상태 한국어("블랙 배경") |
 | IX. MVP 점진 | ✅ | 새 자산군이 아니다. 지수는 자산군 4의 "지수 시계열"이고, 환율은 자산군 1의 데이터이며, 원자재·VIX는 조회 지표다(시뮬레이션 없음). US1이 API·화면까지의 수직 조각이다. 범위 밖: 봉 그래프·거래량·장중 분 그래프·지표 편집·뉴스 저장·번역 |
 | DB 운영 규약 | ✅ | Alembic 리비전 하나. ORM만 쓴다 — "새 날만 삽입"은 ORM 조회 + 삽입이라 방언 문법이 없다. 커버리지 갱신은 `db/dialect.upsert`(격리된 유일한 곳). 열거형 비원생, 시각 UTC, 금액 `DECIMAL` |
 | 크로스 플랫폼 | ✅ | `zoneinfo` + `tzdata`(Windows). 경로 `pathlib`. 새 플랫폼 의존 없음 |
@@ -98,6 +104,8 @@
 | 공유 부품 변경 | ✅ | `PerformanceChart`·`FxChart`는 고치지 않는다(새 `IndicatorChart`). `period_table`은 부르기만 한다. `lib/format.ts`는 고치지 않는다(필요하면 새 함수를 더함만) |
 | 반복 2026-10-10b | ✅ 승인됨 | 원칙 II 새 경로 둘 — T095 실측 뒤 사용자 재승인 2026-10-10. 014가 만든 테스트(`IndicatorPage`·`IndicatorChart`·`indicatorSeriesStore`·`indicatorSeriesFixtures`·`dashboardNoClientFinance`·`test_indicator_periods`·`test_dashboard_series_api`)는 구현 뒤 실제 실패 목록으로 사용자 승인 2026-10-10(T111). 014 전 테스트는 바뀌지 않았다 |
 | 바뀌는 기존 테스트 | ⚠ 승인 필요 | R14-16: `Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts`, (필요하면) `TopBarTitle.test.ts`. 구현 뒤 실제 실패 목록으로 승인을 받는다 |
+| 반복 2026-10-10c | ⚠ 승인 필요 | 014가 만든 테스트(`test_dashboard_range_api`·`test_dashboard_series_api`·`test_yahoo_market_intraday`·`IndicatorChartRange`·`IndicatorChart`·`indicatorSeriesStore`)는 구현 뒤 실제 실패 목록으로 승인받는다(T132). 014 전 테스트는 바꾸지 않는다 — 다크 테마는 색 변수 재정의라 클래스가 그대로이고, 차트는 기존 모의에 있는 API만 쓴다. 밝은 테마 화면은 T128 기준선 스크린샷과 견준다(T139) |
+| 공유 부품 변경(반복 2026-10-10c) | ✅(해석 기록) | 차트 다섯 종(`FxChart`·`PerformanceChart`·`ComparisonChart`·`CompareReturnChart`·`IndicatorChart`)이 테마 팔레트를 받는다 — 밝은 테마의 선택 값은 지금과 같다(색·글자). `applyOptions`·라이브러리 열거형을 실행 중에 쓰지 않는다 |
 
 ## Project Structure
 
@@ -222,6 +230,28 @@ frontend/tests/ IndicatorModal.test.tsx · RangePicker.test.tsx · IndicatorChar
                 IndicatorCommentary.test.tsx   (014 테스트 변경은 T111 승인 — IndicatorPage·IndicatorChart·indicatorSeriesStore)
 ```
 
+**반복 2026-10-10c에 더하거나 바꾸는 파일**:
+
+```text
+backend/src/
+├── ingestion/yahoo/market.py                          (변경 — 장중 대응 일 5d·5m, 주 1mo·30m)
+├── simulation/intraday_window.py                      (신규, 순수 — 마지막 세션·최근 5세션 창, R14-22)
+├── api/services/indicator_intraday.py                 (변경 — window)
+└── api/services/indicator_series.py                   (변경 — 일봉 기간 = 일봉 전부 + windows)
+frontend/src/
+├── app/layout.tsx · app/globals.css                   (변경 — 깜빡임 방지 스크립트, .dark 팔레트·@custom-variant)
+├── components/shell/TopBar.tsx                        (변경 — 오른쪽 끝 테마 단추, 스크롤해도 위)
+├── components/shell/ThemeToggle.tsx · stores/themeStore.ts · lib/chartTheme.ts   (신규)
+├── components/FxChart.tsx · stock/PerformanceChart.tsx · stock/ComparisonChart.tsx · compare/CompareReturnChart.tsx  (변경 — 테마 팔레트)
+├── components/dashboard/IndicatorChart.tsx            (변경 — 처음 범위·장중 실선·테마)
+├── stores/indicatorSeriesStore.ts                     (변경 — 일봉 본문 한 벌, 월~모두는 범위만)
+└── lib/types.ts · lib/dashboardApi.ts                 (변경 — windows·window)
+backend/tests/   contract/test_yahoo_market_intraday.py(새 범위 · fixtures/market/intraday_*_5d_5m·_1mo_30m) · unit/test_intraday_window.py ·
+                 integration/test_dashboard_range_api.py
+frontend/tests/  IndicatorChartWindow.test.tsx · themeStore.test.ts · ThemeToggle.test.tsx · themeScript.test.ts · chartTheme.test.tsx ·
+                 darkPaletteGuard.test.ts · indicatorSeriesStore.test.ts   (014 테스트 변경은 T132 승인)
+```
+
 **Structure Decision**:
 - 기존 웹 앱 구조(backend/frontend)를 그대로 쓴다
 - 대시보드는 새 자산군이 아니라 조회 화면이다. 그래서 백엔드는 다음을 더한다:
@@ -246,8 +276,8 @@ frontend/tests/ IndicatorModal.test.tsx · RangePicker.test.tsx · IndicatorChar
 | FR-008 (주기 갱신·보이는 동안·단일 비행) | R14-6·R14-15, DM7, A1, Q3·Q4, tasks T007·T011·T022·T025·T027·T028·T034·T038·T039·T061 |
 | FR-009 (카드마다 실패·마지막 성공 값) | R14-6, A1(`stale`·`failure`), D2, Q3·Q4, tasks T005·T021·T022·T023·T026·T027·T028·T033·T034·T035·T038·T039·T087·T089·T092 |
 | FR-010 (지표 모달·주소·닫기·포커스·없는 지표 — 반복 2026-10-10b) | R14-14, DM7, A2, D3·D4, Q4·Q5-4, tasks T047·T048·T050·T057·T058·T059·T060·T061·T062·T096·T106·T110·T111·T122·T123 |
-| FR-011 (보는 기간 8개·처음 1년 — 반복 2026-10-10b) | R14-12, DM5, A2, D3, Q1·Q4, tasks T044·T048·T049·T050·T053·T059·T060·T061·T104·T105·T107·T115·T120·T121·T123·T124 |
-| FR-012 (종가 선·커서·잠정 꼬리·점 한도) | R14-12, DM5, A2, D3, Q3·Q7, tasks T044·T047·T049·T053·T056·T060·T082·T104·T105·T107·T115·T121·T124 |
+| FR-011 (보는 기간 8개·처음 1년 — 반복 2026-10-10b, 처음 보이는 범위·앞 구간 스크롤 — 반복 2026-10-10c) | R14-12·R14-22, DM5, A2, D3, Q1·Q4·Q5-16·Q5-17, tasks T044·T048·T049·T050·T053·T059·T060·T061·T104·T105·T107·T115·T120·T121·T123·T124·T128·T129·T130·T132·T133·T134·T137·T138 |
+| FR-012 (종가 선·커서·잠정 꼬리·점 한도, 장중 진한 실선 — 반복 2026-10-10c) | R14-12·R14-22, DM5, A2, D3, Q3·Q7·Q5-17, tasks T044·T047·T049·T053·T056·T060·T082·T104·T105·T107·T115·T121·T124·T129·T130·T132·T133·T134·T137 |
 | FR-013 (표의 주·월 대표일 규칙·📅·⏳) | R14-12, DM5, A2, D3, Q1, tasks T044·T049·T053·T060·T104·T108·T114·T117 |
 | FR-014 (휴장·결측 판정) | R14-5, DM5, A2(`gaps`), D3, Q1·Q3, tasks T043·T047·T049·T052·T056·T060·T104·T105·T108·T114·T115 |
 | FR-015 (선물 근월물 주석) | R14-1, DM2, A1·A2(`notes`), D2·D3, tasks T006·T012·T026·T039·T050·T060 |
@@ -261,12 +291,13 @@ frontend/tests/ IndicatorModal.test.tsx · RangePicker.test.tsx · IndicatorChar
 | FR-023 (저장 안 함·10분 캐시·실패 백오프) | R14-13, DM6, A5, Q3, tasks T007·T011·T067·T068·T076·T087·T089·T092 |
 | FR-024 (칸마다 실패·0건 = 실패·카드 안 막음) | R14-13, A5, D1·D5, Q2·Q3·Q5-8, tasks T064·T065·T066·T067·T068·T069·T070·T071·T072·T076·T077·T078·T079·T081·T087 |
 | FR-025 (출처 밝힘·목록뿐) | R14-13, D1·D5, tasks T070·T079·T085·T121·T126 |
-| FR-026 (메뉴·비교 불변) | R14-10·R14-16, A6, Q6, tasks T001·T002·T008·T014·T017·T084·T085·T086·T125 |
+| FR-026 (메뉴·비교 불변, 밝은 테마 화면 불변 — 반복 2026-10-10c) | R14-10·R14-16·R14-23, A6, Q6·Q5-19, tasks T001·T002·T008·T014·T017·T084·T085·T086·T125·T128·T135·T139 |
 | FR-027 (변화 까닭 — 시황 기사·찾지 못함·새 탭) | R14-17, DM6a, A8, D8, Q2·Q5-13, tasks T095·T103·T104·T105·T109·T113·T118·T119·T120·T121·T123 |
-| FR-028 (장중 시세 — 일·주, 저장 안 함) | R14-19, DM5, A2(`1d`·`5d`), D3, Q2·Q5-11, tasks T095·T102·T104·T105·T107·T112·T116·T121·T123 |
+| FR-028 (장중 시세 — 일·주, 저장 안 함, 받는 범위 5세션·1개월 — 반복 2026-10-10c) | R14-19·R14-22, DM5, A2(`1d`·`5d`), D3, Q2·Q5-11·Q5-17, tasks T095·T102·T104·T105·T107·T112·T116·T121·T123·T128·T129·T132·T133·T137 |
+| FR-030 (화면 테마 — 블랙 배경, 반복 2026-10-10c) | R14-23, DM7·DM9, D6·D9, Q4·Q5-18, tasks T128·T131·T135·T136·T137·T140 |
 | FR-029 (일자별 표 — 시가·고가·저가·일·주·월) | R14-18·R14-21, DM5a, A7, D7, Q1·Q3·Q4·Q5-12, tasks T104·T105·T108·T114·T117·T119·T120·T121·T123·T124 |
 | SC-001 (카드 2초·뉴스가 막지 않음) | R14-6·R14-13, Q7, tasks T071·T082·T087 |
-| SC-002 (모달 그래프 1초·기간 1초) | R14-12, Q7, tasks T047·T056·T082·T107·T124 |
+| SC-002 (모달 그래프 1초·기간 1초, 월~모두 전환 0.3초·요청 없음 — 반복 2026-10-10c) | R14-12·R14-22, Q7, tasks T047·T056·T082·T107·T124·T130·T138 |
 | SC-003 (전일 규칙·휴장 0%·카드 = 그래프) | R14-7·R14-8, Q1·Q3, tasks T010·T020·T023·T032·T041 |
 | SC-004 (환율 그래프 = 외환·계열 표시·섞임 없음) | R14-12, Q3·Q5-6, tasks T047·T056·T062 |
 | SC-005 (대표일·결측 이음 없음) | R14-5·R14-12, Q1, tasks T043·T044·T052·T053 |
@@ -274,11 +305,12 @@ frontend/tests/ IndicatorModal.test.tsx · RangePicker.test.tsx · IndicatorChar
 | SC-007 (따로 실패·0건) | R14-6·R14-13, Q2·Q3·Q5-8, tasks T022·T034·T064·T065·T066·T068·T071·T081·T087·T094 |
 | SC-008 (새 탭·도메인·캐시) | R14-13, Q2·Q3·Q5-7, tasks T064·T065·T066·T068·T070·T081·T089·T092 |
 | SC-009 (잠정 표시·서머타임) | R14-7, Q1, tasks T019·T026·T031 |
-| SC-010 (메뉴·비교 불변) | Q6, tasks T001·T002·T084·T086·T094·T125·T127 |
+| SC-010 (메뉴·비교 불변) | Q6, tasks T001·T002·T084·T086·T094·T125·T127·T139·T141 |
 | SC-011 (처음 기동의 과거 구간 — 429 0·15분) | R14-2·R14-10, Q5-5, tasks T062·T087 |
 | SC-012 (표 1초·주·월 행 = 일봉 계산) | R14-21, Q1·Q7, tasks T104·T108·T124 |
 | SC-013 (까닭 문구 = 출처 글자·새 탭·찾지 못함에 문장 없음) | R14-17, Q2·Q5-13, tasks T103·T109·T123 |
 | SC-014 (시가·고가·저가 = 원본) | R14-18, Q2·Q5-14, tasks T098·T101·T123 |
+| SC-015 (블랙 테마 대비 4.5:1·깜빡임 0·밝은 화면 불변 — 반복 2026-10-10c) | R14-23, Q5-18·Q5-19, tasks T128·T131·T136·T137·T139 |
 
 ## Complexity Tracking
 
@@ -298,7 +330,7 @@ frontend/tests/ IndicatorModal.test.tsx · RangePicker.test.tsx · IndicatorChar
 | 이탈 | 출처의 규칙 | 왜 필요한가 | 버린 대안 | 피해를 줄이는 장치 |
 |------|-------------|-------------|-----------|---------------------|
 | **변화 까닭의 시황 기사** — 네이버 증권 뉴스 포커스 내부 API(`/api/domestic/news/focus?sid=401·403·429&date=`)와 Yahoo Finance 종목 뉴스 화면(`/quote/{심볼}/news/`) — 지표마다 하나(R14-17) | 네이버: robots.txt `Disallow: /`, 약관이 자동 수집 금지(주요뉴스와 같다). Yahoo: robots가 `/quote/` 허용, 약관이 자동 수집 금지 | 사용자가 "출처의 시황 기사"를 골랐다. 네이버만이면 다섯 지표(니케이·항셍·상해·금·VIX)가 늘 "찾지 못함"(실측 0~2) | 네이버만 · Yahoo 종목 뉴스만 · 빼기(사용자에게 제시) | 저장 안 함, 지표마다 10분에 많아야 한 번(네이버는 날짜 둘), 제목·요약·링크뿐, 출처를 밝힘 |
-| **장중 시세** — Yahoo 차트 `range=1d&interval=5m`·`range=5d&interval=30m`(005 이탈의 같은 엔드포인트, R14-19) | 005와 같다 | 사용자가 "보는 기간 8개, 장중 포함"을 골랐다 | 일봉만(사용자에게 제시) | 저장 안 함, 일 60초·주 5분 캐시, 주식과 같은 관문·같은 사용자 에이전트 |
+| **장중 시세** — Yahoo 차트 `range=1d&interval=5m`·`range=5d&interval=30m`(005 이탈의 같은 엔드포인트, R14-19). 반복 2026-10-10c: 받는 범위를 `range=5d&interval=5m`·`range=1mo&interval=30m`로 넓힌다(왼쪽 스크롤 — 사용자 요청 2026-10-10, 새 출처 아님) | 005와 같다 | 사용자가 "보는 기간 8개, 장중 포함"을 골랐다 | 일봉만(사용자에게 제시) | 저장 안 함, 일 60초·주 5분 캐시, 주식과 같은 관문·같은 사용자 에이전트 |
 
 ### 해석이 필요한 선택
 
@@ -312,4 +344,7 @@ frontend/tests/ IndicatorModal.test.tsx · RangePicker.test.tsx · IndicatorChar
 | 확정 값 개정을 표(`market_close_revision`)에 남긴다(008은 로그만) | SC-006("개정 기록 없이 바뀐 사례 0건")을 조회로 확인한다. 같은 개정은 한 번만 넣는다 | 로그만 — 운영자만 볼 수 있다 |
 | 원칙 V의 "거래소별 캘린더로 휴장일 판정"을 **출처의 거래일 + 같은 시장 묶음 + 14일 공백 + 갱신 없는 세션**으로 한다(R14-5·R14-7) | 출처가 휴장 달력을 주지 않는다. 출처의 거래일은 거래소 달력을 반영한다(005의 "커버리지 안 빈 날 = 휴장" 선례). 묶음 판정은 그 선례에 결측을 가를 근거를 더한다 | 거래소 달력 패키지(`exchange_calendars` — pandas 의존, 달력 갱신 책임) · 시장마다 휴일 표를 손으로 관리(해마다 갱신, 빠뜨리면 조용히 틀림) |
 | 카드·그래프의 오늘 잠정 값(spark)을 저장하지 않는다. 잠정에서 확정으로 바뀐 사실은 **확정 종가의 청크 원본**(`market_indicator_raw`)과 개정 표로 추적한다(원칙 V 해석 — 008 미발표 달 금리를 저장하지 않은 선례, 007 마감 전 일봉을 원본에만 남긴 선례) | 잠정 값은 30초마다 바뀌는 표시용이다. 저장하면 하루 수천 행이 되고, 확정 값은 다음 날 청크가 원본과 함께 따로 남긴다. 같은 날을 겹쳐 다시 받을 때 값이 바뀌면 개정 표가 남긴다 | spark 응답을 하루 한 번 원본에 남긴다 — 장중 한 순간의 값이라 확정 값과 견줄 기준이 되지 않는다 |
+| 블랙 테마를 컴포넌트마다 `dark:` 클래스로 넣지 않고 **Tailwind v4 색 변수를 `.dark` 아래에서 재정의**한다(반복 2026-10-10c — R14-23) | 화면 부품 수백 곳의 클래스를 고치면 밝은 화면과 014 전 화면 테스트가 함께 흔들린다(FR-026). 변수 재정의는 클래스 글자를 그대로 두고 블랙에서만 색이 바뀐다. 가드 테스트(`darkPaletteGuard`)가 src가 쓰는 색 유틸리티마다 재정의가 있는지 본다 — 빠뜨리면 그 부품만 밝게 남는다(FR-030 실패 양상) | 전 컴포넌트 `dark:`(수백 곳) · CSS `filter: invert`(차트·상승 빨강·하락 파랑의 색 뜻까지 뒤집힌다) |
+| 테마가 바뀌면 차트를 **다시 만든다**(`applyOptions`를 쓰지 않는다 — 반복 2026-10-10c) | 005~013 차트 테스트의 인라인 모의에 `applyOptions`가 없어 실행 중에 쓰면 그 테스트가 깨진다(CLAUDE.md 010 주의). 테마 전환은 드물고 다시 만들기는 차트 하나 수십 ms다 | `applyOptions`로 색만 바꾸기(모의 다섯 벌을 고쳐야 한다 — 014 전 테스트 변경) |
+| 일봉 기간이 다시 일봉 전부를 받는다(반복 2026-10-10c — R14-22) | 왼쪽 스크롤로 앞 구간을 보이려면 점이 있어야 한다. 한 번 받아 월~모두를 오가면 전환에 요청이 없다. T124의 "기간만 읽기"는 그래프 경로에서 빠진다(결측 판정 함수의 `since`는 남는다) | 왼쪽 끝에 닿으면 더 받기(라이브러리 범위 사건 구독·이어 붙이기 — 2만 5천 점이면 한 번에 충분, 모의 확장 필요) |
 | `IndicatorChart`가 그래프 점의 값에 `Number()`를 쓴다(그리기 전용 — 원칙 VI 해석) | Lightweight Charts는 숫자만 받는다. 글자 값(머리·커서 상자)은 서버 문자열 그대로다. 013 `CompareMetricBars`·`chartSeries.ts:120` 선례. T030이 이 파일 한 곳만 허용한다 | 서버가 숫자형을 따로 보낸다 — JSON 숫자는 화면에서 같은 변환을 거친다 |

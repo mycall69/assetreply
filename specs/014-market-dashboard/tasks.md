@@ -639,6 +639,74 @@ description: "Task list for 014-market-dashboard"
 
 ---
 
+## Phase 9: 반복 2026-10-10c — 차트 앞 구간 스크롤·장중 실선·블랙 배경 (spec Iterations)
+
+**Goal**:
+- 지표 모달 차트의 보는 기간을 **처음 보이는 범위**로 바꾼다 — 일봉 기간은 저장된 일봉 전부를 한 번 받아 왼쪽으로 끌면 첫 날까지, 월~모두 전환은 다시 받지 않는다
+- 장중은 일 = 최근 5세션 5분(처음 마지막 세션)·주 = 최근 1개월 30분(처음 최근 5세션)을 받고, 선은 확정 선과 같은 진한 실선이다
+- 상단 바 오른쪽 끝에 늘 보이는 **블랙 배경** 단추 — 전 화면·차트 다섯 종, 브라우저에 기억, 깜빡임 없음(US4 — FR-030)
+
+**Independent Test**(spec US2 시나리오 5·6, US4 Independent Test):
+- S&P "1년"에서 왼쪽으로 끌면 1년 앞 일봉이 이어서 보이고 1927년까지 간다. 월~모두를 오가도 그래프 요청이 없다
+- "일"은 처음 마지막 세션, 끌면 앞 네 세션. "주"는 처음 5세션, 끌면 1개월. 진한 실선
+- 아무 화면에서 "블랙 배경" → 전 화면·차트가 어둡고 읽힌다. 새로고침에도 첫 그림부터 블랙. 다시 누르면 밝고, 밝은 화면은 이 반복 전과 같다
+
+**완료 작업 영향**(사용자에게 알림 2026-10-10):
+- 구현 T115·T116·T119~T121·T124를 다시 손댄다(T124의 기간만 읽기는 그래프 경로에서 빠진다)
+- 014가 만든 테스트가 바뀌는 목록은 T132에서 승인받는다. 014 전 테스트는 바뀌지 않아야 한다(FR-026 — 색 변수 재정의라 클래스가 그대로)
+
+### Preparation (반복 2026-10-10c)
+
+- [ ] T128 실측·기준선 — `research.md` R14-22·R14-23, `backend/tests/contract/fixtures/market/` + README, 작업용 임시 폴더의 기준선 스크린샷 (FR-011, FR-026, FR-028, FR-030)
+  - (a) Yahoo `range=5d&interval=5m`·`range=1mo&interval=30m`(S&P·KOSPI·USD·JPY)의 점 수·null·세션 경계를 잰다. 픽스처(본문만) `intraday_GSPC_5d_5m.json`·`intraday_GSPC_1mo_30m.json`·
+    `intraday_KRW_X_1mo_30m.json`을 남긴다
+  - (b) **밝은 테마 기준선 스크린샷**(1440px, 헤드리스 Chrome) — 대시보드·지표 모달·외환·가상자산·주식·예금·부동산·투자 비교·설정. 구현 전에 찍는다(T139가 견준다)
+  - (c) 빌드된 CSS의 유틸리티가 색 변수(`var(--color-…)`)를 쓰는지, `.dark` 재정의가 유틸리티에 닿는지 작은 확인으로 본다 — 안 되면 R14-23의 대안으로 돌아가 사용자에게 알린다
+
+### Tests for 반복 2026-10-10c ⚠️
+
+- [ ] T129 [P] [US2] 백엔드 테스트 — 최초 실패 확인 (FR-011, FR-012, FR-028)
+  - `backend/tests/contract/test_yahoo_market_intraday.py` — 일 `range=5d&interval=5m`·주 `range=1mo&interval=30m` 질의, 새 픽스처의 점(빈 종가 건너뜀·엔 ×100)
+  - 새 `backend/tests/unit/test_intraday_window.py` — 마지막 세션·최근 5세션(시장 현지 날짜, 환율은 런던 0시 경계), 휴장 섞임(점 있는 날만), 점 없음 → `None`
+  - `backend/tests/integration/test_dashboard_range_api.py` — 일봉 기간은 일봉 전부 + `windows`(기간 → 시작일, `all` → `null`), `range`는 처음 범위, 장중 본문의 `window`
+- [ ] T130 [P] [US2] 프론트 테스트 — 최초 실패 확인 (FR-011, FR-012, SC-002)
+  - 새 `frontend/tests/IndicatorChartWindow.test.tsx` — 처음 범위 = `setVisibleLogicalRange({from: 창 시작 이상 첫 점의 차례, to: 마지막 차례})`, 창 안에 점이 없으면 마지막 점들,
+    장중 진한 실선(확정 선 색·`lineStyle` 실선)·`window`, 기간 바꾸면 범위만(다시 그리지 않음)
+  - `frontend/tests/indicatorSeriesStore.test.ts` — 월~모두 사이 전환은 다시 받지 않고 `range`·주소만, 장중 ↔ 일봉·장중끼리는 받는다
+- [ ] T131 [P] [US4] 테마 테스트 — 최초 실패 확인 (FR-030, SC-015)
+  - 새 `frontend/tests/themeStore.test.ts` — 처음 밝게, `toggle`이 `html.dark`와 저장소(`assetreplay.theme`)를 함께 바꿈, 저장소 읽기·쓰기 실패면 밝게·오류 없음
+  - 새 `frontend/tests/ThemeToggle.test.tsx` — 상단 바 오른쪽 끝에 늘 있음, `role="switch"`·이름 "블랙 배경"·`aria-checked`, 키보드(Space·Enter)
+  - 새 `frontend/tests/themeScript.test.ts` — 깜빡임 방지 스크립트(글자)가 저장값 `dark`면 `dark` 클래스를 달고, 없거나 틀리거나 저장소 오류면 달지 않는다
+  - 새 `frontend/tests/chartTheme.test.tsx` — 블랙이면 차트 다섯 종(`FxChart`·`PerformanceChart`·`ComparisonChart`·`CompareReturnChart`·`IndicatorChart`)이 어두운 팔레트(배경·글자·격자)로
+    만들어지고, 테마를 바꾸면 다시 만들어진다. 밝으면 선택 값이 지금과 같다 — 이 파일 안에서 `lightweight-charts`를 모의한다
+  - 새 `frontend/tests/darkPaletteGuard.test.ts` — src가 쓰는 색 유틸리티(`bg`·`text`·`border`·`ring`·`divide`·`from`·`to`·`fill`·`stroke` × 색 × 단계, `white`·`black`)마다
+    `app/globals.css`의 `.dark` 블록에 그 색 변수의 재정의가 있다
+
+### Implementation for 반복 2026-10-10c
+
+- [ ] T132 [US2] 014가 만든 테스트의 변경 승인 — 구현을 작업 트리에 둔 뒤 실제 실패 목록으로 승인받는다(T111과 같은 절차). 예상: `test_dashboard_range_api.py`(1년·5년·동등성)·
+  `test_dashboard_series_api.py`(`sourcePointCount`)·`test_yahoo_market_intraday.py`(범위 질의)·`IndicatorChartRange.test.tsx`(처음 범위·연한 선)·`IndicatorChart.test.tsx`(범위)·
+  `indicatorSeriesStore.test.ts`(기간 바꾸면 다시 받음). 구현을 치워 실패를 확인한 뒤 `test(014)` (FR-011, FR-012, FR-028)
+- [ ] T133 [US2] 백엔드 — `backend/src/ingestion/yahoo/market.py`(`_INTRADAY` 일 `5d·5m`·주 `1mo·30m`), 새 `backend/src/simulation/intraday_window.py`(순수 — 세션 창),
+  `backend/src/api/services/indicator_intraday.py`(`window`), `backend/src/api/services/indicator_series.py`(일봉 기간 = 일봉 전부 + `windows` — T124의 기간만 읽기는 그래프에서 뺀다) — contracts A2 (FR-011, FR-012, FR-028)
+- [ ] T134 [US2] 프론트 — `frontend/src/lib/types.ts`·`frontend/src/lib/dashboardApi.ts`(`windows`·`window`), `frontend/src/stores/indicatorSeriesStore.ts`(일봉 본문 한 벌·월~모두는 범위만),
+  `frontend/src/components/dashboard/IndicatorChart.tsx`(창 → `setVisibleLogicalRange`, 장중 진한 실선, 바닥 글자) — contracts D3 (FR-011, FR-012, SC-002)
+- [ ] T135 [US4] 테마 — 새 `frontend/src/stores/themeStore.ts`·`frontend/src/components/shell/ThemeToggle.tsx`, `frontend/src/components/shell/TopBar.tsx`(오른쪽 끝·스크롤해도 위),
+  `frontend/src/app/layout.tsx`(깜빡임 방지 스크립트·`suppressHydrationWarning`), `frontend/src/app/globals.css`(`.dark` 팔레트 재정의·`@custom-variant dark` — 옛 "다크 모드 미지원" 주석
+  대체) — contracts D6·D9 (FR-030, FR-026)
+- [ ] T136 [US4] 차트 테마 — 새 `frontend/src/lib/chartTheme.ts` + `frontend/src/components/FxChart.tsx`·`stock/PerformanceChart.tsx`·`stock/ComparisonChart.tsx`·`compare/CompareReturnChart.tsx`·
+  `dashboard/IndicatorChart.tsx` — 테마를 효과 의존성에 넣어 다시 만든다(`applyOptions`·라이브러리 열거형을 실행 중에 쓰지 않는다), 밝은 테마의 선택 값은 지금과 같다 (FR-030, SC-015)
+
+### Polish (반복 2026-10-10c)
+
+- [ ] T137 [US2] [US4] 실측 — quickstart 5-16~5-19를 확인하고 `quickstart.md` 8에 기록한다(헤드리스 Chrome) (FR-011, FR-012, FR-028, FR-030, SC-015)
+- [ ] T138 성능 — SC-002(모달 열기 — 일봉 전부를 받고 1년이 보이는 그래프 1초, 월~모두 전환은 요청 없이 0.3초, 장중) 다시 잰다 (SC-002)
+- [ ] T139 불변 대조 — `014-baseline/fetch.py`로 메뉴·비교·외환 응답, T128 기준선과 **밝은 테마 스크린샷**을 견준다(상단 바 단추 자리 밖 차이 0) (FR-026, SC-010, SC-015)
+- [ ] T140 문서 — `CLAUDE.md`(현재 상태 014 줄·블랙 테마 주의 문단 — 색 변수 재정의·차트 다시 만들기·가드), `README.md`(테마·차트 스크롤), `spec.md` Status (FR-025, FR-030)
+- [ ] T141 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132)뿐인지 `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -651,6 +719,11 @@ description: "Task list for 014-market-dashboard"
   3. 테스트 T101~T110(함께 — 최초 실패 확인) → 구현 T112~T122 → T111(014 테스트 변경 승인 — 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
   4. T123~T127
   - 승인이 안 된 갈래는 빠진다(T095)
+- **반복 2026-10-10c (Phase 9)**: Phase 8 뒤
+  1. T128(실측·픽스처·**밝은 테마 기준선 스크린샷 — 구현 전에**·색 변수 확인)
+  2. 테스트 T129~T131(함께 — 최초 실패 확인) → 구현 T133~T136 → T132(014 테스트 변경 승인 — 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
+  3. T137~T141
+  - T128(c)에서 색 변수 재정의가 닿지 않으면 멈추고 사용자에게 알린다(R14-23 대안)
 - **Foundational (Phase 2)**: T002·T004 뒤. US1·US2를 막는다. US3는 T011(설정) 뒤면 시작할 수 있다.
 - **US1 (Phase 3)**: Foundational 뒤. **T018(승인)이 이 페이즈의 테스트 커밋을 막는다** — T031~T040 구현을 작업 트리에 둔 뒤 목록을 만든다. 백엔드(T019~T023·T031~T035)와 화면(T024~T030·T036~T040)은 나란히 할 수 있다. MVP다.
 - **US2 (Phase 4)**: US1 뒤(시세 서비스의 캐시가 잠정 꼬리·머리 값을 준다. `main.py`·`types.ts`·`dashboardApi.ts`가 겹친다). 승인 목록이 없을 것으로 본다 — 구현 뒤 목록 밖의 실패는 결함으로 보고 멈춘다.
@@ -679,7 +752,9 @@ description: "Task list for 014-market-dashboard"
 | `frontend/src/app/dashboard/page.tsx` | T040(US1), T079(US3) |
 | `frontend/src/components/shell/Sidebar.tsx`·`TopBar.tsx`·`app/page.tsx` | T040 |
 | `frontend/tests/Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts`·(`TopBarTitle.test.ts`) | T018(승인 뒤에만) |
-| `specs/014-…/quickstart.md`(실행 기록) | T041, T062, T081, T082, T083, T084 |
+| `specs/014-…/quickstart.md`(실행 기록) | T041, T062, T081, T082, T083, T084, T123~T127, T137~T141 |
+| `frontend/src/components/dashboard/IndicatorChart.tsx` | T060·T121(이전), T134·T136(반복 2026-10-10c — 차례로) |
+| `frontend/src/components/shell/TopBar.tsx`·`app/layout.tsx`·`app/globals.css` | T040(이전), T135 |
 
 ### Parallel Opportunities
 
@@ -719,6 +794,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 4. Polish — 성능·화면 폭·불변 대조·문서·게이트
 5. 반복 2026-10-10 — 출처·실패 요구 보강(Phase 7, 완료)
 6. 반복 2026-10-10b — 지표 모달·기간 8개·변화 까닭·일자별 표(Phase 8). 원칙 II 재승인(T095)이 안 되면 까닭·장중을 빼고 모달·일봉 기간 6개·표만 낸다
+7. 반복 2026-10-10c — 차트 앞 구간 스크롤·장중 실선(US2)과 블랙 배경(US4)(Phase 9). 둘은 따로 낼 수 있다 — 블랙 배경(T131·T135·T136)이 막히면(T128(c)) 차트 쪽만 낸다
 
 ---
 
@@ -771,8 +847,8 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-008 | T007, T011, T022, T025, T027, T028, T034, T038, T039, T061 |
 | FR-009 | T005, T021, T022, T023, T026, T027, T028, T033, T034, T035, T038, T039, T087, T089, T092 |
 | FR-010 | T047, T048, T050, T057, T058, T059, T060, T061, T062, T096, T106, T110, T111, T122, T123 |
-| FR-011 | T044, T048, T049, T050, T053, T059, T060, T061, T104, T105, T107, T115, T119, T120, T121, T123, T124 |
-| FR-012 | T044, T047, T049, T053, T056, T060, T082, T104, T105, T107, T115, T121, T124 |
+| FR-011 | T044, T048, T049, T050, T053, T059, T060, T061, T104, T105, T107, T115, T119, T120, T121, T123, T124, T128, T129, T130, T132, T133, T134, T137 |
+| FR-012 | T044, T047, T049, T053, T056, T060, T082, T104, T105, T107, T115, T121, T124, T129, T130, T132, T133, T134, T137 |
 | FR-013 | T044, T049, T053, T060, T104, T108, T111, T114, T117 |
 | FR-014 | T043, T047, T049, T052, T056, T060, T104, T105, T108, T114, T115 |
 | FR-015 | T006, T012, T026, T039, T050, T060 |
@@ -785,13 +861,14 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-022 | T064, T065, T066, T070, T073, T074, T075, T079, T081, T087, T103, T109 |
 | FR-023 | T007, T011, T067, T068, T076, T087, T089, T092 |
 | FR-024 | T064, T065, T066, T067, T068, T069, T070, T071, T072, T076, T077, T078, T079, T081, T087 |
-| FR-025 | T070, T079, T085, T121, T126 |
-| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125 |
+| FR-025 | T070, T079, T085, T121, T126, T140 |
+| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139 |
 | FR-027 | T095, T103, T104, T105, T109, T113, T118, T119, T120, T121, T123 |
-| FR-028 | T095, T102, T104, T105, T107, T112, T116, T121, T123 |
+| FR-028 | T095, T102, T104, T105, T107, T112, T116, T121, T123, T128, T129, T132, T133, T137 |
 | FR-029 | T104, T105, T108, T114, T117, T119, T120, T121, T123, T124 |
+| FR-030 | T128, T131, T135, T136, T137, T140 |
 | SC-001 | T071, T082, T087 |
-| SC-002 | T047, T056, T082, T107, T124 |
+| SC-002 | T047, T056, T082, T107, T124, T130, T138 |
 | SC-003 | T010, T020, T023, T032, T041 |
 | SC-004 | T047, T056, T062 |
 | SC-005 | T043, T044, T052, T053 |
@@ -799,8 +876,9 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-007 | T022, T034, T064, T065, T066, T068, T071, T081, T087, T094 |
 | SC-008 | T064, T065, T066, T068, T070, T081, T089, T092 |
 | SC-009 | T019, T026, T031 |
-| SC-010 | T001, T002, T084, T086, T094, T125, T127 |
+| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141 |
 | SC-011 | T062, T087 |
 | SC-012 | T104, T108, T124 |
 | SC-013 | T103, T109, T123 |
 | SC-014 | T097, T098, T101, T123 |
+| SC-015 | T128, T131, T136, T137, T139 |

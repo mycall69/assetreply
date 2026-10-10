@@ -149,12 +149,26 @@ R14-7 표가 상수다. 함수는 둘이다:
 |---------|-----------|-----|
 | `1d` | 장중 시세(R14-19 — 5분, 저장 안 함) | `{time, value, provisional: true}` — `time`은 ISO UTC |
 | `5d` | 장중 시세(30분, 저장 안 함) | 같다 |
-| `1m`·`1y`·`5y`·`10y`·`20y` | 저장된 일봉(§1.1) — 기간의 시작일(현지 오늘에서 1개월·n년 전) 이후 | `{date, value, provisional?}` |
+| `1m`·`1y`·`5y`·`10y`·`20y` | 저장된 일봉(§1.1) — 기간의 시작일(현지 오늘에서 1개월·n년 전) 이후(**반복 2026-10-10c 대체** — 아래 표: 일봉 전부 + `windows`) | `{date, value, provisional?}` |
 | `all` | 저장된 일봉 전부 | 같다 |
 
 - 일봉 기간의 오늘 잠정 꼬리(현재 시세)·외환 잠정 고시는 지금과 같다(`provisional`)
 - 점이 `DASHBOARD_SERIES_MAX_POINTS`를 넘을 때만 LTTB(R14-12)
 - 결측 구간(`simulation/market_gaps.py` — R14-5)은 일봉 기간에 그대로다. 장중은 결측 판정을 하지 않는다
+
+**반복 2026-10-10c — 기간은 처음 보이는 범위다**(R14-22):
+
+| `range` | 받는 점 | 처음 보이는 범위 |
+|---------|---------|------------------|
+| `1d` | 장중 `range=5d`·5분(최근 5세션, 저장 안 함) | `window` = 마지막 세션(시장 현지 날짜) |
+| `5d` | 장중 `range=1mo`·30분(최근 1개월, 저장 안 함) | `window` = 최근 5세션 |
+| `1m`·`1y`·`5y`·`10y`·`20y`·`all` | **저장된 일봉 전부**(지금의 `all`과 같은 점) | `windows[range]`(시작일 — `all`은 `null`) |
+
+- 일봉 본문의 `windows`는 `{"1m": 시작일, "1y": …, "5y": …, "10y": …, "20y": …, "all": null}` — 시작일 규칙은 지금과 같다(`simulation/indicator_range.range_start` — 현지 오늘에서 1개월·n년 전,
+  없는 날은 그 달 말일). 화면은 같은 본문으로 월~모두를 오간다
+- 장중 본문의 `window`는 `{from, to}`(UTC ISO) — 순수 모듈 `simulation/intraday_window.py`가 점의 시장 현지 날짜(`market_session`의 시간대, 환율은 런던 0시 경계)로 세션을 가른다.
+  세션은 점이 있는 날뿐이다(빈 날을 꾸미지 않는다). 점이 없으면 `null`
+- 화면은 처음 범위를 **점의 차례**로 놓는다(`setVisibleLogicalRange` — 창 시작 이상인 첫 점의 차례 ~ 마지막 차례). 창 안에 점이 없으면 마지막 점들이다
 
 ## 5a. 일자별 표 행 (`simulation/indicator_table.py` — 순수, 반복 2026-10-10b)
 
@@ -211,11 +225,12 @@ R14-7 표가 상수다. 함수는 둘이다:
 | 스토어 | 상태 | 동작 |
 |--------|------|------|
 | `stores/marketQuotesStore.ts` | `status`(`idle`·`loading`·`ready`·`error`), `fetchedAt`, `refreshAfterSeconds`, `indicators[]`(contracts A1), `seq` | `load()` · `startPolling()`/`stopPolling()`(보이는 동안만 — R14-15) · `retry(id)`. 늦은 응답은 `seq`로 버린다 |
-| `stores/indicatorSeriesStore.ts` | `id`, `range`(반복 2026-10-10b — `unit` 대체), `status`(`loading`·`ready`·`collecting`·`failed`·`not_found`·`error`), `series`, `progress`, `seq` | `open(id, range)` · `setRange(range)`(주소도 바꾼다) · 202면 진행 SSE 구독 → `completed`에 다시 요청 · `retryCollect()`(POST collect) · `close()`(구독 끊기) |
+| `stores/indicatorSeriesStore.ts` | `id`, `range`(반복 2026-10-10b — `unit` 대체), `status`(`loading`·`ready`·`collecting`·`failed`·`not_found`·`error`), `series`, `progress`, `seq`. 반복 2026-10-10c: 일봉 본문 한 벌(`daily`)을 지표마다 들고 있다 | `open(id, range)` · `setRange(range)`(주소도 바꾼다 — 반복 2026-10-10c: 월~모두 사이는 다시 받지 않고 `range`만, 장중 ↔ 일봉·장중끼리는 받는다) · 202면 진행 SSE 구독 → `completed`에 다시 요청 · `retryCollect()`(POST collect) · `close()`(구독 끊기) |
 | `stores/indicatorTableStore.ts` | `id`, `period`(`daily`·`weekly`·`monthly`), `status`, `rows[]`, `hasMore`, `oldestReturned`, `seq` | `open(id)` · `setPeriod(period)`(처음부터 다시) · `loadMore()`(`before = oldestReturned`) · `close()`. 늦은 응답은 `seq`로 버린다 |
 | `stores/indicatorCommentaryStore.ts` | 지표마다 `{status, body, failure}` | `load(id)` · `retry(id)` |
 | 모달 | 주소(`/dashboard/{id}?range=`)가 열림 상태다 — 스토어에 두지 않는다 | 닫으면 `router.back()`(대시보드 안에서 연 경우) 또는 `/dashboard`로 바꾸기, 포커스는 그 카드(`data-indicator`) |
 | `stores/newsStore.ts` | 칸마다 `{status, list, failure}` | `loadAll()`(셋 동시) · `retry(source)` |
+| `stores/themeStore.ts`(반복 2026-10-10c) | `theme`(`light`·`dark`) | `toggle()` · `set(theme)` — `<html>`의 `dark` 클래스와 브라우저 저장소(§9)를 함께 바꾼다. 처음 값은 깜빡임 방지 스크립트가 단 클래스에서 읽는다 |
 
 ## 8. 설정 (`config/settings.py` — `.env.example`에 문서화)
 
@@ -241,3 +256,16 @@ R14-7 표가 상수다. 함수는 둘이다:
 | `DASHBOARD_COMMENTARY_CACHE_SECONDS` | 600 | 변화 까닭 캐시(R14-17) |
 | `DASHBOARD_TABLE_PAGE_LIMIT` | 30 | 일자별 표 한 쪽(최대 200) |
 | 변화 까닭 출처 주소 | T095 실측 뒤 정함(R14-17) | 출처가 주소를 바꾸면 설정으로 |
+
+반복 2026-10-10c는 새 설정이 없다 — 장중 받는 범위(일 `5d`·주 `1mo`)는 어댑터의 대응표(`ingestion/yahoo/market.py`)이고 캐시 시간은 그대로다.
+
+## 9. 화면 테마 선호 (반복 2026-10-10c — 브라우저에만, FR-030)
+
+| 항목 | 값 |
+|------|-----|
+| 저장 위치 | 브라우저 저장소(`localStorage`) 키 `assetreplay.theme` — 서버·DB에 두지 않는다 |
+| 값 | `"light"` · `"dark"`. 없거나 그 밖의 값·읽기 실패면 `"light"` |
+| 적용 | `<html>`의 `dark` 클래스. `app/layout.tsx`의 `<head>` 인라인 스크립트가 **그리기 전에** 저장값을 읽어 단다(깜빡임 방지 — `suppressHydrationWarning`) |
+| 바꾸기 | `themeStore.toggle()` — 클래스·저장소를 함께 바꾼다. 저장소 쓰기가 실패해도 지금 화면은 바뀐다(그 탭에서만 유지) |
+| 차트 | `lib/chartTheme.ts`의 팔레트(배경·글자·격자·선) — 테마가 바뀌면 차트를 다시 만든다(R14-23) |
+

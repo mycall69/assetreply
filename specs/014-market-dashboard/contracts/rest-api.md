@@ -73,11 +73,17 @@
 ## A2. `GET /api/dashboard/indicators/{id}/series?range=1d|5d|1m|1y|5y|10y|20y|all`
 
 - **반복 2026-10-10b**: 질의는 보는 기간 `range`다(기본·틀리면 `1y` — 400을 내지 않는다). 옛 질의 `unit`은 무시한다(spec FR-010·D8)
-  - 일봉 기간(`1m`·`1y`·`5y`·`10y`·`20y`·`all`)은 그 기간의 **일봉 전부**다 — 아래 200·202 꼴 그대로이고 점은 묶지 않는다(`shifted`·`ongoing`은 오지 않는다)
+  - 일봉 기간(`1m`·`1y`·`5y`·`10y`·`20y`·`all`)은 그 기간의 **일봉 전부**다 — 아래 200·202 꼴 그대로이고 점은 묶지 않는다(`shifted`·`ongoing`은 오지 않는다). **반복 2026-10-10c 대체**: 기간과 무관하게 저장된 일봉 전부 + `windows`(아래)
   - 장중 기간(`1d`·`5d`)은 장중 시세다(저장 안 함 — 202가 없다, 수집과 무관):
     `{ "indicator", "range", "intraday": true, "fetchedAt", "session": {"from", "to"}, "points": [{ "time": "2026-10-09T13:35:00Z", "value": "7801.250000", "provisional": true }], "notes" }`
     — 실패면 200 + `status: "failed"`, `points: []`, `failure{reason, message, retryAfterSeconds}`(A0)
   - 환율의 장중은 시장 환율이고 `notes`에 `market_fx`가 있다(일봉 기간은 지금처럼 ECOS)
+- **반복 2026-10-10c — 기간은 처음 보이는 범위다**(spec FR-011·R14-22):
+  - 일봉 기간의 `points`는 기간과 무관하게 **저장된 일봉 전부**다(지금의 `all`과 같은 점·`gaps`·`sourcePointCount`·`downsampled`). `range`는 처음 범위이고 본문에 그대로 싣는다
+  - `windows` 추가 — 기간마다 처음 보이는 범위의 시작일: `{ "1m": "2026-09-09", "1y": "2025-10-09", "5y": "2021-10-09", "10y": "2016-10-09", "20y": "2006-10-09", "all": null }`
+    (시장 현지 오늘에서 1개월·n년 전 — 없는 날은 그 달 말일). 화면은 이 본문 하나로 월~모두를 오간다
+  - 장중 받는 범위: `1d` = 출처 `range=5d&interval=5m`(최근 5세션), `5d` = `range=1mo&interval=30m`(최근 1개월). `window: {"from", "to"}`(UTC ISO) 추가 — 처음 보이는 범위(마지막 세션 ·
+    최근 5세션, 시장 현지 날짜로 가름 — 환율은 런던 0시 경계). `session`은 받은 점 전체의 처음·끝이다. 실패 본문은 `window: null`
 - (반복 2026-10-10b 전) `unit`이 없거나 틀리면 `daily`였다 — 위로 대체
 - 없는 `id`면 **404** `{"status": "unknown_indicator", "message": "..."}`다
 
