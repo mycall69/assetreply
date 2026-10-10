@@ -17,23 +17,27 @@ const chart = vi.hoisted(() => ({
   range: null as { from: number; to: number } | null,
   fitted: 0,
   crosshair: null as ((param: { time?: string | number }) => void) | null,
+  options: [] as Record<string, unknown>[],
 }));
 
 vi.mock("lightweight-charts", () => ({
   LineSeries: "Line",
-  createChart: () => ({
-    addSeries: (_type: string, options: Record<string, unknown>) => {
-      const entry = { options, data: [] as { time: string | number; value: number }[] };
-      chart.series.push(entry);
-      return { setData: (data: { time: string | number; value: number }[]) => { entry.data = data; } };
-    },
-    subscribeCrosshairMove: (fn: (param: { time?: string | number }) => void) => { chart.crosshair = fn; },
-    timeScale: () => ({
-      fitContent: () => { chart.fitted += 1; },
-      setVisibleLogicalRange: (r: { from: number; to: number }) => { chart.range = r; },
-    }),
-    remove: () => undefined,
-  }),
+  createChart: (_el: unknown, options: Record<string, unknown>) => {
+    chart.options.push(options);
+    return {
+      addSeries: (_type: string, options: Record<string, unknown>) => {
+        const entry = { options, data: [] as { time: string | number; value: number }[] };
+        chart.series.push(entry);
+        return { setData: (data: { time: string | number; value: number }[]) => { entry.data = data; } };
+      },
+      subscribeCrosshairMove: (fn: (param: { time?: string | number }) => void) => { chart.crosshair = fn; },
+      timeScale: () => ({
+        fitContent: () => { chart.fitted += 1; },
+        setVisibleLogicalRange: (r: { from: number; to: number }) => { chart.range = r; },
+      }),
+      remove: () => undefined,
+    };
+  },
 }));
 
 beforeEach(() => {
@@ -41,6 +45,7 @@ beforeEach(() => {
   chart.range = null;
   chart.fitted = 0;
   chart.crosshair = null;
+  chart.options = [];
 });
 
 describe("일봉 기간", () => {
@@ -52,6 +57,17 @@ describe("일봉 기간", () => {
     expect(chart.range).toBeNull();
     expect(chart.fitted).toBe(1);
     expect(chart.series.reduce((n, s) => n + s.data.length, 0)).toBe(600);
+  });
+});
+
+describe("한 화면", () => {
+  it("기간의 일봉 전부가 한 화면에 들어간다 — 막대 간격 하한이 작다", () => {
+    // T123 실측(2026-10-10) — 라이브러리의 막대 간격 하한(기본 0.5px)에 걸려 S&P "모두"(24,811점)가 2019년부터만 보였다
+    // (10년도 잘렸다). 1,000px에 S&P 전부가 들어가려면 하한이 1,000 / 24,811 ≈ 0.04px 이하여야 한다
+    render(<IndicatorChart series={rangeSeriesOf({ range: "all" })} />);
+    const timeScale = chart.options[0].timeScale as { minBarSpacing?: number };
+    expect(timeScale.minBarSpacing).toBeDefined();
+    expect(timeScale.minBarSpacing as number).toBeLessThanOrEqual(1000 / 24811);
   });
 });
 
