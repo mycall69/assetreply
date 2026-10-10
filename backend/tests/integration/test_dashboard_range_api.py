@@ -159,3 +159,27 @@ async def test_환율의_장중도_장중_서비스다(client: AsyncClient, intr
     res = await client.get("/api/dashboard/indicators/usd/series?range=1d")
     assert res.status_code == 200 and res.json()["intraday"] is True
     assert intraday.calls == [("usd", "1d")]
+
+
+async def test_기간만_읽어도_결측_판정은_모두와_같다(client: AsyncClient, session_factory) -> None:  # type: ignore[no-untyped-def]
+    # T124 — 일봉 기간은 그 기간 앞의 마지막 날부터만 읽는다(약 2만 5천 점을 모두 읽지 않는다).
+    # 같은 시장의 다른 지표로 가린 결측과 기간 시작을 가로지르는 긴 빈 구간이 "모두"에서 잘라 낸
+    # 것과 같아야 한다
+    start = range_start(D(2026, 10, 9), "1y")
+    assert start is not None
+    sibling_only = next(d for d in DAYS if d > start + dt.timedelta(days=40))
+    lo, hi = start - dt.timedelta(days=12), start + dt.timedelta(days=10)
+    long_gap = [d for d in DAYS if lo <= d <= hi]
+    own = [d for d in DAYS if d != sibling_only and d not in long_gap]
+    await seed(session_factory, own)
+    async with session_factory() as s:
+        await market_daily.store_closes(s, "dow", [(d, Decimal(1)) for d in DAYS], detected_at=AT)
+        await market_daily.record_coverage(s, "dow", DAYS[0], DAYS[-1])
+        await s.commit()
+    one = (await client.get("/api/dashboard/indicators/sp500/series?range=1y")).json()
+    every = (await client.get("/api/dashboard/indicators/sp500/series?range=all")).json()
+    clipped = [(g["to"], g["reason"]) for g in every["gaps"] if g["to"] >= start.isoformat()]
+    assert [(g["to"], g["reason"]) for g in one["gaps"]] == clipped
+    assert any(g["from"] <= sibling_only.isoformat() <= g["to"] for g in one["gaps"])
+    assert any(g["from"] <= long_gap[-1].isoformat() <= g["to"] for g in one["gaps"])
+    assert one["points"] == [p for p in every["points"] if p["date"] >= start.isoformat()]
