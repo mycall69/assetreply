@@ -5,6 +5,8 @@
  *
  * - **보는 기간이 범위다**(반복 2026-10-10b — 012 전의 "단위마다 처음 보이는 점 수"를 대체). 일봉 기간(월 이상)은 그 기간의 일봉 전부를
  *   받아 모두 보인다(`fitContent`) — 주 이상도 일봉이라 촘촘하다. 장중(일·주)은 저장하지 않는 시세이고 점이 모두 잠정이라 연한 선 하나다
+ * - 막대 간격 하한을 낮춘다(`MIN_BAR_SPACING`) — 라이브러리 기본(0.5px)이면 1,000px에 2,000점까지만 들어가 S&P "모두"(약 2만 5천 점)가
+ *   2019년부터만 보였다(10년도 잘렸다 — T123 실측). 바닥 글자는 "전부 표시"인데 그래프는 일부였다
  * - **결측 `gaps` 구간마다 선을 나눈다**(`lib/chartSeries.splitSeriesAtGaps`) — 이어 그리면 그 기간에 값이 움직이지 않은 것처럼 보인다.
  *   휴장은 `gaps`에 없어 선이 이어진다(원칙 V). 장중의 빈 값은 출처가 주지 않아 점이 없다(선이 이어진다)
  * - 잠정 점(오늘·외환 잠정 고시)은 연한 색 선이다 — 앞의 확정 점에서 이어 확정 선과 섞이지 않게 한다
@@ -25,11 +27,14 @@ import type { IndicatorChartSeries, IndicatorIntradayResponse, IndicatorPoint, I
 const SOLID = "#1f2937";
 const LIGHT = "#9ca3af";
 
+/** 막대 간격 하한(px) — 1,000px에 10만 점까지 들어간다(S&P "모두"는 약 2만 5천 점). */
+const MIN_BAR_SPACING = 0.01;
+
 const CHART_OPTIONS = {
   height: 380,
   layout: { attributionLogo: false },
   rightPriceScale: { borderVisible: false },
-  timeScale: { borderVisible: false },
+  timeScale: { borderVisible: false, minBarSpacing: MIN_BAR_SPACING },
 };
 
 const asSeriesPoints = (points: IndicatorPoint[]) => points.map((p) => ({ date: p.date, baseRate: p.value }));
@@ -136,7 +141,7 @@ function IntradayChart({ series }: { series: IndicatorIntradayResponse }) {
     if (!container.current) return;
     const instance = createChart(container.current, {
       ...CHART_OPTIONS,
-      timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false },
+      timeScale: { borderVisible: false, minBarSpacing: MIN_BAR_SPACING, timeVisible: true, secondsVisible: false },
     });
     const data = toIntradayData(series.points);
     const line = instance.addSeries(LineSeries, {
