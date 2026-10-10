@@ -11,6 +11,8 @@
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 import pytest
 from httpx2 import ASGITransport, AsyncClient
@@ -22,6 +24,7 @@ from src.api.services.stock_selection import FirstTradeLookup
 from src.db.dialect import upsert
 from src.db.models import Stock
 from src.db.session import get_session
+from src.ingestion.yahoo.errors import StockSourceUnavailable
 from src.ingestion.yahoo.parse import StockQuote
 from src.worker.listing_queue import ListingQueue
 from tests.integration.comparison_support import AAPL_KRW, KRX, http, seed_stocks
@@ -217,3 +220,53 @@ class Test비교_가상자산:
         body = await compare(session_factory, "/api/comparison/crypto/simulation",
                              {**CRYPTO, "coinId": str(unknown)})
         assert listing(body) is None
+
+
+@asynccontextmanager
+async def lookup_http(session_factory, stub: FirstTradeStub) -> AsyncIterator[AsyncClient]:  # type: ignore[no-untyped-def]
+    """비교 경로에 첫 거래일 출처 대역을 건다(lifespan의 공유 클라이언트 대신)."""
+    app = create_app()
+
+    async def _session():  # type: ignore[no-untyped-def]
+        async with session_factory() as s:
+            yield s
+
+    app.dependency_overrides[get_session] = _session
+    app.dependency_overrides[stock_selection.get_first_trade] = lambda: FirstTradeLookup(stub, 3.0)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        yield client
+
+
+class Test비교가_모르는_첫_거래일을_받는다:
+    """사용자 보고(2026-10-10) — 저장한 비교를 불러오면 등록 없이 비교 경로를 부른다.
+
+    등록 때와 새 수집 청크 때만 받으면, 이미 받아 둔 미국 종목(TQQQ·QLD·SOXL)은 비교 표에서
+    늘 "—"였다.
+    """
+
+    async def test_키움_상장일이_없고_모르면_한_번_받아_둔다(self, session_factory) -> None:  # type: ignore[no-untyped-def]
+        await seed_stocks(session_factory)
+        stub = FirstTradeStub(D("1980-12-12"))
+        async with lookup_http(session_factory, stub) as client:
+            first = (await client.get("/api/comparison/stocks/simulation", params=AAPL_KRW)).json()
+            second = (await client.get("/api/comparison/stocks/simulation", params=AAPL_KRW)).json()
+        expected = {"date": "1980-12-12", "basis": "first_trade"}
+        assert (listing(first), listing(second)) == (expected, expected)
+        assert stub.calls == ["AAPL"]  # 받아 두면 다시 부르지 않는다
+
+    async def test_키움_상장일이_있으면_부르지_않는다(self, session_factory) -> None:  # type: ignore[no-untyped-def]
+        await seed_stocks(session_factory)
+        await seed(session_factory, "KOSPI", KOSPI_ROWS)
+        stub = FirstTradeStub()
+        async with lookup_http(session_factory, stub) as client:
+            body = (await client.get("/api/comparison/stocks/simulation", params=KRX)).json()
+        assert listing(body) == {"date": "1975-06-11", "basis": "listing"}
+        assert stub.calls == []
+
+    async def test_못_받으면_null이고_비교는_그대로다(self, session_factory) -> None:  # type: ignore[no-untyped-def]
+        await seed_stocks(session_factory)
+        stub = FirstTradeStub(error=StockSourceUnavailable("출처 장애"))
+        async with lookup_http(session_factory, stub) as client:
+            res = await client.get("/api/comparison/stocks/simulation", params=AAPL_KRW)
+        assert res.status_code == 200
+        assert listing(res.json()) is None
