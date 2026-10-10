@@ -17,11 +17,16 @@ import json
 from pathlib import Path
 from typing import Self
 
+import aiohttp
 import pytest
 
 from src.config.settings import load_settings
 from src.ingestion.yahoo.client import YahooStockClient
-from src.ingestion.yahoo.errors import StockSourceRateLimited, StockSymbolNotFound
+from src.ingestion.yahoo.errors import (
+    StockSourceRateLimited,
+    StockSourceUnavailable,
+    StockSymbolNotFound,
+)
 from src.ingestion.yahoo.parse import parse_chart
 
 FIXTURES = Path(__file__).parent / "fixtures" / "stock"
@@ -129,3 +134,25 @@ async def test_요청_제한은_429_오류다() -> None:
     async with client(Session(Resp("Too Many Requests", status=429))) as c:
         with pytest.raises(StockSourceRateLimited):
             await c.fetch_first_trade_date("VOO")
+
+
+class FailingSession(Session):
+    """연결이 곧바로 거절되는 출처 — 요청 수를 센다."""
+
+    def get(self, url: str, *, params: dict[str, str] | None = None, **_: object) -> Resp:
+        self.requests.append((url.split(".com", 1)[-1], dict(params or {})))
+        raise aiohttp.ClientConnectionError("거절")
+
+
+async def test_다시_시도하지_않는다_등록이_늦어지지_않게() -> None:
+    """T164 실측 결함 — 출처가 막히면 다시 시도(최대 4회, 2초 간격) 때문에 고르기가
+    시간 한도(3초)만큼 늦었다.
+
+    첫 거래일은 표시 전용이고 다음 수집 청크가 채운다 — 등록 경로에서는 한 번만 묻는다.
+    """
+    settings = dataclasses.replace(load_settings(), stock_retry_max_attempts=4)
+    session = FailingSession(Resp(""))
+    async with YahooStockClient(settings, session=session) as c:  # type: ignore[arg-type]
+        with pytest.raises(StockSourceUnavailable):
+            await c.fetch_first_trade_date("VOO")
+    assert len(session.requests) == 1
