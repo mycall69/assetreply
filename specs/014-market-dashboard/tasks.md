@@ -635,7 +635,7 @@ description: "Task list for 014-market-dashboard"
 - [X] T124 성능 — SC-002(모달 그래프·기간 전환 — S&P "모두")·SC-012(표 첫 쪽·단위 전환) (SC-002, SC-012)
 - [X] T125 불변 대조 — `014-baseline/fetch.py`로 메뉴·비교·외환 응답을 다시 받아 견준다 (FR-026, SC-010)
 - [X] T126 문서 — `CLAUDE.md`(현재 상태 014 줄·원칙 II 이탈 수·주의 문단 — 모달 경로·장중·까닭·되살리기), `README.md`(화면 설명·출처), `.env.example`(새 설정), `spec.md` Status (FR-025)
-- [ ] T127 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111)뿐인지 `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
+- [X] T127 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111)뿐인지 `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
 
 ---
 

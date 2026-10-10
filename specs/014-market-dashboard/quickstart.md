@@ -347,3 +347,9 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
 
 - T001의 입력으로 다시 받은 29파일(`014-baseline/after_iterb/`)을 기준(`before/`)과 견줬다
 - 차이는 T084와 같다 — **부동산 헬리오시티 셋의 기준일 날짜뿐**(`asOf`·`lineEnd.date`·마지막 점·`to` 2026-10-09 → 2026-10-10, 한국 날짜가 바뀜)과 `meta.json`의 받은 시각. 주식 셋·가상자산 둘·예금 둘·외환 넷은 **차이 0**
+
+### T127 — 게이트(2026-10-10 11:10~11:21 KST, 서버를 내린 채)
+
+- 백엔드: `pytest --cov=src` **3,350 통과**·커버리지 **96%**, `mypy src`(strict) 문제 없음(274파일), `ruff check --no-cache src tests` 통과
+- 프론트엔드: `npm test` **212파일·1,854 통과**(종료 코드 0), `tsc --noEmit`·`eslint .` 통과
+- `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests`: 바뀐 기존 테스트 여섯(워커 셋·진행 SSE — T018, `Sidebar`·`noUnbuiltAssetRoutes` — US2)뿐이다. 이번 반복은 기존 테스트를 고치지 않았다(014가 만든 테스트의 변경은 T111 승인 목록)
