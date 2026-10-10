@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.config.settings import Settings
 from src.ingestion.yahoo.market import DailyFetch, failure_kind
+from src.ingestion.yahoo.market_parse import Ohlc, ohlc_from_raw
 from src.observability.events import mask_secrets
 from src.observability.logging_config import collection_logger
 from src.repository import market_daily
@@ -186,7 +187,11 @@ async def _run_chunk(
         received_at=received,
     )
     stored = await market_daily.store_closes(
-        session, task.indicator_id, fetched.chunk.closes, detected_at=received
+        session,
+        task.indicator_id,
+        fetched.chunk.closes,
+        detected_at=received,
+        ohlc=fetched.chunk.ohlc,
     )
     await market_daily.record_coverage(session, task.indicator_id, task.start, task.end)
     if fetched.chunk.first_trade_date is not None:
@@ -270,3 +275,26 @@ async def run_round(
                     reason=failure_kind(exc),
                 )
     return RoundResult(planned=len(tasks), succeeded=succeeded, failed=frozenset(failed))
+
+
+async def restore_ohlc(factory: async_sessionmaker[AsyncSession]) -> dict[str, int]:
+    """시가·고가·저가가 빈 날을 **저장해 둔 원본 응답에서** 채운다(반복 2026-10-10b — research
+    R14-18).
+
+    다시 받지 않는다(원칙 V의 원본 분리 저장). 같은 날이 원본 여럿에 있으면 늦게 받은 원본이 이긴다.
+    멱등이다 —
+    채운 날이 없는 지표는 결과에 없다. 지표마다 커밋한다.
+    """
+    filled: dict[str, int] = {}
+    for indicator in market_indicators():
+        async with factory() as session:
+            values: dict[dt.date, Ohlc] = {}
+            for body in await market_daily.raw_bodies(session, indicator.id):
+                values.update(ohlc_from_raw(body))
+            count = await market_daily.fill_ohlc(session, indicator.id, values)
+            await session.commit()
+        if count:
+            filled[indicator.id] = count
+            _event("market_ohlc_restored", indicator=indicator.id, rows=count)
+    return filled
+

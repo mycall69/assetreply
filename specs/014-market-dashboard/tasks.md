@@ -582,17 +582,17 @@ description: "Task list for 014-market-dashboard"
 
 ### Foundational (반복 2026-10-10b) — 시가·고가·저가 저장
 
-- [ ] T097 [P] [US2] `backend/tests/integration/test_market_schema.py`·`test_market_repository.py` — 새 열 셋이 `DECIMAL(20,6)` NULL이고, 저장소가 시가·고가·저가를 새 날에만 넣고 있는 날은 덮지 않는다(종가 개정 규칙 불변) (FR-017, SC-014)
-- [ ] T098 [P] [US2] `backend/tests/integration/test_market_ohlc_restore.py` — 원본에서 되살리기 (FR-017, FR-019, SC-014)
+- [X] T097 [P] [US2] `backend/tests/integration/test_market_schema.py`·`test_market_repository.py` — 새 열 셋이 `DECIMAL(20,6)` NULL이고, 저장소가 시가·고가·저가를 새 날에만 넣고 있는 날은 덮지 않는다(종가 개정 규칙 불변) (FR-017, SC-014)
+- [X] T098 [P] [US2] `backend/tests/integration/test_market_ohlc_restore.py` — 원본에서 되살리기 (FR-017, FR-019, SC-014)
   - NULL인 날이 원본의 같은 날 값(소수 6자리)으로 채워진다. 두 번 돌려도 같다(멱등). 원본에 없는 날·0은 NULL이다
   - 같은 날이 원본 여럿에 있으면 가장 늦게 받은 원본이다. 종가·개정 표는 바뀌지 않는다
   - 가드(`test_no_interpolation`)에 걸리는 글자가 src에 없다
-- [ ] T099 [US2] `backend/src/db/migrations/versions/<rev>_대시보드_시가.py` + `backend/src/db/models.py` + `backend/src/repository/market_daily.py`(시가·고가·저가 저장·읽기) — 개발 DB `alembic upgrade head` (FR-017)
-- [ ] T100 [US2] 원본에서 되살리기 — `backend/src/repository/market_daily.py`(되살리기 함수) + `backend/src/worker/market_runner.py`(첫 바퀴 앞에 한 번, 멱등) + `backend/src/ingestion/yahoo/market_parse.py`(`parse_daily`가 OHLC를 낸다) (FR-017, FR-019)
+- [X] T099 [US2] `backend/src/db/migrations/versions/<rev>_대시보드_시가.py` + `backend/src/db/models.py` + `backend/src/repository/market_daily.py`(시가·고가·저가 저장·읽기) — 개발 DB `alembic upgrade head` (FR-017)
+- [X] T100 [US2] 원본에서 되살리기 — `backend/src/repository/market_daily.py`(되살리기 함수) + `backend/src/worker/market_runner.py`(첫 바퀴 앞에 한 번, 멱등) + `backend/src/ingestion/yahoo/market_parse.py`(`parse_daily`가 OHLC를 낸다) (FR-017, FR-019)
 
 ### Tests for 반복 2026-10-10b ⚠️
 
-- [ ] T101 [P] [US2] `backend/tests/contract/test_yahoo_market_client.py` — 일봉 청크의 시가·고가·저가(0·null → None, 소수 6자리, 엔 ×100 아님 — 지표는 환율이 아님) (FR-017, SC-014)
+- [X] T101 [P] [US2] `backend/tests/contract/test_yahoo_market_client.py` — 일봉 청크의 시가·고가·저가(0·null → None, 소수 6자리, 엔 ×100 아님 — 지표는 환율이 아님) (FR-017, SC-014)
 - [ ] T102 [P] [US2] `backend/tests/contract/test_yahoo_market_intraday.py` — `fetch_intraday(id, "1d"|"5d")`의 요청 질의·점(시각 UTC·값)·세션 밖 점·환율 심볼, 관문을 지남, 429 (FR-028)
 - [ ] T103 [P] [US2] `backend/tests/contract/test_news_commentary.py` — 출처마다 시황 목록 파싱(제목·요약 원문·게시 시각·허용 도메인), 목록 표지 없음 → `parse_empty` (FR-027, FR-022, SC-013)
 - [ ] T104 [P] [US2] `backend/tests/unit/test_indicator_table.py`·`test_indicator_range.py`·`test_indicator_commentary_select.py`·`test_indicator_intraday_cache.py` (FR-011~FR-014, FR-027~FR-029, SC-012)

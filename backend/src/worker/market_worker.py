@@ -25,7 +25,7 @@ from collections.abc import Callable
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.config.settings import Settings
-from src.worker.market_runner import MarketSource, run_round, utc_now
+from src.worker.market_runner import MarketSource, restore_ohlc, run_round, utc_now
 
 _log = logging.getLogger(__name__)
 
@@ -57,9 +57,19 @@ async def market_worker_loop(
     settings: Settings,
     clock: Callable[[], dt.datetime] = utc_now,
 ) -> None:
-    """앱 수명과 함께 산다. 취소되면 끝난다."""
+    """앱 수명과 함께 산다. 취소되면 끝난다.
+
+    첫 바퀴 앞에 시가·고가·저가가 빈 날을 저장해 둔 원본에서 한 번 되살린다(반복 2026-10-10b — 멱등,
+    다시 받지 않음).
+    """
     event = wake_event()
     skip: set[str] = set()
+    try:
+        await restore_ohlc(factory)
+    except asyncio.CancelledError:
+        raise
+    except Exception:  # pragma: no cover — 되살리기가 실패해도 수집은 돈다(다음 기동에 다시)
+        _log.exception("대시보드 지표 시가 되살리기 오류")
     while True:
         try:
             result = await run_round(factory, source, settings=settings, now=clock(), skip=skip)

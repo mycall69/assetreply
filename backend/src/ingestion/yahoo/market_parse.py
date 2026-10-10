@@ -34,6 +34,10 @@ class MarketBodyInvalid(StockSourceUnavailable):
     """응답 본문을 읽을 수 없다(구조가 바뀌었거나 값이 깨졌다) — 실패 종류 `invalid_body`."""
 
 
+#: 시가·고가·저가 — 출처가 주지 않거나 0이면 `None`(0으로 메우지 않는다 — 옛 일봉).
+Ohlc = tuple[Decimal | None, Decimal | None, Decimal | None]
+
+
 @dataclass(frozen=True, slots=True)
 class DailyChunk:
     """일봉 청크 하나의 정규화 결과."""
@@ -44,6 +48,9 @@ class DailyChunk:
     today_bar: tuple[dt.date, Decimal] | None = None
     #: 출처의 첫 거래일(발견). 응답에 없으면 `None`.
     first_trade_date: dt.date | None = None
+    #: 확정 종가와 같은 날들의 시가·고가·저가(반복 2026-10-10b). 출처가 주지 않거나 0이면 `None`.
+    #: 마지막 칸이다 — 앞 칸의 자리(위치 인자)를 바꾸지 않는다
+    ohlc: dict[dt.date, Ohlc] = field(default_factory=dict)
 
 
 def load(raw: str) -> object:
@@ -63,6 +70,15 @@ def _decimal(value: object) -> Decimal | None:
     if isinstance(value, int):
         return Decimal(value).quantize(_PLACES)
     return None
+
+
+def _price(values: object, index: int) -> Decimal | None:
+    """시가·고가·저가 한 칸. 목록이 없거나 짧거나 0이면 `None`이다. 음수는 그대로다(WTI 2020-04-20
+    저가)."""
+    if not isinstance(values, list) or index >= len(values):
+        return None
+    value = _decimal(values[index])
+    return None if value is None or value == 0 else value
 
 
 def _instant(value: object) -> dt.datetime | None:
@@ -171,8 +187,9 @@ def parse_daily(body: object, *, current_date: dt.date) -> DailyChunk:
         raise MarketBodyInvalid("시세 출처의 일봉이 유효하지 않습니다.")
     current = current_date
     by_day: dict[dt.date, Decimal] = {}
+    ohlc: dict[dt.date, Ohlc] = {}
     today_bar: tuple[dt.date, Decimal] | None = None
-    for stamp, raw_close in zip(timestamps, closes_raw, strict=True):
+    for index, (stamp, raw_close) in enumerate(zip(timestamps, closes_raw, strict=True)):
         instant = _instant(stamp)
         close = _decimal(raw_close)
         if instant is None or close is None:
@@ -183,8 +200,46 @@ def parse_daily(body: object, *, current_date: dt.date) -> DailyChunk:
                 today_bar = (day, close)
             continue
         by_day[day] = close
+        ohlc[day] = _ohlc_at(quote, index)
     return DailyChunk(
         closes=sorted(by_day.items()),
+        ohlc=ohlc,
         today_bar=today_bar,
         first_trade_date=None if first_trade is None else first_trade.astimezone(zone).date(),
     )
+
+
+def _ohlc_at(quote: dict[str, object], index: int) -> Ohlc:
+    return (
+        _price(quote.get("open"), index),
+        _price(quote.get("high"), index),
+        _price(quote.get("low"), index),
+    )
+
+
+def ohlc_from_raw(raw: str) -> dict[dt.date, Ohlc]:
+    """저장해 둔 원본 본문 → 날마다의 시가·고가·저가(종가가 있는 날만). 읽지 못하면 빈 결과다.
+
+    원본에서 되살리기(반복 2026-10-10b — research R14-18)가 쓴다. 오늘 봉도 들어 있을 수 있지만
+    되살리기는 저장된
+    확정 날만 채우므로 상관없다.
+    """
+    try:
+        result = _first(_mapping(_mapping(load(raw)).get("chart")).get("result"))
+        if not result:
+            return {}
+        zone = _zone(_mapping(result.get("meta")))
+        timestamps = result.get("timestamp")
+        quote = _first(_mapping(result.get("indicators")).get("quote"))
+        closes_raw = quote.get("close")
+    except MarketBodyInvalid:
+        return {}
+    if not isinstance(timestamps, list) or not isinstance(closes_raw, list):
+        return {}
+    out: dict[dt.date, Ohlc] = {}
+    for index, (stamp, raw_close) in enumerate(zip(timestamps, closes_raw, strict=False)):
+        instant = _instant(stamp)
+        if instant is None or _decimal(raw_close) is None:
+            continue
+        out[instant.astimezone(zone).date()] = _ohlc_at(quote, index)
+    return out

@@ -14,12 +14,12 @@ data-model 1.
 from __future__ import annotations
 
 import datetime as dt
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Final
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.dialect import upsert
@@ -38,6 +38,19 @@ _BATCH: Final = 1000
 _MESSAGE_MAX: Final = 500
 
 Close = tuple[dt.date, Decimal]
+#: 시가·고가·저가(반복 2026-10-10b). 없으면 `None`.
+Ohlc = tuple[Decimal | None, Decimal | None, Decimal | None]
+
+
+@dataclass(frozen=True, slots=True)
+class Bar:
+    """저장된 일봉 하나 — 일자별 표(spec FR-029)가 읽는다."""
+
+    date: dt.date
+    open: Decimal | None
+    high: Decimal | None
+    low: Decimal | None
+    close: Decimal
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,9 +69,19 @@ class StoreResult:
 
 
 async def store_closes(
-    session: AsyncSession, indicator_id: str, closes: Sequence[Close], *, detected_at: dt.datetime
+    session: AsyncSession,
+    indicator_id: str,
+    closes: Sequence[Close],
+    *,
+    detected_at: dt.datetime,
+    ohlc: Mapping[dt.date, Ohlc] | None = None,
 ) -> StoreResult:
-    """없는 날만 넣고, 있는 날의 값이 다르면 개정을 남긴다. 같은 개정은 한 번만 넣는다."""
+    """없는 날만 넣고, 있는 날의 값이 다르면 개정을 남긴다. 같은 개정은 한 번만 넣는다.
+
+    `ohlc`가 있으면 새 날에 시가·고가·저가를 함께 넣는다. 있는 날은 덮지 않는다 — 개정 기록은
+    종가만이다(반복
+    2026-10-10b, spec FR-017).
+    """
     if not closes:
         return StoreResult(0)
     days = [day for day, _ in closes]
@@ -92,9 +115,16 @@ async def store_closes(
     for day, value in closes:
         stored = existing.get(day)
         if stored is None:
+            open_price, high_price, low_price = (ohlc or {}).get(day, (None, None, None))
             fresh.append(
                 MarketIndicatorDaily(
-                    indicator_id=indicator_id, trade_date=day, close=value, source=SOURCE
+                    indicator_id=indicator_id,
+                    trade_date=day,
+                    close=value,
+                    open_price=open_price,
+                    high_price=high_price,
+                    low_price=low_price,
+                    source=SOURCE,
                 )
             )
             existing[day] = value
@@ -222,6 +252,68 @@ async def closes(
         stmt = stmt.where(MarketIndicatorDaily.trade_date <= end)
     rows = (await session.execute(stmt.order_by(MarketIndicatorDaily.trade_date))).all()
     return [(row[0], row[1]) for row in rows]
+
+
+async def bars(
+    session: AsyncSession,
+    indicator_id: str,
+    start: dt.date | None = None,
+    end: dt.date | None = None,
+) -> list[Bar]:
+    """(구간의) 일봉을 날짜 오름차순으로 — 시가·고가·저가가 없으면 `None`이다."""
+    stmt = select(MarketIndicatorDaily).where(MarketIndicatorDaily.indicator_id == indicator_id)
+    if start is not None:
+        stmt = stmt.where(MarketIndicatorDaily.trade_date >= start)
+    if end is not None:
+        stmt = stmt.where(MarketIndicatorDaily.trade_date <= end)
+    rows = (await session.execute(stmt.order_by(MarketIndicatorDaily.trade_date))).scalars()
+    return [Bar(r.trade_date, r.open_price, r.high_price, r.low_price, r.close) for r in rows]
+
+
+async def fill_ohlc(
+    session: AsyncSession, indicator_id: str, values: Mapping[dt.date, Ohlc]
+) -> int:
+    """시가·고가·저가가 **모두 빈** 날만 `values`로 채운다. 채운 날 수. 다시 불러도 같다(멱등).
+
+    원본에서 되살리기(research R14-18)가 쓴다. 이미 값이 있는 날은 덮지 않는다.
+    """
+    empty = (
+        await session.execute(
+            select(MarketIndicatorDaily.trade_date).where(
+                MarketIndicatorDaily.indicator_id == indicator_id,
+                MarketIndicatorDaily.open_price.is_(None),
+                MarketIndicatorDaily.high_price.is_(None),
+                MarketIndicatorDaily.low_price.is_(None),
+            )
+        )
+    ).scalars()
+    changes = []
+    for day in empty:
+        found = values.get(day)
+        if found is None or all(v is None for v in found):
+            continue
+        changes.append(
+            {
+                "indicator_id": indicator_id,
+                "trade_date": day,
+                "open_price": found[0],
+                "high_price": found[1],
+                "low_price": found[2],
+            }
+        )
+    for start in range(0, len(changes), _BATCH):
+        await session.execute(update(MarketIndicatorDaily), changes[start : start + _BATCH])
+    return len(changes)
+
+
+async def raw_bodies(session: AsyncSession, indicator_id: str) -> list[str]:
+    """그 지표의 원본 본문을 받은 차례로(먼저 받은 것부터) — 같은 날은 뒤의 것이 이긴다."""
+    rows = await session.execute(
+        select(MarketIndicatorRaw.body)
+        .where(MarketIndicatorRaw.indicator_id == indicator_id)
+        .order_by(MarketIndicatorRaw.received_at, MarketIndicatorRaw.id)
+    )
+    return list(rows.scalars())
 
 
 async def previous_close(session: AsyncSession, indicator_id: str, before: dt.date) -> Close | None:

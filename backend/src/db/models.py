@@ -1198,6 +1198,10 @@ class MarketIndicatorDaily(Base):
     trade_date: Mapped[dt.date] = mapped_column(Date, primary_key=True)
     #: 종가. 음수가 될 수 있다(WTI 2020-04-20 −37.63).
     close: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
+    #: 시가·고가·저가(반복 2026-10-10b). 출처가 주지 않거나 0이면 비운다 — 새 날만 넣고 덮지 않는다
+    open_price: Mapped[Decimal | None] = mapped_column(PRICE, nullable=True)
+    high_price: Mapped[Decimal | None] = mapped_column(PRICE, nullable=True)
+    low_price: Mapped[Decimal | None] = mapped_column(PRICE, nullable=True)
     source: Mapped[str] = mapped_column(String(64), nullable=False)
     ingested_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False, server_default=func.now())
 
