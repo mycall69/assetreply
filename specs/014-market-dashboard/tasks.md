@@ -550,12 +550,107 @@ description: "Task list for 014-market-dashboard"
 
 ---
 
+## Phase 8: 반복 2026-10-10b — 지표 모달·기간 8개·변화 까닭·일자별 표 (spec Iterations)
+
+**Goal**:
+- 지표 화면을 대시보드 위의 **주소 있는 모달**(`/dashboard/{id}?range=`)로 바꾼다
+- 차트를 **보는 기간 8개**로 바꾼다. 일·주는 장중(저장 안 함), 월 이상은 저장된 일봉 전부다
+- 모달 머리에 **변화 까닭**(시황 기사 1~3개 — 출처 글자 그대로, 새 탭)을 둔다
+- 차트 아래 **일자별 표**(시가·고가·저가·종가·대비·등락률 — 일·주·월)를 둔다
+- 일봉에 시가·고가·저가를 더하고 원본에서 되살린다
+
+**Independent Test**(spec US2 Independent Test):
+- KOSPI 카드 → 대시보드 위 모달, 주소 `/dashboard/kospi?range=1y`
+- "모두"는 1996년부터 일봉 전부다
+- 표의 첫 줄 시가·고가·저가·종가가 같은 날 원본과 같다
+- 까닭 기사가 새 탭으로 열린다
+- Esc·바깥·뒤로·닫기로 닫히고 포커스가 카드로 돌아온다
+
+**완료 작업 영향**:
+- T047~T050·T053·T056~T062·T082·T083의 산출물을 다시 손댄다
+- 014가 만든 테스트가 바뀌는 목록은 T111에서 승인받는다
+- 014 전의 기존 테스트는 바뀌지 않아야 한다(FR-026)
+
+### Preparation (반복 2026-10-10b)
+
+- [ ] T095 [US2] 출처 실측과 원칙 II 재승인 — `research.md` R14-17·R14-19, `plan.md` Complexity Tracking, `backend/tests/contract/fixtures/market/`·`fixtures/news/commentary/` + README (FR-027, FR-028)
+  - 15개 지표마다 시황 기사 목록(네이버 증권 시황 분류·Yahoo Finance `/quote/{심볼}/news/`·Yahoo!ファイナンス 市況)과 장중 질의(`interval=5m&range=1d`·`interval=30m&range=5d`)를 실측한다.
+    적을 것: 요청 머리, 목록 표지, 허용 도메인, robots.txt·약관, 점 수·지연, 세션 밖 점
+  - Complexity Tracking의 새 줄 둘을 채우고 **사용자 재승인**을 받는다. 승인이 안 되면 그 갈래(T102·T103·T112·T113·T116·T118의 해당 부분)를 빼고 나머지로 간다
+  - 픽스처는 본문만이다(주소·머리·토큰 없음). 원본 254개의 `open`·`high`·`low` 칸 실측(옛 구간 0·null 비율)도 R14-18에 적는다
+- [ ] T096 [P] [US2] 모달 경로 확인 — `node_modules/next/dist/docs/`의 가로채기(`(.)`)·병렬(`@modal`) 경로와 `default.tsx`, 사이드바·제목 판정 불변. `research.md` R14-20 (FR-010)
+
+### Foundational (반복 2026-10-10b) — 시가·고가·저가 저장
+
+- [ ] T097 [P] [US2] `backend/tests/integration/test_market_schema.py`·`test_market_repository.py` — 새 열 셋이 `DECIMAL(20,6)` NULL이고, 저장소가 시가·고가·저가를 새 날에만 넣고 있는 날은 덮지 않는다(종가 개정 규칙 불변) (FR-017, SC-014)
+- [ ] T098 [P] [US2] `backend/tests/integration/test_market_ohlc_restore.py` — 원본에서 되살리기 (FR-017, FR-019, SC-014)
+  - NULL인 날이 원본의 같은 날 값(소수 6자리)으로 채워진다. 두 번 돌려도 같다(멱등). 원본에 없는 날·0은 NULL이다
+  - 같은 날이 원본 여럿에 있으면 가장 늦게 받은 원본이다. 종가·개정 표는 바뀌지 않는다
+  - 가드(`test_no_interpolation`)에 걸리는 글자가 src에 없다
+- [ ] T099 [US2] `backend/src/db/migrations/versions/<rev>_대시보드_시가.py` + `backend/src/db/models.py` + `backend/src/repository/market_daily.py`(시가·고가·저가 저장·읽기) — 개발 DB `alembic upgrade head` (FR-017)
+- [ ] T100 [US2] 원본에서 되살리기 — `backend/src/repository/market_daily.py`(되살리기 함수) + `backend/src/worker/market_runner.py`(첫 바퀴 앞에 한 번, 멱등) + `backend/src/ingestion/yahoo/market_parse.py`(`parse_daily`가 OHLC를 낸다) (FR-017, FR-019)
+
+### Tests for 반복 2026-10-10b ⚠️
+
+- [ ] T101 [P] [US2] `backend/tests/contract/test_yahoo_market_client.py` — 일봉 청크의 시가·고가·저가(0·null → None, 소수 6자리, 엔 ×100 아님 — 지표는 환율이 아님) (FR-017, SC-014)
+- [ ] T102 [P] [US2] `backend/tests/contract/test_yahoo_market_intraday.py` — `fetch_intraday(id, "1d"|"5d")`의 요청 질의·점(시각 UTC·값)·세션 밖 점·환율 심볼, 관문을 지남, 429 (FR-028)
+- [ ] T103 [P] [US2] `backend/tests/contract/test_news_commentary.py` — 출처마다 시황 목록 파싱(제목·요약 원문·게시 시각·허용 도메인), 목록 표지 없음 → `parse_empty` (FR-027, FR-022, SC-013)
+- [ ] T104 [P] [US2] `backend/tests/unit/test_indicator_table.py`·`test_indicator_range.py`·`test_indicator_commentary_select.py`·`test_indicator_intraday_cache.py` (FR-011~FR-014, FR-027~FR-029, SC-012)
+  - 표: 주·월 OHLC 묶기 — 시가 = 첫 거래일, 고가·저가 = 최대·최소, 종가 = 대표일, 대비 = 앞 기간, 📅·⏳, 빈 기간 없음, null 칸
+  - 기간: 일봉 자르기(1m·1y·5y·10y·20y·all — 현지 오늘 기준)
+  - 까닭: 마지막 세션 이후·위에서부터 3개·없으면 `none`
+  - 장중 캐시: 60초·300초
+- [ ] T105 [P] [US2] `backend/tests/integration/test_dashboard_series_api.py`(`range`)·`test_dashboard_table_api.py`(A7)·`test_dashboard_commentary_api.py`(A8) (FR-011, FR-012, FR-016, FR-018, FR-027~FR-029)
+  - A2: 기간 8개, `unit` 무시, 장중은 202 없음
+  - A7: 쪽 넘기기·`period` 400·202 같은 판정·결측 행·오늘 잠정 행·환율 행(OHLC null)
+  - A8: 성공·`none`·실패 200·틀린 id 404
+- [ ] T106 [P] [US2] `frontend/tests/IndicatorModal.test.tsx` — 모달 (FR-010)
+  - 카드 누름 → 모달 + 주소. Esc·바깥·닫기·뒤로 → 닫힘 + 포커스 카드(`data-indicator`)
+  - 없는 지표 안내. 모달 동안 카드 갱신 계속. `next/navigation`·`IndicatorChart` 모의
+- [ ] T107 [P] [US2] `frontend/tests/RangePicker.test.tsx`·`frontend/tests/IndicatorChart.test.tsx` — 기간 단추 8개(`aria-pressed`, 주소 `range`), 장중 점의 잠정 선·커서 시각, 일봉 기간은 `fitContent`(처음 범위 없음) (FR-011, FR-012, FR-028, SC-002)
+- [ ] T108 [P] [US2] `frontend/tests/IndicatorTable.test.tsx`·`frontend/tests/indicatorTableStore.test.ts` (FR-013, FR-014, FR-016, FR-029, SC-012)
+  - 표: 일·주·월 단추, 칸 일곱, 📅·⏳·잠정, 결측 구간 행, null → "—", 환율 머리 "고시 — 하루 한 값"
+  - 스토어: 더 받기(`before`), 늦은 응답 `seq`
+- [ ] T109 [P] [US2] `frontend/tests/IndicatorCommentary.test.tsx` — 줄(제목·요약·출처·시각), 링크 `target="_blank"`·`rel="noopener noreferrer"`, `none` → "변화를 다룬 기사를 찾지 못했습니다", 실패·다시 시도 (FR-027, FR-022, SC-013)
+- [ ] T110 [P] [US2] `frontend/tests/Sidebar.test.tsx`·`frontend/tests/TopBarTitle.test.ts`·`frontend/tests/noUnbuiltAssetRoutes.test.ts`가 **고치지 않고** 통과하는지 확인 — 모달 경로에서 사이드바 "대시보드"·제목 "대시보드" (FR-010)
+- [ ] T111 [US2] 014가 만든 테스트의 변경 승인 — 구현을 작업 트리에 둔 뒤 실제 실패 목록을 만들어 승인받는다(T018과 같은 절차). 예상: `IndicatorPage.test.tsx`(→ 모달)·`IndicatorChart.test.tsx`(처음 범위·단위)·`indicatorSeriesStore.test.ts`(`setUnit` → `setRange`)·`test_indicator_periods.py`(년)·`test_dashboard_series_api.py`(`unit` → `range`). 구현을 치워 실패를 확인한 뒤 `test(014)` (FR-010~FR-013)
+
+### Implementation for 반복 2026-10-10b
+
+- [ ] T112 [US2] `backend/src/ingestion/yahoo/market.py`·`market_parse.py` — `fetch_intraday`(관문·재시도·429), 일봉 OHLC (FR-017, FR-028)
+- [ ] T113 [P] [US2] `backend/src/ingestion/news/commentary.py`(+ 출처별 파서 — 기존 Yahoo 스트림 카드 파서 재사용) — 시황 기사 요청·파싱, 허용 도메인 (FR-027)
+- [ ] T114 [P] [US2] `backend/src/simulation/indicator_table.py`(순수 — 표 행, `period_table` 기준일·쪽) + `backend/src/simulation/indicator_periods.py`(년 지움 — D7) (FR-013, FR-014, FR-029)
+- [ ] T115 [US2] `backend/src/api/services/indicator_series.py` + `backend/src/api/routes/dashboard_series.py` — `range`(일봉 자르기·장중 갈래), `unit` 무시 (FR-011, FR-012, FR-014, FR-018)
+- [ ] T116 [P] [US2] `backend/src/api/services/indicator_intraday.py` — 장중 캐시(일 60초·주 300초)·단일 비행, 환율은 시장 환율 (FR-028)
+- [ ] T117 [US2] `backend/src/api/services/indicator_table.py` + `backend/src/api/routes/dashboard_table.py` — A7(쪽·`period`·202 같은 판정·오늘 잠정 행·환율 행) (FR-013, FR-016, FR-018, FR-029)
+- [ ] T118 [US2] `backend/src/api/services/indicator_commentary.py` + `backend/src/api/routes/dashboard_commentary.py` + `backend/src/api/main.py`(라우터 둘·까닭 캐시) + `backend/src/config/settings.py`(data-model §8 새 설정) — A8 (FR-027)
+- [ ] T119 [P] [US2] `frontend/src/lib/types.ts`·`frontend/src/lib/dashboardApi.ts` — `range`·표·까닭 (FR-011, FR-027, FR-029)
+- [ ] T120 [US2] `frontend/src/stores/indicatorSeriesStore.ts`(`range`)·`indicatorTableStore.ts`·`indicatorCommentaryStore.ts` — data-model §7 (FR-011, FR-016, FR-027, FR-029)
+- [ ] T121 [US2] `frontend/src/components/dashboard/IndicatorModal.tsx`·`RangePicker.tsx`·`IndicatorTable.tsx`·`IndicatorCommentary.tsx` + `IndicatorChart.tsx`(기간·장중)·`IndicatorView.tsx`·`IndicatorHeader.tsx`, `UnitPicker.tsx` 지움 — contracts D3·D4·D7·D8 (FR-010~FR-012, FR-027~FR-029, FR-025)
+- [ ] T122 [US2] `frontend/src/app/dashboard/layout.tsx`·`@modal/default.tsx`·`@modal/(.)[indicator]/page.tsx`·`[indicator]/page.tsx` — 모달 슬롯(R14-20), 새로고침·직접 입력은 대시보드 + 모달 (FR-010)
+
+### Polish (반복 2026-10-10b)
+
+- [ ] T123 [US2] 실측 — quickstart 5-10~5-15를 확인하고 `quickstart.md` 8에 기록한다 (FR-010, FR-011, FR-017, FR-018, FR-027~FR-029, SC-013, SC-014)
+- [ ] T124 성능 — SC-002(모달 그래프·기간 전환 — S&P "모두")·SC-012(표 첫 쪽·단위 전환) (SC-002, SC-012)
+- [ ] T125 불변 대조 — `014-baseline/fetch.py`로 메뉴·비교·외환 응답을 다시 받아 견준다 (FR-026, SC-010)
+- [ ] T126 문서 — `CLAUDE.md`(현재 상태 014 줄·원칙 II 이탈 수·주의 문단 — 모달 경로·장중·까닭·되살리기), `README.md`(화면 설명·출처), `.env.example`(새 설정), `spec.md` Status (FR-025)
+- [ ] T127 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111)뿐인지 `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
 
 - **Setup (Phase 1)**: 바로 시작한다. **T001·T002는 다른 모든 코드 변경보다 먼저다.**
 - **반복 2026-10-10 (Phase 7)**: Phase 6 뒤. T087(문서) → 테스트 T088~T090(함께 — 최초 실패 확인 뒤 `test(014)`) → 구현 T091~T093 → T094
+- **반복 2026-10-10b (Phase 8)**: Phase 7 뒤
+  1. T095(출처 실측·**원칙 II 재승인**) → T096
+  2. 시가 기반 — 테스트 T097·T098 → 구현 T099·T100
+  3. 테스트 T101~T110(함께 — 최초 실패 확인) → 구현 T112~T122 → T111(014 테스트 변경 승인 — 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
+  4. T123~T127
+  - 승인이 안 된 갈래는 빠진다(T095)
 - **Foundational (Phase 2)**: T002·T004 뒤. US1·US2를 막는다. US3는 T011(설정) 뒤면 시작할 수 있다.
 - **US1 (Phase 3)**: Foundational 뒤. **T018(승인)이 이 페이즈의 테스트 커밋을 막는다** — T031~T040 구현을 작업 트리에 둔 뒤 목록을 만든다. 백엔드(T019~T023·T031~T035)와 화면(T024~T030·T036~T040)은 나란히 할 수 있다. MVP다.
 - **US2 (Phase 4)**: US1 뒤(시세 서비스의 캐시가 잠정 꼬리·머리 값을 준다. `main.py`·`types.ts`·`dashboardApi.ts`가 겹친다). 승인 목록이 없을 것으로 본다 — 구현 뒤 목록 밖의 실패는 결함으로 보고 멈춘다.
@@ -576,7 +671,7 @@ description: "Task list for 014-market-dashboard"
 
 | 파일 | 태스크 |
 |------|--------|
-| `backend/src/api/main.py` | T017(Foundational), T035(US1), T055·T057(US2), T077(US3) |
+| `backend/src/api/main.py` | T017(Foundational), T035(US1), T055·T057(US2), T077(US3), T118(반복 2026-10-10b) |
 | `backend/src/ingestion/yahoo/market.py`·`market_parse.py` | T033(US1), T051(US2) |
 | `backend/src/ingestion/yahoo/client.py` | T014 |
 | `backend/src/config/settings.py`·`.env.example` | T011 |
@@ -622,6 +717,8 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 2. US2 — 이력 수집·지표 화면
 3. US3 — 뉴스
 4. Polish — 성능·화면 폭·불변 대조·문서·게이트
+5. 반복 2026-10-10 — 출처·실패 요구 보강(Phase 7, 완료)
+6. 반복 2026-10-10b — 지표 모달·기간 8개·변화 까닭·일자별 표(Phase 8). 원칙 II 재승인(T095)이 안 되면 까닭·장중을 빼고 모달·일봉 기간 6개·표만 낸다
 
 ---
 
@@ -673,25 +770,28 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-007 | T019, T020, T026, T031, T032, T039 |
 | FR-008 | T007, T011, T022, T025, T027, T028, T034, T038, T039, T061 |
 | FR-009 | T005, T021, T022, T023, T026, T027, T028, T033, T034, T035, T038, T039, T087, T089, T092 |
-| FR-010 | T047, T048, T050, T057, T058, T059, T060, T061, T062 |
-| FR-011 | T044, T048, T049, T050, T053, T059, T060, T061 |
-| FR-012 | T044, T047, T049, T053, T056, T060, T082 |
-| FR-013 | T044, T049, T053, T060 |
-| FR-014 | T043, T047, T049, T052, T056, T060 |
+| FR-010 | T047, T048, T050, T057, T058, T059, T060, T061, T062, T096, T106, T110, T111, T122, T123 |
+| FR-011 | T044, T048, T049, T050, T053, T059, T060, T061, T104, T105, T107, T115, T119, T120, T121, T123, T124 |
+| FR-012 | T044, T047, T049, T053, T056, T060, T082, T104, T105, T107, T115, T121, T124 |
+| FR-013 | T044, T049, T053, T060, T104, T108, T111, T114, T117 |
+| FR-014 | T043, T047, T049, T052, T056, T060, T104, T105, T108, T114, T115 |
 | FR-015 | T006, T012, T026, T039, T050, T060 |
-| FR-016 | T046, T047, T048, T050, T056, T057, T058, T059, T060, T062, T087, T088, T090, T091, T093 |
-| FR-017 | T005, T009, T010, T015, T016, T042, T045, T046, T051, T054, T062 |
-| FR-018 | T006, T012, T013, T021, T023, T026, T033, T039, T047, T050, T056, T060, T062, T087, T088, T090, T091, T093 |
-| FR-019 | T007, T008, T010, T011, T014, T015, T016, T017, T042, T045, T046, T047, T050, T051, T054, T055, T056, T057, T087 |
+| FR-016 | T046, T047, T048, T050, T056, T057, T058, T059, T060, T062, T087, T088, T090, T091, T093, T105, T106, T108, T117, T120 |
+| FR-017 | T005, T009, T010, T015, T016, T042, T045, T046, T051, T054, T062, T097, T098, T099, T100, T101, T112, T123 |
+| FR-018 | T006, T012, T013, T021, T023, T026, T033, T039, T047, T050, T056, T060, T062, T087, T088, T090, T091, T093, T105, T115, T117, T123 |
+| FR-019 | T007, T008, T010, T011, T014, T015, T016, T017, T042, T045, T046, T047, T050, T051, T054, T055, T056, T057, T087, T098, T100 |
 | FR-020 | T063, T064, T065, T066, T068, T070, T072, T073, T074, T075, T077, T079, T081, T083, T087 |
 | FR-021 | T064, T065, T066, T070, T073, T074, T075, T079, T087 |
-| FR-022 | T064, T065, T066, T070, T073, T074, T075, T079, T081, T087 |
+| FR-022 | T064, T065, T066, T070, T073, T074, T075, T079, T081, T087, T103, T109 |
 | FR-023 | T007, T011, T067, T068, T076, T087, T089, T092 |
 | FR-024 | T064, T065, T066, T067, T068, T069, T070, T071, T072, T076, T077, T078, T079, T081, T087 |
-| FR-025 | T070, T079, T085 |
-| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086 |
+| FR-025 | T070, T079, T085, T121, T126 |
+| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125 |
+| FR-027 | T095, T103, T104, T105, T109, T113, T118, T119, T120, T121, T123 |
+| FR-028 | T095, T102, T104, T105, T107, T112, T116, T121, T123 |
+| FR-029 | T104, T105, T108, T114, T117, T119, T120, T121, T123, T124 |
 | SC-001 | T071, T082, T087 |
-| SC-002 | T047, T056, T082 |
+| SC-002 | T047, T056, T082, T107, T124 |
 | SC-003 | T010, T020, T023, T032, T041 |
 | SC-004 | T047, T056, T062 |
 | SC-005 | T043, T044, T052, T053 |
@@ -699,5 +799,8 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-007 | T022, T034, T064, T065, T066, T068, T071, T081, T087, T094 |
 | SC-008 | T064, T065, T066, T068, T070, T081, T089, T092 |
 | SC-009 | T019, T026, T031 |
-| SC-010 | T001, T002, T084, T086, T094 |
+| SC-010 | T001, T002, T084, T086, T094, T125, T127 |
 | SC-011 | T062, T087 |
+| SC-012 | T104, T108, T124 |
+| SC-013 | T103, T109, T123 |
+| SC-014 | T097, T098, T101, T123 |

@@ -15,6 +15,8 @@
 | `parse_empty` | 기사를 하나도 읽지 못했다 — 목록 표지가 없거나 0건(출처 화면이 바뀐 신호). 1~9건은 실패가 아니다 | A5 |
 | `fx_collection` | 그 통화의 마지막 외환 수집(001)이 실패했다 — 문구는 외환 수집 기록의 것이다(FR-018) | A2/A4(환율만) |
 
+반복 2026-10-10b: A2 장중(`1d`·`5d`)·A7·A8의 실패도 위 이름을 쓴다(A8의 목록 표지 없음은 `parse_empty`).
+
 ## A1. `GET /api/dashboard/quotes` — 지표 15개의 현재 시세
 
 같은 순간의 요청은 서버 캐시(R14-6)를 함께 쓴다. 출처가 실패해도 **200**이다 — 실패는 지표마다 `status: "failed"`로 싣는다(FR-009).
@@ -68,9 +70,15 @@
 - `status: "failed"`이고 `quote: null`: 받은 값이 한 번도 없다. `failure`는 `{ "kind": "connection"|"rate_limited"|"blocked"|"invalid_body"|"not_found", "message": "..." }`다
 - 차례는 `order`다(FR-003). 응답은 늘 15개다
 
-## A2. `GET /api/dashboard/indicators/{id}/series?unit=daily|weekly|monthly|yearly`
+## A2. `GET /api/dashboard/indicators/{id}/series?range=1d|5d|1m|1y|5y|10y|20y|all`
 
-- `unit`이 없거나 틀리면 `daily`다(화면 규칙과 같다 — 400을 내지 않는다)
+- **반복 2026-10-10b**: 질의는 보는 기간 `range`다(기본·틀리면 `1y` — 400을 내지 않는다). 옛 질의 `unit`은 무시한다(spec FR-010·D8)
+  - 일봉 기간(`1m`·`1y`·`5y`·`10y`·`20y`·`all`)은 그 기간의 **일봉 전부**다 — 아래 200·202 꼴 그대로이고 점은 묶지 않는다(`shifted`·`ongoing`은 오지 않는다)
+  - 장중 기간(`1d`·`5d`)은 장중 시세다(저장 안 함 — 202가 없다, 수집과 무관):
+    `{ "indicator", "range", "intraday": true, "fetchedAt", "session": {"from", "to"}, "points": [{ "time": "2026-10-09T13:35:00Z", "value": "7801.250000", "provisional": true }], "notes" }`
+    — 실패면 200 + `status: "failed"`, `points: []`, `failure{reason, message, retryAfterSeconds}`(A0)
+  - 환율의 장중은 시장 환율이고 `notes`에 `market_fx`가 있다(일봉 기간은 지금처럼 ECOS)
+- (반복 2026-10-10b 전) `unit`이 없거나 틀리면 `daily`였다 — 위로 대체
 - 없는 `id`면 **404** `{"status": "unknown_indicator", "message": "..."}`다
 
 ### 200 — 백필 완성
@@ -169,6 +177,55 @@
   - `parse_empty`는 기사를 하나도 읽지 못했다는 뜻이다 — 화면은 "읽지 못함 — 출처 화면이 바뀌었을 수 있음"이다(0건을 "뉴스 없음"으로 보이지 않는다)
 - `items`는 1~10개다. 10개보다 적으면 있는 만큼이다
 - 강제로 다시 받는 질의는 없다 — 성공 캐시(기본 10분) 안의 재요청은 늘 캐시다(US3 시나리오 6). 화면의 "다시 시도"는 실패 칸에만 있고 같은 경로를 다시 부른다
+
+## A7. `GET /api/dashboard/indicators/{id}/table?period=daily|weekly|monthly&before=&limit=` — 일자별 표 (반복 2026-10-10b)
+
+주식 일자별 표(012)와 같은 쪽 넘기기다. 틀린 `period`는 **400** `invalid_query`, 없는 `id`는 404다. 과거 구간이 다 받아지지 않았으면 A2와 같은 202다.
+
+```json
+{
+  "indicator": { "id": "sp500", "name": "S&P 500", "unit": "포인트" },
+  "period": "weekly",
+  "rows": [
+    { "date": "2026-10-09", "open": "7790.120000", "high": "7812.500000", "low": "7701.330000", "close": "7801.250000",
+      "change": "35.890000", "changeRate": "0.004622", "shifted": false, "ongoing": true, "provisional": true },
+    { "from": "2001-09-11", "to": "2001-09-14", "reason": "missing" }
+  ],
+  "hasMore": true,
+  "oldestReturned": "2026-04-17",
+  "seriesNote": null
+}
+```
+
+- 행 꼴은 data-model §5a다. 값은 문자열 Decimal, 없으면 `null`(화면 "—")
+- 결측 구간 행(`reason: "missing"`)은 `period=daily`에만 온다
+- 환율: 외환 고시 이력, `open`·`high`·`low`는 늘 `null`, `seriesNote: "fx_fixing"`(화면 "고시 — 하루 한 값")
+- `limit` 기본 30·최대 200, `before`는 그 날짜 미만. 하루가 두 쪽에 갈리지 않는다
+
+## A8. `GET /api/dashboard/indicators/{id}/commentary` — 변화 까닭 (반복 2026-10-10b)
+
+출처가 실패해도 **200**이다. 없는 `id`는 404다. 저장하지 않는다(메모리 10분).
+
+```json
+{
+  "indicator": "kospi",
+  "source": "네이버 증권",
+  "sourceUrl": "https://stock.naver.com/news",
+  "status": "ok",
+  "fetchedAt": "2026-10-10T06:40:00Z",
+  "sessionDate": "2026-10-08",
+  "items": [
+    { "title": "코스피, 외국인 매도에 2% 넘게 하락…6,600선 내줘", "summary": "…(출처 요약 원문)…", "publisher": "한국경제",
+      "publishedAt": "2026-10-08T06:45:00Z", "publishedDate": null, "publishedText": null,
+      "url": "https://n.news.naver.com/article/015/0005340000" }
+  ],
+  "failure": null
+}
+```
+
+- `status`: `ok`(1~3개) · `none`(마지막 세션 이후의 기사가 없다 — 화면 "변화를 다룬 기사를 찾지 못했습니다", `items: []`) · `failed`(`failure` — A0, 목록 표지 없음은 `parse_empty`)
+- `items`의 글자는 출처의 것 그대로다. 링크는 허용 도메인·https만이다(spec FR-022·FR-027)
+- 출처 목록·주소는 research R14-17(T095 실측)이다
 
 ## A6. 불변
 

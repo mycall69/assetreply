@@ -232,6 +232,8 @@
 
 ## R14-12 그래프의 단위와 점
 
+> **반복 2026-10-10b**: 단위(점 묶기)는 차트에서 없어지고 보는 기간 8개(일·주 장중, 그 밖 일봉 전부)로 대체됐다(spec FR-011·FR-012, data-model §5). 점 한도·LTTB(아래)는 그대로이고 주·월 대표일 규칙은 일자별 표로 옮겼다(R14-21).
+
 **Decision**:
 - **묶기**: 순수 모듈 `simulation/indicator_periods.py`가 일·주·월·년을 만든다
   - 주·월은 012 `period_table.period_bounds`(월~일 주, 달력 월)를 그대로 부르고 같은 대표일 규칙(주 = 금요일 이하 마지막 거래일, 월 = 말일 이하 마지막 거래일)을 쓴다
@@ -346,3 +348,67 @@
 
 - 백엔드: `lifespan` 태스크 수를 세는 테스트가 있으면 바뀐다(구현 때 확인)
 - `YahooStockClient` 기존 계약 테스트는 `gate` 기본값 `None`이라 바뀌지 않아야 한다 — 바뀌면 멈추고 보고한다
+
+## R14-17 변화 까닭의 시황 출처 (반복 2026-10-10b — **T095에서 실측해 채운다**)
+
+**Decision**(정의 — 출처 주소·표지·약관은 실측 뒤 확정):
+- 지표마다 시황·종목 뉴스 목록 하나를 정한다. 후보:
+
+  | 지표 | 후보 목록 | 확인할 것 |
+  |------|-----------|-----------|
+  | KOSPI·KOSDAQ | 네이버 증권 내부 API(`/api/domestic/news/list`)의 시황 분류 `category` | 분류 이름·한 쪽 수·`datetime`(KST)·지표 이름으로 거를 필요 |
+  | 다우·나스닥·S&P 500·SOX·항셍·상해·WTI·금·VIX | Yahoo Finance 종목 뉴스 화면 `/quote/{심볼}/news/` | Latest News와 같은 스트림 카드 구조(`data-testid=stream-card`)인지, 상대 시각뿐인지, robots.txt의 `/quote/` |
+  | 니케이 225 | Yahoo!ファイナンス 市況(`/news/category/market` 꼴) 또는 `/quote/998407.O/news` | 상태 JSON(`__PRELOADED_STATE__`)의 목록 이름·시각 꼴 |
+  | 달러·엔·유로 | Yahoo Finance `/quote/KRW=X/news/` 등 | 기사 수(환율은 적을 수 있음) — 적으면 "찾지 못함"이 잦다 |
+
+- **고르는 규칙**: 그 지표의 마지막 세션 날짜(현지) 이후 게시된 기사만, 출처 목록 차례로 위에서부터 최대 3개. 게시 시각이 상대 표기뿐이면 받은 시각 기준으로 그 날짜를 정할 수 있을 때만 쓴다(정할 수 없으면 맨 위 기사 하나 — 그 사실을 화면에 밝힌다)
+- **문구**: 제목·요약은 출처 글자 그대로다. 번역·요약·생성하지 않는다(spec FR-027)
+- **캐시·실패**: 지표마다 메모리 10분, 실패 백오프는 뉴스와 같다(R14-13). 0건 읽기(표지 없음)는 `parse_empty`, 규칙상 없음은 `none`
+- **약관**: robots.txt·약관을 출처마다 실측해 plan Complexity Tracking의 새 줄에 적고 사용자 재승인을 받는다
+
+**Alternatives considered**(사용자에게 제시함 — 2026-10-10): 받아 둔 뉴스 세 칸에서 지표 이름으로 고르기(새 출처 없음, 맞는 기사가 드묾) · AI 요약 문장(API 키·비용·생성물의 사실 검증)
+
+## R14-18 시가·고가·저가 — 원본에서 되살린다 (반복 2026-10-10b)
+
+**Decision**:
+- `market_indicator_daily`에 `open_price`·`high_price`·`low_price`(`DECIMAL(20,6)` NULL) 열을 더한다(Alembic 리비전 하나)
+- 새 날은 `parse_daily`가 `indicators.quote[0].open/high/low`를 함께 내고 저장소가 함께 넣는다. 0·null은 NULL이다(옛 일봉 — 0으로 메우지 않는다)
+- **이미 저장한 날은 저장해 둔 원본 응답(`market_indicator_raw` — 254개)에서 되살린다**
+  - 워커 첫 바퀴 앞에 한 번 돌고 멱등이다(NULL인 날만 채운다)
+  - 같은 날이 원본 여럿에 있으면 가장 늦게 받은 원본이다. 원본에 없으면 NULL로 둔다
+- 개정 표(`market_close_revision`)는 종가만이다 — 시가·고가·저가는 새 날만 넣고 덮지 않는다(spec FR-017)
+- 결측 가드(`test_no_interpolation`)에 걸리는 글자(`backfill`·"이전 값")를 쓰지 않는다 — "되살리기"·"채우기"
+
+**Rationale**: 원칙 V가 원본과 정규화를 따로 저장하라는 까닭이 이것이다. 다시 받으면 약 250회·8분이고 출처 부하가 든다.
+**Alternatives considered**: 전체 다시 받기 · 열 없이 표에서 원본을 그때 파싱(요청 경로에서 MB 단위 JSON 해석 — 원칙 I)
+
+## R14-19 장중 시세 (반복 2026-10-10b — **T095에서 실측해 채운다**)
+
+**Decision**(정의):
+- `GET /v8/finance/chart/{symbol}?interval=5m&range=1d`(일) · `?interval=30m&range=5d`(주) — 005 이탈의 같은 엔드포인트
+- 점은 `{time(UTC), value}`이고 모두 잠정이다. 저장하지 않는다(원본도 저장하지 않는다 — 확정 값의 근거가 아니다)
+- 캐시: 지표·기간마다 메모리 일 60초·주 300초, 단일 비행. 관문(`YahooGate`)을 주식·대시보드와 함께 지난다
+- 환율은 시장 환율 심볼(`KRW=X` 등, 엔 ×100)이다 — 카드와 같은 계열(spec FR-028·명확화 2)
+- 실측할 것: 점 수·지연·세션 밖 점(장 전·후 값이 섞이는지)·선물의 밤 세션·`range=1d`가 휴장일에 무엇을 주는지
+
+## R14-20 모달 주소 — Next 16 가로채기·병렬 경로 (반복 2026-10-10b — T096에서 문서 확인)
+
+**Decision**(정의):
+- `app/dashboard/layout.tsx`가 `children`과 `modal` 슬롯을 그린다. `app/dashboard/@modal/default.tsx`는 `null`이다
+- `app/dashboard/@modal/(.)[indicator]/page.tsx` — 대시보드 안에서 카드를 누른 이동(부드러운 이동)을 가로채 모달을 연다
+- `app/dashboard/[indicator]/page.tsx` — 새로고침·주소 직접 입력(딱딱한 이동)이면 대시보드 + 같은 모달을 그린다
+- 닫기: 대시보드 안에서 연 모달은 `router.back()`, 직접 연 모달은 `router.replace("/dashboard")`. 포커스는 그 카드(`data-indicator`)로 — 013 `SimulationModal`의 포커스·Esc 처리를 따른다
+- 사이드바(`startsWith("/dashboard")`)·상단 바 제목 판정은 바뀌지 않는다
+- 확인할 것: `node_modules/next/dist/docs/`의 가로채기·병렬 경로 쪽(버전 16의 바뀐 점), `searchParams`가 Promise인 점, 테스트에서 슬롯을 그리는 방법
+
+## R14-21 일자별 표 행 (반복 2026-10-10b)
+
+**Decision**:
+- 순수 모듈 `simulation/indicator_table.py`가 012 `simulation/period_table.py`의 기준일(`period_bounds`·`anchor_of`·`is_ongoing`)과 쪽 나누기(`page`)를 부른다 — `period_table`은 고치지 않는다
+- 주·월 행:
+  - 시가 = 기간 첫 거래일 시가, 고가 = 최댓값, 저가 = 최솟값(값이 없는 날은 빼고 셈 — 모두 없으면 null)
+  - 종가 = 대표일 종가, 대비 = 앞 기간 대표 종가와의 차이
+- 일 행의 대비는 직전 거래일 종가다. 결측은 일 단위에서 결측 구간 행(`market_gaps`)이다
+- 오늘(현지) 잠정 행은 현재 시세 캐시의 값이다. 시가·고가·저가는 출처 meta가 주면 잠정, 없으면 null
+- 환율 표는 외환 고시 이력이다. 시가·고가·저가는 null이다
+- 쪽: 최신부터 `limit`(기본 30·최대 200), `before`, `hasMore`, `oldestReturned` — 주식 일자별 표(012)와 같다

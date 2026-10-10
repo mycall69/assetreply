@@ -13,12 +13,17 @@
 | `indicator_id` | `String(32)` | PK | 지표 id(§2 — `kospi`·`sp500` 등, 환율 셋은 없다) |
 | `trade_date` | `Date` | PK | **그 시장의 현지 거래일**(R14-3 — `zoneinfo`) |
 | `close` | `PRICE` | NOT NULL | 종가. 음수 가능(WTI 2020-04-20 −37.63) |
+| `open_price` · `high_price` · `low_price` | `PRICE` | NULL | 반복 2026-10-10b — 그 날의 시가·고가·저가. 출처가 주지 않거나 0이면 NULL(0으로 메우지 않는다 — 옛 일봉) |
 | `source` | `String(64)` | NOT NULL | `"yahoo:chart"` |
 | `ingested_at` | `TS` | server_default now | 처음 저장 시각 |
 
 - 유일성은 복합 PK `(indicator_id, trade_date)`다
 - 저장은 **없는 날만 넣는다**. 있는 날은 값을 견줘 다르면 개정(§1.4)이고 덮어쓰지 않는다 — `db/dialect.upsert`가 아니라 "있는 날 읽기 → 새 날만 삽입"이다(008 `deposit_rate.store_rates`와 같다)
 - 오늘(현지)·종가 `null` 행은 넣지 않는다(R14-4)
+- 시가·고가·저가(반복 2026-10-10b — R14-18):
+  - 새 날을 넣을 때 함께 넣는다. 있는 날은 덮지 않는다 — 개정 기록(§1.4)은 종가만이다
+  - 열이 생기기 전에 넣은 날(NULL)은 **저장해 둔 원본 응답(§1.2)에서 되살린다**. 멱등이고 다시 받지 않는다. 같은 날이 원본 여럿에 있으면 가장 늦게 받은 원본이다
+  - 원본에도 없으면 NULL로 둔다
 
 ### 1.2 `market_indicator_raw` — 원본 응답
 
@@ -136,19 +141,37 @@ R14-7 표가 상수다. 함수는 둘이다:
 | `changeRateBlank` | `"non_positive_base"` · null | |
 | `direction` | `up`·`down`·`flat` | 차이의 부호 |
 
-## 5. 그래프 점 (`simulation/indicator_periods.py` — 순수)
+## 5. 그래프 점 (반복 2026-10-10b — 기간 8개)
 
-`build_points(closes, unit, today_local, provisional_tail) -> PeriodPoint[]`
+차트는 **점을 묶지 않는다**. 기간(`range`)이 고르는 것은 보는 범위와 점의 출처다:
+
+| `range` | 점의 출처 | 점 |
+|---------|-----------|-----|
+| `1d` | 장중 시세(R14-19 — 5분, 저장 안 함) | `{time, value, provisional: true}` — `time`은 ISO UTC |
+| `5d` | 장중 시세(30분, 저장 안 함) | 같다 |
+| `1m`·`1y`·`5y`·`10y`·`20y` | 저장된 일봉(§1.1) — 기간의 시작일(현지 오늘에서 1개월·n년 전) 이후 | `{date, value, provisional?}` |
+| `all` | 저장된 일봉 전부 | 같다 |
+
+- 일봉 기간의 오늘 잠정 꼬리(현재 시세)·외환 잠정 고시는 지금과 같다(`provisional`)
+- 점이 `DASHBOARD_SERIES_MAX_POINTS`를 넘을 때만 LTTB(R14-12)
+- 결측 구간(`simulation/market_gaps.py` — R14-5)은 일봉 기간에 그대로다. 장중은 결측 판정을 하지 않는다
+
+## 5a. 일자별 표 행 (`simulation/indicator_table.py` — 순수, 반복 2026-10-10b)
+
+`build_rows(bars, period, today_local, provisional_today) -> TableRow[]` — `period`는 `daily`·`weekly`·`monthly`(012 `period_table`의 기준일·쪽 나누기 규칙을 쓴다 — R14-21).
 
 | 칸 | 형 | 뜻 |
 |----|----|----|
-| `date` | 날짜 | 대표일 — 일: 그 날 / 주: 금요일 이하 마지막 거래일 / 월: 말일 이하 마지막 거래일 / 년: 12-31 이하 마지막 거래일 |
-| `value` | 문자열 Decimal | 대표일 종가 |
-| `shifted` | bool | 대표일 ≠ 기간 끝(금·말일·12-31) → 📅 |
-| `ongoing` | bool | 기간 끝 > 현지 오늘 → ⏳ 끝나지 않은 구간 |
-| `provisional` | bool | 오늘 잠정 점이 대표값인 점, 또는 외환 잠정 고시 |
+| `date` | 날짜 | 대표일 — 일: 그 날 / 주: 금요일 이하 마지막 거래일 / 월: 말일 이하 마지막 거래일 |
+| `open` · `high` · `low` | 문자열 Decimal · null | 일: 그 날 / 주·월: 첫 거래일 시가 · 기간 최댓값 · 기간 최솟값(값이 하나도 없으면 null). 환율은 늘 null |
+| `close` | 문자열 Decimal | 대표일 종가 |
+| `change` · `changeRate` | 문자열 Decimal · null | 앞 행(일: 직전 거래일, 주·월: 앞 기간 대표 종가)과의 차이·비율. 앞 행이 없으면 null, 앞 종가가 0 이하면 `changeRate` null |
+| `shifted` | bool | 대표일 ≠ 기간 끝(금·말일) → 📅 |
+| `ongoing` | bool | 기간 끝 > 현지 오늘 → ⏳ |
+| `provisional` | bool | 오늘(현지) 잠정 행(카드 값 — 시가·고가·저가는 출처가 주면 잠정, 없으면 null), 또는 외환 잠정 고시 |
 
-결측 구간(`simulation/market_gaps.py` — R14-5)은 일 단위 날짜로 계산한다. 주·월·년에서는 결측이 걸친 기간 사이의 선을 끊는다 — 그 기간 안에 거래일 값이 하나도 없으면 점이 없다.
+- 결측(§5)은 일 단위에서 결측 구간 행 `{from, to, reason: "missing"}`이다. 휴장은 행이 없다
+- 쪽은 최신부터 `limit`(기본 30·최대 200)개, `before`(그 날짜 미만) — 주식 일자별 표(012)와 같다. 하루가 두 쪽에 갈리지 않는다
 
 ## 6. 뉴스 (`ingestion/news/types.py` — 저장하지 않음)
 
@@ -171,12 +194,26 @@ R14-7 표가 상수다. 함수는 둘이다:
 
 서버 메모리 캐시: 칸마다 `(성공 NewsList, 만료)` 또는 `(실패, 다시 시도 가능 시각, 연속 실패 수)`. 앱을 다시 띄우면 비어 있다.
 
+## 6a. 변화 까닭 (`ingestion/news/commentary.py` — 저장하지 않음, 반복 2026-10-10b)
+
+`CommentaryItem`: `title`(원문) · `summary`(출처 요약 원문 · null) · `publisher` · `publishedAt`·`publishedDate`·`publishedText`(뉴스 §6과 같은 셋 가운데 하나) · `url`(허용 도메인·https)
+
+`IndicatorCommentary`:
+- 성공: `indicator`, `source`(출처 이름), `sourceUrl`(출처 목록 화면), `fetchedAt`, `items[]`(0~3개)
+  - `items`가 비면 `status: "none"` — 마지막 세션 이후의 기사가 없다("찾지 못함")
+- 실패: `failure{reason, message, retryAfterSeconds}` — contracts A0. 목록 표지가 없거나 0건 읽기는 `parse_empty`
+
+서버 메모리 캐시: 지표마다 성공 `DASHBOARD_COMMENTARY_CACHE_SECONDS`(기본 600), 실패는 뉴스와 같은 백오프(60 → 600).
+
 ## 7. 화면 상태 (Zustand)
 
 | 스토어 | 상태 | 동작 |
 |--------|------|------|
 | `stores/marketQuotesStore.ts` | `status`(`idle`·`loading`·`ready`·`error`), `fetchedAt`, `refreshAfterSeconds`, `indicators[]`(contracts A1), `seq` | `load()` · `startPolling()`/`stopPolling()`(보이는 동안만 — R14-15) · `retry(id)`. 늦은 응답은 `seq`로 버린다 |
-| `stores/indicatorSeriesStore.ts` | `id`, `unit`, `status`(`loading`·`ready`·`collecting`·`failed`·`not_found`·`error`), `series`, `progress`, `seq` | `open(id, unit)` · `setUnit(unit)`(주소도 바꾼다) · 202면 진행 SSE 구독 → `completed`에 다시 요청 · `retryCollect()`(POST collect) · `close()`(구독 끊기) |
+| `stores/indicatorSeriesStore.ts` | `id`, `range`(반복 2026-10-10b — `unit` 대체), `status`(`loading`·`ready`·`collecting`·`failed`·`not_found`·`error`), `series`, `progress`, `seq` | `open(id, range)` · `setRange(range)`(주소도 바꾼다) · 202면 진행 SSE 구독 → `completed`에 다시 요청 · `retryCollect()`(POST collect) · `close()`(구독 끊기) |
+| `stores/indicatorTableStore.ts` | `id`, `period`(`daily`·`weekly`·`monthly`), `status`, `rows[]`, `hasMore`, `oldestReturned`, `seq` | `open(id)` · `setPeriod(period)`(처음부터 다시) · `loadMore()`(`before = oldestReturned`) · `close()`. 늦은 응답은 `seq`로 버린다 |
+| `stores/indicatorCommentaryStore.ts` | 지표마다 `{status, body, failure}` | `load(id)` · `retry(id)` |
+| 모달 | 주소(`/dashboard/{id}?range=`)가 열림 상태다 — 스토어에 두지 않는다 | 닫으면 `router.back()`(대시보드 안에서 연 경우) 또는 `/dashboard`로 바꾸기, 포커스는 그 카드(`data-indicator`) |
 | `stores/newsStore.ts` | 칸마다 `{status, list, failure}` | `loadAll()`(셋 동시) · `retry(source)` |
 
 ## 8. 설정 (`config/settings.py` — `.env.example`에 문서화)
@@ -199,3 +236,7 @@ R14-7 표가 상수다. 함수는 둘이다:
 | `NEWS_CACHE_SECONDS` · `NEWS_FAILURE_CACHE_SECONDS` · `NEWS_FAILURE_CACHE_MAX_SECONDS` | 600 · 60 · 600 | 뉴스 캐시·실패 백오프 |
 | `NEWS_REQUEST_TIMEOUT_SECONDS` · `NEWS_RETRY_MAX_ATTEMPTS` | 10 · 2 | |
 | `NEWS_KR_URL` · `NEWS_US_URL` · `NEWS_JP_URL` | R14-13의 요청 주소 | 출처 주소(바뀌면 설정으로) |
+| `DASHBOARD_INTRADAY_DAY_CACHE_SECONDS` · `DASHBOARD_INTRADAY_WEEK_CACHE_SECONDS` | 60 · 300 | 반복 2026-10-10b — 장중 시세 캐시(R14-19) |
+| `DASHBOARD_COMMENTARY_CACHE_SECONDS` | 600 | 변화 까닭 캐시(R14-17) |
+| `DASHBOARD_TABLE_PAGE_LIMIT` | 30 | 일자별 표 한 쪽(최대 200) |
+| 변화 까닭 출처 주소 | T095 실측 뒤 정함(R14-17) | 출처가 주소를 바꾸면 설정으로 |
