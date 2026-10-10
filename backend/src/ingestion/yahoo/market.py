@@ -85,7 +85,10 @@ class QuoteFetch:
 
 #: 장중 기간 → (출처 `range`, `interval`)(반복 2026-10-10b — research R14-19).
 IntradayRange = Literal["1d", "5d"]
-_INTRADAY: Final[dict[str, tuple[str, str]]] = {"1d": ("1d", "5m"), "5d": ("5d", "30m")}
+#: 기간 → 출처의 (받는 범위, 간격). 반복 2026-10-10c — 왼쪽으로 끌면 앞 구간이 보이도록 일은
+#: 최근 5세션, 주는 최근 1개월을 받는다(처음 보이는 범위는 서비스의 `window` — research R14-22).
+#: 출처는 5분·30분을 최근 60일까지 준다.
+_INTRADAY: Final[dict[str, tuple[str, str]]] = {"1d": ("5d", "5m"), "5d": ("1mo", "30m")}
 
 
 @dataclass(frozen=True, slots=True)
@@ -196,7 +199,7 @@ class YahooMarketClient:
         return DailyFetch(chunk, raw, status, date_from, date_to)
 
     async def fetch_intraday(self, indicator_id: str, range_key: IntradayRange) -> IntradayFetch:
-        """일(`1d` — 5분)·주(`5d` — 30분) 장중 시세(반복 2026-10-10b — spec FR-028).
+        """일(`1d` — 최근 5세션 5분)·주(`5d` — 최근 1개월 30분) 장중 시세(spec FR-028).
 
         빈 종가는 건너뛰고 엔은 100엔당이다. 429면 관문 전체가 물러서고 다시 시도하지 않는다(캐시가
         짧게 기억한다).

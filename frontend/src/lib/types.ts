@@ -1790,6 +1790,13 @@ export const INDICATOR_RANGES: readonly IndicatorRange[] = ["1d", "5d", "1m", "1
 /** 처음 기간 — 틀리거나 없는 주소도 이것이다(서버와 같다). */
 export const DEFAULT_INDICATOR_RANGE: IndicatorRange = "1y";
 
+/** 일봉 기간(반복 2026-10-10c — 같은 본문으로 오간다). */
+export type DailyRange = Exclude<IndicatorRange, "1d" | "5d">;
+
+export function isIntradayRange(range: IndicatorRange): range is "1d" | "5d" {
+  return range === "1d" || range === "5d";
+}
+
 /** 그래프 점(contracts A2). 선택 칸은 참일 때만 온다. */
 export interface IndicatorPoint {
   date: string;
@@ -1810,10 +1817,15 @@ export type IndicatorBlock = Omit<DashboardIndicator, "order" | "status" | "quot
   notes: string[];
 };
 
-/** `GET /api/dashboard/indicators/{id}/series?range=` 200 — 일봉 기간(월 이상). */
+/**
+ * `GET /api/dashboard/indicators/{id}/series?range=` 200 — 일봉 기간(월 이상).
+ * 반복 2026-10-10c: 점은 기간과 무관하게 저장된 일봉 전부이고 `range`·`windows`는 처음 보이는 범위다(contracts A2).
+ */
 export interface IndicatorRangeSeries {
   indicator: IndicatorBlock;
   range: IndicatorRange;
+  /** 기간마다 처음 보이는 범위의 시작일(`all`은 `null`). 없으면 전부를 맞춘다. */
+  windows?: Partial<Record<DailyRange, string | null>>;
   history: {
     source: "yahoo" | "ecos";
     firstDate: string | null;
@@ -1853,6 +1865,8 @@ export interface IndicatorIntradayResponse {
   status: "ok" | "failed";
   fetchedAt: string | null;
   session?: { from: string; to: string } | null;
+  /** 처음 보이는 범위(반복 2026-10-10c — 일 마지막 세션·주 최근 5세션). 없으면 전부를 맞춘다. */
+  window?: { from: string; to: string } | null;
   points: IndicatorIntradayPoint[];
   notes: string[];
   failure: IndicatorSourceFailure | null;

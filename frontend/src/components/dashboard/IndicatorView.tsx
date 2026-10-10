@@ -97,7 +97,7 @@ export function IndicatorView({ id, range, titleId, onClose }: {
       <RangePicker value={shown} onChange={(next) => {
         void setRange(next, (r) => router.replace(`?range=${r}`, { scroll: false }));
       }} />
-      {status === "ready" && series && <IndicatorChart series={series} onRetry={() => void reload()} />}
+      {status === "ready" && series && <IndicatorChart series={series} range={shown} onRetry={() => void reload()} />}
       {(status === "collecting" || status === "failed") && collecting && (
         <SeriesCollecting collecting={collecting} name={name} onRetry={retry} />
       )}

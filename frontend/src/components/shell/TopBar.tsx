@@ -4,10 +4,13 @@
  * 상단 바 (T013) — contracts/ui-wireframes.md W1.
  *
  * FR-004: 현재 화면의 이름을 표시한다. 우측에는 수집 진행 표시기가 붙는다(FR-049).
+ * 014 반복 2026-10-10c(FR-030): 오른쪽 끝에 테마 단추(블랙 배경)를 둔다. 스크롤해도 위에 붙어 있다(`sticky top-0` — 모달보다 아래).
+ * 바탕을 칠해 두어 아래로 지나가는 내용이 비치지 않는다(밝은 화면은 흰 바탕이라 전과 같다).
  */
 
 import { usePathname } from "next/navigation";
 import { CollectionIndicator } from "./CollectionIndicator";
+import { ThemeToggle } from "./ThemeToggle";
 
 /**
  * 경로 → 제목. 사이드바에 경로를 더하면 여기에도 더한다 — 빠뜨리면 마지막 줄(`/`)에 걸려 "대시보드"로 보인다(005·007·008이
@@ -35,9 +38,12 @@ export function screenTitle(pathname: string): string {
 export function TopBar() {
   const pathname = usePathname();
   return (
-    <header className="flex h-14 items-center justify-between border-b border-gray-200 px-6">
+    <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-gray-200 bg-white px-6">
       <h1 className="text-base font-semibold text-gray-900">{screenTitle(pathname)}</h1>
-      <CollectionIndicator />
+      <div className="flex items-center gap-3">
+        <CollectionIndicator />
+        <ThemeToggle />
+      </div>
     </header>
   );
 }

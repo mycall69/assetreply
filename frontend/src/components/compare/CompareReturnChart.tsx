@@ -17,8 +17,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
 import { placeHover } from "@/lib/chartHover";
 import { axisPriceFormat, splitSeriesAtGaps, toPerformanceData } from "@/lib/chartSeries";
+import { themedChartOptions } from "@/lib/chartTheme";
 import { formatPercent } from "@/lib/format";
 import type { ComparisonBlock, SimulationPoint, SimulationSeriesResponse } from "@/lib/types";
+import { useThemeStore } from "@/stores/themeStore";
 
 export interface CompareChartItem {
   key: string;
@@ -72,6 +74,8 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
   const area = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<Hover | null>(null);
+  // 014 반복 2026-10-10c — 블랙 테마면 어두운 팔레트로 다시 만든다(밝으면 선택 값 그대로). 대상 색은 두 바탕에서 다 보인다
+  const theme = useThemeStore((s) => s.theme);
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
 
   useLayoutEffect(() => {
@@ -87,12 +91,12 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
 
   useEffect(() => {
     if (!container.current || items.length === 0) return;
-    const instance = createChart(container.current, {
+    const instance = createChart(container.current, themedChartOptions({
       height: 360,
       layout: { attributionLogo: false },
       rightPriceScale: { borderVisible: false },
       timeScale: { borderVisible: false },
-    });
+    }, theme));
     const priceFormat = axisPriceFormat(2);
     const line = (color: string, lineStyle: number) => instance.addSeries(LineSeries, {
       color, lineWidth: 2, lineStyle, priceFormat, priceLineVisible: false, lastValueVisible: false,
@@ -141,7 +145,7 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
     return () => {
       instance.remove();
     };
-  }, [items]);
+  }, [items, theme]);
 
   return (
     <section className="rounded-lg border border-gray-200 p-4" data-testid="compare-chart">

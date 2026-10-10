@@ -11,9 +11,10 @@ contracts A2.
   환율과 고시는 다른 계열이다
   (명확화 2)
 - 점이 `DASHBOARD_SERIES_MAX_POINTS`(기본 3만)를 넘을 때만 LTTB로 줄인다 — 실제 점을 고른다(R14-12)
-- 일봉 기간은 **그 기간 앞의 마지막 날부터만** 읽는다(T124 — 1년을 보려고 S&P 약 2만 5천 점과 같은
-  시장 지표 셋의 날짜를 모두 읽었다). 결측 판정은 지역적이다 — 그 날의 다른 지표 값과 이웃 두 날의
-  간격만 보므로, 앞의 마지막 날(있는 날)에서 자른 커버리지로 판정해도 기간 안의 결측이 같다
+- (반복 2026-10-10c) 기간은 **처음 보이는 범위**다(R14-22) — 일봉 기간의 본문은 기간과 무관하게
+  저장된 일봉 전부이고 `windows`(기간 → 시작일)를 싣는다. 화면은 같은 본문으로 월~모두를 오가고
+  왼쪽으로 끌면 첫 날까지 보인다. T124의 "기간 앞의 마지막 날부터만 읽기"는 그래프에서 빠졌다
+  (`market_gaps`의 `since`는 그 판정이 지역적이라는 성질과 함께 남는다)
 - 환율은 외환 메뉴(001)의 고시 이력을 읽는다. 모자라면 **외환 수집
   경로**(`collection_gate.ensure_background_job`)에 넘긴다 —
   대시보드가 ECOS를 부르지 않는다(FR-018)
@@ -33,14 +34,14 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Final, Protocol
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.services.collection_gate import CollectionDecision, CollectionTicket, decide_collection
 from src.api.services.market_quotes import dec, indicator_json
 from src.api.services.series_query import compute_gaps, missing_days
 from src.config.settings import Settings
-from src.db.models import Currency, FxCollectionLock, FxRate, JobStatus, MarketIndicatorCoverage
+from src.db.models import Currency, FxCollectionLock, JobStatus, MarketIndicatorCoverage
 from src.observability.events import mask_secrets
 from src.repository import coverage as fx_coverage
 from src.repository import fx_rate, market_daily
@@ -48,7 +49,7 @@ from src.repository import job as fx_job
 from src.repository.collection_lock import SCOPE_COLLECTION
 from src.simulation.downsample import Point, lttb
 from src.simulation.indicator_periods import PeriodPoint, build_points
-from src.simulation.indicator_range import RangeKey, range_start
+from src.simulation.indicator_range import RANGES, RangeKey, is_intraday, range_start
 from src.simulation.market_gaps import Sibling, missing_ranges
 from src.simulation.market_indicators import Indicator, siblings
 from src.simulation.market_quote import MarketQuote
@@ -143,9 +144,15 @@ def _reduce(points: list[PeriodPoint], max_points: int) -> tuple[list[PeriodPoin
     return [by_date[c.date] for c in chosen], True
 
 
-def _window(points: list[PeriodPoint], start: dt.date | None) -> list[PeriodPoint]:
-    """보는 기간 안의 일봉 — `start`가 없으면(모두) 전부."""
-    return points if start is None else [p for p in points if p.date >= start]
+def windows_of(today: dt.date) -> Json:
+    """일봉 기간마다 처음 보이는 범위의 시작일(그 시장 현지의 오늘 기준). 모두는 `None`."""
+    out: Json = {}
+    for key in RANGES:
+        if is_intraday(key):
+            continue
+        start = range_start(today, key)
+        out[key] = None if start is None else start.isoformat()
+    return out
 
 
 def _indicator_block(indicator: Indicator) -> Json:
@@ -290,24 +297,9 @@ async def _fx_series(
     state = await fx_state(session, indicator, settings=settings, now=now, fx_busy=fx_busy)
     if not state.complete or state.start is None:
         return 202, await fx_pending(session, indicator, state, ensure_job)
-    end = state.end
-    window = range_start(end, range_key)
-    # 기간만 읽는다(T124) — 고시의 빈 날 판정(`compute_gaps`)은 그 날의 커버리지만 본다
-    start = state.start if window is None else max(state.start, window)
+    start, end = state.start, state.end
     rows = await fx_rate.series(session, code, start, end)
     closes = [(r.quote_date, r.base_rate) for r in rows]
-    # 저장된 기간의 첫 날은 기간과 무관하다 — 잘라 읽었으면 따로 묻는다
-    first_date = (
-        (closes[0][0] if closes else None)
-        if window is None
-        else (
-            await session.execute(
-                select(func.min(FxRate.quote_date)).where(
-                    FxRate.currency_code == code, FxRate.quote_date >= state.start
-                )
-            )
-        ).scalar_one_or_none()
-    )
     provisional = {r.quote_date for r in rows if r.is_provisional}
     gaps = compute_gaps(
         start,
@@ -316,16 +308,15 @@ async def _fx_series(
         state.covered_from,
         state.covered_through,
     )
-    points = _window(
-        build_points(closes, "daily", today=end, provisional_dates=provisional), window
-    )
+    points = build_points(closes, "daily", today=end, provisional_dates=provisional)
     reduced, downsampled = _reduce(points, settings.dashboard_series_max_points)
     return 200, {
         "indicator": _indicator_block(indicator),
         "range": range_key,
+        "windows": windows_of(end),
         "history": {
             "source": "ecos",
-            "firstDate": None if first_date is None else first_date.isoformat(),
+            "firstDate": closes[0][0].isoformat() if closes else None,
             "lastDate": closes[-1][0].isoformat() if closes else None,
             "tailPending": False,
             "lastSuccessAt": _iso(state.last_updated_at),
@@ -335,7 +326,7 @@ async def _fx_series(
         "gaps": [
             {"from": g.start.isoformat(), "to": g.end.isoformat(), "reason": "missing"}
             for g in gaps
-            if g.reason == "not_collected" and (window is None or g.end >= window)
+            if g.reason == "not_collected"
         ],
         "downsampled": downsampled,
         "sourcePointCount": len(points),
@@ -399,14 +390,8 @@ async def series_response(
         return 202, market_pending(indicator, row)
     assert row is not None and row.covered_from is not None and row.covered_through is not None
     today = trading_date(indicator.market, now)
-    window = range_start(today, range_key)
-    # 기간 앞의 마지막 날부터 읽는다 — 그 날은 값이 있는 날이라 결측 구간이 그 날을 넘지 않는다
-    before = (
-        None if window is None else await market_daily.previous_close(session, indicator.id, window)
-    )
-    since = None if before is None else before[0]
-    closes = await market_daily.closes(session, indicator.id, start=since)
-    gaps = await market_gaps(session, indicator, row, [d for d, _ in closes], since=since)
+    closes = await market_daily.closes(session, indicator.id)
+    gaps = await market_gaps(session, indicator, row, [d for d, _ in closes])
     series: list[tuple[dt.date, Decimal]] = list(closes)
     provisional: set[dt.date] = set()
     quote = None if quotes is None else await quotes.quote(indicator.id)
@@ -414,13 +399,12 @@ async def series_response(
     if quote is not None and quote.provisional and (last is None or quote.session_date > last):
         series.append((quote.session_date, quote.value))
         provisional.add(quote.session_date)
-    points = _window(
-        build_points(series, "daily", today=today, provisional_dates=provisional), window
-    )
+    points = build_points(series, "daily", today=today, provisional_dates=provisional)
     reduced, downsampled = _reduce(points, settings.dashboard_series_max_points)
     return 200, {
         "indicator": _indicator_block(indicator),
         "range": range_key,
+        "windows": windows_of(today),
         "history": {
             "source": "yahoo",
             "firstDate": None if row.first_day is None else row.first_day.isoformat(),
@@ -433,7 +417,6 @@ async def series_response(
         "gaps": [
             {"from": a.isoformat(), "to": b.isoformat(), "reason": "missing"}
             for a, b in gaps
-            if window is None or b >= window
         ],
         "downsampled": downsampled,
         "sourcePointCount": len(points),

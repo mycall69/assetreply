@@ -19,7 +19,9 @@
 import { useEffect, useRef } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
 import { axisPriceFormat, splitSeriesAtGaps, toPerformanceData } from "@/lib/chartSeries";
+import { ink, themedChartOptions } from "@/lib/chartTheme";
 import type { SimulationSeriesResponse } from "@/lib/types";
+import { useThemeStore } from "@/stores/themeStore";
 
 /** 비교 대상 한 건. `series`는 그 조건으로 **지금 다시 받은** 시계열이다. */
 export interface ComparisonItem {
@@ -56,21 +58,23 @@ export function ComparisonChart({
 }) {
   const container = useRef<HTMLDivElement>(null);
   const drawable = !loading && items.length > 0;
+  // 014 반복 2026-10-10c — 블랙 테마면 어두운 팔레트로 다시 만든다(밝으면 선택 값 그대로)
+  const theme = useThemeStore((s) => s.theme);
 
   useEffect(() => {
     if (!container.current || !drawable) return;
 
-    const instance = createChart(container.current, {
+    const instance = createChart(container.current, themedChartOptions({
       height: 360,
       layout: { attributionLogo: false },
       rightPriceScale: { borderVisible: false },
       timeScale: { borderVisible: false },
-    });
+    }, theme));
 
     const returnFormat = axisPriceFormat(2);
 
     items.forEach((item, index) => {
-      const color = COLORS[index % COLORS.length];
+      const color = ink(COLORS[index % COLORS.length], theme);
       // 결측 규칙은 성과 차트와 같다 — 휴장일은 잇고 미수집은 끊는다 (FR-034).
       for (const segment of splitSeriesAtGaps(item.series.points, item.series.gaps)) {
         const line = instance.addSeries(LineSeries, {
@@ -92,7 +96,7 @@ export function ComparisonChart({
     return () => {
       instance.remove();
     };
-  }, [items, drawable]);
+  }, [items, drawable, theme]);
 
   if (loading) {
     return (
@@ -121,7 +125,7 @@ export function ComparisonChart({
       <footer className="mt-4 space-y-1 text-xs text-gray-500">
         <p data-testid="comparison-legend" className="flex flex-wrap gap-x-4 gap-y-1">
           {items.map((item, index) => (
-            <span key={item.id} style={{ color: COLORS[index % COLORS.length] }}>
+            <span key={item.id} style={{ color: ink(COLORS[index % COLORS.length], theme) }}>
               {/* FR-040 — 시작일이 다르면 선의 시작점으로도 보이지만 범례에도 적는다. */}
               ─ {item.label} ({item.start} 시작)
             </span>

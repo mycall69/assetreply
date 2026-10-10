@@ -13,9 +13,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createChart, LineSeries, type IChartApi } from "lightweight-charts";
+import { ink, themedChartOptions } from "@/lib/chartTheme";
 import { splitSeriesAtGaps, toChartData } from "@/lib/chartSeries";
 import { formatRate, unitLabel } from "@/lib/format";
 import type { SeriesResponse } from "@/lib/types";
+import { useThemeStore } from "@/stores/themeStore";
 
 interface Hover {
   date: string;
@@ -32,23 +34,25 @@ export function FxChart({
   const container = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const [hover, setHover] = useState<Hover | null>(null);
+  // 014 반복 2026-10-10c — 블랙 테마면 어두운 팔레트로 다시 만든다(밝으면 선택 값 그대로)
+  const theme = useThemeStore((s) => s.theme);
 
   useEffect(() => {
     if (!container.current) return;
 
-    const instance = createChart(container.current, {
+    const instance = createChart(container.current, themedChartOptions({
       height: 360,
       layout: { attributionLogo: false },
       rightPriceScale: { borderVisible: false },
       timeScale: { borderVisible: false },
-    });
+    }, theme));
     chart.current = instance;
 
     // 구간마다 별도 시리즈 — 미수집 구간이 선으로 이어지지 않게 한다
     const lookup = new Map<string, string>();
     for (const segment of splitSeriesAtGaps(data.points, data.gaps)) {
       const series = instance.addSeries(LineSeries, {
-        color: "#1f2937",
+        color: ink("#1f2937", theme),
         lineWidth: 2,
         priceLineVisible: false,
         lastValueVisible: false,
@@ -70,7 +74,7 @@ export function FxChart({
       instance.remove();
       chart.current = null;
     };
-  }, [data]);
+  }, [data, theme]);
 
   // 휴장일 구간 수는 세지 않는다. 이어 그리는 구간을 "없음"이라 부르면 화면과 말이
   // 어긋난다 — 선은 이어져 있는데 범례는 비었다고 말하게 된다 (T124).

@@ -13,13 +13,112 @@
 }
 
 /*
- * 다크 모드를 지원하지 않는다. 화면 전체가 라이트 모드 색상(`text-gray-900`,
- * `border-gray-200` 등)으로만 작성되어 있어, OS가 다크 모드일 때 사이드바와 상단 바의
- * 글자가 배경에 묻혀 보이지 않았다. `dark:` 변형 사용처가 한 곳도 없다.
+ * 블랙 배경(014 반복 2026-10-10c — spec FR-030, research R14-23).
  *
- * 되살리려면 `prefers-color-scheme` 블록만 다시 넣어서는 안 된다. 모든 컴포넌트에
- * `dark:` 대응을 함께 넣어야 한다. 배경만 어두워지면 같은 증상이 재발한다.
+ * 컴포넌트마다 `dark:` 클래스를 넣지 않는다. Tailwind v4 유틸리티는 색을 변수(`var(--color-gray-500)` 등)로 읽고 그 변수는 층(`@layer theme`)
+ * 안에 있다 — 층 밖의 `.dark` 규칙이 이겨 `<html class="dark">`일 때 팔레트가 통째로 바뀐다. 밝은 화면은 클래스·값이 그대로다(FR-026).
+ *
+ * 전에는 OS 다크 모드(`prefers-color-scheme`)에서 배경만 어두워져 사이드바·상단 바의 글자가 묻혔다(그래서 다크 모드를 지웠다). 이번에는
+ * 쓰는 색마다 짝을 둔다 — `tests/darkPaletteGuard.test.ts`가 src가 쓰는 색 유틸리티마다 아래 재정의가 있는지 본다. **새 색 계열·단계를
+ * 쓰면 여기에 짝을 더한다.** OS 설정은 따르지 않는다(처음은 밝게 — 명확화 2026-10-10c).
+ *
+ * 회색은 뒤집는다(흰 바탕 ↔ `#0b0f14`, 옅은 회색 ↔ 진한 회색). 강조 색의 옅은 바탕(50~300)은 어두운 바탕용, 진한 글자(600~900)는 밝은
+ * 글자용이다 — 상승 빨강·하락 파랑·경고 노랑의 뜻은 그대로다. 본문 글자 대비는 바탕 위에서 5:1 이상이다(SC-015 — gray-500 7.6:1).
+ * 차트는 CSS 변수를 읽지 않아 `lib/chartTheme.ts`가 같은 값을 따로 넘긴다.
  */
+@custom-variant dark (&:where(.dark, .dark *));
+
+.dark {
+  color-scheme: dark;
+  --background: #0b0f14;
+  --foreground: #f1f3f5;
+  --color-white: #0b0f14;
+  --color-black: #000;
+
+  --color-gray-50: #121821;
+  --color-gray-100: #1a2130;
+  --color-gray-200: #263041;
+  --color-gray-300: #364153;
+  --color-gray-400: #7b8494;
+  --color-gray-500: #9aa3b2;
+  --color-gray-600: #b6bdc9;
+  --color-gray-700: #cfd4dc;
+  --color-gray-800: #e2e5ea;
+  --color-gray-900: #f1f3f5;
+  --color-gray-950: #f9fafb;
+
+  --color-amber-50: #2b2108;
+  --color-amber-100: #3a2c0b;
+  --color-amber-200: #5c4512;
+  --color-amber-300: #7d5f17;
+  --color-amber-400: #d4a017;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #fbbf24;
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #fde68a;
+  --color-amber-900: #fef3c7;
+  --color-amber-950: #fffbeb;
+
+  --color-red-50: #2c1214;
+  --color-red-100: #3d171a;
+  --color-red-200: #5e2126;
+  --color-red-300: #842d33;
+  --color-red-400: #dc2626;
+  --color-red-500: #ef4444;
+  --color-red-600: #f87171;
+  --color-red-700: #fc8b8b;
+  --color-red-800: #fecaca;
+  --color-red-900: #fee2e2;
+  --color-red-950: #fef2f2;
+
+  --color-blue-50: #0f1b33;
+  --color-blue-100: #13254a;
+  --color-blue-200: #1c3a6e;
+  --color-blue-300: #2a5298;
+  --color-blue-400: #3b82f6;
+  --color-blue-500: #60a5fa;
+  --color-blue-600: #7cb6fb;
+  --color-blue-700: #8ec5ff;
+  --color-blue-800: #bfdbfe;
+  --color-blue-900: #dbeafe;
+  --color-blue-950: #eff6ff;
+
+  --color-emerald-50: #052a1f;
+  --color-emerald-100: #073829;
+  --color-emerald-200: #0b513c;
+  --color-emerald-300: #0f6b50;
+  --color-emerald-400: #10b981;
+  --color-emerald-500: #34d399;
+  --color-emerald-600: #4fdca8;
+  --color-emerald-700: #6ee7b7;
+  --color-emerald-800: #a7f3d0;
+  --color-emerald-900: #d1fae5;
+  --color-emerald-950: #ecfdf5;
+
+  --color-green-50: #072a16;
+  --color-green-100: #0a3a1e;
+  --color-green-200: #11532c;
+  --color-green-300: #176d3a;
+  --color-green-400: #22c55e;
+  --color-green-500: #4ade80;
+  --color-green-600: #6ee39a;
+  --color-green-700: #86efac;
+  --color-green-800: #bbf7d0;
+  --color-green-900: #dcfce7;
+  --color-green-950: #f0fdf4;
+
+  --color-sky-50: #08202e;
+  --color-sky-100: #0b2b3d;
+  --color-sky-200: #123f58;
+  --color-sky-300: #185573;
+  --color-sky-400: #0ea5e9;
+  --color-sky-500: #38bdf8;
+  --color-sky-600: #5cc8f9;
+  --color-sky-700: #7dd3fc;
+  --color-sky-800: #bae6fd;
+  --color-sky-900: #e0f2fe;
+  --color-sky-950: #f0f9ff;
+}
 
 body {
   color: var(--foreground);

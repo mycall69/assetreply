@@ -7,6 +7,10 @@ A2(`1d`·`5d`).
 
 점은 모두 잠정이다(확정 값의 근거가 아니다 — spec FR-028). 환율은 시장 환율이고 `market_fx` 주석을
 단다.
+
+(반복 2026-10-10c) 받은 점 전부(일 최근 5세션·주 최근 1개월)를 싣고 `window`로 처음 보이는
+범위(일 마지막 세션·주 최근 5세션 — `simulation/intraday_window`)를 준다. 왼쪽으로 끌면 앞 세션이
+보인다.
 """
 
 from __future__ import annotations
@@ -20,9 +24,13 @@ from typing import Protocol
 from src.api.services.market_quotes import dec, indicator_json
 from src.config.settings import Settings
 from src.ingestion.yahoo.market import IntradayFetch, IntradayRange, failure_kind
+from src.simulation.intraday_window import session_window
 from src.simulation.market_indicators import Indicator
 
 Json = dict[str, object]
+
+#: 처음 보이는 세션 수 — 일은 마지막 세션, 주는 최근 5세션.
+_SESSIONS: dict[str, int] = {"1d": 1, "5d": 5}
 
 
 class IntradaySource(Protocol):
@@ -89,11 +97,15 @@ class IntradayService:
                 self._entries[key] = _Entry(body, now + hold)
                 return body
             times = [at for at, _ in fetched.points]
+            window = session_window(times, indicator.market, _SESSIONS[range_key])
             body = {
                 **self._head(indicator, range_key),
                 "status": "ok",
                 "fetchedAt": _iso(now),
                 "session": ({"from": _iso(times[0]), "to": _iso(times[-1])} if times else None),
+                "window": (
+                    None if window is None else {"from": _iso(window[0]), "to": _iso(window[1])}
+                ),
                 "points": [
                     {"time": _iso(at), "value": dec(value), "provisional": True}
                     for at, value in fetched.points
@@ -118,6 +130,7 @@ class IntradayService:
             "status": "failed",
             "fetchedAt": None,
             "session": None,
+            "window": None,
             "points": [],
             "failure": {
                 "reason": reason,

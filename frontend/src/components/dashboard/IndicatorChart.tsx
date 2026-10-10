@@ -15,15 +15,27 @@
  *   라이브러리 기본(UTC)이면 항셍 장중 축이 "05:00"처럼 보였다(T123 실측)
  * - 커서 상자는 그것을 낸 그래프에만 보인다 — 기간을 바꿔도 커서가 움직이지 않으면 옛 기간의 점이 남았다(T123 실측)
  *
+ * - (반복 2026-10-10c) 기간은 **처음 보이는 범위**다(R14-22) — 일봉 본문은 저장된 일봉 전부이고 `windows[range]` 이상 첫 점의 차례 ~ 마지막
+ *   차례를 `setVisibleLogicalRange`로 놓는다(차례라 휴장을 건너 같은 폭이다). 왼쪽으로 끌면 첫 날까지 보인다. 기간을 바꾸면 그래프를 다시
+ *   만들지 않고 범위만 바꾼다. 창 안에 점이 없으면 마지막 30점, 창이 없으면(모두) 전부다
+ * - (반복 2026-10-10c) 장중은 받은 점 전부(일 5세션·주 1개월)를 그리고 `window`로 처음 범위를 놓는다. 선은 확정 선과 같은 진한 **실선**이다 —
+ *   잠정은 커서 상자의 ⏳ 잠정과 범례로 밝힌다(명확화 2026-10-10c)
+ * - (반복 2026-10-10c) 블랙 테마면 `lib/chartTheme`의 팔레트로 다시 만든다(배경·글자·격자·진한 회색 선)
+ *
  * 새 부품이다 — `FxChart`·`PerformanceChart`를 고치지 않는다.
  */
 import { useEffect, useRef, useState } from "react";
-import { createChart, LineSeries, type Time, type TickMarkType, type UTCTimestamp } from "lightweight-charts";
+import { createChart, LineSeries, type IChartApi, type Time, type TickMarkType, type UTCTimestamp } from "lightweight-charts";
 import { failureLabel } from "@/components/dashboard/IndicatorHeader";
+import { RANGE_LABELS } from "@/components/dashboard/RangePicker";
+import { ink, themedChartOptions } from "@/lib/chartTheme";
 import { splitSeriesAtGaps, toChartData, toIntradayData, type IntradayDatum } from "@/lib/chartSeries";
 import { formatRate } from "@/lib/format";
 import { formatZonedDate, formatZonedDay, formatZonedTime, KST_ZONE } from "@/lib/kstClock";
-import type { IndicatorChartSeries, IndicatorIntradayResponse, IndicatorPoint, IndicatorRangeSeries } from "@/lib/types";
+import type {
+  DailyRange, IndicatorChartSeries, IndicatorIntradayResponse, IndicatorPoint, IndicatorRange, IndicatorRangeSeries,
+} from "@/lib/types";
+import { useThemeStore } from "@/stores/themeStore";
 
 const SOLID = "#1f2937";
 const LIGHT = "#9ca3af";
@@ -38,7 +50,24 @@ const CHART_OPTIONS = {
   timeScale: { borderVisible: false, minBarSpacing: MIN_BAR_SPACING },
 };
 
+/** 창 안에 점이 없을 때(오래 멈춘 지표) 보이는 마지막 점 수. */
+const STALE_SPAN = 30;
+
 const asSeriesPoints = (points: IndicatorPoint[]) => points.map((p) => ({ date: p.date, baseRate: p.value }));
+
+/**
+ * 처음 보이는 범위 — 창 시작 이상 첫 점의 차례 ~ 마지막 차례. 창이 없으면 전부를 맞춘다. 창 안에 점이 없으면 마지막 30점이다.
+ * `keys`는 점의 시각 글자(일봉 날짜·장중 ISO)이고 차례대로다 — 글자로 견준다(날짜·ISO는 사전 차례가 시간 차례다).
+ */
+function showWindow(instance: IChartApi, keys: string[], start: string | null | undefined) {
+  if (start === null || start === undefined || keys.length === 0) {
+    instance.timeScale().fitContent();
+    return;
+  }
+  const first = keys.findIndex((key) => key >= start);
+  const last = keys.length - 1;
+  instance.timeScale().setVisibleLogicalRange({ from: first < 0 ? Math.max(0, keys.length - STALE_SPAN) : first, to: last });
+}
 
 /** 확정 구간과 잠정 구간. 잠정 구간은 바로 앞의 확정 점에서 잇는다. */
 function split(points: IndicatorPoint[]): { solid: IndicatorPoint[]; light: IndicatorPoint[] } {
@@ -59,8 +88,13 @@ function isIntraday(series: IndicatorChartSeries): series is IndicatorIntradayRe
   return "intraday" in series;
 }
 
-export function IndicatorChart({ series, onRetry }: { series: IndicatorChartSeries; onRetry?: () => void }) {
-  if (!isIntraday(series)) return <DailyChart series={series} />;
+export function IndicatorChart({ series, range, onRetry }: {
+  series: IndicatorChartSeries;
+  /** 고른 기간 — 일봉 본문은 기간마다 같고 처음 보이는 범위만 다르다(반복 2026-10-10c). */
+  range: IndicatorRange;
+  onRetry?: () => void;
+}) {
+  if (!isIntraday(series)) return <DailyChart series={series} range={range} />;
   if (series.status === "failed") {
     return (
       <section role="alert" className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -72,24 +106,27 @@ export function IndicatorChart({ series, onRetry }: { series: IndicatorChartSeri
   return <IntradayChart series={series} />;
 }
 
-function DailyChart({ series }: { series: IndicatorRangeSeries }) {
+function DailyChart({ series, range }: { series: IndicatorRangeSeries; range: IndicatorRange }) {
   const container = useRef<HTMLDivElement>(null);
+  const chart = useRef<IChartApi | null>(null);
+  const theme = useThemeStore((s) => s.theme);
   const [hovered, setHovered] = useState<{ of: IndicatorRangeSeries; point: IndicatorPoint } | null>(null);
   const hover = hovered?.of === series ? hovered.point : null;
 
+  // 그래프는 본문·테마가 바뀔 때만 다시 만든다 — 기간(처음 범위)은 아래 효과가 범위만 바꾼다
   useEffect(() => {
     if (!container.current) return;
-    const instance = createChart(container.current, CHART_OPTIONS);
+    const instance = createChart(container.current, themedChartOptions(CHART_OPTIONS, theme));
     const { solid, light } = split(series.points);
     for (const segment of splitSeriesAtGaps(solid, series.gaps)) {
       const line = instance.addSeries(LineSeries, {
-        color: SOLID, lineWidth: 2, priceLineVisible: false, lastValueVisible: false,
+        color: ink(SOLID, theme), lineWidth: 2, priceLineVisible: false, lastValueVisible: false,
       });
       line.setData(toChartData(asSeriesPoints(segment)).map((d) => ({ time: d.time, value: d.value })));
     }
     if (light.length > 0) {
       const line = instance.addSeries(LineSeries, {
-        color: LIGHT, lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: false,
+        color: ink(LIGHT, theme), lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: false,
       });
       line.setData(toChartData(asSeriesPoints(light)).map((d) => ({ time: d.time, value: d.value })));
     }
@@ -99,9 +136,19 @@ function DailyChart({ series }: { series: IndicatorRangeSeries }) {
       const point = time ? byDate.get(time) ?? null : null;
       setHovered(point ? { of: series, point } : null);
     });
-    instance.timeScale().fitContent();
-    return () => instance.remove();
-  }, [series]);
+    chart.current = instance;
+    return () => {
+      instance.remove();
+      chart.current = null;
+    };
+  }, [series, theme]);
+
+  // 처음 보이는 범위 — 만든 뒤(같은 커밋에서 위 효과 다음)와 기간이 바뀔 때
+  useEffect(() => {
+    if (chart.current === null) return;
+    const start = range === "1d" || range === "5d" ? null : series.windows?.[range as DailyRange];
+    showWindow(chart.current, series.points.map((p) => p.date), start);
+  }, [series, theme, range]);
 
   return (
     <section className="rounded-lg border border-gray-200 p-4">
@@ -115,11 +162,12 @@ function DailyChart({ series }: { series: IndicatorRangeSeries }) {
         </div>
       )}
       <footer className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500">
-        <span>─ 확정 · ┄ 잠정 · 끊긴 곳은 출처 결측</span>
+        <span>─ 확정 · ┄ 잠정 · 끊긴 곳은 출처 결측 · ← 끌면 앞 구간</span>
         <span className="ml-auto">
           {series.downsampled
             ? `표시 ${series.sourcePointCount.toLocaleString()}개 중 ${series.points.length.toLocaleString()}개`
-            : `${series.points.length.toLocaleString()}개 전부 표시`}
+            : `전체 ${series.points.length.toLocaleString()}개`}
+          {` · 처음 ${RANGE_LABELS[range]}`}
         </span>
       </footer>
     </section>
@@ -153,10 +201,11 @@ function IntradayChart({ series }: { series: IndicatorIntradayResponse }) {
   const [hovered, setHovered] = useState<{ of: IndicatorIntradayResponse; point: IntradayDatum } | null>(null);
   const hover = hovered?.of === series ? hovered.point : null;
   const zone = series.indicator.market.timezone;
+  const theme = useThemeStore((s) => s.theme);
 
   useEffect(() => {
     if (!container.current) return;
-    const instance = createChart(container.current, {
+    const instance = createChart(container.current, themedChartOptions({
       ...CHART_OPTIONS,
       timeScale: {
         borderVisible: false, minBarSpacing: MIN_BAR_SPACING, timeVisible: true, secondsVisible: false,
@@ -165,10 +214,11 @@ function IntradayChart({ series }: { series: IndicatorIntradayResponse }) {
       localization: {
         timeFormatter: (time: Time) => `${formatZonedDate(isoOf(time), zone)} ${formatZonedTime(isoOf(time), zone)}`,
       },
-    });
+    }, theme));
     const data = toIntradayData(series.points);
+    // 확정 선과 같은 진한 실선(명확화 2026-10-10c) — 점이 모두 잠정인 것은 커서 상자·범례가 밝힌다
     const line = instance.addSeries(LineSeries, {
-      color: LIGHT, lineWidth: 2, lineStyle: 2, priceLineVisible: false, lastValueVisible: false,
+      color: ink(SOLID, theme), lineWidth: 2, priceLineVisible: false, lastValueVisible: false,
     });
     line.setData(data.map((d) => ({ time: d.time as UTCTimestamp, value: d.value })));
     const byTime = new Map(data.map((d) => [d.time, d]));
@@ -177,9 +227,10 @@ function IntradayChart({ series }: { series: IndicatorIntradayResponse }) {
       const point = time !== undefined ? byTime.get(time) ?? null : null;
       setHovered(point ? { of: series, point } : null);
     });
-    instance.timeScale().fitContent();
+    // 처음 보이는 범위는 마지막 세션(일)·최근 5세션(주) — 왼쪽으로 끌면 앞 세션
+    showWindow(instance, data.map((d) => d.at), series.window?.from);
     return () => instance.remove();
-  }, [series, zone]);
+  }, [series, zone, theme]);
 
   return (
     <section className="rounded-lg border border-gray-200 p-4">
@@ -193,7 +244,7 @@ function IntradayChart({ series }: { series: IndicatorIntradayResponse }) {
         </div>
       )}
       <footer className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500">
-        <span>┄ 장중 잠정 — 저장하지 않는 시세</span>
+        <span>─ 장중 — 모두 잠정(⏳) · 저장하지 않는 시세 · ← 끌면 앞 세션</span>
         {series.notes.includes("market_fx") && <span>시장 환율 — 고시 이력과 다른 계열</span>}
         <span className="ml-auto">{series.points.length.toLocaleString()}개 점</span>
       </footer>

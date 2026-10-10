@@ -665,15 +665,15 @@ description: "Task list for 014-market-dashboard"
 
 ### Tests for 반복 2026-10-10c ⚠️
 
-- [ ] T129 [P] [US2] 백엔드 테스트 — 최초 실패 확인 (FR-011, FR-012, FR-028)
+- [X] T129 [P] [US2] 백엔드 테스트 — 최초 실패 확인 (FR-011, FR-012, FR-028)
   - `backend/tests/contract/test_yahoo_market_intraday.py` — 일 `range=5d&interval=5m`·주 `range=1mo&interval=30m` 질의, 새 픽스처의 점(빈 종가 건너뜀·엔 ×100)
   - 새 `backend/tests/unit/test_intraday_window.py` — 마지막 세션·최근 5세션(시장 현지 날짜, 환율은 런던 0시 경계), 휴장 섞임(점 있는 날만), 점 없음 → `None`
   - `backend/tests/integration/test_dashboard_range_api.py` — 일봉 기간은 일봉 전부 + `windows`(기간 → 시작일, `all` → `null`), `range`는 처음 범위, 장중 본문의 `window`
-- [ ] T130 [P] [US2] 프론트 테스트 — 최초 실패 확인 (FR-011, FR-012, SC-002)
+- [X] T130 [P] [US2] 프론트 테스트 — 최초 실패 확인 (FR-011, FR-012, SC-002)
   - 새 `frontend/tests/IndicatorChartWindow.test.tsx` — 처음 범위 = `setVisibleLogicalRange({from: 창 시작 이상 첫 점의 차례, to: 마지막 차례})`, 창 안에 점이 없으면 마지막 점들,
     장중 진한 실선(확정 선 색·`lineStyle` 실선)·`window`, 기간 바꾸면 범위만(다시 그리지 않음)
   - `frontend/tests/indicatorSeriesStore.test.ts` — 월~모두 사이 전환은 다시 받지 않고 `range`·주소만, 장중 ↔ 일봉·장중끼리는 받는다
-- [ ] T131 [P] [US4] 테마 테스트 — 최초 실패 확인 (FR-030, SC-015)
+- [X] T131 [P] [US4] 테마 테스트 — 최초 실패 확인 (FR-030, SC-015)
   - 새 `frontend/tests/themeStore.test.ts` — 처음 밝게, `toggle`이 `html.dark`와 저장소(`assetreplay.theme`)를 함께 바꿈, 저장소 읽기·쓰기 실패면 밝게·오류 없음
   - 새 `frontend/tests/ThemeToggle.test.tsx` — 상단 바 오른쪽 끝에 늘 있음, `role="switch"`·이름 "블랙 배경"·`aria-checked`, 키보드(Space·Enter)
   - 새 `frontend/tests/themeScript.test.ts` — 깜빡임 방지 스크립트(글자)가 저장값 `dark`면 `dark` 클래스를 달고, 없거나 틀리거나 저장소 오류면 달지 않는다
@@ -684,17 +684,17 @@ description: "Task list for 014-market-dashboard"
 
 ### Implementation for 반복 2026-10-10c
 
-- [ ] T132 [US2] 014가 만든 테스트의 변경 승인 — 구현을 작업 트리에 둔 뒤 실제 실패 목록으로 승인받는다(T111과 같은 절차). 예상: `test_dashboard_range_api.py`(1년·5년·동등성)·
+- [X] T132 [US2] 014가 만든 테스트의 변경 승인 — 구현을 작업 트리에 둔 뒤 실제 실패 목록으로 승인받는다(T111과 같은 절차). 예상: `test_dashboard_range_api.py`(1년·5년·동등성)·
   `test_dashboard_series_api.py`(`sourcePointCount`)·`test_yahoo_market_intraday.py`(범위 질의)·`IndicatorChartRange.test.tsx`(처음 범위·연한 선)·`IndicatorChart.test.tsx`(범위)·
   `indicatorSeriesStore.test.ts`(기간 바꾸면 다시 받음). 구현을 치워 실패를 확인한 뒤 `test(014)` (FR-011, FR-012, FR-028)
-- [ ] T133 [US2] 백엔드 — `backend/src/ingestion/yahoo/market.py`(`_INTRADAY` 일 `5d·5m`·주 `1mo·30m`), 새 `backend/src/simulation/intraday_window.py`(순수 — 세션 창),
+- [X] T133 [US2] 백엔드 — `backend/src/ingestion/yahoo/market.py`(`_INTRADAY` 일 `5d·5m`·주 `1mo·30m`), 새 `backend/src/simulation/intraday_window.py`(순수 — 세션 창),
   `backend/src/api/services/indicator_intraday.py`(`window`), `backend/src/api/services/indicator_series.py`(일봉 기간 = 일봉 전부 + `windows` — T124의 기간만 읽기는 그래프에서 뺀다) — contracts A2 (FR-011, FR-012, FR-028)
-- [ ] T134 [US2] 프론트 — `frontend/src/lib/types.ts`·`frontend/src/lib/dashboardApi.ts`(`windows`·`window`), `frontend/src/stores/indicatorSeriesStore.ts`(일봉 본문 한 벌·월~모두는 범위만),
+- [X] T134 [US2] 프론트 — `frontend/src/lib/types.ts`·`frontend/src/lib/dashboardApi.ts`(`windows`·`window`), `frontend/src/stores/indicatorSeriesStore.ts`(일봉 본문 한 벌·월~모두는 범위만),
   `frontend/src/components/dashboard/IndicatorChart.tsx`(창 → `setVisibleLogicalRange`, 장중 진한 실선, 바닥 글자) — contracts D3 (FR-011, FR-012, SC-002)
-- [ ] T135 [US4] 테마 — 새 `frontend/src/stores/themeStore.ts`·`frontend/src/components/shell/ThemeToggle.tsx`, `frontend/src/components/shell/TopBar.tsx`(오른쪽 끝·스크롤해도 위),
+- [X] T135 [US4] 테마 — 새 `frontend/src/stores/themeStore.ts`·`frontend/src/components/shell/ThemeToggle.tsx`, `frontend/src/components/shell/TopBar.tsx`(오른쪽 끝·스크롤해도 위),
   `frontend/src/app/layout.tsx`(깜빡임 방지 스크립트·`suppressHydrationWarning`), `frontend/src/app/globals.css`(`.dark` 팔레트 재정의·`@custom-variant dark` — 옛 "다크 모드 미지원" 주석
   대체) — contracts D6·D9 (FR-030, FR-026)
-- [ ] T136 [US4] 차트 테마 — 새 `frontend/src/lib/chartTheme.ts` + `frontend/src/components/FxChart.tsx`·`stock/PerformanceChart.tsx`·`stock/ComparisonChart.tsx`·`compare/CompareReturnChart.tsx`·
+- [X] T136 [US4] 차트 테마 — 새 `frontend/src/lib/chartTheme.ts` + `frontend/src/components/FxChart.tsx`·`stock/PerformanceChart.tsx`·`stock/ComparisonChart.tsx`·`compare/CompareReturnChart.tsx`·
   `dashboard/IndicatorChart.tsx` — 테마를 효과 의존성에 넣어 다시 만든다(`applyOptions`·라이브러리 열거형을 실행 중에 쓰지 않는다), 밝은 테마의 선택 값은 지금과 같다 (FR-030, SC-015)
 
 ### Polish (반복 2026-10-10c)

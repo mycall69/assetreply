@@ -7,6 +7,8 @@
  * - 기간을 바꾸면 주소 바꾸기 콜백을 부르고 다시 받는다 — 늦게 온 옛 기간 응답은 버린다(`seq`)
  * - (반복 2026-10-10b) 단위 대신 보는 기간 `range`다. 일·주(장중)는 수집과 무관한 200이다(`intraday`) — 출처가 실패해도 그래프 자리의
  *   본문이고(`status: "failed"`), 받는 중(202)으로 읽지 않는다
+ * - (반복 2026-10-10c) 일봉 본문은 기간과 무관하게 저장된 일봉 전부다 — 월~모두 사이의 전환은 다시 받지 않고 `range`(처음 보이는 범위)와
+ *   주소만 바꾼다. 장중 ↔ 일봉·장중끼리는 받는다(본문이 다르다)
  * - 없는 지표(404)는 `not_found`다
  */
 import { create } from "zustand";
@@ -14,7 +16,7 @@ import { ApiError } from "@/lib/apiClient";
 import { fetchSeries, requestCollect } from "@/lib/dashboardApi";
 import { subscribeIndicatorProgress } from "@/lib/dashboardProgressStream";
 import type { IndicatorChartSeries, IndicatorCollecting, IndicatorRange } from "@/lib/types";
-import { DEFAULT_INDICATOR_RANGE } from "@/lib/types";
+import { DEFAULT_INDICATOR_RANGE, isIntradayRange } from "@/lib/types";
 
 const RECHECK_MS = 15_000;
 
@@ -104,7 +106,13 @@ export const useIndicatorSeriesStore = create<IndicatorSeriesState>((set, get) =
 
     setRange: async (range, replaceUrl) => {
       replaceUrl(range);
-      const id = get().id;
+      const { id, series, status, range: current } = get();
+      // 같은 일봉 본문으로 보이는 범위만 바꾼다 — "모두"(약 2만 5천 점)를 기간마다 다시 받지 않는다
+      const daily = series !== null && !("intraday" in series);
+      if (daily && status === "ready" && !isIntradayRange(current) && !isIntradayRange(range)) {
+        set({ range });
+        return;
+      }
       if (id) await get().open(id, range);
     },
 

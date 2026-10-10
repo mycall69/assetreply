@@ -50,6 +50,7 @@ import { hoverView, placeHover, PRICE_NAME, type HoverView } from "@/lib/chartHo
 import {
   axisPriceFormat, gapSlots, priceSegments, splitSeriesAtGaps, toPerformanceData,
 } from "@/lib/chartSeries";
+import { ink, themedChartOptions } from "@/lib/chartTheme";
 import type {
   CryptoCollecting,
   DepositCollecting,
@@ -58,6 +59,7 @@ import type {
   SimulationPoint,
   SimulationSeriesResponse,
 } from "@/lib/types";
+import { useThemeStore } from "@/stores/themeStore";
 
 /** 잔고는 왼쪽, 수익률은 오른쪽. 축을 섞지 않는 것이 이 컴포넌트의 존재 이유다. */
 const BALANCE_AXIS = "left";
@@ -149,6 +151,8 @@ export function PerformanceChart({
   const box = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<Hover | null>(null);
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
+  // 014 반복 2026-10-10c — 블랙 테마면 어두운 팔레트로 다시 만든다(밝으면 선택 값 그대로)
+  const theme = useThemeStore((s) => s.theme);
 
   // 상자를 그린 뒤 크기를 재서 칸 안에 둔다 — 크기를 모르고 자리를 정하면 오른쪽·아래 끝에서 잘린다(FR-012).
   useLayoutEffect(() => {
@@ -170,7 +174,7 @@ export function PerformanceChart({
 
     // 010 — 가격이 있는 응답에만 가격 선(겹침 축)을 만든다. 키가 없으면(005~009) 지금과 같은 차트다.
     const hasPrice = series.points.some((p) => p.price !== undefined);
-    const instance = createChart(container.current, {
+    const instance = createChart(container.current, themedChartOptions({
       height: 360,
       layout: { attributionLogo: false },
       leftPriceScale: { visible: true, borderVisible: false },
@@ -178,7 +182,7 @@ export function PerformanceChart({
       timeScale: { borderVisible: false },
       // 겹침 축의 위아래 여백 — 가격 선이 잔고 선과 차트 끝에 붙지 않게. `priceScale().applyOptions`는 모의 객체에 없다.
       ...(hasPrice ? { overlayPriceScales: { scaleMargins: { top: 0.1, bottom: 0.1 } } } : {}),
-    });
+    }, theme));
 
     const balanceFormat = axisPriceFormat(NO_DECIMAL_CURRENCIES.has(series.basisCurrency) ? 0 : 2);
     // 이력 비교 차트의 수익률 축과 같은 형식이다(FR-046a) — 같은 화면에서 두 수익률 축이 갈리지 않는다.
@@ -191,7 +195,7 @@ export function PerformanceChart({
       .flatMap((segment) => splitAtProvisional(segment, provisionalFrom));
     for (const { points: segment, tone } of parts) {
       const balance = instance.addSeries(LineSeries, {
-        color: COLORS[tone].balance,
+        color: ink(COLORS[tone].balance, theme),
         lineWidth: 2,
         priceScaleId: BALANCE_AXIS,
         priceFormat: balanceFormat,
@@ -205,7 +209,7 @@ export function PerformanceChart({
       );
 
       const profit = instance.addSeries(LineSeries, {
-        color: COLORS[tone].returnRate,
+        color: ink(COLORS[tone].returnRate, theme),
         lineWidth: 2,
         lineStyle: 2,
         priceScaleId: RETURN_AXIS,
@@ -223,7 +227,7 @@ export function PerformanceChart({
       const principal = toPerformanceData(segment, "principal");
       if (principal.length > 0) {
         const line = instance.addSeries(LineSeries, {
-          color: COLORS[tone].principal,
+          color: ink(COLORS[tone].principal, theme),
           lineWidth: 1,
           lineStyle: DOTTED,
           priceScaleId: BALANCE_AXIS,
@@ -239,7 +243,7 @@ export function PerformanceChart({
     const estimated = series.points.filter((p) => p.estimated === true);
     for (const { points: marked, tone } of splitByTone(estimated, provisionalFrom)) {
       for (const [color, radius] of [
-        [COLORS[tone].balance, ESTIMATED_MARKER.ring], [ESTIMATED_MARKER.holeColor, ESTIMATED_MARKER.hole],
+        [ink(COLORS[tone].balance, theme), ESTIMATED_MARKER.ring], [ink(ESTIMATED_MARKER.holeColor, theme), ESTIMATED_MARKER.hole],
       ] as const) {
         const marker = instance.addSeries(LineSeries, {
           color,
@@ -262,7 +266,7 @@ export function PerformanceChart({
       for (const segment of priceSegments(series.points, series.gaps)) {
         for (const { points: part, tone } of splitPriceAtProvisional(segment, provisionalFrom)) {
           const price = instance.addSeries(LineSeries, {
-            color: COLORS[tone].price,
+            color: ink(COLORS[tone].price, theme),
             lineWidth: 2,
             priceScaleId: PRICE_AXIS,
             priceLineVisible: false,
@@ -308,7 +312,7 @@ export function PerformanceChart({
       // 다른 실행의 상자가 남으면 새 차트의 값처럼 읽힌다.
       setHover(null);
     };
-  }, [series]);
+  }, [series, theme]);
 
   if (collecting) {
     return (
