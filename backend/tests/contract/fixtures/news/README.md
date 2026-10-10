@@ -17,3 +17,13 @@
 
 - 유료 기사(`isPaidArticle: true`)·1월 기준의 `"12/30"`·다른 도메인 링크는 실측 본문에 없다 — 계약 테스트가 위 본문의 상태 JSON을 고쳐 만든다.
 - 다시 받을 때는 같은 방식으로 줄이고 이 표의 날짜·상황을 고친다. 주소에 키가 없는 출처지만 주소는 담지 않는다(다른 픽스처와 같은 규칙).
+
+## 변화 까닭 — `commentary/` (반복 2026-10-10b, T095 — 2026-10-10 실측)
+
+| 파일 | 요청 | 담긴 상황 |
+|------|------|-----------|
+| `commentary/naver_focus_401.json` | 네이버 뉴스 포커스 `sid=401&date=20261008&pageSize=20`(시황·전망) | 20개 중 "코스피" 제목 5개(2·6·7·8·12번째), `date`는 `YYYYMMDDHHMMSS` 한국 시간, `url`은 `n.news.naver.com/mnews/article/…`. 썸네일 칸은 지웠다 |
+| `commentary/naver_focus_403.json` | `sid=403&date=20261009`(해외 증시 — 응답의 `date`는 20261008) | 38개 — 나스닥·S&P·뉴욕증시·유가 제목이 섞여 있다 |
+| `commentary/naver_focus_429.json` | `sid=429&date=20261009`(환율) | 7개 — "원·달러"·"원/달러" 제목 셋 |
+| `commentary/yahoo_quote_news_HSI.html` | Yahoo Finance `/quote/^HSI/news/` | `div[data-testid=news-stream]` 부분만 — 스트림 카드 12개, `div.publishing`("Investing.com • 18h ago"), 카드 안 종목 링크. 추적 속성·이미지·SVG 경로는 지웠다 |
+| `commentary/yahoo_quote_news_no_stream.html` | 가공(위 사본) | `news-stream`·`stream-card` 표지 이름을 바꿨다 — 목록 칸 없음(`parse_empty`) |

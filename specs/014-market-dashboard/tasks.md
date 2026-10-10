@@ -560,7 +560,7 @@ description: "Task list for 014-market-dashboard"
 - 일봉에 시가·고가·저가를 더하고 원본에서 되살린다
 
 **Independent Test**(spec US2 Independent Test):
-- KOSPI 카드 → 대시보드 위 모달, 주소 `/dashboard/kospi?range=1y`
+- KOSPI 카드 → 대시보드 위 모달, 주소 `/dashboard/kospi`(1년)
 - "모두"는 1996년부터 일봉 전부다
 - 표의 첫 줄 시가·고가·저가·종가가 같은 날 원본과 같다
 - 까닭 기사가 새 탭으로 열린다
@@ -573,12 +573,12 @@ description: "Task list for 014-market-dashboard"
 
 ### Preparation (반복 2026-10-10b)
 
-- [ ] T095 [US2] 출처 실측과 원칙 II 재승인 — `research.md` R14-17·R14-19, `plan.md` Complexity Tracking, `backend/tests/contract/fixtures/market/`·`fixtures/news/commentary/` + README (FR-027, FR-028)
+- [X] T095 [US2] 출처 실측과 원칙 II 재승인 — `research.md` R14-17·R14-19, `plan.md` Complexity Tracking, `backend/tests/contract/fixtures/market/`·`fixtures/news/commentary/` + README (FR-027, FR-028)
   - 15개 지표마다 시황 기사 목록(네이버 증권 시황 분류·Yahoo Finance `/quote/{심볼}/news/`·Yahoo!ファイナンス 市況)과 장중 질의(`interval=5m&range=1d`·`interval=30m&range=5d`)를 실측한다.
     적을 것: 요청 머리, 목록 표지, 허용 도메인, robots.txt·약관, 점 수·지연, 세션 밖 점
   - Complexity Tracking의 새 줄 둘을 채우고 **사용자 재승인**을 받는다. 승인이 안 되면 그 갈래(T102·T103·T112·T113·T116·T118의 해당 부분)를 빼고 나머지로 간다
   - 픽스처는 본문만이다(주소·머리·토큰 없음). 원본 254개의 `open`·`high`·`low` 칸 실측(옛 구간 0·null 비율)도 R14-18에 적는다
-- [ ] T096 [P] [US2] 모달 경로 확인 — `node_modules/next/dist/docs/`의 가로채기(`(.)`)·병렬(`@modal`) 경로와 `default.tsx`, 사이드바·제목 판정 불변. `research.md` R14-20 (FR-010)
+- [X] T096 [P] [US2] 모달 경로 확인 — `node_modules/next/dist/docs/`의 가로채기(`(.)`)·병렬(`@modal`) 경로와 `default.tsx`, 사이드바·제목 판정 불변. `research.md` R14-20 (FR-010)
 
 ### Foundational (반복 2026-10-10b) — 시가·고가·저가 저장
 

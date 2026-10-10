@@ -187,9 +187,11 @@
   "indicator": { "id": "sp500", "name": "S&P 500", "unit": "포인트" },
   "period": "weekly",
   "rows": [
-    { "date": "2026-10-09", "open": "7790.120000", "high": "7812.500000", "low": "7701.330000", "close": "7801.250000",
-      "change": "35.890000", "changeRate": "0.004622", "shifted": false, "ongoing": true, "provisional": true },
-    { "from": "2001-09-11", "to": "2001-09-14", "reason": "missing" }
+    { "kind": "period", "date": "2026-10-09", "open": null, "high": null, "low": null, "close": "7801.250000",
+      "change": "35.890000", "changeRate": "0.004622", "isOngoing": true, "provisional": true },
+    { "kind": "period", "date": "2026-10-02", "shiftedFrom": "2026-10-02", "open": "7701.000000", "high": "…", "low": "…", "close": "…",
+      "change": "…", "changeRate": "…", "provisional": false },
+    { "kind": "missing", "date": "2001-09-11", "dateTo": "2001-09-14" }
   ],
   "hasMore": true,
   "oldestReturned": "2026-04-17",
@@ -197,8 +199,9 @@
 }
 ```
 
-- 행 꼴은 data-model §5a다. 값은 문자열 Decimal, 없으면 `null`(화면 "—")
-- 결측 구간 행(`reason: "missing"`)은 `period=daily`에만 온다
+- 행 꼴은 data-model §5a다 — **주식 일자별 표(012 `table_rows.row_body`)와 같은 꼴**: `kind`(`period`·`missing`), 옮겼으면 `shiftedFrom`(원래 기준일), 끝나지 않았으면 `isOngoing: true`. 값은 문자열 Decimal, 없으면 `null`(화면 "—")
+- 결측 구간 행(`kind: "missing"`, `date`~`dateTo`)은 `period=daily`에만 온다
+- 오늘(현지) 잠정 행은 `provisional: true`이고 시가·고가·저가가 `null`이다(출처의 현재 시세가 시가를 주지 않는다 — R14-19)
 - 환율: 외환 고시 이력, `open`·`high`·`low`는 늘 `null`, `seriesNote: "fx_fixing"`(화면 "고시 — 하루 한 값")
 - `limit` 기본 30·최대 200, `before`는 그 날짜 미만. 하루가 두 쪽에 갈리지 않는다
 

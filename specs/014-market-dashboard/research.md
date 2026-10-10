@@ -349,24 +349,33 @@
 - 백엔드: `lifespan` 태스크 수를 세는 테스트가 있으면 바뀐다(구현 때 확인)
 - `YahooStockClient` 기존 계약 테스트는 `gate` 기본값 `None`이라 바뀌지 않아야 한다 — 바뀌면 멈추고 보고한다
 
-## R14-17 변화 까닭의 시황 출처 (반복 2026-10-10b — **T095에서 실측해 채운다**)
+## R14-17 변화 까닭의 시황 출처 (반복 2026-10-10b — 실측 2026-10-10, 사용자 승인 2026-10-10)
 
-**Decision**(정의 — 출처 주소·표지·약관은 실측 뒤 확정):
-- 지표마다 시황·종목 뉴스 목록 하나를 정한다. 후보:
+**Decision** — 지표마다 출처 하나(갈래 둘):
 
-  | 지표 | 후보 목록 | 확인할 것 |
-  |------|-----------|-----------|
-  | KOSPI·KOSDAQ | 네이버 증권 내부 API(`/api/domestic/news/list`)의 시황 분류 `category` | 분류 이름·한 쪽 수·`datetime`(KST)·지표 이름으로 거를 필요 |
-  | 다우·나스닥·S&P 500·SOX·항셍·상해·WTI·금·VIX | Yahoo Finance 종목 뉴스 화면 `/quote/{심볼}/news/` | Latest News와 같은 스트림 카드 구조(`data-testid=stream-card`)인지, 상대 시각뿐인지, robots.txt의 `/quote/` |
-  | 니케이 225 | Yahoo!ファイナンス 市況(`/news/category/market` 꼴) 또는 `/quote/998407.O/news` | 상태 JSON(`__PRELOADED_STATE__`)의 목록 이름·시각 꼴 |
-  | 달러·엔·유로 | Yahoo Finance `/quote/KRW=X/news/` 등 | 기사 수(환율은 적을 수 있음) — 적으면 "찾지 못함"이 잦다 |
+| 지표 | 출처 | 거르는 낱말(제목) |
+|------|------|-------------------|
+| KOSPI | 네이버 증권 뉴스 포커스 `sid=401`(시황·전망) | 코스피 |
+| KOSDAQ | 같다 | 코스닥 |
+| 다우 · 나스닥 · S&P 500 | 네이버 뉴스 포커스 `sid=403`(해외 증시) | 다우·나스닥·S&P 각각 + "뉴욕증시"·"뉴욕 증시" |
+| 필라델피아 반도체 | 같다 | 필라델피아·반도체지수·반도체 지수 |
+| WTI | 같다 | 유가·WTI·원유 |
+| 달러 · 엔 · 유로 | 네이버 뉴스 포커스 `sid=429`(환율) | 달러("원·달러"·"원/달러" 포함) · 엔화·엔저·원·엔·원/엔 · 유로 |
+| 니케이 · 항셍 · 상해 · 금 · VIX | Yahoo Finance 종목 뉴스 `/quote/{심볼}/news/`(영어) | 거르지 않는다 — 그 종목의 목록이다 |
 
-- **고르는 규칙**: 그 지표의 마지막 세션 날짜(현지) 이후 게시된 기사만, 출처 목록 차례로 위에서부터 최대 3개. 게시 시각이 상대 표기뿐이면 받은 시각 기준으로 그 날짜를 정할 수 있을 때만 쓴다(정할 수 없으면 맨 위 기사 하나 — 그 사실을 화면에 밝힌다)
-- **문구**: 제목·요약은 출처 글자 그대로다. 번역·요약·생성하지 않는다(spec FR-027)
-- **캐시·실패**: 지표마다 메모리 10분, 실패 백오프는 뉴스와 같다(R14-13). 0건 읽기(표지 없음)는 `parse_empty`, 규칙상 없음은 `none`
-- **약관**: robots.txt·약관을 출처마다 실측해 plan Complexity Tracking의 새 줄에 적고 사용자 재승인을 받는다
+- **네이버 뉴스 포커스**(`GET https://stock.naver.com/api/domestic/news/focus?sid=&page=1&pageSize=50&date=YYYYMMDD`)
+  - 뉴스 화면 "뉴스 포커스"가 부르는 내부 API다(주요뉴스 `list`와 같은 호스트). `date`(한국 날짜)가 없으면 빈 목록이다(실측 — `enableFallback`도 비었다)
+  - 칸: `title`·`subcontent`(요약 — 원문)·`officeHName`(언론사)·`date`(`YYYYMMDDHHMMSS` 한국 시간)·`url`(`https://n.news.naver.com/mnews/article/…` — 허용 호스트 `n.news.naver.com`)
+  - 사흘치 실측(10-06~08, 쪽당 50): 401 300개 중 코스피 119·코스닥 58, 403 313개 중 미국 지수 56·유가 17, 429 75개 중 환율 38. 니케이·항셍·상해·금·VIX는 0~2 — 그래서 그 다섯은 Yahoo다
+  - 한국 오늘과 어제 두 날짜를 부른다(마지막 세션이 어제 밤인 미국·환율 기사가 오늘 날짜에 실린다)
+- **Yahoo Finance 종목 뉴스**: `div[data-testid=news-stream]` 안의 `stream-card` 12개. 제목은 `h3`를 감싼 링크의 `title`, 언론사·시각은 `div.publishing`("Investing.com • 18h ago" — 상대 표기뿐). Latest News(`topic-stream`·`span.publisher`)와 꼴이 달라 파서를 따로 둔다
+  - 상대 시각("4m ago"·"18h ago"·"yesterday"·"2 days ago")은 받은 시각에서 빼 게시 시각을 어림한다. 읽을 수 없으면 그 줄은 고르지 않는다
+  - 실측: 항셍·원화 목록은 그 시장 기사가 대부분, 원유는 섞임. 니케이·상해·금·VIX도 `news-stream`·12개
+- **고르는 규칙**: 게시 시각 ≥ 마지막 세션 날짜(그 시장 현지 0시) — 지난 변화의 기사는 뺀다. 출처 차례로 위에서부터 최대 3개, 같은 제목은 한 번
+- **robots.txt·약관**: 네이버 `stock.naver.com` `Disallow: /`(주요뉴스와 같은 이탈 — 약관이 자동 수집 금지), Yahoo `finance.yahoo.com/quote/`는 robots 허용(`/quote/*/earnings/*` 일부만 금지) — 약관이 자동 수집 금지(Latest News와 같다)
+- **승인**: 사용자 2026-10-10 — "네이버 + Yahoo 종목"(plan Complexity Tracking)
 
-**Alternatives considered**(사용자에게 제시함 — 2026-10-10): 받아 둔 뉴스 세 칸에서 지표 이름으로 고르기(새 출처 없음, 맞는 기사가 드묾) · AI 요약 문장(API 키·비용·생성물의 사실 검증)
+**Alternatives considered**(사용자에게 제시함 — 2026-10-10): 네이버만(다섯 지표가 늘 "찾지 못함") · Yahoo 종목 뉴스만(한국 지수도 영어) · 변화 까닭 빼기. 그 전(define): 받아 둔 뉴스에서 고르기 · AI 요약 문장. Yahoo!ファイナンス 市況(`/news/category/market`)은 404였다
 
 ## R14-18 시가·고가·저가 — 원본에서 되살린다 (반복 2026-10-10b)
 
@@ -379,27 +388,33 @@
 - 개정 표(`market_close_revision`)는 종가만이다 — 시가·고가·저가는 새 날만 넣고 덮지 않는다(spec FR-017)
 - 결측 가드(`test_no_interpolation`)에 걸리는 글자(`backfill`·"이전 값")를 쓰지 않는다 — "되살리기"·"채우기"
 
+**실측(T095 — 2026-10-10)**: 개발 DB 원본 254개(12개 지표 13만 3천여 행)에 시가·고가·저가가 **모두 있다** — 빈 값·0이 0건이다(S&P 500 1927-12-30부터, 니케이 1965-01-05부터). 그래도 빈 값·0을 NULL로 두는 규칙은 지킨다(출처가 바꿀 수 있다).
+
 **Rationale**: 원칙 V가 원본과 정규화를 따로 저장하라는 까닭이 이것이다. 다시 받으면 약 250회·8분이고 출처 부하가 든다.
 **Alternatives considered**: 전체 다시 받기 · 열 없이 표에서 원본을 그때 파싱(요청 경로에서 MB 단위 JSON 해석 — 원칙 I)
 
-## R14-19 장중 시세 (반복 2026-10-10b — **T095에서 실측해 채운다**)
+## R14-19 장중 시세 (반복 2026-10-10b — 실측 2026-10-10, 사용자 승인 2026-10-10)
 
-**Decision**(정의):
-- `GET /v8/finance/chart/{symbol}?interval=5m&range=1d`(일) · `?interval=30m&range=5d`(주) — 005 이탈의 같은 엔드포인트
-- 점은 `{time(UTC), value}`이고 모두 잠정이다. 저장하지 않는다(원본도 저장하지 않는다 — 확정 값의 근거가 아니다)
-- 캐시: 지표·기간마다 메모리 일 60초·주 300초, 단일 비행. 관문(`YahooGate`)을 주식·대시보드와 함께 지난다
-- 환율은 시장 환율 심볼(`KRW=X` 등, 엔 ×100)이다 — 카드와 같은 계열(spec FR-028·명확화 2)
-- 실측할 것: 점 수·지연·세션 밖 점(장 전·후 값이 섞이는지)·선물의 밤 세션·`range=1d`가 휴장일에 무엇을 주는지
+**Decision**:
+- `GET /v8/finance/chart/{symbol}?range=1d&interval=5m`(일) · `?range=5d&interval=30m`(주) — 005 이탈의 같은 엔드포인트, 같은 사용자 에이전트(`ingestion/yahoo/market.py`의 `_USER_AGENT` — 브라우저형 UA로 부르면 곧바로 429였다, 실측)
+- 실측(2026-10-10 토요일 03시 KST): S&P 500 1일 79점(10-09 13:30~20:00 UTC — 장 시간만), 5일 66점(10-05~10-09). KOSPI 1일 73점(마지막 세션). WTI 1일 205점(밤 세션 포함). 달러 5일 240점 중 빈 점 24, 엔 1일 288점 중 빈 점 114
+- 점은 `{time(UTC), value}`이고 모두 잠정이다. **빈 종가는 건너뛴다**(선을 끊지 않는다 — spec FR-014). 엔은 ×100
+- 저장하지 않는다(원본도 — 확정 값의 근거가 아니다)
+- 그날의 고가·저가(`meta.regularMarketDayHigh/Low`)는 주지만 시가는 없다 — 표의 오늘 잠정 행의 시가·고가·저가는 "—"로 둔다(D9의 "없으면 —". 고가·저가만 보이면 시가 없는 행이 된다)
+- 캐시: 지표·기간마다 메모리 일 60초·주 300초, 단일 비행, 실패 10초 기억. 관문(`YahooGate`)을 함께 지난다
+- **승인**: 사용자 2026-10-10
 
-## R14-20 모달 주소 — Next 16 가로채기·병렬 경로 (반복 2026-10-10b — T096에서 문서 확인)
+## R14-20 모달 주소 — Next 16 가로채기·병렬 경로 (반복 2026-10-10b — T096 문서 확인 2026-10-10)
 
-**Decision**(정의):
-- `app/dashboard/layout.tsx`가 `children`과 `modal` 슬롯을 그린다. `app/dashboard/@modal/default.tsx`는 `null`이다
-- `app/dashboard/@modal/(.)[indicator]/page.tsx` — 대시보드 안에서 카드를 누른 이동(부드러운 이동)을 가로채 모달을 연다
-- `app/dashboard/[indicator]/page.tsx` — 새로고침·주소 직접 입력(딱딱한 이동)이면 대시보드 + 같은 모달을 그린다
-- 닫기: 대시보드 안에서 연 모달은 `router.back()`, 직접 연 모달은 `router.replace("/dashboard")`. 포커스는 그 카드(`data-indicator`)로 — 013 `SimulationModal`의 포커스·Esc 처리를 따른다
+`node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/intercepting-routes.md`·`parallel-routes.md`(Modals 예):
+
+**Decision**:
+- `app/dashboard/layout.tsx`가 `children`과 `modal` 슬롯을 그린다. `app/dashboard/@modal/default.tsx`는 `null`이다 — 없으면 새로고침 때 슬롯이 404다(문서)
+- `app/dashboard/@modal/(.)[indicator]/page.tsx` — 대시보드 안에서 카드(`<Link href="/dashboard/{id}">`)를 누른 부드러운 이동을 가로채 모달을 연다. `(.)`는 슬롯이 아니라 경로 조각 기준이다(`@modal`은 조각이 아니다)
+- `app/dashboard/[indicator]/page.tsx` — 새로고침·주소 직접 입력(딱딱한 이동)은 가로채지 않는다. 이 페이지가 **대시보드 + 같은 모달**을 그린다(슬롯은 `default`)
+- 닫기: 가로챈 모달은 `router.back()`(문서의 방식 — 뒤로 가기와 같다), 직접 연 모달은 `router.replace("/dashboard")`(앞 쪽이 다른 사이트일 수 있다). 포커스는 그 카드(`[data-indicator]` 안 링크)로 — 013 `SimulationModal`과 같다
+- 카드의 주소는 `/dashboard/{id}`(기간 없음 = 1년)다. 기간을 고르면 `router.replace("?range=…", { scroll: false })` — 가로챈 모달 안에서도 같은 쪽에 머문다
 - 사이드바(`startsWith("/dashboard")`)·상단 바 제목 판정은 바뀌지 않는다
-- 확인할 것: `node_modules/next/dist/docs/`의 가로채기·병렬 경로 쪽(버전 16의 바뀐 점), `searchParams`가 Promise인 점, 테스트에서 슬롯을 그리는 방법
 
 ## R14-21 일자별 표 행 (반복 2026-10-10b)
 

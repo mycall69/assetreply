@@ -16,3 +16,12 @@ Yahoo 비공식 차트·spark 엔드포인트의 **응답 본문만** 담는다.
 | `chart_GSPC_1927.json` | `period1=-2208988800` 원본을 1927-12~1929-12로 자름 | 1970년 이전 — 음수 epoch, `firstTradeDate` 1927-12-30 |
 | `chart_GSPC_open_today.json` | `range=5d&interval=1d` | 개장 3분 뒤 — 오늘(현지 10-09) 부분 봉 |
 | `rate_limited.txt` | 브라우저형 UA 없이 | 429 본문(23바이트) |
+
+**반복 2026-10-10b(T095 — 2026-10-10 03시 KST 토요일 실측)** — 장중 질의(`range=1d&interval=5m`·`range=5d&interval=30m`), 응답 본문만:
+
+| 파일 | 요청 | 담긴 상황 |
+|------|------|-----------|
+| `intraday_GSPC_1d_5m.json` | `^GSPC` 1일 5분 | 79점 — 10-09(뉴욕 금요일) 13:30~20:00 UTC, 빈 점 없음. `meta.regularMarketDayHigh/Low`는 있고 시가는 없다 |
+| `intraday_GSPC_5d_30m.json` | `^GSPC` 5일 30분 | 66점 — 10-05~10-09 |
+| `intraday_KRW_X_5d_30m.json` | `KRW=X` 5일 30분 | 240점 중 빈 종가 24 — 건너뛴다 |
+| `intraday_JPYKRW_X_1d_5m.json` | `JPYKRW=X` 1일 5분 | 288점 중 빈 종가 114, 1엔당 값(×100은 어댑터) |

@@ -166,11 +166,12 @@ R14-7 표가 상수다. 함수는 둘이다:
 | `open` · `high` · `low` | 문자열 Decimal · null | 일: 그 날 / 주·월: 첫 거래일 시가 · 기간 최댓값 · 기간 최솟값(값이 하나도 없으면 null). 환율은 늘 null |
 | `close` | 문자열 Decimal | 대표일 종가 |
 | `change` · `changeRate` | 문자열 Decimal · null | 앞 행(일: 직전 거래일, 주·월: 앞 기간 대표 종가)과의 차이·비율. 앞 행이 없으면 null, 앞 종가가 0 이하면 `changeRate` null |
-| `shifted` | bool | 대표일 ≠ 기간 끝(금·말일) → 📅 |
-| `ongoing` | bool | 기간 끝 > 현지 오늘 → ⏳ |
-| `provisional` | bool | 오늘(현지) 잠정 행(카드 값 — 시가·고가·저가는 출처가 주면 잠정, 없으면 null), 또는 외환 잠정 고시 |
+| `shiftedFrom` | 날짜 · 없음 | 대표일 ≠ 기간 끝(금·말일) → 원래 기준일 — 📅 (주식 일자별 표와 같은 꼴) |
+| `isOngoing` | true · 없음 | 기간 끝 > 현지 오늘 → ⏳ |
+| `provisional` | bool | 오늘(현지) 잠정 행(카드 값 — 시가·고가·저가는 null, R14-19), 또는 외환 잠정 고시 |
 
-- 결측(§5)은 일 단위에서 결측 구간 행 `{from, to, reason: "missing"}`이다. 휴장은 행이 없다
+- 결측(§5)은 일 단위에서 결측 구간 행 `{kind: "missing", date, dateTo}`이다. 휴장은 행이 없다
+- 행은 012 `api/services/table_rows`(`table_page`·`row_body`)로 만든다 — 주식 일자별 표와 같은 쪽 나누기·꼴
 - 쪽은 최신부터 `limit`(기본 30·최대 200)개, `before`(그 날짜 미만) — 주식 일자별 표(012)와 같다. 하루가 두 쪽에 갈리지 않는다
 
 ## 6. 뉴스 (`ingestion/news/types.py` — 저장하지 않음)
