@@ -71,10 +71,12 @@ describe("그래프", () => {
     fireEvent.click(screen.getByRole("button", { name: "비교 실행" }));
     await screen.findByTestId("compare-chart");
     // 처음 차례는 더한 차례다.
-    expect(barNames()).toEqual(["삼성전자", "SK하이닉스", "Technology Select Sector SPDR Fund"]);
+    // 014 승인 2026-10-10(반복 2026-10-10e T152) — 투자 비교의 주식·가상자산 이름은 이름(티커)다(FR-032)
+    expect(barNames()).toEqual(["삼성전자(005930)", "SK하이닉스(000660)", "Technology Select Sector SPDR Fund(XLK)"]);
     // 수익률 머리를 누르면 내림차순 — XLK 3 · 삼성전자 2 · SK하이닉스 1.
     fireEvent.click(screen.getByRole("button", { name: /^수익률/ }));
-    await waitFor(() => expect(barNames()).toEqual(["Technology Select Sector SPDR Fund", "삼성전자", "SK하이닉스"]));
+    await waitFor(() => expect(barNames()).toEqual(
+      ["Technology Select Sector SPDR Fund(XLK)", "삼성전자(005930)", "SK하이닉스(000660)"]));
   });
 
   it("흐린 동안 그래프도 흐리다", async () => {

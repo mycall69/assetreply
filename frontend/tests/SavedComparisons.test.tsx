@@ -32,7 +32,8 @@ describe("저장한 비교", () => {
     draw({ entries: [entry(1, "주식 3개 · 2020-01-02 · 일시금", stock())] });
     const row = screen.getByTestId("saved-comparison");
     expect(row).toHaveTextContent("주식 3개 · 2020-01-02 · 일시금");
-    expect(row).toHaveTextContent("주식 · 삼성전자, SK하이닉스, Technology Select Sector SPDR Fund");
+    // 014 승인 2026-10-10(반복 2026-10-10e T152) — 투자 비교의 주식·가상자산 이름은 이름(티커)다(FR-032)
+    expect(row).toHaveTextContent("주식 · 삼성전자(005930), SK하이닉스(000660), Technology Select Sector SPDR Fund(XLK)");
     expect(row).toHaveTextContent("2020-01-02 · 일시금");
     expect(row).toHaveTextContent("10-08 12:21 저장");
   });
@@ -40,8 +41,9 @@ describe("저장한 비교", () => {
   it("대상이 셋을 넘으면 '외 N개'다", () => {
     const five = [SAMSUNG_T, HYNIX_T, XLK_T, AAPL_T, { ...AAPL_T, symbol: "MSFT", name: "Microsoft" }];
     draw({ entries: [entry(1, "다섯", stock({ targets: five }))] });
+    // 014 승인 2026-10-10(반복 2026-10-10e T152) — 투자 비교의 주식·가상자산 이름은 이름(티커)다(FR-032)
     expect(screen.getByTestId("saved-comparison"))
-      .toHaveTextContent("주식 · 삼성전자, SK하이닉스, Technology Select Sector SPDR Fund 외 2개");
+      .toHaveTextContent("주식 · 삼성전자(005930), SK하이닉스(000660), Technology Select Sector SPDR Fund(XLK) 외 2개");
   });
 
   it("적립식은 주기를 함께 보인다", () => {

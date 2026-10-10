@@ -91,7 +91,8 @@ describe("화면", () => {
     render(<ComparePage />);
     await userEvent.type(screen.getByRole("searchbox"), "삼성");
     await userEvent.click(await screen.findByRole("option", { name: /삼성전자/ }));
-    expect(await screen.findByRole("button", { name: "삼성전자 빼기" })).toBeInTheDocument();
+    // 014 승인 2026-10-10(반복 2026-10-10e T152) — 투자 비교의 주식·가상자산 이름은 이름(티커)다(FR-032)
+    expect(await screen.findByRole("button", { name: "삼성전자(005930) 빼기" })).toBeInTheDocument();
     expect(screen.getByText(/1\/10/)).toBeInTheDocument();
   });
 
@@ -108,8 +109,9 @@ describe("화면", () => {
     useCompareStore.getState().addTarget(SAMSUNG_T);
     useCompareStore.getState().addTarget(HYNIX_T);
     render(<ComparePage />);
-    fireEvent.click(screen.getByRole("button", { name: "SK하이닉스 빼기" }));
-    expect(screen.queryByRole("button", { name: "SK하이닉스 빼기" })).toBeNull();
+    // 014 승인 2026-10-10(반복 2026-10-10e T152) — 투자 비교의 주식·가상자산 이름은 이름(티커)다(FR-032)
+    fireEvent.click(screen.getByRole("button", { name: "SK하이닉스(000660) 빼기" }));
+    expect(screen.queryByRole("button", { name: "SK하이닉스(000660) 빼기" })).toBeNull();
   });
 
   it("11번째는 더하지 않고 알린다", () => {

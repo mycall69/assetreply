@@ -26,6 +26,7 @@ vi.mock("lightweight-charts", () => ({
   }),
 }));
 
+// 014 승인 2026-10-10(반복 2026-10-10e T152) — 투자 비교의 주식·가상자산 이름은 이름(티커)다(FR-032) — 아래의 단추 이름
 function route() {
   return routeCompare((path) => {
     if (path.startsWith("/api/stocks/search")) return { query: "", results: [], truncated: false, lists: [] };
@@ -56,7 +57,7 @@ describe("투자 시뮬레이션 모달", () => {
     fireEvent.click(screen.getByRole("button", { name: "비교 실행" }));
     await screen.findByRole("table", { name: "비교 표" });
 
-    fireEvent.click(screen.getByRole("button", { name: "삼성전자 투자 시뮬레이션" }));
+    fireEvent.click(screen.getByRole("button", { name: "삼성전자(005930) 투자 시뮬레이션" }));
     const dialog = await screen.findByRole("dialog");
     await within(dialog).findByTestId("simulation-modal-board");
     expect(within(dialog).getByTestId("simulation-modal-table")).toHaveTextContent("2021-08-31");
@@ -66,7 +67,7 @@ describe("투자 시뮬레이션 모달", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(screen.getByRole("table", { name: "비교 표" })).toBeInTheDocument();
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "삼성전자 투자 시뮬레이션" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "삼성전자(005930) 투자 시뮬레이션" }));
 
     // 이력을 쓰지 않고 메뉴 스토어를 건드리지 않는다(FR-020).
     expect(historyStub.calls().filter((c) => c.method === "PUT")).toEqual([]);
@@ -81,11 +82,11 @@ describe("투자 시뮬레이션 모달", () => {
     fireEvent.click(screen.getByRole("button", { name: "비교 실행" }));
     await screen.findByRole("table", { name: "비교 표" });
     screen.getByRole("searchbox").focus();
-    fireEvent.click(screen.getByRole("button", { name: "SK하이닉스 투자 시뮬레이션" }));
+    fireEvent.click(screen.getByRole("button", { name: "SK하이닉스(000660) 투자 시뮬레이션" }));
     await screen.findByRole("dialog");
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "SK하이닉스 투자 시뮬레이션" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "SK하이닉스(000660) 투자 시뮬레이션" }));
   });
 
   it("흐린 동안에도 열리고 그 줄을 낸 실행의 조건으로 부른다", async () => {
@@ -96,7 +97,7 @@ describe("투자 시뮬레이션 모달", () => {
     useCompareStore.getState().setStart("2021-01-04");
     await screen.findByRole("status", { name: "조건이 바뀜" });
 
-    fireEvent.click(screen.getByRole("button", { name: "SK하이닉스 투자 시뮬레이션" }));
+    fireEvent.click(screen.getByRole("button", { name: "SK하이닉스(000660) 투자 시뮬레이션" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByTestId("simulation-modal-condition")).toHaveTextContent("시작일 2020-01-02");
     const calls = menuCalls(get);

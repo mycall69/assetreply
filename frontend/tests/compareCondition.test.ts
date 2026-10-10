@@ -103,8 +103,9 @@ describe("대상 키와 이름", () => {
   });
 
   it("이름은 한국어 이름을 먼저 쓴다", () => {
-    expect(targetName(BTC)).toBe("비트코인");
-    expect(targetName(SAMSUNG)).toBe("삼성전자");
+    // 014 승인 2026-10-10(반복 2026-10-10e T152) — 투자 비교의 주식·가상자산 이름은 이름(티커)다(FR-032)
+    expect(targetName(BTC)).toBe("비트코인(BTC)");
+    expect(targetName(SAMSUNG)).toBe("삼성전자(005930)");
     expect(targetName({ institution: "saemaul" })).toBe("새마을금고");
     expect(targetName(HELIO)).toBe("헬리오시티아파트 30평대(국평)");
   });
