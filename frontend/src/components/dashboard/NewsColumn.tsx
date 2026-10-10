@@ -20,7 +20,8 @@ const HEADS: Record<NewsSourceKey, { name: string; url: string; list: string }> 
   jp: { name: "Yahoo!ファイナンス", url: "https://finance.yahoo.co.jp/news", list: "ヘッドライン" },
 };
 
-const REASONS: Record<NewsFailureReason, string> = {
+/** 출처 실패의 까닭 글자 — 변화 까닭 칸(반복 2026-10-10b)도 같은 글자다. */
+export const NEWS_REASONS: Record<NewsFailureReason, string> = {
   connection: "연결 실패",
   blocked: "차단",
   rate_limited: "요청 제한",
@@ -97,7 +98,7 @@ export function NewsColumn({ source, state, onRetry, now }: {
         <div role="alert" className="space-y-1 text-sm text-amber-800">
           {state.failure?.reason === "parse_empty"
             ? <p>읽지 못함 — 출처 화면이 바뀌었을 수 있음</p>
-            : <p>받지 못했습니다 — {state.failure ? REASONS[state.failure.reason] : "연결 실패"}</p>}
+            : <p>받지 못했습니다 — {state.failure ? NEWS_REASONS[state.failure.reason] : "연결 실패"}</p>}
           {state.failure?.retryAfterSeconds ? (
             <p className="text-xs">{state.failure.retryAfterSeconds}초 뒤 다시 시도할 수 있습니다</p>
           ) : null}

@@ -3,8 +3,10 @@ contracts A2.
 
 - **과거 구간이 다 받아지지 않았으면 202**(받는 중·실패) — 받은 만큼만 그린 선을 완성된 그래프처럼
   보이지 않는다(FR-016)
-- 단위(일·주·월·년)의 대표값은 순수 모듈 `simulation/indicator_periods`, 결측은
-  `simulation/market_gaps`(같은 시장 묶음·14일)
+- (반복 2026-10-10b) 질의는 보는 기간 `range`다(`simulation/indicator_range`). 일봉
+  기간(월~모두)은 그 기간의 **일봉 전부**이고 점을 묶지 않는다. 일·주(장중)는 경로가
+  `indicator_intraday`에 넘긴다 — 여기 오지 않는다. 결측은 `simulation/market_gaps`(같은 시장
+  묶음·14일)
 - **오늘 잠정 꼬리**는 현재 시세 서비스의 값(카드와 같은 값)이다. 환율에는 붙이지 않는다 — 시장
   환율과 고시는 다른 계열이다
   (명확화 2)
@@ -42,7 +44,8 @@ from src.repository import fx_rate, market_daily
 from src.repository import job as fx_job
 from src.repository.collection_lock import SCOPE_COLLECTION
 from src.simulation.downsample import Point, lttb
-from src.simulation.indicator_periods import UNITS, PeriodPoint, Unit, build_points
+from src.simulation.indicator_periods import PeriodPoint, build_points
+from src.simulation.indicator_range import RangeKey, range_start
 from src.simulation.market_gaps import Sibling, missing_ranges
 from src.simulation.market_indicators import Indicator, siblings
 from src.simulation.market_quote import MarketQuote
@@ -62,14 +65,6 @@ class QuoteLookup(Protocol):
     """현재 시세 — 잠정 꼬리의 근거(카드와 같은 값)."""
 
     async def quote(self, indicator_id: str) -> MarketQuote | None: ...
-
-
-def unit_of(raw: str | None) -> Unit:
-    """틀리거나 없는 단위는 `daily`다(화면 규칙과 같다 — 400을 내지 않는다)."""
-    for unit in UNITS:
-        if raw == unit:
-            return unit  # type: ignore[return-value]
-    return "daily"
 
 
 def _iso(instant: dt.datetime | None) -> str | None:
@@ -143,6 +138,11 @@ def _reduce(points: list[PeriodPoint], max_points: int) -> tuple[list[PeriodPoin
     by_date = {p.date: p for p in points}
     chosen = lttb([Point(p.date, p.value) for p in points], target=max_points)
     return [by_date[c.date] for c in chosen], True
+
+
+def _window(points: list[PeriodPoint], start: dt.date | None) -> list[PeriodPoint]:
+    """보는 기간 안의 일봉 — `start`가 없으면(모두) 전부."""
+    return points if start is None else [p for p in points if p.date >= start]
 
 
 def _indicator_block(indicator: Indicator) -> Json:
@@ -236,10 +236,47 @@ async def fx_state(
     )
 
 
+async def fx_pending(
+    session: AsyncSession, indicator: Indicator, state: FxState, ensure_job: EnsureJob
+) -> Json:
+    """환율 이력이 모자랄 때의 202 본문 — 그래프와 일자별 표(A7)가 같은 판정·같은 본문을 쓴다."""
+    head: Json = {"indicator": {"id": indicator.id, "name": indicator.name}}
+    if state.failure is not None:
+        # 다시 요청하지 않는다 — [다시 시도](A3)만 외환 수집 경로에 넘긴다
+        return {
+            "status": "failed",
+            **head,
+            "progress": state.progress,
+            "failure": state.failure,
+            "progressUrl": progress_url(indicator.id),
+        }
+    ticket = await ensure_job(session, indicator.fx_currency or "")
+    return {
+        "status": "collecting",
+        **head,
+        "progress": state.progress,
+        "failure": None,
+        "progressUrl": progress_url(indicator.id),
+        "jobId": ticket.job_id,
+    }
+
+
+def market_pending(indicator: Indicator, row: MarketIndicatorCoverage | None) -> Json:
+    """과거 구간이 다 받아지지 않았을 때의 202 본문 — 그래프와 일자별 표(A7)가 같다."""
+    failure = failure_after_success(row)
+    return {
+        "status": "failed" if failure is not None else "collecting",
+        "indicator": {"id": indicator.id, "name": indicator.name},
+        "progress": progress_json(row),
+        "failure": failure,
+        "progressUrl": progress_url(indicator.id),
+    }
+
+
 async def _fx_series(
     session: AsyncSession,
     indicator: Indicator,
-    unit: Unit,
+    range_key: RangeKey,
     *,
     settings: Settings,
     now: dt.datetime,
@@ -249,25 +286,7 @@ async def _fx_series(
     code = indicator.fx_currency or ""
     state = await fx_state(session, indicator, settings=settings, now=now, fx_busy=fx_busy)
     if not state.complete or state.start is None:
-        head: Json = {"indicator": {"id": indicator.id, "name": indicator.name}}
-        if state.failure is not None:
-            # 다시 요청하지 않는다 — [다시 시도](A3)만 외환 수집 경로에 넘긴다
-            return 202, {
-                "status": "failed",
-                **head,
-                "progress": state.progress,
-                "failure": state.failure,
-                "progressUrl": progress_url(indicator.id),
-            }
-        ticket = await ensure_job(session, code)
-        return 202, {
-            "status": "collecting",
-            **head,
-            "progress": state.progress,
-            "failure": None,
-            "progressUrl": progress_url(indicator.id),
-            "jobId": ticket.job_id,
-        }
+        return 202, await fx_pending(session, indicator, state, ensure_job)
     start, end = state.start, state.end
     rows = await fx_rate.series(session, code, start, end)
     closes = [(r.quote_date, r.base_rate) for r in rows]
@@ -279,11 +298,14 @@ async def _fx_series(
         state.covered_from,
         state.covered_through,
     )
-    points = build_points(closes, unit, today=end, provisional_dates=provisional)
+    window = range_start(end, range_key)
+    points = _window(
+        build_points(closes, "daily", today=end, provisional_dates=provisional), window
+    )
     reduced, downsampled = _reduce(points, settings.dashboard_series_max_points)
     return 200, {
         "indicator": _indicator_block(indicator),
-        "unit": unit,
+        "range": range_key,
         "history": {
             "source": "ecos",
             "firstDate": closes[0][0].isoformat() if closes else None,
@@ -296,11 +318,25 @@ async def _fx_series(
         "gaps": [
             {"from": g.start.isoformat(), "to": g.end.isoformat(), "reason": "missing"}
             for g in gaps
-            if g.reason == "not_collected"
+            if g.reason == "not_collected" and (window is None or g.end >= window)
         ],
         "downsampled": downsampled,
         "sourcePointCount": len(points),
     }
+
+
+async def market_gaps(
+    session: AsyncSession,
+    indicator: Indicator,
+    row: MarketIndicatorCoverage,
+    days: list[dt.date],
+) -> list[tuple[dt.date, dt.date]]:
+    """결측 구간(R14-5 — 같은 시장 묶음·14일). 그래프와 일자별 표가 같은 판정을 쓴다."""
+    assert row.covered_from is not None and row.covered_through is not None
+    sibling_rows = [await _sibling(session, s) for s in siblings(indicator)]
+    return missing_ranges(
+        days, covered=(row.covered_from, row.covered_through), siblings=sibling_rows
+    )
 
 
 async def _sibling(session: AsyncSession, indicator: Indicator) -> Sibling:
@@ -317,7 +353,7 @@ async def _sibling(session: AsyncSession, indicator: Indicator) -> Sibling:
 async def series_response(
     session: AsyncSession,
     indicator: Indicator,
-    unit: Unit,
+    range_key: RangeKey,
     *,
     quotes: QuoteLookup | None,
     settings: Settings,
@@ -325,12 +361,13 @@ async def series_response(
     ensure_job: EnsureJob,
     fx_busy: str | None = None,
 ) -> tuple[int, Json]:
-    """contracts A2 — (상태 코드, 본문). `fx_busy`는 외환 시작 큐가 처리 중인 통화(환율만 쓴다)."""
+    """contracts A2 일봉 기간 — (상태 코드, 본문). `fx_busy`는 외환 시작 큐가 처리 중인 통화(환율만
+    쓴다)."""
     if indicator.history == "fx":
         return await _fx_series(
             session,
             indicator,
-            unit,
+            range_key,
             settings=settings,
             now=now,
             ensure_job=ensure_job,
@@ -338,22 +375,10 @@ async def series_response(
         )
     row = await market_daily.get_coverage(session, indicator.id)
     if not complete(row):
-        failure = failure_after_success(row)
-        return 202, {
-            "status": "failed" if failure is not None else "collecting",
-            "indicator": {"id": indicator.id, "name": indicator.name},
-            "progress": progress_json(row),
-            "failure": failure,
-            "progressUrl": progress_url(indicator.id),
-        }
+        return 202, market_pending(indicator, row)
     assert row is not None and row.covered_from is not None and row.covered_through is not None
     closes = await market_daily.closes(session, indicator.id)
-    sibling_rows = [await _sibling(session, s) for s in siblings(indicator)]
-    gaps = missing_ranges(
-        [d for d, _ in closes],
-        covered=(row.covered_from, row.covered_through),
-        siblings=sibling_rows,
-    )
+    gaps = await market_gaps(session, indicator, row, [d for d, _ in closes])
     today = trading_date(indicator.market, now)
     series: list[tuple[dt.date, Decimal]] = list(closes)
     provisional: set[dt.date] = set()
@@ -362,11 +387,14 @@ async def series_response(
     if quote is not None and quote.provisional and (last is None or quote.session_date > last):
         series.append((quote.session_date, quote.value))
         provisional.add(quote.session_date)
-    points = build_points(series, unit, today=today, provisional_dates=provisional)
+    window = range_start(today, range_key)
+    points = _window(
+        build_points(series, "daily", today=today, provisional_dates=provisional), window
+    )
     reduced, downsampled = _reduce(points, settings.dashboard_series_max_points)
     return 200, {
         "indicator": _indicator_block(indicator),
-        "unit": unit,
+        "range": range_key,
         "history": {
             "source": "yahoo",
             "firstDate": None if row.first_day is None else row.first_day.isoformat(),
@@ -377,7 +405,9 @@ async def series_response(
         },
         "points": _points_json(reduced),
         "gaps": [
-            {"from": a.isoformat(), "to": b.isoformat(), "reason": "missing"} for a, b in gaps
+            {"from": a.isoformat(), "to": b.isoformat(), "reason": "missing"}
+            for a, b in gaps
+            if window is None or b >= window
         ],
         "downsampled": downsampled,
         "sourcePointCount": len(points),

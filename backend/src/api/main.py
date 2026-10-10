@@ -68,7 +68,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     import asyncio
     import contextlib
 
-    from src.api.services import apt_naver_link, market_quotes, news_cache
+    from src.api.services import (
+        apt_naver_link,
+        indicator_commentary,
+        indicator_intraday,
+        market_quotes,
+        news_cache,
+    )
     from src.config.settings import load_settings
     from src.db.session import get_session_factory
     from src.ingestion.datagokr.client import DataGoKrClient
@@ -79,6 +85,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from src.ingestion.kiwoom.client import KiwoomClient
     from src.ingestion.naver_land.client import NaverLandClient
     from src.ingestion.news.client import NewsClient
+    from src.ingestion.news.commentary import CommentaryClient
     from src.ingestion.yahoo.client import YahooStockClient
     from src.ingestion.yahoo.gate import get_yahoo_gate
     from src.ingestion.yahoo.market import YahooMarketClient
@@ -167,13 +174,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 탭이 여럿이어도 출처를 한 번만 부른다(R14-6).
     market_client = YahooMarketClient(settings, gate=get_yahoo_gate(settings))
     await market_client.__aenter__()
-    market_quotes.set_shared_service(market_quotes.MarketQuoteService(
-        market_client, market_quotes.DbMarketHistory(factory), settings))
+    quote_service = market_quotes.MarketQuoteService(
+        market_client, market_quotes.DbMarketHistory(factory), settings)
+    market_quotes.set_shared_service(quote_service)
+    # 014 반복 2026-10-10b — 지표 모달의 장중 시세(일·주). 저장하지 않는다 — 짧은 메모리
+    # 캐시뿐(R14-19).
+    indicator_intraday.set_shared_service(
+        indicator_intraday.IntradayService(market_client, settings))
     # 014 — 대시보드 뉴스 세 칸. 저장하지 않고 메모리 캐시뿐이다(FR-023). 요청 경로만 쓴다 — 수집
     # 태스크가 없다.
     news_client = NewsClient(settings)
     await news_client.__aenter__()
     news_cache.set_shared_service(news_cache.NewsCache(news_client, settings))
+    # 014 반복 2026-10-10b — 지표 모달의 변화 까닭(시황 기사). 뉴스와 같은 HTTP 클라이언트,
+    # 메모리 캐시뿐(R14-17).
+    indicator_commentary.set_shared_service(indicator_commentary.CommentaryService(
+        CommentaryClient(news_client, settings, clock=indicator_commentary.utc_now),
+        quote_service, settings))
 
     tasks = [
         asyncio.create_task(worker_loop(
@@ -219,6 +236,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await apt_client.__aexit__(None, None, None)
         apt_naver_link.set_shared_client(None)
         await naver_client.__aexit__(None, None, None)
+        indicator_intraday.set_shared_service(None)
+        indicator_commentary.set_shared_service(None)
         market_quotes.set_shared_service(None)
         await market_client.__aexit__(None, None, None)
         news_cache.set_shared_service(None)
@@ -472,9 +491,11 @@ def create_app() -> FastAPI:
     from src.api.routes import crypto_settings as crypto_settings_routes
     from src.api.routes import crypto_simulation as crypto_simulation_routes
     from src.api.routes import daily as daily_routes
+    from src.api.routes import dashboard_commentary as dashboard_commentary_routes
     from src.api.routes import dashboard_news as dashboard_news_routes
     from src.api.routes import dashboard_quotes as dashboard_quotes_routes
     from src.api.routes import dashboard_series as dashboard_series_routes
+    from src.api.routes import dashboard_table as dashboard_table_routes
     from src.api.routes import deposit_installment as deposit_installment_routes
     from src.api.routes import deposit_institutions as deposit_institutions_routes
     from src.api.routes import deposit_progress as deposit_progress_routes
@@ -554,6 +575,9 @@ def create_app() -> FastAPI:
     # 014 — 대시보드. 기존 경로 뒤에 둔다(contracts A6 — 기존 응답 불변).
     app.include_router(dashboard_quotes_routes.router)
     app.include_router(dashboard_series_routes.router)
+    # 반복 2026-10-10b — 지표 모달의 일자별 표·변화 까닭
+    app.include_router(dashboard_table_routes.router)
+    app.include_router(dashboard_commentary_routes.router)
     app.include_router(dashboard_news_routes.router)
 
     return app

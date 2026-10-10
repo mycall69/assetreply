@@ -4,27 +4,32 @@
  * - 202(받는 중)면 진행을 구독하고 `completed`에 그래프를 다시 받는다 — 다 받아졌는데 그래프로 바뀌지 않으면 사용자가 새로고침해야
  *   한다(FR-016 실패 양상). 환율도 같은 진행 경로다(반복 2026-10-10 — 서버가 외환 커버리지로 같은 사건을 낸다). 스트림이 끊겨도 늦지 않게
  *   받는 동안 15초마다 다시 묻는 것을 함께 둔다
- * - 단위를 바꾸면 주소 바꾸기 콜백을 부르고 다시 받는다 — 늦게 온 옛 단위 응답은 버린다(`seq`)
+ * - 기간을 바꾸면 주소 바꾸기 콜백을 부르고 다시 받는다 — 늦게 온 옛 기간 응답은 버린다(`seq`)
+ * - (반복 2026-10-10b) 단위 대신 보는 기간 `range`다. 일·주(장중)는 수집과 무관한 200이다(`intraday`) — 출처가 실패해도 그래프 자리의
+ *   본문이고(`status: "failed"`), 받는 중(202)으로 읽지 않는다
  * - 없는 지표(404)는 `not_found`다
  */
 import { create } from "zustand";
 import { ApiError } from "@/lib/apiClient";
 import { fetchSeries, requestCollect } from "@/lib/dashboardApi";
 import { subscribeIndicatorProgress } from "@/lib/dashboardProgressStream";
-import type { IndicatorCollecting, IndicatorSeriesResponse, IndicatorUnit } from "@/lib/types";
+import type { IndicatorChartSeries, IndicatorCollecting, IndicatorRange } from "@/lib/types";
+import { DEFAULT_INDICATOR_RANGE } from "@/lib/types";
 
 const RECHECK_MS = 15_000;
 
 interface IndicatorSeriesState {
   id: string | null;
-  unit: IndicatorUnit;
+  range: IndicatorRange;
   status: "idle" | "loading" | "ready" | "collecting" | "failed" | "not_found" | "error";
-  series: IndicatorSeriesResponse | null;
+  series: IndicatorChartSeries | null;
   collecting: IndicatorCollecting | null;
   error: string | null;
   seq: number;
-  open: (id: string, unit: IndicatorUnit) => Promise<void>;
-  setUnit: (unit: IndicatorUnit, replaceUrl: (unit: IndicatorUnit) => void) => Promise<void>;
+  open: (id: string, range: IndicatorRange) => Promise<void>;
+  setRange: (range: IndicatorRange, replaceUrl: (range: IndicatorRange) => void) => Promise<void>;
+  /** 지금 기간을 다시 받는다 — 장중 실패의 다시 시도. */
+  reload: () => Promise<void>;
   retryCollect: () => Promise<void>;
   close: () => void;
 }
@@ -39,8 +44,9 @@ function stopWatching() {
   recheck = null;
 }
 
-function isCollecting(body: IndicatorSeriesResponse | IndicatorCollecting): body is IndicatorCollecting {
-  return "status" in body;
+function isCollecting(body: IndicatorChartSeries | IndicatorCollecting): body is IndicatorCollecting {
+  // 장중 본문에도 `status`가 있다(출처 실패 — 그래프 자리의 본문) — `intraday`가 없을 때만 202다
+  return "status" in body && !("intraday" in body);
 }
 
 export const useIndicatorSeriesStore = create<IndicatorSeriesState>((set, get) => {
@@ -48,8 +54,8 @@ export const useIndicatorSeriesStore = create<IndicatorSeriesState>((set, get) =
     stopWatching();
     const again = () => {
       if (get().seq !== seq) return;
-      const { id, unit } = get();
-      if (id) void get().open(id, unit);
+      const { id, range } = get();
+      if (id) void get().open(id, range);
     };
     unsubscribe = subscribeIndicatorProgress(body.progressUrl, {
       onSnapshot: (progress) => {
@@ -64,18 +70,18 @@ export const useIndicatorSeriesStore = create<IndicatorSeriesState>((set, get) =
 
   return {
     id: null,
-    unit: "daily",
+    range: DEFAULT_INDICATOR_RANGE,
     status: "idle",
     series: null,
     collecting: null,
     error: null,
     seq: 0,
 
-    open: async (id, unit) => {
+    open: async (id, range) => {
       const seq = get().seq + 1;
-      set({ id, unit, seq, status: get().series && get().id === id ? get().status : "loading", error: null });
+      set({ id, range, seq, status: get().series && get().id === id ? get().status : "loading", error: null });
       try {
-        const body = await fetchSeries(id, unit);
+        const body = await fetchSeries(id, range);
         if (get().seq !== seq) return;
         if (isCollecting(body)) {
           set({ collecting: body, status: body.status === "failed" ? "failed" : "collecting" });
@@ -96,21 +102,26 @@ export const useIndicatorSeriesStore = create<IndicatorSeriesState>((set, get) =
       }
     },
 
-    setUnit: async (unit, replaceUrl) => {
-      replaceUrl(unit);
+    setRange: async (range, replaceUrl) => {
+      replaceUrl(range);
       const id = get().id;
-      if (id) await get().open(id, unit);
+      if (id) await get().open(id, range);
+    },
+
+    reload: async () => {
+      const { id, range } = get();
+      if (id) await get().open(id, range);
     },
 
     retryCollect: async () => {
-      const { id, unit } = get();
+      const { id, range } = get();
       if (!id) return;
       try {
         await requestCollect(id);
       } catch {
         // 다시 시도가 실패해도 화면은 지금 상태를 다시 받는다 — 까닭은 그 응답이 보인다
       }
-      await get().open(id, unit);
+      await get().open(id, range);
     },
 
     close: () => {

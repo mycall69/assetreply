@@ -180,3 +180,24 @@ export function gapSlots(points: { date: string }[], gaps: SeriesGap[]): GapSlot
   }
   return slots;
 }
+
+/** 장중 점의 그리기 형태 — 시각은 초 단위 UTC 숫자(라이브러리의 `UTCTimestamp`), `at`·`raw`는 원본 글자다. */
+export interface IntradayDatum {
+  time: number;
+  value: number;
+  raw: string;
+  at: string;
+}
+
+/**
+ * 장중 점(014 반복 2026-10-10b — contracts A2 `1d`·`5d`)을 그리기 형태로.
+ *
+ * 하루 안의 점이라 날짜 글자로는 자리를 둘 수 없다 — 시각을 초 단위 숫자로 바꾼다. 값의 변환은 그리기 전용이고 원본 글자를 함께 둔다
+ * (`toChartData`와 같은 까닭 — 커서 상자는 원본을 보인다). 읽을 수 없는 시각의 점은 그리지 않는다(자리를 꾸며 내지 않는다).
+ */
+export function toIntradayData(points: { time: string; value: string }[]): IntradayDatum[] {
+  return points
+    .map((p) => ({ time: Math.floor(Date.parse(p.time) / 1000), value: Number(p.value), raw: p.value, at: p.time }))
+    .filter((d) => Number.isFinite(d.time))
+    .sort((a, b) => a.time - b.time);
+}

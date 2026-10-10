@@ -8,7 +8,8 @@
   같은 대표일 규칙(주 = 금요일 이하 마지막 거래일, 월 = 말일 이하 마지막 거래일)을 쓴다 — 화면마다
   규칙이 다르면 같은 달이 다른
   값으로 보인다(FR-013 실패 양상)
-- 년은 여기서 더한다 — 12-31 이하 마지막 거래일
+- (반복 2026-10-10b) 년 단위는 지웠다 — 차트는 점을 묶지 않고 보는 기간
+  8개다(`indicator_range`). 주·월 묶기는 일자별 표(`indicator_table`)가 쓴다
 - 대표일이 기간 끝과 다르면 `shifted`(📅), 기간 끝이 현지 오늘 뒤면 `ongoing`(⏳ 끝나지 않은 구간)
 - 거래일이 없는 기간은 점이 없다 — 앞 기간의 값을 끌어오지 않는다(헌법 원칙 V)
 
@@ -25,7 +26,7 @@ from typing import Final, Literal, get_args
 
 from src.simulation.period_table import anchor_of, period_bounds
 
-Unit = Literal["daily", "weekly", "monthly", "yearly"]
+Unit = Literal["daily", "weekly", "monthly"]
 UNITS: Final[tuple[str, ...]] = get_args(Unit)
 
 
@@ -39,21 +40,17 @@ class PeriodPoint:
 
 
 def _bounds(day: dt.date, unit: Unit) -> tuple[dt.date, dt.date]:
-    if unit == "yearly":
-        return dt.date(day.year, 1, 1), dt.date(day.year, 12, 31)
     if unit == "weekly":
         return period_bounds(day, "weekly")
     return period_bounds(day, "monthly")
 
 
 def _anchor(day: dt.date, unit: Unit) -> dt.date:
-    if unit == "yearly":
-        return dt.date(day.year, 12, 31)
     return anchor_of(day, "weekly" if unit == "weekly" else "monthly")
 
 
 def _representative(group: Sequence[dt.date], unit: Unit) -> dt.date:
-    """012 `period_table`과 같은 규칙 — 주는 금요일 이하의 마지막, 없으면 마지막. 월·년은 마지막."""
+    """012 `period_table`과 같은 규칙 — 주는 금요일 이하의 마지막, 없으면 마지막. 월은 마지막."""
     if unit == "weekly":
         friday = _anchor(group[0], unit)
         upto = [day for day in group if day <= friday]

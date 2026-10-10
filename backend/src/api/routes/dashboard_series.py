@@ -1,7 +1,8 @@
 """지표 화면 경로 (014 T057) — FR-010, FR-016, FR-019, contracts A2~A4.
 
-- `GET /api/dashboard/indicators/{id}/series?unit=` — 그래프(200) 또는 받는 중·실패(202). 없는
-  지표는 404
+- `GET /api/dashboard/indicators/{id}/series?range=` — 그래프(200) 또는 받는 중·실패(202). 없는
+  지표는 404. (반복 2026-10-10b) 일·주(`1d`·`5d`)는 장중 시세 서비스의 본문이다(늘 200 — 수집과
+  무관). 옛 질의 `unit`은 무시한다
 - `POST /api/dashboard/indicators/{id}/collect` — 다시 시도. 워커를 곧바로 깨운다(202). 환율은 외환
   수집 경로에 넘긴다
 - `GET /api/dashboard/indicators/{id}/progress` — SSE. 2초마다 커버리지 행을 읽는다(007
@@ -24,7 +25,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.collection_stream import SSE_HEADERS, format_sse
-from src.api.services import market_quotes
+from src.api.services import indicator_intraday, market_quotes
 from src.api.services.collection_gate import ensure_background_job
 from src.api.services.indicator_series import (
     complete,
@@ -32,11 +33,11 @@ from src.api.services.indicator_series import (
     fx_state,
     progress_json,
     series_response,
-    unit_of,
 )
 from src.config.settings import load_settings
 from src.db.session import get_session
 from src.repository import market_daily
+from src.simulation.indicator_range import is_intraday, range_of
 from src.simulation.market_indicators import Indicator, get
 from src.worker import market_worker
 from src.worker.queue import get_queue
@@ -68,15 +69,24 @@ def _indicator(indicator_id: str) -> Indicator | None:
 async def get_series(
     session: Annotated[AsyncSession, Depends(get_session)],
     indicator_id: str,
-    unit: Annotated[str | None, Query()] = None,
+    range_: Annotated[str | None, Query(alias="range")] = None,
 ) -> Json | JSONResponse:
     indicator = _indicator(indicator_id)
     if indicator is None:
         return _unknown(indicator_id)
+    range_key = range_of(range_)
+    if is_intraday(range_key):
+        intraday = indicator_intraday.get_shared_service()
+        if intraday is None:
+            return JSONResponse(
+                status_code=503,
+                content={"status": "unavailable", "message": "장중 시세 서비스가 없습니다."},
+            )
+        return await intraday.body(indicator, range_key)  # type: ignore[arg-type]
     status, body = await series_response(
         session,
         indicator,
-        unit_of(unit),
+        range_key,
         quotes=market_quotes.get_shared_service(),
         settings=load_settings(),
         now=utc_now(),

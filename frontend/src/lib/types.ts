@@ -1779,7 +1779,16 @@ export interface DashboardQuotesResponse {
   indicators: DashboardIndicator[];
 }
 
-export type IndicatorUnit = "daily" | "weekly" | "monthly" | "yearly";
+/**
+ * 지표 모달의 보는 기간 8개(반복 2026-10-10b — contracts A2). 일(`1d`)·주(`5d`)는 장중, 월 이상은 그 기간의 일봉 전부다 —
+ * 점을 묶지 않는다(012 전의 "점 하나가 나타내는 기간" 단위를 대체).
+ */
+export type IndicatorRange = "1d" | "5d" | "1m" | "1y" | "5y" | "10y" | "20y" | "all";
+
+export const INDICATOR_RANGES: readonly IndicatorRange[] = ["1d", "5d", "1m", "1y", "5y", "10y", "20y", "all"];
+
+/** 처음 기간 — 틀리거나 없는 주소도 이것이다(서버와 같다). */
+export const DEFAULT_INDICATOR_RANGE: IndicatorRange = "1y";
 
 /** 그래프 점(contracts A2). 선택 칸은 참일 때만 온다. */
 export interface IndicatorPoint {
@@ -1796,10 +1805,15 @@ export interface IndicatorHistoryFailure {
   at: string;
 }
 
-/** `GET /api/dashboard/indicators/{id}/series` 200. */
-export interface IndicatorSeriesResponse {
-  indicator: Omit<DashboardIndicator, "order" | "status" | "quote" | "stale" | "failure">;
-  unit: IndicatorUnit;
+/** 그래프 본문의 지표 머리. 주석은 서버 글자다 — 화면이 아는 주석만 글로 바꾼다. */
+export type IndicatorBlock = Omit<DashboardIndicator, "order" | "status" | "quote" | "stale" | "failure" | "notes"> & {
+  notes: string[];
+};
+
+/** `GET /api/dashboard/indicators/{id}/series?range=` 200 — 일봉 기간(월 이상). */
+export interface IndicatorRangeSeries {
+  indicator: IndicatorBlock;
+  range: IndicatorRange;
   history: {
     source: "yahoo" | "ecos";
     firstDate: string | null;
@@ -1813,6 +1827,39 @@ export interface IndicatorSeriesResponse {
   downsampled: boolean;
   sourcePointCount: number;
 }
+
+/** 일봉 기간의 그래프 본문(반복 2026-10-10b 전 이름). */
+export type IndicatorSeriesResponse = IndicatorRangeSeries;
+
+/** 장중 점 — 시각은 UTC ISO, 늘 잠정이다. */
+export interface IndicatorIntradayPoint {
+  time: string;
+  value: DecimalString;
+  provisional: true;
+}
+
+/** 출처 실패(contracts A0) — 장중·까닭이 함께 쓴다. */
+export interface IndicatorSourceFailure {
+  reason: string;
+  message: string;
+  retryAfterSeconds: number | null;
+}
+
+/** 같은 경로의 장중 기간(`1d`·`5d`) 200 — 저장하지 않는 시세다. 출처가 실패해도 200(`status: "failed"`). */
+export interface IndicatorIntradayResponse {
+  indicator: IndicatorBlock;
+  range: "1d" | "5d";
+  intraday: true;
+  status: "ok" | "failed";
+  fetchedAt: string | null;
+  session?: { from: string; to: string } | null;
+  points: IndicatorIntradayPoint[];
+  notes: string[];
+  failure: IndicatorSourceFailure | null;
+}
+
+/** 그래프 본문 — 일봉 기간이거나 장중. */
+export type IndicatorChartSeries = IndicatorRangeSeries | IndicatorIntradayResponse;
 
 export interface IndicatorProgress {
   firstDay: string | null;
@@ -1829,6 +1876,61 @@ export interface IndicatorCollecting {
   failure: IndicatorHistoryFailure | null;
   progressUrl: string;
   jobId?: number | null;
+}
+
+/** 일자별 표의 단위(반복 2026-10-10b — contracts A7). */
+export type IndicatorTablePeriod = "daily" | "weekly" | "monthly";
+
+/** 표 한 행 — 주식 일자별 표(012)와 같은 꼴. 값은 서버 문자열, 없으면 `null`. */
+export type IndicatorTableRow =
+  | {
+    kind: "period";
+    date: string;
+    open: DecimalString | null;
+    high: DecimalString | null;
+    low: DecimalString | null;
+    close: DecimalString;
+    change: DecimalString | null;
+    changeRate: DecimalString | null;
+    provisional: boolean;
+    /** 대표일을 옮겼으면 원래 기준일. */
+    shiftedFrom?: string;
+    /** 끝나지 않은 구간. */
+    isOngoing?: boolean;
+  }
+  | { kind: "missing"; date: string; dateTo: string };
+
+/** `GET /api/dashboard/indicators/{id}/table` 200. */
+export interface IndicatorTableResponse {
+  indicator: { id: string; name: string; unit: string };
+  period: IndicatorTablePeriod;
+  rows: IndicatorTableRow[];
+  hasMore: boolean;
+  oldestReturned: string | null;
+  /** `fx_fixing`: 환율 — 외환 고시 이력(하루 한 값, 시가·고가·저가 없음). */
+  seriesNote: "fx_fixing" | null;
+}
+
+/** 변화 까닭 한 줄 — 글자는 출처의 것 그대로다. */
+export interface IndicatorCommentaryItem {
+  title: string;
+  summary: string | null;
+  publisher: string | null;
+  publishedAt: string | null;
+  publishedText: string | null;
+  url: string;
+}
+
+/** `GET /api/dashboard/indicators/{id}/commentary`. 출처가 실패해도 200이다. */
+export interface IndicatorCommentaryResponse {
+  indicator: string;
+  source: string;
+  sourceUrl: string;
+  status: "ok" | "none" | "failed";
+  fetchedAt: string | null;
+  sessionDate: string | null;
+  items: IndicatorCommentaryItem[];
+  failure: IndicatorSourceFailure | null;
 }
 
 /** 뉴스 칸(014 US3 — contracts A5). */

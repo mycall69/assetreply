@@ -1,13 +1,14 @@
 /**
- * 지표 화면 머리 (014 T060) — FR-010, FR-015, FR-018, FR-019, contracts D3.
+ * 지표 모달 머리 (014 T060 → 반복 2026-10-10b T121) — FR-010, FR-015, FR-018, FR-019, contracts D3.
  *
  * 머리 값은 대시보드와 **같은 스토어**의 카드 값이다 — 다른 경로로 받으면 같은 지표의 값이 두 화면에서 다르다(FR-010 실패 양상).
  * 저장된 기간·출처·마지막 수집, 그리고 계열 주석(선물 근월물·환율의 고시 계열)과 수집 상태(최근 구간 받는 중·이어 받기 실패)를 보인다.
+ * 장중 기간(일·주)은 이력을 그리지 않으므로 저장된 기간·고시 계열 주석이 없다 — 그래프가 "시장 환율"을 밝힌다(반복 2026-10-10b).
  */
 import { NOTE_TEXT, previousText, stateText } from "@/components/dashboard/QuoteStateLine";
 import { formatPercent, formatRate } from "@/lib/format";
 import { KST_ZONE, formatZonedTime } from "@/lib/kstClock";
-import type { DashboardIndicator, IndicatorSeriesResponse } from "@/lib/types";
+import type { DashboardIndicator, IndicatorChartSeries } from "@/lib/types";
 
 export const FAILURE_LABELS: Record<string, string> = {
   rate_limited: "출처 응답 제한",
@@ -34,19 +35,23 @@ function tone(direction: string | null | undefined): string {
   return "text-gray-500";
 }
 
-export function IndicatorHeader({ card, series, name, onRetry }: {
+export function IndicatorHeader({ card, series, name, onRetry, titleId }: {
   card: DashboardIndicator | null;
-  series: IndicatorSeriesResponse | null;
+  series: IndicatorChartSeries | null;
   name: string;
   onRetry: () => void;
+  /** 대화 상자의 이름(`aria-labelledby`)이 되는 제목의 `id`. */
+  titleId?: string;
 }) {
   const quote = card?.quote ?? null;
-  const history = series?.history ?? null;
-  const notes = series?.indicator.notes ?? card?.notes ?? [];
+  const intraday = series !== null && "intraday" in series;
+  const history = series !== null && "history" in series ? series.history : null;
+  // 고시 계열 주석은 일봉 기간의 것이다 — 장중은 시장 환율이라 그래프가 따로 밝힌다
+  const notes = (series?.indicator.notes ?? card?.notes ?? []).filter((n) => !(intraday && n === "market_fx"));
   const unit = series?.indicator.unit ?? card?.unit ?? "";
   return (
     <header className="space-y-2">
-      <h2 className="text-2xl font-bold tracking-tight">{name}</h2>
+      <h2 id={titleId} className="text-2xl font-bold tracking-tight">{name}</h2>
       <p className="text-sm text-gray-500">{unit}</p>
       <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
         <span data-testid="header-value" className="text-2xl font-semibold tabular-nums">

@@ -593,41 +593,41 @@ description: "Task list for 014-market-dashboard"
 ### Tests for 반복 2026-10-10b ⚠️
 
 - [X] T101 [P] [US2] `backend/tests/contract/test_yahoo_market_client.py` — 일봉 청크의 시가·고가·저가(0·null → None, 소수 6자리, 엔 ×100 아님 — 지표는 환율이 아님) (FR-017, SC-014)
-- [ ] T102 [P] [US2] `backend/tests/contract/test_yahoo_market_intraday.py` — `fetch_intraday(id, "1d"|"5d")`의 요청 질의·점(시각 UTC·값)·세션 밖 점·환율 심볼, 관문을 지남, 429 (FR-028)
-- [ ] T103 [P] [US2] `backend/tests/contract/test_news_commentary.py` — 출처마다 시황 목록 파싱(제목·요약 원문·게시 시각·허용 도메인), 목록 표지 없음 → `parse_empty` (FR-027, FR-022, SC-013)
-- [ ] T104 [P] [US2] `backend/tests/unit/test_indicator_table.py`·`test_indicator_range.py`·`test_indicator_commentary_select.py`·`test_indicator_intraday_cache.py` (FR-011~FR-014, FR-027~FR-029, SC-012)
+- [X] T102 [P] [US2] `backend/tests/contract/test_yahoo_market_intraday.py` — `fetch_intraday(id, "1d"|"5d")`의 요청 질의·점(시각 UTC·값)·세션 밖 점·환율 심볼, 관문을 지남, 429 (FR-028)
+- [X] T103 [P] [US2] `backend/tests/contract/test_news_commentary.py` — 출처마다 시황 목록 파싱(제목·요약 원문·게시 시각·허용 도메인), 목록 표지 없음 → `parse_empty` (FR-027, FR-022, SC-013)
+- [X] T104 [P] [US2] `backend/tests/unit/test_indicator_table.py`·`test_indicator_range.py`·`test_indicator_commentary_select.py`·`test_indicator_intraday_cache.py` (FR-011~FR-014, FR-027~FR-029, SC-012)
   - 표: 주·월 OHLC 묶기 — 시가 = 첫 거래일, 고가·저가 = 최대·최소, 종가 = 대표일, 대비 = 앞 기간, 📅·⏳, 빈 기간 없음, null 칸
   - 기간: 일봉 자르기(1m·1y·5y·10y·20y·all — 현지 오늘 기준)
   - 까닭: 마지막 세션 이후·위에서부터 3개·없으면 `none`
   - 장중 캐시: 60초·300초
-- [ ] T105 [P] [US2] `backend/tests/integration/test_dashboard_series_api.py`(`range`)·`test_dashboard_table_api.py`(A7)·`test_dashboard_commentary_api.py`(A8) (FR-011, FR-012, FR-016, FR-018, FR-027~FR-029)
+- [X] T105 [P] [US2] `backend/tests/integration/test_dashboard_series_api.py`(`range`)·`test_dashboard_table_api.py`(A7)·`test_dashboard_commentary_api.py`(A8) (FR-011, FR-012, FR-016, FR-018, FR-027~FR-029)
   - A2: 기간 8개, `unit` 무시, 장중은 202 없음
   - A7: 쪽 넘기기·`period` 400·202 같은 판정·결측 행·오늘 잠정 행·환율 행(OHLC null)
   - A8: 성공·`none`·실패 200·틀린 id 404
-- [ ] T106 [P] [US2] `frontend/tests/IndicatorModal.test.tsx` — 모달 (FR-010)
+- [X] T106 [P] [US2] `frontend/tests/IndicatorModal.test.tsx` — 모달 (FR-010)
   - 카드 누름 → 모달 + 주소. Esc·바깥·닫기·뒤로 → 닫힘 + 포커스 카드(`data-indicator`)
   - 없는 지표 안내. 모달 동안 카드 갱신 계속. `next/navigation`·`IndicatorChart` 모의
-- [ ] T107 [P] [US2] `frontend/tests/RangePicker.test.tsx`·`frontend/tests/IndicatorChart.test.tsx` — 기간 단추 8개(`aria-pressed`, 주소 `range`), 장중 점의 잠정 선·커서 시각, 일봉 기간은 `fitContent`(처음 범위 없음) (FR-011, FR-012, FR-028, SC-002)
-- [ ] T108 [P] [US2] `frontend/tests/IndicatorTable.test.tsx`·`frontend/tests/indicatorTableStore.test.ts` (FR-013, FR-014, FR-016, FR-029, SC-012)
+- [X] T107 [P] [US2] `frontend/tests/RangePicker.test.tsx`·`frontend/tests/IndicatorChart.test.tsx` — 기간 단추 8개(`aria-pressed`, 주소 `range`), 장중 점의 잠정 선·커서 시각, 일봉 기간은 `fitContent`(처음 범위 없음) (FR-011, FR-012, FR-028, SC-002)
+- [X] T108 [P] [US2] `frontend/tests/IndicatorTable.test.tsx`·`frontend/tests/indicatorTableStore.test.ts` (FR-013, FR-014, FR-016, FR-029, SC-012)
   - 표: 일·주·월 단추, 칸 일곱, 📅·⏳·잠정, 결측 구간 행, null → "—", 환율 머리 "고시 — 하루 한 값"
   - 스토어: 더 받기(`before`), 늦은 응답 `seq`
-- [ ] T109 [P] [US2] `frontend/tests/IndicatorCommentary.test.tsx` — 줄(제목·요약·출처·시각), 링크 `target="_blank"`·`rel="noopener noreferrer"`, `none` → "변화를 다룬 기사를 찾지 못했습니다", 실패·다시 시도 (FR-027, FR-022, SC-013)
-- [ ] T110 [P] [US2] `frontend/tests/Sidebar.test.tsx`·`frontend/tests/TopBarTitle.test.ts`·`frontend/tests/noUnbuiltAssetRoutes.test.ts`가 **고치지 않고** 통과하는지 확인 — 모달 경로에서 사이드바 "대시보드"·제목 "대시보드" (FR-010)
-- [ ] T111 [US2] 014가 만든 테스트의 변경 승인 — 구현을 작업 트리에 둔 뒤 실제 실패 목록을 만들어 승인받는다(T018과 같은 절차). 예상: `IndicatorPage.test.tsx`(→ 모달)·`IndicatorChart.test.tsx`(처음 범위·단위)·`indicatorSeriesStore.test.ts`(`setUnit` → `setRange`)·`test_indicator_periods.py`(년)·`test_dashboard_series_api.py`(`unit` → `range`). 구현을 치워 실패를 확인한 뒤 `test(014)` (FR-010~FR-013)
+- [X] T109 [P] [US2] `frontend/tests/IndicatorCommentary.test.tsx` — 줄(제목·요약·출처·시각), 링크 `target="_blank"`·`rel="noopener noreferrer"`, `none` → "변화를 다룬 기사를 찾지 못했습니다", 실패·다시 시도 (FR-027, FR-022, SC-013)
+- [X] T110 [P] [US2] `frontend/tests/Sidebar.test.tsx`·`frontend/tests/TopBarTitle.test.ts`·`frontend/tests/noUnbuiltAssetRoutes.test.ts`가 **고치지 않고** 통과하는지 확인 — 모달 경로에서 사이드바 "대시보드"·제목 "대시보드" (FR-010)
+- [X] T111 [US2] 014가 만든 테스트의 변경 승인 — 구현을 작업 트리에 둔 뒤 실제 실패 목록을 만들어 승인받는다(T018과 같은 절차). 예상: `IndicatorPage.test.tsx`(→ 모달)·`IndicatorChart.test.tsx`(처음 범위·단위)·`indicatorSeriesStore.test.ts`(`setUnit` → `setRange`)·`test_indicator_periods.py`(년)·`test_dashboard_series_api.py`(`unit` → `range`). 구현을 치워 실패를 확인한 뒤 `test(014)` (FR-010~FR-013)
 
 ### Implementation for 반복 2026-10-10b
 
-- [ ] T112 [US2] `backend/src/ingestion/yahoo/market.py`·`market_parse.py` — `fetch_intraday`(관문·재시도·429), 일봉 OHLC (FR-017, FR-028)
-- [ ] T113 [P] [US2] `backend/src/ingestion/news/commentary.py`(+ 출처별 파서 — 기존 Yahoo 스트림 카드 파서 재사용) — 시황 기사 요청·파싱, 허용 도메인 (FR-027)
-- [ ] T114 [P] [US2] `backend/src/simulation/indicator_table.py`(순수 — 표 행, `period_table` 기준일·쪽) + `backend/src/simulation/indicator_periods.py`(년 지움 — D7) (FR-013, FR-014, FR-029)
-- [ ] T115 [US2] `backend/src/api/services/indicator_series.py` + `backend/src/api/routes/dashboard_series.py` — `range`(일봉 자르기·장중 갈래), `unit` 무시 (FR-011, FR-012, FR-014, FR-018)
-- [ ] T116 [P] [US2] `backend/src/api/services/indicator_intraday.py` — 장중 캐시(일 60초·주 300초)·단일 비행, 환율은 시장 환율 (FR-028)
-- [ ] T117 [US2] `backend/src/api/services/indicator_table.py` + `backend/src/api/routes/dashboard_table.py` — A7(쪽·`period`·202 같은 판정·오늘 잠정 행·환율 행) (FR-013, FR-016, FR-018, FR-029)
-- [ ] T118 [US2] `backend/src/api/services/indicator_commentary.py` + `backend/src/api/routes/dashboard_commentary.py` + `backend/src/api/main.py`(라우터 둘·까닭 캐시) + `backend/src/config/settings.py`(data-model §8 새 설정) — A8 (FR-027)
-- [ ] T119 [P] [US2] `frontend/src/lib/types.ts`·`frontend/src/lib/dashboardApi.ts` — `range`·표·까닭 (FR-011, FR-027, FR-029)
-- [ ] T120 [US2] `frontend/src/stores/indicatorSeriesStore.ts`(`range`)·`indicatorTableStore.ts`·`indicatorCommentaryStore.ts` — data-model §7 (FR-011, FR-016, FR-027, FR-029)
-- [ ] T121 [US2] `frontend/src/components/dashboard/IndicatorModal.tsx`·`RangePicker.tsx`·`IndicatorTable.tsx`·`IndicatorCommentary.tsx` + `IndicatorChart.tsx`(기간·장중)·`IndicatorView.tsx`·`IndicatorHeader.tsx`, `UnitPicker.tsx` 지움 — contracts D3·D4·D7·D8 (FR-010~FR-012, FR-027~FR-029, FR-025)
-- [ ] T122 [US2] `frontend/src/app/dashboard/layout.tsx`·`@modal/default.tsx`·`@modal/(.)[indicator]/page.tsx`·`[indicator]/page.tsx` — 모달 슬롯(R14-20), 새로고침·직접 입력은 대시보드 + 모달 (FR-010)
+- [X] T112 [US2] `backend/src/ingestion/yahoo/market.py`·`market_parse.py` — `fetch_intraday`(관문·재시도·429), 일봉 OHLC (FR-017, FR-028)
+- [X] T113 [P] [US2] `backend/src/ingestion/news/commentary.py`(+ 출처별 파서 — 기존 Yahoo 스트림 카드 파서 재사용) — 시황 기사 요청·파싱, 허용 도메인 (FR-027)
+- [X] T114 [P] [US2] `backend/src/simulation/indicator_table.py`(순수 — 표 행, `period_table` 기준일·쪽) + `backend/src/simulation/indicator_periods.py`(년 지움 — D7) (FR-013, FR-014, FR-029)
+- [X] T115 [US2] `backend/src/api/services/indicator_series.py` + `backend/src/api/routes/dashboard_series.py` — `range`(일봉 자르기·장중 갈래), `unit` 무시 (FR-011, FR-012, FR-014, FR-018)
+- [X] T116 [P] [US2] `backend/src/api/services/indicator_intraday.py` — 장중 캐시(일 60초·주 300초)·단일 비행, 환율은 시장 환율 (FR-028)
+- [X] T117 [US2] `backend/src/api/services/indicator_table.py` + `backend/src/api/routes/dashboard_table.py` — A7(쪽·`period`·202 같은 판정·오늘 잠정 행·환율 행) (FR-013, FR-016, FR-018, FR-029)
+- [X] T118 [US2] `backend/src/api/services/indicator_commentary.py` + `backend/src/api/routes/dashboard_commentary.py` + `backend/src/api/main.py`(라우터 둘·까닭 캐시) + `backend/src/config/settings.py`(data-model §8 새 설정) — A8 (FR-027)
+- [X] T119 [P] [US2] `frontend/src/lib/types.ts`·`frontend/src/lib/dashboardApi.ts` — `range`·표·까닭 (FR-011, FR-027, FR-029)
+- [X] T120 [US2] `frontend/src/stores/indicatorSeriesStore.ts`(`range`)·`indicatorTableStore.ts`·`indicatorCommentaryStore.ts` — data-model §7 (FR-011, FR-016, FR-027, FR-029)
+- [X] T121 [US2] `frontend/src/components/dashboard/IndicatorModal.tsx`·`RangePicker.tsx`·`IndicatorTable.tsx`·`IndicatorCommentary.tsx` + `IndicatorChart.tsx`(기간·장중)·`IndicatorView.tsx`·`IndicatorHeader.tsx`, `UnitPicker.tsx` 지움 — contracts D3·D4·D7·D8 (FR-010~FR-012, FR-027~FR-029, FR-025)
+- [X] T122 [US2] `frontend/src/app/dashboard/layout.tsx`·`@modal/default.tsx`·`@modal/(.)[indicator]/page.tsx`·`[indicator]/page.tsx` — 모달 슬롯(R14-20), 새로고침·직접 입력은 대시보드 + 모달 (FR-010)
 
 ### Polish (반복 2026-10-10b)
 

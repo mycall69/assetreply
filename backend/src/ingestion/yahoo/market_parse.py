@@ -217,6 +217,30 @@ def _ohlc_at(quote: dict[str, object], index: int) -> Ohlc:
     )
 
 
+def parse_intraday(body: object) -> list[tuple[dt.datetime, Decimal]]:
+    """장중 차트 → `(UTC 시각, 종가)` 시각 차례(반복 2026-10-10b).
+
+    빈 종가는 건너뛴다 — 값을 지어 넣지 않고 그 점이 없을 뿐이다(원칙 V).
+    """
+    if body is None:
+        raise MarketBodyInvalid("시세 출처의 응답이 유효하지 않습니다.")
+    result = _first(_mapping(_mapping(body).get("chart")).get("result"))
+    if not result:
+        return []
+    timestamps = result.get("timestamp")
+    closes_raw = _first(_mapping(result.get("indicators")).get("quote")).get("close")
+    if not isinstance(timestamps, list) or not isinstance(closes_raw, list):
+        return []
+    points: list[tuple[dt.datetime, Decimal]] = []
+    for stamp, raw_close in zip(timestamps, closes_raw, strict=False):
+        instant = _instant(stamp)
+        close = _decimal(raw_close)
+        if instant is not None and close is not None:
+            points.append((instant, close))
+    points.sort(key=lambda p: p[0])
+    return points
+
+
 def ohlc_from_raw(raw: str) -> dict[dt.date, Ohlc]:
     """저장해 둔 원본 본문 → 날마다의 시가·고가·저가(종가가 있는 날만). 읽지 못하면 빈 결과다.
 

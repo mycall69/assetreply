@@ -19,8 +19,9 @@ import datetime as dt
 import random
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from decimal import Decimal
 from types import TracebackType
-from typing import Self
+from typing import Final, Literal, Self
 
 import aiohttp
 
@@ -39,10 +40,11 @@ from src.ingestion.yahoo.market_parse import (
     MarketBodyInvalid,
     load,
     parse_daily,
+    parse_intraday,
     parse_quote_chart,
     parse_spark,
 )
-from src.ingestion.yahoo.market_symbols import symbol_of
+from src.ingestion.yahoo.market_symbols import multiplier_of, symbol_of
 from src.simulation.market_quote import SourceQuote
 
 #: 출처가 브라우저가 아닌 요청을 거절하므로 일반적인 UA를 보낸다(주식 클라이언트와 같다).
@@ -79,6 +81,20 @@ class QuoteFetch:
 
     quotes: dict[str, SourceQuote] = field(default_factory=dict)
     failures: dict[str, Failure] = field(default_factory=dict)
+
+
+#: 장중 기간 → (출처 `range`, `interval`)(반복 2026-10-10b — research R14-19).
+IntradayRange = Literal["1d", "5d"]
+_INTRADAY: Final[dict[str, tuple[str, str]]] = {"1d": ("1d", "5m"), "5d": ("5d", "30m")}
+
+
+@dataclass(frozen=True, slots=True)
+class IntradayFetch:
+    """장중 시세 한 번 — `(UTC 시각, 값)` 시각 차례. 저장하지 않는다(잠정 — 확정 값의 근거가
+    아니다)."""
+
+    points: list[tuple[dt.datetime, Decimal]]
+    status: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,6 +194,22 @@ class YahooMarketClient:
         )
         chunk = parse_daily(body, current_date=current_date)
         return DailyFetch(chunk, raw, status, date_from, date_to)
+
+    async def fetch_intraday(self, indicator_id: str, range_key: IntradayRange) -> IntradayFetch:
+        """일(`1d` — 5분)·주(`5d` — 30분) 장중 시세(반복 2026-10-10b — spec FR-028).
+
+        빈 종가는 건너뛰고 엔은 100엔당이다. 429면 관문 전체가 물러서고 다시 시도하지 않는다(캐시가
+        짧게 기억한다).
+        """
+        source_range, interval = _INTRADAY[range_key]
+        body, _, status = await self._get(
+            f"/v8/finance/chart/{symbol_of(indicator_id)}",
+            {"range": source_range, "interval": interval},
+            retry_rate_limit=False,
+        )
+        multiplier = multiplier_of(indicator_id)
+        points = [(at, value * multiplier) for at, value in parse_intraday(body)]
+        return IntradayFetch(points, status)
 
     async def delay_between_chunks(self) -> None:
         """청크 사이의 간격. 공격적 폴링이 차단의 주된 원인이다."""

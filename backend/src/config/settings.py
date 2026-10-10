@@ -285,6 +285,13 @@ class Settings:
     news_kr_url: str = "https://stock.naver.com/api/domestic/news/list"
     news_us_url: str = "https://finance.yahoo.com/topic/latest-news/"
     news_jp_url: str = "https://finance.yahoo.co.jp/news/headline"
+    # 014 반복 2026-10-10b — 지표 모달(장중 시세·변화 까닭·일자별 표). data-model §8
+    dashboard_intraday_day_cache_seconds: int = 60
+    dashboard_intraday_week_cache_seconds: int = 300
+    dashboard_commentary_cache_seconds: int = 600
+    dashboard_table_page_limit: int = 30
+    news_commentary_naver_url: str = "https://stock.naver.com/api/domestic/news/focus"
+    news_commentary_yahoo_base: str = "https://finance.yahoo.com"
 
     # ── 검색용 종목 목록 — 키움증권 REST API (006 research R6-1·R6-3) ──
     #
@@ -494,6 +501,16 @@ def load_settings(env_file: Path | None = None) -> Settings:
         news_kr_url=_env_str("NEWS_KR_URL", "https://stock.naver.com/api/domestic/news/list"),
         news_us_url=_env_str("NEWS_US_URL", "https://finance.yahoo.com/topic/latest-news/"),
         news_jp_url=_env_str("NEWS_JP_URL", "https://finance.yahoo.co.jp/news/headline"),
+        dashboard_intraday_day_cache_seconds=_env_int(
+            "DASHBOARD_INTRADAY_DAY_CACHE_SECONDS", 60, minimum=1),
+        dashboard_intraday_week_cache_seconds=_env_int(
+            "DASHBOARD_INTRADAY_WEEK_CACHE_SECONDS", 300, minimum=1),
+        dashboard_commentary_cache_seconds=_env_int(
+            "DASHBOARD_COMMENTARY_CACHE_SECONDS", 600, minimum=1),
+        dashboard_table_page_limit=_env_int("DASHBOARD_TABLE_PAGE_LIMIT", 30, minimum=1),
+        news_commentary_naver_url=_env_str(
+            "NEWS_COMMENTARY_NAVER_URL", "https://stock.naver.com/api/domestic/news/focus"),
+        news_commentary_yahoo_base=_env_str("NEWS_COMMENTARY_YAHOO_BASE", "https://finance.yahoo.com"),
         kiwoom_mode=_env_choice("KIWOOM_MODE", "real", KIWOOM_MODES),
         kiwoom_app_key=_Secret(_env_str("KIWOOM_APP_KEY")),
         kiwoom_app_secret=_Secret(_env_str("KIWOOM_APP_SECRET")),
