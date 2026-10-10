@@ -845,7 +845,7 @@ description: "Task list for 014-market-dashboard"
   확인하고 `quickstart.md` 8에 기록한다(헤드리스 Chrome) (FR-033, SC-018)
 - [X] T165 불변 대조 — `014-baseline/fetch.py`(메뉴 시뮬레이션 응답 차이 0, 비교 응답은 `comparison.listing`만 더해짐), 검색 응답은 `firstTradedOn`만 더해짐, 등록 응답 불변 (FR-026, SC-010, SC-018)
 - [X] T166 문서 — `CLAUDE.md`(현재 상태 014 줄·상장일 주의 — 새 열·`first_available_date`와 다름·등록 실패 허용·lifespan 클라이언트만·검색은 출처를 부르지 않음), `README.md`, `spec.md` Status (FR-033)
-- [ ] T167 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161)뿐인지
+- [X] T167 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161)뿐인지
   `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
 
 ---

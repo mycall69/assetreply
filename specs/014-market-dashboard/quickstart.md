@@ -525,3 +525,10 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
 - **응답**: T001 입력으로 다시 받은 29파일(`014-baseline/after_iterf/`) — 메뉴·외환 응답(head·series·`/latest`·`/series`) 차이는 부동산 헬리오시티 기준일 날짜뿐(T084·T125·T139·T148·T155와 같다).
   비교 응답 여덟은 `comparison.listing` 말고 같다 — 삼성전자 `listing`(1975-06-11)·비트코인 `first_bar`(2010-07-18)·XLK `null`(오늘 고르지 않음 — 다음 수집 청크가 채운다)·예금·부동산 `null`
 - 등록 응답은 같다(실측의 `selection` 응답 — `market`·`symbol`·`name`·`currency`·`listedOn`). 검색 응답 둘은 `firstTradedOn`만 더해졌다(통합 테스트 `test_stock_search_*`·`test_listing_date_api`)
+
+### T167 — 게이트(2026-10-10 22:1x~22:3x KST, 서버를 내린 채)
+
+- 백엔드: `pytest --cov=src` **3,424 통과**·커버리지 **96.50%**, `mypy src`(strict) 문제 없음(278파일), `ruff check --no-cache src tests` 통과
+- 프론트엔드: `npm test` **227파일·2,022 통과**(종료 코드 0), `tsc --noEmit`·`eslint .` 통과
+- `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests`: 바뀐 기존 테스트 열여덟 — T018·US2 여섯 + T144 하나 + T152 다섯 + T161 여섯(`test_stock_search_external`·
+  `test_stock_search_local`·`test_orm_types`·`CompareTable`·`CompareTableUnitPrice`·`ComparePageRecurring`)뿐이다. 014가 만든 `test_market_schema`도 T161 승인으로 고쳤다
