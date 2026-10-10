@@ -30,6 +30,25 @@ describe("열기·단위", () => {
     expect(useIndicatorTableStore.getState().rows).toHaveLength(1);
   });
 
+  it("단위를 바꾸는 동안 앞 표를 남긴다", async () => {
+    // T124 실측(2026-10-10) — 단위를 누르면 표와 단위 단추가 함께 사라졌다가 다시 붙어 모달이 위아래로 흔들렸다
+    let release: (v: IndicatorTableResponse) => void = () => undefined;
+    vi.spyOn(apiClient, "get")
+      .mockResolvedValueOnce(tableOf())
+      .mockImplementationOnce(() => new Promise((resolve) => { release = resolve as (v: IndicatorTableResponse) => void; }));
+    await useIndicatorTableStore.getState().open("sp500");
+    const pending = useIndicatorTableStore.getState().setPeriod("weekly");
+    const during = useIndicatorTableStore.getState();
+    expect(during.status).toBe("loading");
+    expect(during.period).toBe("weekly");
+    expect(during.table?.period).toBe("daily");
+    expect(during.rows.map((r) => r.date)).toEqual(["2026-10-09", "2026-10-08"]);
+    release(tableOf({ period: "weekly", rows: [rowOf("2026-10-09", { isOngoing: true })] }));
+    await pending;
+    expect(useIndicatorTableStore.getState().status).toBe("ready");
+    expect(useIndicatorTableStore.getState().rows).toHaveLength(1);
+  });
+
   it("받는 중이면 collecting이다", async () => {
     vi.spyOn(apiClient, "get").mockResolvedValue(collectingOf());
     await useIndicatorTableStore.getState().open("sp500");
