@@ -329,3 +329,16 @@ R14-7 표가 상수다. 함수는 둘이다:
 - **화면**: 검색 결과 줄은 기준을 밝힌 날짜 — 주식 `listedOn`이면 `상장 YYYY-MM-DD`, 없고 `firstTradedOn`이면 `첫 거래 YYYY-MM-DD`, 코인 `firstAvailableDate`면 `첫 일봉 YYYY-MM-DD`(없으면 그 글자를 뺀다 —
   T158: Yahoo 첫 거래일은 출처의 시세 시작일이라 오래된 종목은 상장일보다 늦다). 비교 표는 `comparison.listing` — 열은 `method`가 일시금·적립식일 때만. (반복 2026-10-10g) 메뉴의 고른
   줄은 종목명 밑에 같은 글자, 모르면 `상장일 —`(고른 대상 `listing` — 대상이 바뀔 때·그 결과나 시작 가능 날짜 안내가 올 때 묻는다)
+
+## 13. 투자 성과표의 처음 단위 (반복 2026-10-11 — FR-035, 화면 상태 — 저장하지 않음)
+
+| 스토어 | 칸 | 처음 값 | 첫 표 요청 |
+|--------|----|---------|------------|
+| `stores/fxWorkspaceStore.ts` | `period` | `monthly`(전 `daily`) | `/api/fx/daily?currency=USD&period=monthly`(외환은 늘 `period`를 싣는다) |
+| `stores/stockStore.ts` | `tablePeriod` | `monthly`(전 `daily`) | `/api/stocks/simulation?…&period=monthly`·`/api/stocks/recurring-simulation?…&period=monthly` |
+| `stores/cryptoStore.ts` | `tablePeriod` | `monthly`(전 `daily`) | `/api/crypto/simulation?…&period=monthly`·`/api/crypto/recurring-simulation?…&period=monthly` |
+| `stores/compareDetailStore.ts` | `period`(닫힘 상태 `CLOSED`) | `monthly`(전 `daily`) — 열 때마다 | 주식·가상자산(`pageable`)만 메뉴 표 경로 + `&period=monthly`. 예금·부동산은 그대로(`period` 없음) |
+
+- `lib/tablePeriod.periodQuery`는 그대로다 — 일이면 싣지 않는다(서버 기본이 일). 이어 받기는 `&before=…` 뒤에 붙는다(지금과 같다)
+- 시계열 요청(`/series`)·보드·차트·이력 조건(012)은 단위와 무관하다 — 이력 식별자·저장 조건에 단위가 없다
+- 대상 밖: `stores/indicatorTableStore.ts`(대시보드 지표 표 — 처음 `daily` 그대로), 예금·부동산 스토어(단추 없음)

@@ -889,6 +889,44 @@ description: "Task list for 014-market-dashboard"
 
 ---
 
+## Phase 14: 반복 2026-10-11 — 투자 성과표의 처음 단위 월 (spec Iterations — 사용자 요청)
+
+**Goal**:
+- 외환·가상자산·주식 메뉴와 투자 비교 모달(주식·가상자산)의 일자별 표를 처음부터 "월"로 보인다(US8 — FR-035). 고른 단위는 화면 세션에서 남는다
+- 서버의 표 경로는 그대로다 — 화면이 처음 요청부터 `period=monthly`를 싣는다
+
+**Independent Test**(spec US8):
+- 외환 메뉴를 새로 열면 표의 "월"이 선택돼 있고 요청이 `period=monthly`다. 가상자산·주식 실행·이력 다시 실행, 비교 모달(주식·가상자산)도 같다
+- "일"을 고른 뒤 다시 실행하면 "일"이 남는다. 예금·부동산 모달·대시보드 지표 표는 그대로다
+
+**완료 작업 영향**: 없음 — 014의 화면·경로는 그대로다. 004·012·013의 처음 단위가 바뀐다(FR-026 예외). 처음 값·처음 요청 글자를 단언하는 014 전 테스트가 바뀐다 — 범위 확인(구현을
+작업 트리에 둔 전체 스위트)에서 12파일 22개, 실제 목록은 T177
+
+### Tests for 반복 2026-10-11 ⚠️
+
+- [ ] T176 [P] [US8] 화면 테스트 — 새 `frontend/tests/TablePeriodDefault.test.tsx`. 외환 화면 처음 "월" 탭·첫 표 요청 `period=monthly`, 주식·가상자산 스토어 처음 값 `monthly`·처음 실행(일시금·적립식)
+  표 요청 `&period=monthly`·시계열 요청에는 없음, 화면의 "월" 탭, 이력 다시 실행도 월, "일"로 바꾼 뒤 다시 실행하면 `period` 없음(고른 단위 유지), 비교 모달 열기의 표 요청 `&period=monthly`(주식·
+  가상자산 — 예금·부동산은 없음)·모달 "월" 탭·닫고 다시 열면 월, 대시보드 지표 표 처음 `daily`. 최초 실패 확인 (FR-035, SC-020)
+
+### Implementation for 반복 2026-10-11
+
+- [ ] T177 [US8] 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(범위 확인: 12파일 22개 — `stockStoreTablePeriod`·`cryptoStoreTablePeriod`의 처음 단위 단언, 처음 표 요청
+  글자에 `&period=monthly`가 붙은 `cryptoStore`·`stockStoreRecurring`·`cryptoStoreRecurring`·`stockStoreRerun`·`StocksPageRecurring`·`CryptoPageRecurring`·`StocksPageRerun`·`compareDetailStore`·
+  `ComparePageSimulate`, 응답 단위를 대조하는 `fxWorkspaceScroll`의 상태). T161과 같은 절차(`014 승인 2026-10-11`)로 승인하고 구현을 치워 실패를 확인한 뒤 `test(014)`. 목록 밖의 실패는
+  결함으로 보고 멈춘다 (FR-026)
+- [ ] T178 [US8] 화면 — `frontend/src/stores/fxWorkspaceStore.ts`·`stores/stockStore.ts`·`stores/cryptoStore.ts`(처음 값 `monthly`), `frontend/src/stores/compareDetailStore.ts`(닫힘 상태 `monthly`,
+  열 때의 표 요청에 `periodQuery` — `pageable`일 때만), `frontend/src/lib/tablePeriod.ts`(설명) — DM13, contracts D14 (FR-035)
+
+### Polish (반복 2026-10-11)
+
+- [ ] T179 [US8] 실측 — quickstart 5-24(외환 새로 열기 USD·JPY, 가상자산·주식 일시금·적립식 실행·이력 다시 실행·"일"로 바꾼 뒤 다시 실행, 비교 모달 주식·가상자산·예금, 대시보드 지표 표, 블랙 배경)를
+  헤드리스 Chrome으로 확인하고 `quickstart.md` 8에 기록한다 (FR-035, SC-020)
+- [ ] T180 불변 대조·문서 — `014-baseline/fetch.py`(기준 29파일 — 부동산 기준일·`meta` 말고 차이 0, 서버 변경 없음), `CLAUDE.md`(014 줄·표 단위 주의), `README.md`, `spec.md` Status (FR-026, SC-010, SC-020)
+- [ ] T181 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177)뿐인지
+  `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -918,6 +956,9 @@ description: "Task list for 014-market-dashboard"
 - **반복 2026-10-10g (Phase 13)**: Phase 12 뒤
   1. 테스트 T168·T169(함께 — 최초 실패 확인) → 구현 T171·T172 → T170(실제 실패 목록 — 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
   2. T173~T175
+- **반복 2026-10-11 (Phase 14)**: Phase 13 뒤
+  1. 테스트 T176(최초 실패 확인) → 구현 T178 → T177(실제 실패 목록 — 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
+  2. T179~T181
 - **Foundational (Phase 2)**: T002·T004 뒤. US1·US2를 막는다. US3는 T011(설정) 뒤면 시작할 수 있다.
 - **US1 (Phase 3)**: Foundational 뒤. **T018(승인)이 이 페이즈의 테스트 커밋을 막는다** — T031~T040 구현을 작업 트리에 둔 뒤 목록을 만든다. 백엔드(T019~T023·T031~T035)와 화면(T024~T030·T036~T040)은 나란히 할 수 있다. MVP다.
 - **US2 (Phase 4)**: US1 뒤(시세 서비스의 캐시가 잠정 꼬리·머리 값을 준다. `main.py`·`types.ts`·`dashboardApi.ts`가 겹친다). 승인 목록이 없을 것으로 본다 — 구현 뒤 목록 밖의 실패는 결함으로 보고 멈춘다.
@@ -960,6 +1001,7 @@ description: "Task list for 014-market-dashboard"
 | `backend/src/api/services/stock_selection.py`·`api/routes/stock_selection.py`·`api/routes/comparison.py`·`api/routes/crypto_search.py` | T162(이전), T171(반복 2026-10-10g) |
 | `frontend/src/components/stock/StockSearch.tsx`·`components/crypto/CoinSearch.tsx`·`lib/listingDate.ts`·`components/ListingText.tsx` | T163(이전), T172(반복 2026-10-10g) |
 | `frontend/tests/setup.ts` | T169(반복 2026-10-10g — 대역 한 겹) |
+| `frontend/src/stores/fxWorkspaceStore.ts`·`stores/stockStore.ts`·`stores/cryptoStore.ts`·`stores/compareDetailStore.ts` | T178(반복 2026-10-11 — 004·012·013 파일) |
 
 ### Parallel Opportunities
 
@@ -1004,6 +1046,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 9. 반복 2026-10-10e — 투자 비교의 티커 표시(US6)(Phase 11). 화면만이고 014의 다른 화면과 독립이다
 10. 반복 2026-10-10f — 주식·가상자산의 상장일(US7)(Phase 12). 스키마 변경 하나 — 개발 DB `alembic upgrade head`
 11. 반복 2026-10-10g — 고른 종목·코인 줄의 상장일(US7 확장)(Phase 13). 스키마 변경 없음 — 사용자 보고
+12. 반복 2026-10-11 — 투자 성과표의 처음 단위 월(US8)(Phase 14). 화면만 — 사용자 요청
 
 ---
 
@@ -1071,7 +1114,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-023 | T007, T011, T067, T068, T076, T087, T089, T092 |
 | FR-024 | T064, T065, T066, T067, T068, T069, T070, T071, T072, T076, T077, T078, T079, T081, T087 |
 | FR-025 | T070, T079, T085, T121, T126, T140 |
-| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148, T152, T155, T161, T165, T169, T170, T174 |
+| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148, T152, T155, T161, T165, T169, T170, T174, T177, T180 |
 | FR-027 | T095, T103, T104, T105, T109, T113, T118, T119, T120, T121, T123 |
 | FR-028 | T095, T102, T104, T105, T107, T112, T116, T121, T123, T128, T129, T132, T133, T137 |
 | FR-029 | T104, T105, T108, T114, T117, T119, T120, T121, T123, T124 |
@@ -1080,6 +1123,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-032 | T151, T153, T154, T156 |
 | FR-033 | T158, T159, T160, T162, T163, T164, T166 |
 | FR-034 | T168, T169, T171, T172, T173, T174 |
+| FR-035 | T176, T177, T178, T179, T180 |
 | SC-001 | T071, T082, T087 |
 | SC-002 | T047, T056, T082, T107, T124, T130, T138 |
 | SC-003 | T010, T020, T023, T032, T041 |
@@ -1089,7 +1133,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-007 | T022, T034, T064, T065, T066, T068, T071, T081, T087, T094 |
 | SC-008 | T064, T065, T066, T068, T070, T081, T089, T092 |
 | SC-009 | T019, T026, T031 |
-| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141, T148, T150, T155, T157, T165, T167, T174, T175 |
+| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141, T148, T150, T155, T157, T165, T167, T174, T175, T180, T181 |
 | SC-011 | T062, T087 |
 | SC-012 | T104, T108, T124 |
 | SC-013 | T103, T109, T123 |
@@ -1099,3 +1143,4 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-017 | T151, T154, T155 |
 | SC-018 | T159, T164, T165 |
 | SC-019 | T168, T169, T173, T174 |
+| SC-020 | T176, T179, T180 |
