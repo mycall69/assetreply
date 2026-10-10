@@ -315,6 +315,7 @@ R14-7 표가 상수다. 함수는 둘이다:
 | 검색 행 `firstTradedOn` | 날짜 \| `null` | `/api/stocks/search`·`/api/stocks/search/external`의 행마다 — 그 시세 식별자(`market`·`symbol`)의 `stock.first_trade_date`. 종목이 없거나 모르면 `null`. 검색은 출처를 부르지 않는다 |
 | 검색 행 `listedOn` | 그대로 | 키움 국내 상장일(시작일 하한 — 006 FR-005a). 미국은 늘 `null`(목록에 칸이 없다) |
 | 코인 검색 행 `firstAvailableDate` | 그대로 | 수집으로 알게 된 첫 일봉(007 R7-10) |
+| 고른 대상 `listing` | `{ date, basis }` \| `null` | (반복 2026-10-10g — FR-034) `GET /api/stocks/listing-date`·`/api/crypto/listing-date`의 본문. `comparison.listing`과 같은 규칙·같은 글자. 저장하지 않는 파생 값(주식의 첫 거래일 채우기 말고) |
 | `comparison.listing` | `{ date, basis }` \| `null` | 비교 블록. 주식 `listing`(키움 `listed_on`) → `first_trade`(`stock.first_trade_date`) → `null`, 코인 `first_bar`(`crypto_coin.first_available_date`) → `null`. 예금·부동산 블록은 `null` |
 
 - **쓰는 때**: 비어 있을 때만 쓰고 덮어쓰지 않는다(출처가 다른 날짜를 주어도 — 개정은 남기지 않는다, 표시 전용)
@@ -323,6 +324,8 @@ R14-7 표가 상수다. 함수는 둘이다:
   - 주식 수집(`worker/stock_runner.collect_range`): 청크 응답의 `ChartData.first_trade_date`가 있고 종목의 값이 비었으면 쓴다 — 추가 요청 없음
   - 투자 비교(`routes/comparison._stock_listing` — 주식 일시금·적립식): 상장일을 낼 때 키움 상장일이 없고 모르면 등록과 같은 규칙으로 한 번 받는다(사용자 보고 2026-10-10 — 저장한 비교는
     등록을 거치지 않는다)
+  - 고른 대상의 상장일(`GET /api/stocks/listing-date` — 반복 2026-10-10g): 투자 비교와 같은 규칙 — 서비스 `stock_selection.stock_listing` 하나를 두 경로가 함께 쓴다
 - **고르기 규칙**(순수 함수 하나 — `simulation/listing_date.py`): 주식 `(listed_on, first_trade_date) → listing | first_trade | None`, 코인 `first_available_date → first_bar | None`
 - **화면**: 검색 결과 줄은 기준을 밝힌 날짜 — 주식 `listedOn`이면 `상장 YYYY-MM-DD`, 없고 `firstTradedOn`이면 `첫 거래 YYYY-MM-DD`, 코인 `firstAvailableDate`면 `첫 일봉 YYYY-MM-DD`(없으면 그 글자를 뺀다 —
-  T158: Yahoo 첫 거래일은 출처의 시세 시작일이라 오래된 종목은 상장일보다 늦다). 비교 표는 `comparison.listing` — 열은 `method`가 일시금·적립식일 때만
+  T158: Yahoo 첫 거래일은 출처의 시세 시작일이라 오래된 종목은 상장일보다 늦다). 비교 표는 `comparison.listing` — 열은 `method`가 일시금·적립식일 때만. (반복 2026-10-10g) 메뉴의 고른
+  줄은 종목명 밑에 같은 글자, 모르면 `상장일 —`(고른 대상 `listing` — 대상이 바뀔 때·그 결과가 올 때 묻는다)

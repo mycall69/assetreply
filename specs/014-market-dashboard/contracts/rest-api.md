@@ -276,11 +276,27 @@
 - 주식 비교 경로(일시금·적립식)는 키움 상장일이 없고 첫 거래일을 모르면 응답 전에 한 번 받아 둔다(등록과 같은 규칙 — 실패해도 200, `listing: null`)
 - 메뉴 시뮬레이션 응답(`/api/stocks/*`·`/api/crypto/*`)은 바뀌지 않는다
 
+## A11. 고른 대상의 상장일 (반복 2026-10-10g — spec FR-034)
+
+- `GET /api/stocks/listing-date?market=NYSE&symbol=QLD` → 200
+
+```json
+{ "market": "NYSE", "symbol": "QLD", "listing": { "date": "2006-06-21", "basis": "first_trade" } }
+```
+
+  - 고르기·채우기는 비교 블록의 `listing`(A10)과 같은 함수다 — 키움 상장일 → 첫 거래일. 둘 다 없으면 응답 전에 공유 시세 클라이언트로 한 번 받아 둔다(실패·시간 초과·클라이언트 없음이어도
+    200 `listing: null`). `market`·`symbol`은 저장된 종목의 것이다(미국은 다른 거래소로 등록된 같은 티커 — 006 FR-030a)
+  - 없는 종목은 404 `unknown_stock`(등록하지 않는다 — 실행이 등록한 뒤 다시 물으면 보인다). `market`·`symbol` 빠짐 422
+- `GET /api/crypto/listing-date?coinId=1057391` → 200 `{ "coinId": 1057391, "listing": { "date": "2010-07-18", "basis": "first_bar" } }` — `first_available_date`, 모르면
+  `listing: null`. 없는 코인 404 `unknown_coin`. 출처를 부르지 않는다
+- 등록(`POST /api/stocks/selection`)·검색·메뉴 시뮬레이션 응답은 그대로다
+
 ## A6. 불변
 
 기존 경로의 응답은 바뀌지 않는다(FR-026):
 - 외환: `/api/fx/*` — (반복 2026-10-10d) 예외 하나: `/api/fx/daily`의 행에 `change`가 더해진다(A9). `/api/fx/latest`·`/api/fx/series`·수집 경로는 그대로다
 - (반복 2026-10-10f) 주식 검색 응답 둘의 행에 `firstTradedOn`, 비교 블록에 `listing`만 더해진다(A10). 등록 응답·메뉴 시뮬레이션 응답은 그대로다
+- (반복 2026-10-10g) 새 읽기 경로 둘(A11)이 더해진다. 기존 경로의 응답은 그대로다
 - 주식: `/api/stocks/*`
 - 가상자산: `/api/crypto/*`
 - 예금: `/api/deposit/*`

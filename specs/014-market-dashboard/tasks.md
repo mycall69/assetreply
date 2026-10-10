@@ -848,6 +848,45 @@ description: "Task list for 014-market-dashboard"
 - [X] T167 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161)뿐인지
   `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
 
+## Phase 13: 반복 2026-10-10g — 고른 종목·코인 줄의 상장일 (spec Iterations — 사용자 보고)
+
+**Goal**:
+- 주식·가상자산 메뉴에서 고른 종목·코인 줄(검색 칸 아래)의 종목명 밑에 상장일을 보인다(US7 — FR-034). 등록 뒤·이력 다시 실행 뒤 모두, 실행으로 알게 되면 결과가 온 뒤
+- 고른 대상의 상장일 경로 둘(A11) — 주식은 비교 경로와 같은 함수(모르면 한 번 받아 둠)
+
+**Independent Test**(spec US7 수용 시나리오 8):
+- 주식 메뉴에서 QLD를 고르면 고른 줄 밑 `첫 거래 2006-06-21`, 삼성전자 `상장 1975-06-11`, 이력 다시 실행 뒤에도 같다. 비트코인 `첫 일봉 2010-07-18`
+- 등록·검색·메뉴 시뮬레이션 응답은 이 반복 전과 같다
+
+**완료 작업 영향**: 없음 — 10f의 결과 줄·비교 표·첫 거래일 저장은 그대로다(비교 경로의 헬퍼는 서비스로 옮길 뿐 값 불변). 고른 줄을 그리는 014 전 테스트가 바뀔 수 있다 — 실제 실패
+목록은 T170
+
+### Tests for 반복 2026-10-10g ⚠️
+
+- [ ] T168 [P] [US7] 백엔드 테스트 — 새 `backend/tests/integration/test_selected_listing_api.py`(A11 — 국내 `listing`·미국 `first_trade`(출처 호출 0)·모르면 한 번 받아 저장·실패해도 200
+  `listing: null`·없는 종목 404·다른 거래소 같은 티커, 코인 `first_bar`·`null`·404, 비교 블록 `listing`과 같은 글자). 최초 실패 확인 (FR-034, SC-019)
+- [ ] T169 [P] [US7] 화면 테스트 — 새 `frontend/tests/SelectedListing.test.tsx`·`frontend/tests/support/listingStub.ts`, `frontend/tests/setup.ts`(대역 한 겹 — 이력·저장 대역과 같은 틀,
+  `014 승인 2026-10-10`). 주식·코인 고른 줄 아래 글자·`title`, 모름 `상장일 —`, 묻는 동안·실패면 줄 없음, 대상이 바뀌면 다시 묻고 늦은 답은 버림, 결과 신호가 오면 다시 묻고 비면 묻지 않음,
+  이력 다시 실행 뒤 줄, 비교 화면 검색은 묻지 않음. 최초 실패 확인 (FR-034)
+
+### Implementation for 반복 2026-10-10g
+
+- [ ] T170 [US7] 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록. T161과 같은 절차(`014 승인 2026-10-10`)로 승인하고 구현을 치워 실패를 확인한 뒤
+  `test(014)`. 목록 밖의 실패는 결함으로 보고 멈춘다 (FR-026)
+- [ ] T171 [US7] 백엔드 — `backend/src/api/services/stock_selection.py`(`stock_listing` — `routes/comparison._stock_listing`을 옮김), `backend/src/api/routes/stock_selection.py`
+  (`GET /api/stocks/listing-date`), `backend/src/api/routes/crypto_search.py`(`GET /api/crypto/listing-date`), `backend/src/api/routes/comparison.py` — contracts A11 (FR-034)
+- [ ] T172 [US7] 화면 — 새 `frontend/src/lib/listingApi.ts`·`frontend/src/hooks/useSelectedListing.ts`, `frontend/src/lib/listingDate.ts`, `frontend/src/components/ListingText.tsx`,
+  `frontend/src/components/stock/StockSearch.tsx`, `frontend/src/components/crypto/CoinSearch.tsx`, `frontend/src/app/stocks/page.tsx`·`frontend/src/app/crypto/page.tsx`(결과 신호) — contracts D13 (FR-034)
+
+### Polish (반복 2026-10-10g)
+
+- [ ] T173 [US7] 실측 — quickstart 5-23(QLD·삼성전자·도요타 고르기, 이력 다시 실행, 비트코인, 첫 일봉을 모르는 코인 → 실행 뒤, 블랙 배경)을 헤드리스 Chrome으로 확인하고 `quickstart.md` 8에
+  기록한다 (FR-034, SC-019)
+- [ ] T174 불변 대조·문서 — `014-baseline/fetch.py`(기준 29파일 — 부동산 기준일·`meta` 말고 차이 0), 등록·검색 응답 그대로. `CLAUDE.md`(014 줄·상장일 주의), `README.md`, `spec.md` Status
+  (FR-026, SC-010, SC-019)
+- [ ] T175 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T170)뿐인지
+  `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
+
 ---
 
 ## Dependencies & Execution Order
@@ -876,6 +915,9 @@ description: "Task list for 014-market-dashboard"
 - **반복 2026-10-10f (Phase 12)**: Phase 11 뒤
   1. T158(실측·픽스처) → 테스트 T159·T160(함께 — 최초 실패 확인) → 구현 T162·T163 → T161(실제 실패 목록 — 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
   2. T164(개발 DB `alembic upgrade head` 먼저)~T167
+- **반복 2026-10-10g (Phase 13)**: Phase 12 뒤
+  1. 테스트 T168·T169(함께 — 최초 실패 확인) → 구현 T171·T172 → T170(실제 실패 목록 — 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
+  2. T173~T175
 - **Foundational (Phase 2)**: T002·T004 뒤. US1·US2를 막는다. US3는 T011(설정) 뒤면 시작할 수 있다.
 - **US1 (Phase 3)**: Foundational 뒤. **T018(승인)이 이 페이즈의 테스트 커밋을 막는다** — T031~T040 구현을 작업 트리에 둔 뒤 목록을 만든다. 백엔드(T019~T023·T031~T035)와 화면(T024~T030·T036~T040)은 나란히 할 수 있다. MVP다.
 - **US2 (Phase 4)**: US1 뒤(시세 서비스의 캐시가 잠정 꼬리·머리 값을 준다. `main.py`·`types.ts`·`dashboardApi.ts`가 겹친다). 승인 목록이 없을 것으로 본다 — 구현 뒤 목록 밖의 실패는 결함으로 보고 멈춘다.
@@ -915,6 +957,9 @@ description: "Task list for 014-market-dashboard"
 | `backend/src/api/services/stock_selection.py`·`api/routes/stock_selection.py`·`api/routes/stock_search.py`·`worker/stock_runner.py`·`ingestion/yahoo/client.py` | T162(반복 2026-10-10f — 005·006 파일) |
 | `backend/src/api/services/comparison_metrics.py`·`api/routes/comparison.py` | T162(반복 2026-10-10f — 013 파일) |
 | `frontend/src/components/stock/StockSearch.tsx`·`components/compare/CompareTable.tsx`·`stores/compareStore.ts`·`lib/types.ts` | T163(반복 2026-10-10f) |
+| `backend/src/api/services/stock_selection.py`·`api/routes/stock_selection.py`·`api/routes/comparison.py`·`api/routes/crypto_search.py` | T162(이전), T171(반복 2026-10-10g) |
+| `frontend/src/components/stock/StockSearch.tsx`·`components/crypto/CoinSearch.tsx`·`lib/listingDate.ts`·`components/ListingText.tsx` | T163(이전), T172(반복 2026-10-10g) |
+| `frontend/tests/setup.ts` | T169(반복 2026-10-10g — 대역 한 겹) |
 
 ### Parallel Opportunities
 
@@ -958,6 +1003,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 8. 반복 2026-10-10d — 외환 일자별 표의 등락폭·등락율(US5)(Phase 10). 014의 다른 화면과 독립이다
 9. 반복 2026-10-10e — 투자 비교의 티커 표시(US6)(Phase 11). 화면만이고 014의 다른 화면과 독립이다
 10. 반복 2026-10-10f — 주식·가상자산의 상장일(US7)(Phase 12). 스키마 변경 하나 — 개발 DB `alembic upgrade head`
+11. 반복 2026-10-10g — 고른 종목·코인 줄의 상장일(US7 확장)(Phase 13). 스키마 변경 없음 — 사용자 보고
 
 ---
 
@@ -1025,7 +1071,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-023 | T007, T011, T067, T068, T076, T087, T089, T092 |
 | FR-024 | T064, T065, T066, T067, T068, T069, T070, T071, T072, T076, T077, T078, T079, T081, T087 |
 | FR-025 | T070, T079, T085, T121, T126, T140 |
-| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148, T152, T155, T161, T165 |
+| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148, T152, T155, T161, T165, T169, T170, T174 |
 | FR-027 | T095, T103, T104, T105, T109, T113, T118, T119, T120, T121, T123 |
 | FR-028 | T095, T102, T104, T105, T107, T112, T116, T121, T123, T128, T129, T132, T133, T137 |
 | FR-029 | T104, T105, T108, T114, T117, T119, T120, T121, T123, T124 |
@@ -1033,6 +1079,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-031 | T142, T143, T145, T146, T147, T149 |
 | FR-032 | T151, T153, T154, T156 |
 | FR-033 | T158, T159, T160, T162, T163, T164, T166 |
+| FR-034 | T168, T169, T171, T172, T173, T174 |
 | SC-001 | T071, T082, T087 |
 | SC-002 | T047, T056, T082, T107, T124, T130, T138 |
 | SC-003 | T010, T020, T023, T032, T041 |
@@ -1042,7 +1089,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-007 | T022, T034, T064, T065, T066, T068, T071, T081, T087, T094 |
 | SC-008 | T064, T065, T066, T068, T070, T081, T089, T092 |
 | SC-009 | T019, T026, T031 |
-| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141, T148, T150, T155, T157, T165, T167 |
+| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141, T148, T150, T155, T157, T165, T167, T174, T175 |
 | SC-011 | T062, T087 |
 | SC-012 | T104, T108, T124 |
 | SC-013 | T103, T109, T123 |
@@ -1051,3 +1098,4 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-016 | T142, T147, T148 |
 | SC-017 | T151, T154, T155 |
 | SC-018 | T159, T164, T165 |
+| SC-019 | T168, T169, T173, T174 |

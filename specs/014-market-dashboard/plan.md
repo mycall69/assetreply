@@ -45,6 +45,10 @@
   - 검색 결과 줄(주식·가상자산 메뉴·투자 비교)에 기준을 밝힌 날짜(`상장 …`·`첫 거래 …`·`첫 일봉 …` — T158), 투자 비교 표(주식·가상자산)에 대상과 기준일 사이 "상장일" 열(기준 `첫 거래일`·`첫 일봉`, 모르면 "—", 정렬)
   - 국내는 키움 상장일, 미국·일본은 Yahoo `firstTradeDate`를 **새 열 `stock.first_trade_date`**(표시 전용 — 시작일 판정 불변)에 저장한다 — 등록 때 모르면 한 번(lifespan의 공유 시세 클라이언트가
     있을 때만·실패 허용)·주식 수집 청크마다(추가 요청 없음). 코인은 수집으로 알게 된 첫 일봉. 검색은 출처를 부르지 않는다(R14-26)
+- **반복 2026-10-10g — 고른 종목·코인 줄의 상장일**(spec Iterations, T168~T175 — FR-026 예외, 사용자 보고)
+  - 주식·가상자산 메뉴의 고른 줄(검색 칸 아래) 종목명 밑에 FR-033과 같은 글자. 값은 새 읽기 경로 둘(`/api/stocks/listing-date`·`/api/crypto/listing-date` — A11). 등록 응답은 그대로다
+    (이력 다시 실행은 등록이 없다)
+  - 주식 경로는 비교 경로의 상장일 헬퍼를 서비스(`stock_selection.stock_listing`)로 옮겨 함께 쓴다 — 모르면 한 번 받아 둔다. 화면은 고른 대상이 바뀔 때와 그 결과가 올 때 묻는다(R14-27)
 
 **설계 중 확인한 것**
 
@@ -119,6 +123,7 @@
 | 공유 부품 변경(반복 2026-10-10c) | ✅(해석 기록) | 차트 다섯 종(`FxChart`·`PerformanceChart`·`ComparisonChart`·`CompareReturnChart`·`IndicatorChart`)이 테마 팔레트를 받는다 — 밝은 테마의 선택 값은 지금과 같다(색·글자). `applyOptions`·라이브러리 열거형을 실행 중에 쓰지 않는다 |
 | 반복 2026-10-10d — 외환 화면 예외(FR-026) | ✅(예외 기록) | 외환 일자별 표와 CSV의 오른쪽 끝 두 열만 바뀐다. `/api/fx/daily`는 행에 `change`가 더해질 뿐 다른 칸·차례·쪽 넘기기·202가 같고, `/api/fx/latest`는 같은 함수를 부르지만 대상 고르기·응답이 같다(`014-baseline` 대조 — T148). CSV 열은 맨 끝이라 001·004 머리 단언(앞 열의 이어짐)이 그대로다. 014 전 테스트는 `frontend/tests/csv.test.ts`의 "진행 중 여부가 열로 남는다"(줄 끝 `/예$/` → 진행 중 열의 차례) 하나가 바뀔 것으로 본다(T144 승인) |
 | 반복 2026-10-10e — 투자 비교·코인 검색 결과 예외(FR-026) | ✅(예외 기록) | 투자 비교 화면의 주식·가상자산 대상 이름과 코인 검색 결과 줄의 맨 앞 이름(가상자산 메뉴 포함)만 바뀐다. 백엔드 변경이 없어 메뉴·비교 응답이 같다(`014-baseline` 대조 — T155). 이름은 그릴 때 만들어 저장한 비교의 조건이 같다. 014 전 013 테스트 변경은 T152 승인 |
+| 반복 2026-10-10g — 고른 줄 상장일 예외(FR-026) | ✅(예외 기록) | 005·006·007 메뉴의 고른 줄 아래 한 줄과 새 읽기 경로 둘(A11). 등록·검색·메뉴 시뮬레이션 응답은 같다(`014-baseline` 대조 — T174). 화면 테스트의 새 요청은 `tests/setup.ts` 대역이 답한다(네트워크 없음). 014 전 테스트 변경은 T170 승인 |
 | 반복 2026-10-10f — 상장일 예외(FR-026) | ✅(예외 기록) | 005·006(주식 검색 응답 둘의 `firstTradedOn`·종목 등록 안의 첫 거래일 받기·주식 수집의 저장), 007(코인 검색 결과 줄), 013(비교 표 열·비교 블록 `listing`)이 바뀐다. 메뉴 시뮬레이션 응답·시작일 판정·등록 응답은 같다(`014-baseline` 대조 — T165). 등록 경로의 외부 호출은 실패 허용·관문·lifespan 클라이언트만. 014 전 테스트 변경은 T161 승인 |
 
 ## Project Structure
@@ -314,6 +319,24 @@ backend/tests/   contract/test_yahoo_first_trade.py(fixtures/stock/chart_meta_*)
 frontend/tests/  StockSearchListing.test.tsx · CoinSearchListing.test.tsx · CompareTableListing.test.tsx   (014 전 테스트 변경 — T161 승인)
 ```
 
+**반복 2026-10-10g에 더하거나 바꾸는 파일**:
+
+```text
+backend/src/
+├── api/services/stock_selection.py                   (변경 — stock_listing: routes/comparison._stock_listing을 옮김, 값 불변)
+├── api/routes/stock_selection.py                     (변경 — GET /api/stocks/listing-date, A11)
+├── api/routes/crypto_search.py                       (변경 — GET /api/crypto/listing-date, A11)
+└── api/routes/comparison.py                          (변경 — 서비스의 stock_listing을 부른다)
+frontend/src/
+├── lib/listingApi.ts                                 (신규 — 고른 대상 상장일 요청, 공통 요청 함수 직접)
+├── hooks/useSelectedListing.ts                       (신규 — 대상·결과 도착마다 묻기, 늦은 답 버림)
+├── lib/listingDate.ts · components/ListingText.tsx   (변경 — 고른 줄 글자·모름 까닭)
+├── components/stock/StockSearch.tsx · components/crypto/CoinSearch.tsx  (변경 — 고른 줄 아래 한 줄, D13)
+└── app/stocks/page.tsx · app/crypto/page.tsx         (변경 — 결과 도착 신호를 넘긴다)
+backend/tests/   integration/test_selected_listing_api.py
+frontend/tests/  SelectedListing.test.tsx · support/listingStub.ts · setup.ts(대역 한 겹 — T169)   (014 전 테스트 변경 — T170 승인)
+```
+
 **Structure Decision**:
 - 기존 웹 앱 구조(backend/frontend)를 그대로 쓴다
 - 대시보드는 새 자산군이 아니라 조회 화면이다. 그래서 백엔드는 다음을 더한다:
@@ -353,7 +376,7 @@ frontend/tests/  StockSearchListing.test.tsx · CoinSearchListing.test.tsx · Co
 | FR-023 (저장 안 함·10분 캐시·실패 백오프) | R14-13, DM6, A5, Q3, tasks T007·T011·T067·T068·T076·T087·T089·T092 |
 | FR-024 (칸마다 실패·0건 = 실패·카드 안 막음) | R14-13, A5, D1·D5, Q2·Q3·Q5-8, tasks T064·T065·T066·T067·T068·T069·T070·T071·T072·T076·T077·T078·T079·T081·T087 |
 | FR-025 (출처 밝힘·목록뿐) | R14-13, D1·D5, tasks T070·T079·T085·T121·T126 |
-| FR-026 (메뉴·비교 불변, 밝은 테마 화면 불변 — 반복 2026-10-10c, 외환 일자별 표 두 열 예외 — 반복 2026-10-10d, 투자 비교 이름·코인 검색 결과 예외 — 반복 2026-10-10e, 상장일 예외 — 반복 2026-10-10f) | R14-10·R14-16·R14-23·R14-24·R14-25·R14-26, A6·A9·A10, D11·D12, Q6·Q5-19·Q5-20·Q5-21·Q5-22, tasks T001·T002·T008·T014·T017·T084·T085·T086·T125·T128·T135·T139·T144·T148·T152·T155·T161·T165 |
+| FR-026 (메뉴·비교 불변, 밝은 테마 화면 불변 — 반복 2026-10-10c, 외환 일자별 표 두 열 예외 — 반복 2026-10-10d, 투자 비교 이름·코인 검색 결과 예외 — 반복 2026-10-10e, 상장일 예외 — 반복 2026-10-10f, 고른 줄 상장일 예외 — 반복 2026-10-10g) | R14-10·R14-16·R14-23·R14-24·R14-25·R14-26·R14-27, A6·A9·A10·A11, D11·D12·D13, Q6·Q5-19·Q5-20·Q5-21·Q5-22·Q5-23, tasks T001·T002·T008·T014·T017·T084·T085·T086·T125·T128·T135·T139·T144·T148·T152·T155·T161·T165·T169·T170·T174 |
 | FR-027 (변화 까닭 — 시황 기사·찾지 못함·새 탭) | R14-17, DM6a, A8, D8, Q2·Q5-13, tasks T095·T103·T104·T105·T109·T113·T118·T119·T120·T121·T123 |
 | FR-028 (장중 시세 — 일·주, 저장 안 함, 받는 범위 5세션·1개월 — 반복 2026-10-10c) | R14-19·R14-22, DM5, A2(`1d`·`5d`), D3, Q2·Q5-11·Q5-17, tasks T095·T102·T104·T105·T107·T112·T116·T121·T123·T128·T129·T132·T133·T137 |
 | FR-030 (화면 테마 — 블랙 배경, 반복 2026-10-10c) | R14-23, DM7·DM9, D6·D9, Q4·Q5-18, tasks T128·T131·T135·T136·T137·T140 |
@@ -361,6 +384,7 @@ frontend/tests/  StockSearchListing.test.tsx · CoinSearchListing.test.tsx · Co
 | FR-031 (외환 일자별 표의 등락폭·등락율 — 바로 아래 행 대비·서버 계산·CSV 맨 끝, 반복 2026-10-10d) | R14-24, DM10, A9, D10, Q4·Q5-20·Q6, tasks T142·T143·T145·T146·T147·T149 |
 | FR-032 (투자 비교의 티커 표시 — 이름(티커)·한 함수·코인 검색 결과, 반복 2026-10-10e) | R14-25, DM11, D11, Q4·Q5-21·Q6, tasks T151·T153·T154·T156 |
 | FR-033 (주식·가상자산의 상장일 — 검색 결과 줄·비교 표 열·첫 거래일 저장·출처 규칙, 반복 2026-10-10f) | R14-26, DM12, A10, D12, Q2·Q3·Q4·Q5-22·Q6, tasks T158·T159·T160·T162·T163·T164·T166 |
+| FR-034 (고른 종목·코인 줄의 상장일 — 종목명 밑 한 줄·고른 대상 경로 둘·대상·결과마다 묻기, 반복 2026-10-10g) | R14-27, DM12, A11, D13, Q3·Q4·Q5-23, tasks T168·T169·T171·T172·T173·T174 |
 | SC-001 (카드 2초·뉴스가 막지 않음) | R14-6·R14-13, Q7, tasks T071·T082·T087 |
 | SC-002 (모달 그래프 1초·기간 1초, 월~모두 전환 0.3초·요청 없음 — 반복 2026-10-10c) | R14-12·R14-22, Q7, tasks T047·T056·T082·T107·T124·T130·T138 |
 | SC-003 (전일 규칙·휴장 0%·카드 = 그래프) | R14-7·R14-8, Q1·Q3, tasks T010·T020·T023·T032·T041 |
@@ -370,7 +394,7 @@ frontend/tests/  StockSearchListing.test.tsx · CoinSearchListing.test.tsx · Co
 | SC-007 (따로 실패·0건) | R14-6·R14-13, Q2·Q3·Q5-8, tasks T022·T034·T064·T065·T066·T068·T071·T081·T087·T094 |
 | SC-008 (새 탭·도메인·캐시) | R14-13, Q2·Q3·Q5-7, tasks T064·T065·T066·T068·T070·T081·T089·T092 |
 | SC-009 (잠정 표시·서머타임) | R14-7, Q1, tasks T019·T026·T031 |
-| SC-010 (메뉴·비교 불변) | Q6, tasks T001·T002·T084·T086·T094·T125·T127·T139·T141·T148·T150·T155·T157·T165·T167 |
+| SC-010 (메뉴·비교 불변) | Q6, tasks T001·T002·T084·T086·T094·T125·T127·T139·T141·T148·T150·T155·T157·T165·T167·T174·T175 |
 | SC-011 (처음 기동의 과거 구간 — 429 0·15분) | R14-2·R14-10, Q5-5, tasks T062·T087 |
 | SC-012 (표 1초·주·월 행 = 일봉 계산) | R14-21, Q1·Q7, tasks T104·T108·T124 |
 | SC-013 (까닭 문구 = 출처 글자·새 탭·찾지 못함에 문장 없음) | R14-17, Q2·Q5-13, tasks T103·T109·T123 |
@@ -379,6 +403,7 @@ frontend/tests/  StockSearchListing.test.tsx · CoinSearchListing.test.tsx · Co
 | SC-016 (외환 표 등락 = 두 행의 `Decimal` 계산·쪽 경계 "—" 0·`/latest` 불변 — 반복 2026-10-10d) | R14-24, DM10, A9, Q5-20·Q6, tasks T142·T147·T148 |
 | SC-017 (비교 화면 이름 "이름(티커)" 아닌 자리 0·자리마다 다른 이름 0·코인 검색 결과 `(심볼)` 없는 줄 0·응답 불변 — 반복 2026-10-10e) | R14-25, DM11, D11, Q5-21·Q6, tasks T151·T154·T155 |
 | SC-018 (국내 상장일 = 키움·미국 상장일 = Yahoo `firstTradeDate`·모르는 상장일을 날짜로 보임 0·메뉴 응답 불변·검색의 출처 호출 0 — 반복 2026-10-10f) | R14-26, DM12, A10, Q5-22·Q6, tasks T159·T164·T165 |
+| SC-019 (고른 줄에 아는 상장일이 없는 사례 0·비교 표와 다른 날짜·기준 0·다른 대상의 상장일 0·등록·검색·메뉴 응답 불변 — 반복 2026-10-10g) | R14-27, A11, D13, Q5-23·Q6, tasks T168·T169·T173·T174 |
 
 ## Complexity Tracking
 
