@@ -20,7 +20,7 @@ import { axisPriceFormat, splitSeriesAtGaps, toPerformanceData } from "@/lib/cha
 import { themedChartOptions } from "@/lib/chartTheme";
 import { formatPercent } from "@/lib/format";
 import type { ComparisonBlock, SimulationPoint, SimulationSeriesResponse } from "@/lib/types";
-import { useThemeStore } from "@/stores/themeStore";
+import { useThemeStore, type Theme } from "@/stores/themeStore";
 
 export interface CompareChartItem {
   key: string;
@@ -34,12 +34,24 @@ const PALETTE: readonly [number, number, number][] = [
   [37, 99, 235], [220, 38, 38], [22, 163, 74], [217, 119, 6], [147, 51, 234],
   [8, 145, 178], [219, 39, 119], [101, 163, 13], [79, 70, 229], [120, 113, 108],
 ];
+/**
+ * 블랙 배경의 같은 색상 — 위 팔레트의 밝은 쪽(400 계열). 014 T154 실측 — 밝은 바탕용 색은 어두운 바탕에서 범례 글자 대비가 3.72였다
+ * (SC-015 4.5:1). 범례·커서 상자 글자와 선이 같은 색이어야 짝이 맞으므로 선도 이 색이다. 밝은 배경은 위 팔레트 그대로다(FR-026).
+ */
+const DARK_PALETTE: readonly [number, number, number][] = [
+  [96, 165, 250], [248, 113, 113], [74, 222, 128], [251, 191, 36], [192, 132, 252],
+  [34, 211, 238], [244, 114, 182], [163, 230, 53], [129, 140, 248], [168, 162, 158],
+];
+const paletteOf = (theme: Theme) => (theme === "dark" ? DARK_PALETTE : PALETTE);
 /** 선 모양 — 라이브러리의 `LineStyle` 값(0 실선, 2 점선). 열거형을 실행 중에 읽지 않는다. */
 const SOLID = 0;
 const DASHED = 2;
 
 const rgb = ([r, g, b]: readonly number[], alpha = 1) => (alpha === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${alpha})`);
-export const colorOf = (index: number) => rgb(PALETTE[index % PALETTE.length]);
+export const colorOf = (index: number, theme: Theme = "light") => {
+  const palette = paletteOf(theme);
+  return rgb(palette[index % palette.length]);
+};
 export const lineStyleOf = (index: number) => (index % 2 === 0 ? SOLID : DASHED);
 
 /** 잠정 시작일 앞(확정)과 뒤(잠정 — 앞 구간의 마지막 점에서 잇는다)로 나눈다. */
@@ -103,7 +115,8 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
     });
 
     items.forEach((item, index) => {
-      const base = PALETTE[index % PALETTE.length];
+      const palette = paletteOf(theme);
+      const base = palette[index % palette.length];
       const lineStyle = lineStyleOf(index);
       for (const segment of splitSeriesAtGaps(item.series.points, item.series.gaps)) {
         const [confirmed, provisional] = splitProvisional(segment, item.series.provisionalFrom);
@@ -160,7 +173,7 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
             <p className="mb-1 font-medium text-gray-700">{hover.date}</p>
             <ul className="space-y-0.5 whitespace-nowrap">
               {items.map((item, index) => (
-                <li key={item.key} style={{ color: colorOf(index) }}>{hoverLine(item, hover.date)}</li>
+                <li key={item.key} style={{ color: colorOf(index, theme) }}>{hoverLine(item, hover.date)}</li>
               ))}
             </ul>
           </div>
@@ -168,7 +181,7 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
       </div>
       <p data-testid="compare-legend" className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
         {items.map((item, index) => (
-          <span key={item.key} style={{ color: colorOf(index) }}>
+          <span key={item.key} style={{ color: colorOf(index, theme) }}>
             {lineStyleOf(index) === SOLID ? "━" : "┅"} {item.name}
           </span>
         ))}
