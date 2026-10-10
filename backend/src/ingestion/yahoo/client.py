@@ -152,9 +152,12 @@ class YahooStockClient:
         차트 `range=1d` 한 번 — `meta`만 쓰고 봉·배당·분할은 받지 않는다(응답 약 1.3KB). 이
         날짜는 **상장일과 다를 수 있다** — 출처의 시세 시작일보다 앞서 상장한 종목(국내 2000년
         전·일본 1999년 전 등)은 늦다(T158). 출처가 주지 않으면 `None`이다.
+
+        **다시 시도하지 않는다**(T164 실측) — 등록 경로에서 부른다. 출처가 막히면 다시 시도가
+        고르기를 시간 한도만큼 늦췄다(3.0초). 표시 전용이라 못 받으면 다음 수집 청크가 채운다.
         """
         body, _, _ = await self._get(
-            f"/v8/finance/chart/{symbol}", {"range": "1d", "interval": "1d"})
+            f"/v8/finance/chart/{symbol}", {"range": "1d", "interval": "1d"}, attempts=1)
         return parse_first_trade(body)
 
     async def search(self, query: str, limit: int) -> tuple[list[StockQuote], str, int]:
@@ -170,7 +173,7 @@ class YahooStockClient:
         return parse_search(body), raw, status
 
     async def _get(
-        self, path: str, params: dict[str, str]
+        self, path: str, params: dict[str, str], *, attempts: int | None = None
     ) -> tuple[object, str, int]:
         """지수 백오프 + 지터로 재시도한다.
 
@@ -181,7 +184,8 @@ class YahooStockClient:
             raise StockSourceUnavailable("클라이언트 세션이 열려 있지 않습니다.")
 
         url = f"{self._settings.stock_source_base_url}{path}"
-        attempts = self._settings.stock_retry_max_attempts
+        if attempts is None:
+            attempts = self._settings.stock_retry_max_attempts
         last: Exception | None = None
 
         for attempt in range(attempts):
