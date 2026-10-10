@@ -5,7 +5,8 @@
  * 주기는 `IndicatorModal.test.tsx`가 본다(모달이 닫혀도 뒤의 대시보드가 갱신을 지므로 `stopPolling`을 부르지 않는다).
  *
  * - 머리 값은 대시보드와 같은 스토어(`marketQuotesStore`)다 — 다른 경로로 받으면 같은 지표의 값이 두 화면에서 다르다
- * - 기간 단추는 주소를 바꾼다(`router.replace("?range=…", { scroll: false })`) — 남기지 않으면 새로고침할 때마다 처음 기간으로 돌아간다
+ * - 기간 단추는 주소를 바꾼다(`window.history.replaceState(…, "?range=…")` — 014 승인 2026-10-10, T137: `router.replace`는 모달 내용을 다시 붙였다)
+ *   — 남기지 않으면 새로고침할 때마다 처음 기간으로 돌아간다
  * - 받는 중이면 그래프 없음 + 진행(표 자리도 같은 글), 실패면 까닭 + 다시 시도, 없는 지표면 안내와 [닫기]
  */
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
@@ -119,8 +120,11 @@ describe("기간", () => {
     await waitFor(() => expect(screen.getByTestId("indicator-chart")).toBeInTheDocument());
     const group = screen.getByRole("group", { name: "보는 기간" });
     expect(within(group).getByRole("button", { name: "1년" })).toHaveAttribute("aria-pressed", "true");
+    const replaceState = vi.spyOn(window.history, "replaceState");
     fireEvent.click(within(group).getByRole("button", { name: "5년" }));
-    expect(router.replace).toHaveBeenCalledWith("?range=5y", { scroll: false });
+    // 014 승인 2026-10-10 — router.replace → history.replaceState(T137 실측 — 모달 내용을 다시 붙이지 않는다)
+    expect(replaceState).toHaveBeenCalledWith(null, "", "?range=5y");
+    expect(router.replace).not.toHaveBeenCalled();
     await waitFor(() => expect(within(group).getByRole("button", { name: "5년" })).toHaveAttribute("aria-pressed", "true"));
   });
 });

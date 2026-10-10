@@ -4,7 +4,8 @@
  * - 대시보드 위에 `role="dialog"` 모달로 열린다. 머리 값은 대시보드와 같은 스토어다
  * - 닫기: Esc·바깥 누름·닫기 단추 — 가로챈 모달(대시보드 안에서 연)은 `router.back()`, 직접 연 모달은 `router.replace("/dashboard")`
  * - 닫으면(뒤로 가기로 사라져도) 포커스가 그 카드의 링크로 돌아온다 — 돌려주지 않으면 키보드 사용자가 자리를 잃는다
- * - 기간 단추는 주소의 `range`를 바꾼다(`router.replace("?range=…", { scroll: false })`)
+ * - 기간 단추는 주소의 `range`를 바꾼다 — `window.history.replaceState`다(014 승인 2026-10-10 — T137 실측: `router.replace`는 페이지 조각의
+ *   질의가 바뀌어 모달 내용을 통째로 다시 붙였다 — 그래프·표를 다시 받았다)
  * - 없는 지표는 안내와 닫기다
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -86,8 +87,11 @@ describe("열기", () => {
     mockGet();
     render(<IndicatorModal id="sp500" range="1y" mode="intercepted" />);
     await waitFor(() => expect(screen.getByTestId("indicator-chart")).toBeInTheDocument());
+    const replaceState = vi.spyOn(window.history, "replaceState");
     fireEvent.click(screen.getByRole("button", { name: "5년" }));
-    expect(router.replace).toHaveBeenCalledWith("?range=5y", { scroll: false });
+    // 014 승인 2026-10-10 — router.replace → history.replaceState(모달을 다시 붙이지 않는다)
+    expect(replaceState).toHaveBeenCalledWith(null, "", "?range=5y");
+    expect(router.replace).not.toHaveBeenCalled();
   });
 });
 
