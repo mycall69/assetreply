@@ -532,3 +532,12 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
 - 프론트엔드: `npm test` **227파일·2,022 통과**(종료 코드 0), `tsc --noEmit`·`eslint .` 통과
 - `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests`: 바뀐 기존 테스트 열여덟 — T018·US2 여섯 + T144 하나 + T152 다섯 + T161 여섯(`test_stock_search_external`·
   `test_stock_search_local`·`test_orm_types`·`CompareTable`·`CompareTableUnitPrice`·`ComparePageRecurring`)뿐이다. 014가 만든 `test_market_schema`도 T161 승인으로 고쳤다
+
+### 사용자 보고 결함 — 저장한 비교의 상장일 "—"(2026-10-10 23:1x KST)
+
+- **증상**: 저장한 비교 "미국 주요 레버리지 3개 · 2017-08-01 · 일시금"(TQQQ·QLD·SOXL — 10-09 저장)을 불러오면 상장일 열이 모두 "—"
+- **원인**: 저장한 비교는 등록(`POST /api/stocks/selection`) 없이 비교 경로를 부른다(`backend.log` — `GET /api/comparison/saved` 뒤 곧바로 `/api/comparison/stocks/simulation`). 세 종목은 어제까지 받아 둬
+  새 수집 청크도 없다 — 첫 거래일을 채우는 두 때가 모두 일어나지 않았다(`collection.log`에 세 종목의 `stock_first_trade` 없음). 이 반복 전에 등록한 미국·일본 종목, 이력 다시 실행도 같다
+- **고침**(test(014) → fix(014)): 비교 경로가 상장일을 낼 때 키움 상장일이 없고 모르면 한 번 받아 둔다(등록과 같은 규칙). 불러오자마자 `stock_first_trade ok` 세 줄 —
+  TQQQ `2010-02-11 첫 거래일`·QLD `2006-06-21 첫 거래일`·SOXL `2010-03-11 첫 거래일`. 다시 불러오면 부르지 않는다
+- **게이트**(서버를 내린 채): 백엔드 `pytest --cov=src` **3,427 통과**·커버리지 **96.50%**, `mypy src`·`ruff check --no-cache src tests` 통과. 프론트엔드 `npm test` **227파일·2,022 통과**, `tsc`·`eslint` 통과

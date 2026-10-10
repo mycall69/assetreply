@@ -331,8 +331,10 @@ NULL = 100%)다. 비과세의 거주 2년 요건은 늘 적용한다(조정대�
 **주식·가상자산의 상장일**(014 반복 2026-10-10f): 기준을 함께 낸다(`simulation/listing_date` — `listing`·`first_trade`·`first_bar`). 주식은 키움 국내 상장일(`stock_listing.listed_on`) →
 `stock.first_trade_date`(Yahoo `meta`의 첫 거래일 — **출처가 시세를 가진 첫 날**이라 국내는 2000-01-04, 일본은 1999-05-06부터다. 오래된 종목은 상장일보다 늦다 — T158) → 없음, 코인은 수집으로
 알게 된 첫 일봉(`first_available_date`) → 없음. 모르면 비운다. `stock.first_trade_date`는 **표시 전용**이다 — 시작일 판정(`first_available_date`·목록 `listed_on`)에 쓰지 않는다(쓰면 메뉴의
-시작일 거절이 바뀐다). 채우는 때는 둘이다 — 등록(`stock_selection.fill_first_trade_date` — lifespan이 연 공유 클라이언트(`set_shared_first_trade_source`)가 있을 때만, **한 번만 묻는다**(다시
-시도하면 출처가 막혔을 때 고르기가 3초 늦었다 — T164), 시간 한도 `STOCK_FIRST_TRADE_TIMEOUT_MS`, 실패해도 등록 성공·응답 불변)과 `worker/stock_runner.collect_range`의 청크 응답(비었을 때만).
+시작일 거절이 바뀐다). 채우는 때는 셋이다 — 등록(`stock_selection.fill_first_trade_date` — lifespan이 연 공유 클라이언트(`set_shared_first_trade_source`)가 있을 때만, **한 번만 묻는다**(다시
+시도하면 출처가 막혔을 때 고르기가 3초 늦었다 — T164), 시간 한도 `STOCK_FIRST_TRADE_TIMEOUT_MS`, 실패해도 등록 성공·응답 불변), `worker/stock_runner.collect_range`의 청크 응답(비었을 때만),
+그리고 **투자 비교가 상장일을 낼 때**(`routes/comparison._stock_listing` — 키움 상장일이 없고 모를 때, 같은 규칙). 저장한 비교·이력 다시 실행은 등록을 거치지 않고 이미 받아 둔 종목은 새 청크도
+없어서, 셋째가 없으면 미국 종목이 늘 "—"였다(사용자 보고 — TQQQ·QLD·SOXL). 의존성 `get_first_trade`는 서비스(`api/services/stock_selection`)에 있고 두 경로가 함께 쓴다.
 lifespan 없이 도는 테스트는 클라이언트가 없어 출처를 부르지 않는다. **검색은 출처를 부르지 않는다** — 검색 응답 둘은 저장된 값만 `firstTradedOn`으로 싣는다(미국은 티커로 맞춘다). API 칸에 출처 칸
 이름(`firstTradeDate`)을 쓰면 005 가드 `test_layer_boundaries`(`STOCK_SOURCE_TOKENS`)가 막는다. 화면 글자·설명은 `lib/listingDate` 하나(`components/ListingText`), 비교 표의 상장일 열은
 `method`가 일시금·적립식일 때만이다(정렬은 날짜 글자, 비운 칸은 끝). 새 열이라 개발 DB에 `alembic upgrade head`가 필요하다.

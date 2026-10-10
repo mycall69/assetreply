@@ -273,6 +273,7 @@
 ```
 
 - `basis`: `listing`(키움 국내 상장일) · `first_trade`(Yahoo 첫 거래일) · `first_bar`(코인 첫 일봉). 모르면 `listing: null`. 예금·부동산 경로는 늘 `null`
+- 주식 비교 경로(일시금·적립식)는 키움 상장일이 없고 첫 거래일을 모르면 응답 전에 한 번 받아 둔다(등록과 같은 규칙 — 실패해도 200, `listing: null`)
 - 메뉴 시뮬레이션 응답(`/api/stocks/*`·`/api/crypto/*`)은 바뀌지 않는다
 
 ## A6. 불변

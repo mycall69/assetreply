@@ -321,6 +321,8 @@ R14-7 표가 상수다. 함수는 둘이다:
   - 등록(`POST /api/stocks/selection`): 그 종목의 `first_trade_date`가 없고 **앱 수명주기의 공유 시세 클라이언트가 있으면** 차트 `range=1d`의 `meta`만 한 번 받는다 — Yahoo 관문, 짧은 시간 초과
     (설정), 실패·시간 초과·`firstTradeDate` 없음이면 비워 둔 채 등록을 마친다. 등록 응답은 바뀌지 않는다
   - 주식 수집(`worker/stock_runner.collect_range`): 청크 응답의 `ChartData.first_trade_date`가 있고 종목의 값이 비었으면 쓴다 — 추가 요청 없음
+  - 투자 비교(`routes/comparison._stock_listing` — 주식 일시금·적립식): 상장일을 낼 때 키움 상장일이 없고 모르면 등록과 같은 규칙으로 한 번 받는다(사용자 보고 2026-10-10 — 저장한 비교는
+    등록을 거치지 않는다)
 - **고르기 규칙**(순수 함수 하나 — `simulation/listing_date.py`): 주식 `(listed_on, first_trade_date) → listing | first_trade | None`, 코인 `first_available_date → first_bar | None`
 - **화면**: 검색 결과 줄은 기준을 밝힌 날짜 — 주식 `listedOn`이면 `상장 YYYY-MM-DD`, 없고 `firstTradedOn`이면 `첫 거래 YYYY-MM-DD`, 코인 `firstAvailableDate`면 `첫 일봉 YYYY-MM-DD`(없으면 그 글자를 뺀다 —
   T158: Yahoo 첫 거래일은 출처의 시세 시작일이라 오래된 종목은 상장일보다 늦다). 비교 표는 `comparison.listing` — 열은 `method`가 일시금·적립식일 때만
