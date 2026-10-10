@@ -4,7 +4,8 @@
  * **문장을 만들지 않는다** — 출처의 시황 기사 제목·요약(원문 그대로)·언론사·시각을 보이고 제목을 기사로 건다(새 탭 — opener 차단·리퍼러
  * 없음). 까닭을 지어내면 틀려도 그럴듯해 보인다(FR-027 실패 양상).
  *
- * - 시각은 늘 날짜를 붙인다(한국 시간 `MM-DD HH:mm`) — 기사가 지난 세션부터 오늘까지 여러 날에 걸친다. 상대 표기("18h ago")는 글자 그대로다
+ * - 시각은 늘 날짜를 붙인다(한국 시간 `MM-DD HH:mm`) — 기사가 지난 세션부터 오늘까지 여러 날에 걸친다. 상대 표기("18h ago")는 글자 그대로이고
+ *   어림한 시각보다 먼저다 — 서버가 고르기에 쓰려고 어림한 `publishedAt`을 정확한 시각처럼 보이면 출처에 없는 시각을 꾸며 낸다(T123 실측)
  * - 없으면 "변화를 다룬 기사를 찾지 못했습니다", 실패면 까닭과 다시 시도(뉴스 칸과 같은 글자)
  */
 import { NEWS_REASONS } from "@/components/dashboard/NewsColumn";
@@ -13,10 +14,11 @@ import type { IndicatorCommentaryItem, NewsFailureReason } from "@/lib/types";
 import type { CommentaryEntry } from "@/stores/indicatorCommentaryStore";
 
 function itemTime(item: IndicatorCommentaryItem): string | null {
+  if (item.publishedText) return item.publishedText;
   if (item.publishedAt) {
     return `${formatZonedDate(item.publishedAt, KST_ZONE)} ${formatZonedTime(item.publishedAt, KST_ZONE)}`;
   }
-  return item.publishedText;
+  return null;
 }
 
 function reasonText(reason: string | undefined): string {

@@ -119,12 +119,25 @@ async def _fx_table(
         state.covered_from,
         state.covered_through,
     )
+    # 받은 고시 사이의 미수집만 결측 행이다 — 마지막 고시 뒤의 꼬리(오늘 등 아직 받지 않은 날)는
+    # 출처 결측이 아니다(T123 실측 — 오늘이 "출처에 값 없음"으로 보였다)
+    first = bars[0].date if bars else None
+    last = bars[-1].date if bars else None
+    inner = [
+        (g.start, g.end)
+        for g in gaps
+        if g.reason == "not_collected"
+        and first is not None
+        and last is not None
+        and first < g.start
+        and g.end < last
+    ]
     return 200, _body(
         indicator,
         unit,
         bars=bars,
         provisional={r.quote_date for r in rows if r.is_provisional},
-        missing=[(g.start, g.end) for g in gaps if g.reason == "not_collected"],
+        missing=inner,
         end=state.end,
         before=before,
         limit=limit,

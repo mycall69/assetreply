@@ -10,6 +10,7 @@
  * - 잠정 점(오늘·외환 잠정 고시)은 연한 색 선이다 — 앞의 확정 점에서 이어 확정 선과 섞이지 않게 한다
  * - 커서 상자는 서버 문자열에 형식만 입힌다. 숫자 변환은 그리기 전용이고 `lib/chartSeries`의 `toChartData`·`toIntradayData` 안에 있다(원칙 VI)
  * - 장중 커서 상자는 그 시장의 현지 시각과 한국 시각이다(한국 시장은 하나)
+ * - 커서 상자는 그것을 낸 그래프에만 보인다 — 기간을 바꿔도 커서가 움직이지 않으면 옛 기간의 점이 남았다(T123 실측)
  *
  * 새 부품이다 — `FxChart`·`PerformanceChart`를 고치지 않는다.
  */
@@ -67,7 +68,8 @@ export function IndicatorChart({ series, onRetry }: { series: IndicatorChartSeri
 
 function DailyChart({ series }: { series: IndicatorRangeSeries }) {
   const container = useRef<HTMLDivElement>(null);
-  const [hover, setHover] = useState<IndicatorPoint | null>(null);
+  const [hovered, setHovered] = useState<{ of: IndicatorRangeSeries; point: IndicatorPoint } | null>(null);
+  const hover = hovered?.of === series ? hovered.point : null;
 
   useEffect(() => {
     if (!container.current) return;
@@ -88,7 +90,8 @@ function DailyChart({ series }: { series: IndicatorRangeSeries }) {
     const byDate = new Map(series.points.map((p) => [p.date, p]));
     instance.subscribeCrosshairMove((param) => {
       const time = param.time as string | undefined;
-      setHover(time ? byDate.get(time) ?? null : null);
+      const point = time ? byDate.get(time) ?? null : null;
+      setHovered(point ? { of: series, point } : null);
     });
     instance.timeScale().fitContent();
     return () => instance.remove();
@@ -125,7 +128,8 @@ function intradayTime(at: string, timeZone: string): string {
 
 function IntradayChart({ series }: { series: IndicatorIntradayResponse }) {
   const container = useRef<HTMLDivElement>(null);
-  const [hover, setHover] = useState<IntradayDatum | null>(null);
+  const [hovered, setHovered] = useState<{ of: IndicatorIntradayResponse; point: IntradayDatum } | null>(null);
+  const hover = hovered?.of === series ? hovered.point : null;
   const zone = series.indicator.market.timezone;
 
   useEffect(() => {
@@ -142,7 +146,8 @@ function IntradayChart({ series }: { series: IndicatorIntradayResponse }) {
     const byTime = new Map(data.map((d) => [d.time, d]));
     instance.subscribeCrosshairMove((param) => {
       const time = param.time as number | undefined;
-      setHover(time !== undefined ? byTime.get(time) ?? null : null);
+      const point = time !== undefined ? byTime.get(time) ?? null : null;
+      setHovered(point ? { of: series, point } : null);
     });
     instance.timeScale().fitContent();
     return () => instance.remove();
