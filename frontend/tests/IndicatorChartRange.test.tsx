@@ -102,6 +102,17 @@ describe("장중", () => {
     expect(box).toHaveTextContent("⏳ 잠정");
   });
 
+  it("시간 축 눈금과 커서 시각은 그 시장의 현지 시각이다", () => {
+    // T123 실측(2026-10-10) — 라이브러리 기본은 UTC라 항셍(홍콩 09:30~16:00) 장중 축이 "05:00"처럼 보였다
+    render(<IndicatorChart series={intradayOf()} />);
+    const at = Date.UTC(2026, 9, 9, 17, 30) / 1000; // 뉴욕 10-09 13:30
+    const timeScale = chart.options[0].timeScale as { tickMarkFormatter?: (t: number, kind: number) => string };
+    expect(timeScale.tickMarkFormatter?.(at, 3)).toBe("13:30"); // 3 = TickMarkType.Time
+    expect(timeScale.tickMarkFormatter?.(at, 2)).toBe("9일"); // 2 = TickMarkType.DayOfMonth
+    const localization = chart.options[0].localization as { timeFormatter?: (t: number) => string };
+    expect(localization.timeFormatter?.(at)).toBe("10-09 13:30");
+  });
+
   it("실패면 까닭과 다시 시도다", () => {
     const onRetry = vi.fn();
     render(<IndicatorChart series={intradayOf({ status: "failed", points: [], failure: { reason: "rate_limited", message: "x", retryAfterSeconds: null } })} onRetry={onRetry} />);
