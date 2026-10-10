@@ -77,8 +77,10 @@ describe("가상자산 화면 — 적립식", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "납입 주기" }), { target: { value: "daily" } });
     fireEvent.click(screen.getByRole("button", { name: "시뮬레이션" }));
 
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이라 첫 표 요청에 `&period=monthly`가 붙는다(FR-035).
     await waitFor(() => expect(get).toHaveBeenCalledWith(
-      "/api/crypto/recurring-simulation?coinId=17&start=2024-01-15&amount=10000&principalCurrency=KRW&frequency=daily"));
+      "/api/crypto/recurring-simulation?coinId=17&start=2024-01-15&amount=10000&principalCurrency=KRW&frequency=daily"
+      + "&period=monthly"));
     expect(await screen.findByRole("group", { name: "총 납입 원금" })).toHaveTextContent("₩20,000");
     expect(screen.getByRole("group", { name: "세금 총액" })).toHaveTextContent("가상자산 과세 시행 전");
     expect(screen.queryByText(/매수일 /)).not.toBeInTheDocument();

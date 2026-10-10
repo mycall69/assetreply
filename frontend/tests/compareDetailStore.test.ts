@@ -8,7 +8,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { comparisonPath } from "@/lib/compareApi";
-import { COLLECTING_REASON, useCompareDetailStore, type DetailTarget } from "@/stores/compareDetailStore";
+import { COLLECTING_REASON, pageable, useCompareDetailStore, type DetailTarget } from "@/stores/compareDetailStore";
 import { CASES, SERIES, STOCK_LUMP } from "./support/compareDetailFixtures";
 import { apiError, routeCompare } from "./support/compareFixtures";
 import { historyStub } from "./support/historyStub";
@@ -30,7 +30,8 @@ describe("열기", () => {
     const paths = get.mock.calls.map(([p]) => p);
     const menu = comparisonPath(c.condition, c.target).replace("/api/comparison/", "/api/");
     expect(menu.startsWith(c.prefix)).toBe(true);
-    expect(paths).toContain(menu);
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 주식·가상자산 표는 열 때부터 처음 단위(월)를 싣는다(FR-035). 예금·부동산은 그대로다.
+    expect(paths).toContain(pageable(c.condition) ? `${menu}&period=monthly` : menu);
     expect(paths).toContain(`${menu.split("?")[0]}/series?${menu.split("?")[1]}`);
     expect(paths.some((p) => p.includes("/api/comparison/"))).toBe(false);
     expect(store().status).toBe("ok");
@@ -87,7 +88,8 @@ describe("일자별 표", () => {
         : STOCK_LUMP));
     await store().openDetail(target(CASES[0]));
     await store().loadMore();
-    expect(get.mock.calls.map(([p]) => p)).toContain(`${menu}&before=2021-08-31`);
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이라 첫 표 요청에 `&period=monthly`가 붙는다(FR-035).
+    expect(get.mock.calls.map(([p]) => p)).toContain(`${menu}&before=2021-08-31&period=monthly`);
     expect((store().menu as typeof STOCK_LUMP).rows.map((r) => r.date)).toEqual(["2021-08-31", "2021-07-30"]);
     expect(store().menu && "hasMore" in store().menu! ? (store().menu as typeof STOCK_LUMP).hasMore : null).toBe(false);
   });

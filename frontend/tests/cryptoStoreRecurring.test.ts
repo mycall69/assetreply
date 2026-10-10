@@ -88,7 +88,8 @@ describe("가상자산 적립식 실행", () => {
     const get = mockGet();
     useCryptoStore.getState().setPlan({ mode: "recurring", frequency: "daily" });
     await useCryptoStore.getState().run();
-    expect(get).toHaveBeenNthCalledWith(1, `/api/crypto/recurring-simulation?${QUERY}`);
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이라 첫 표 요청에 `&period=monthly`가 붙는다(FR-035).
+    expect(get).toHaveBeenNthCalledWith(1, `/api/crypto/recurring-simulation?${QUERY}&period=monthly`);
     expect(get).toHaveBeenNthCalledWith(2, `/api/crypto/recurring-simulation/series?${QUERY}`);
     const state = useCryptoStore.getState();
     expect(state.recurring?.summary).toEqual(RESULT.summary);
@@ -125,7 +126,8 @@ describe("가상자산 적립식 실행", () => {
     useCryptoStore.getState().setPlan({ mode: "recurring", frequency: "daily" });
     await useCryptoStore.getState().run();
     await useCryptoStore.getState().loadMore();
-    expect(get).toHaveBeenLastCalledWith(`/api/crypto/recurring-simulation?${QUERY}&before=2024-01-16`);
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이라 첫 표 요청에 `&period=monthly`가 붙는다(FR-035).
+    expect(get).toHaveBeenLastCalledWith(`/api/crypto/recurring-simulation?${QUERY}&before=2024-01-16&period=monthly`);
     expect(useCryptoStore.getState().recurring?.rows).toHaveLength(2);
   });
 
@@ -143,7 +145,8 @@ describe("가상자산 적립식 실행", () => {
     await useCryptoStore.getState().run();
     get.mockClear();
     await useCryptoStore.getState().refreshIfRan();
-    expect(get).toHaveBeenNthCalledWith(1, `/api/crypto/recurring-simulation?${QUERY}`);
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이라 첫 표 요청에 `&period=monthly`가 붙는다(FR-035).
+    expect(get).toHaveBeenNthCalledWith(1, `/api/crypto/recurring-simulation?${QUERY}&period=monthly`);
   });
 });
 
@@ -163,7 +166,8 @@ describe("가상자산 적립식 이력", () => {
     useCryptoStore.setState({ history: [RECURRING] });
     await useCryptoStore.getState().rerunHistory(RECURRING.id);
     expect(useCryptoStore.getState().plan).toEqual({ mode: "recurring", frequency: "daily" });
-    expect(get).toHaveBeenNthCalledWith(1, `/api/crypto/recurring-simulation?${QUERY}`);
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이라 첫 표 요청에 `&period=monthly`가 붙는다(FR-035).
+    expect(get).toHaveBeenNthCalledWith(1, `/api/crypto/recurring-simulation?${QUERY}&period=monthly`);
   });
 
   it("옛 항목은 일시금으로 다시 실행한다", async () => {

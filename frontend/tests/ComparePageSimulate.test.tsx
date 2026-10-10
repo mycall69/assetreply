@@ -61,8 +61,9 @@ describe("투자 시뮬레이션 모달", () => {
     const dialog = await screen.findByRole("dialog");
     await within(dialog).findByTestId("simulation-modal-board");
     expect(within(dialog).getByTestId("simulation-modal-table")).toHaveTextContent("2021-08-31");
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이라 첫 표 요청에 `&period=monthly`가 붙는다(FR-035).
     expect(menuCalls(get)).toContain("/api/stocks/simulation?market=KRX&symbol=005930.KS&start=2020-01-02"
-      + "&principal=10000000&principalCurrency=KRW&reinvest=true");
+      + "&principal=10000000&principalCurrency=KRW&reinvest=true&period=monthly");
 
     fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());

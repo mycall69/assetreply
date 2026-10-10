@@ -34,8 +34,10 @@ const FIRST = page(["2026-08-29", "2026-08-28"], true);
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이 되어 일 단위 표(`FIRST`)의 상태에 단위를 함께 심는다. 스토어는 도착한 응답의 단위를 지금
+  // 선택과 대조한다(004 FR-011) — 심지 않으면 일 단위 이어 보기 응답을 버린다. 이 파일의 주제(이어 보기·먼 날짜)는 그대로다.
   useFxWorkspaceStore.setState({
-    currency: "USD", selectedDate: "2026-08-29", preset: "1y",
+    currency: "USD", selectedDate: "2026-08-29", preset: "1y", period: "daily",
     coverage: COVERAGE, daily: FIRST, notice: null, error: null,
     loadingMore: false, loadMoreError: null, tableEpoch: 0,
   });

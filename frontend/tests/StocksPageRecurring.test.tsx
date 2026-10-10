@@ -75,9 +75,10 @@ describe("주식 화면 — 적립식", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "납입 주기" }), { target: { value: "weekly" } });
     fireEvent.click(screen.getByRole("button", { name: "시뮬레이션" }));
 
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이라 첫 표 요청에 `&period=monthly`가 붙는다(FR-035).
     await waitFor(() => expect(get).toHaveBeenCalledWith(
       "/api/stocks/recurring-simulation?market=KRX&symbol=005930.KS&start=2024-01-15&amount=500000"
-      + "&principalCurrency=KRW&frequency=weekly&reinvest=true"));
+      + "&principalCurrency=KRW&frequency=weekly&reinvest=true&period=monthly"));
     expect(await screen.findByRole("group", { name: "총 납입 원금" })).toHaveTextContent("₩1,000,000");
     expect(screen.getByRole("group", { name: "매매 수수료 총액" })).toBeInTheDocument();
     expect(screen.queryByText("매도 수수료/세금")).not.toBeInTheDocument();

@@ -62,8 +62,9 @@ function route(table: (path: string) => unknown) {
 }
 
 describe("처음 단위와 요청", () => {
-  it("처음 단위는 일이다", () => {
-    expect(useStockStore.getInitialState().tablePeriod).toBe("daily");
+  // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위는 월이다(FR-035). 아래 "일이면 …"은 고른 단위가 일일 때의 규칙 그대로다.
+  it("처음 단위는 월이다", () => {
+    expect(useStockStore.getInitialState().tablePeriod).toBe("monthly");
   });
 
   it("일이면 요청에 period가 없다", async () => {

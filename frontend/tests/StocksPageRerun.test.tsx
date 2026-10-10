@@ -53,9 +53,10 @@ describe("주식 화면 — 다시 실행", () => {
     const post = vi.spyOn(apiClient, "post");
     render(<StocksPage />);
     fireEvent.click(await screen.findByRole("button", { name: "Apple Inc. 다시 실행" }));
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이라 첫 표 요청에 `&period=monthly`가 붙는다(FR-035).
     await waitFor(() => expect(get).toHaveBeenCalledWith(
       "/api/stocks/simulation?market=NASDAQ&symbol=AAPL&start=2020-01-02&principal=10000000"
-      + "&principalCurrency=KRW&reinvest=false"));
+      + "&principalCurrency=KRW&reinvest=false&period=monthly"));
     expect(post).not.toHaveBeenCalled();
   });
 });

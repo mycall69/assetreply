@@ -68,7 +68,8 @@ describe("rerunHistory", () => {
     const state = useStockStore.getState();
     expect(state.input).toEqual({ stock: APPLE, start: "2020-01-02", principal: "10000000",
       principalCurrency: "KRW", reinvest: false });
-    expect(get.mock.calls[0][0]).toBe(QUERY);
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이라 첫 표 요청에 `&period=monthly`가 붙는다(FR-035).
+    expect(get.mock.calls[0][0]).toBe(`${QUERY}&period=monthly`);
     expect(post).not.toHaveBeenCalled();
     expect(state.summary).toEqual(RESULT.summary);
   });

@@ -43,8 +43,9 @@ function route(table: (path: string) => unknown) {
 }
 
 describe("가상자산 표 단위", () => {
-  it("처음은 일이고 요청에 period가 없다", async () => {
-    expect(useCryptoStore.getInitialState().tablePeriod).toBe("daily");
+  // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위는 월이다(FR-035). 일을 고른 상태(위 `beforeEach`)의 요청에는 그대로 `period`가 없다.
+  it("처음은 월이고, 일이면 요청에 period가 없다", async () => {
+    expect(useCryptoStore.getInitialState().tablePeriod).toBe("monthly");
     const get = route(() => withDates(["2021-12-31"]));
     await store().run();
     expect(get).toHaveBeenNthCalledWith(1, `/api/crypto/simulation?${QUERY}`);

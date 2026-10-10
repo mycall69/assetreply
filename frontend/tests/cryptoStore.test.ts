@@ -51,9 +51,10 @@ describe("실행", () => {
     const path = get.mock.calls[0][0] as string;
     expect(path.startsWith("/api/crypto/simulation?")).toBe(true);
     const query = new URLSearchParams(path.split("?")[1]);
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이라 첫 표 요청에 `&period=monthly`가 붙는다(FR-035).
     expect(Object.fromEntries(query)).toEqual({
       coinId: String(BTC.coinId), start: "2020-01-15", principal: "10000",
-      principalCurrency: "USD" });
+      principalCurrency: "USD", period: "monthly" });
     const state = useCryptoStore.getState();
     expect(state.rows).toEqual(RESULT.rows);
     expect(state.summary?.boughtOn).toBe("2020-01-01");

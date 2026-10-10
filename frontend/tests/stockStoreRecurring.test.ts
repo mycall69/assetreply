@@ -92,7 +92,8 @@ describe("적립식 실행", () => {
     const get = mockGet();
     useStockStore.getState().setPlan({ mode: "recurring", frequency: "monthly" });
     await useStockStore.getState().run();
-    expect(get).toHaveBeenNthCalledWith(1, `/api/stocks/recurring-simulation?${QUERY}`);
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이라 첫 표 요청에 `&period=monthly`가 붙는다(FR-035).
+    expect(get).toHaveBeenNthCalledWith(1, `/api/stocks/recurring-simulation?${QUERY}&period=monthly`);
     expect(get).toHaveBeenNthCalledWith(2, `/api/stocks/recurring-simulation/series?${QUERY}`);
     const state = useStockStore.getState();
     expect(state.recurring?.summary).toEqual(RESULT.summary);
@@ -130,7 +131,8 @@ describe("적립식 실행", () => {
     useStockStore.getState().setPlan({ mode: "recurring", frequency: "monthly" });
     await useStockStore.getState().run();
     await useStockStore.getState().loadMore();
-    expect(get).toHaveBeenLastCalledWith(`/api/stocks/recurring-simulation?${QUERY}&before=2024-02-15`);
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이라 첫 표 요청에 `&period=monthly`가 붙는다(FR-035).
+    expect(get).toHaveBeenLastCalledWith(`/api/stocks/recurring-simulation?${QUERY}&before=2024-02-15&period=monthly`);
     expect(useStockStore.getState().recurring?.rows).toHaveLength(2);
   });
 
@@ -159,7 +161,8 @@ describe("적립식 이력", () => {
     useStockStore.setState({ history: [RECURRING] });
     await useStockStore.getState().rerunHistory(RECURRING.id);
     expect(useStockStore.getState().plan).toEqual({ mode: "recurring", frequency: "monthly" });
-    expect(get).toHaveBeenNthCalledWith(1, `/api/stocks/recurring-simulation?${QUERY}`);
+    // 014 승인 2026-10-11(반복 2026-10-11 T177) — 처음 단위가 월이라 첫 표 요청에 `&period=monthly`가 붙는다(FR-035).
+    expect(get).toHaveBeenNthCalledWith(1, `/api/stocks/recurring-simulation?${QUERY}&period=monthly`);
   });
 
   it("옛 항목은 일시금으로 다시 실행한다", async () => {
