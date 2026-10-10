@@ -770,7 +770,7 @@ description: "Task list for 014-market-dashboard"
 
 ### Tests for 반복 2026-10-10e ⚠️
 
-- [ ] T151 [P] [US6] 화면 테스트 — 최초 실패 확인 (FR-032, SC-017)
+- [X] T151 [P] [US6] 화면 테스트 — 최초 실패 확인 (FR-032, SC-017)
   - 새 `frontend/tests/compareTargetTicker.test.ts` — `targetName`: KRX `삼성전자(005930)`(`.KS` 뗌)·코스닥 `.KQ`·미국 `S&P 500 뱅가드 ETF(VOO)`·`BRK-B` 그대로·일본 `.T` 뗌, 코인 한글 이름 `비트코인(BTC)`·
     한글 이름 없음 `BitShares(BTS)`, 예금·부동산 그대로. `coinNameWithSymbol`
   - 새 `frontend/tests/ComparePageTicker.test.tsx` — 비교 화면의 칩·표·범례·막대(`title` 전체 이름)·막힘 안내·모달 머리·저장 목록이 같은 "이름(티커)", 화면 읽기 이름(`… 빼기`·`… 투자 시뮬레이션`),
@@ -780,18 +780,18 @@ description: "Task list for 014-market-dashboard"
 
 ### Implementation for 반복 2026-10-10e
 
-- [ ] T152 [US6] 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록. 예상: `frontend/tests/compareCondition.test.ts`(`targetName`), 이름으로 단추·글자를 찾는 013
+- [X] T152 [US6] 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록. 예상: `frontend/tests/compareCondition.test.ts`(`targetName`), 이름으로 단추·글자를 찾는 013
   화면 테스트(`ComparePage*.test.tsx`·`SimulationModal.test.tsx`·`SavedComparisons.test.tsx` 등). T111과 같은 절차로 승인받고(`014 승인 2026-10-10`) 구현을 치워 실패를 확인한 뒤
   `test(014)`. 목록 밖의 실패는 결함으로 보고 멈춘다 (FR-026)
-- [ ] T153 [US6] 화면 — `frontend/src/lib/displayCode.ts`(`coinNameWithSymbol`), `frontend/src/lib/compareCondition.ts`(`targetName` — 주식 `nameWithCode`, 코인 `coinNameWithSymbol`),
+- [X] T153 [US6] 화면 — `frontend/src/lib/displayCode.ts`(`coinNameWithSymbol`), `frontend/src/lib/compareCondition.ts`(`targetName` — 주식 `nameWithCode`, 코인 `coinNameWithSymbol`),
   `frontend/src/components/crypto/CoinSearch.tsx`(검색 결과 줄의 맨 앞 이름), `frontend/src/components/compare/CompareMetricBars.tsx`(이름 칸 `title`) — contracts D11 (FR-032)
 
 ### Polish (반복 2026-10-10e)
 
-- [ ] T154 [US6] 실측 — quickstart 5-21(비교 화면 주식 — 화면 그림의 ETF 여섯 + 삼성전자, 가상자산 — 비트코인·이더리움, 칩·표·범례·막대·모달·저장 후 불러오기, 코인 검색 결과, 가상자산 메뉴
+- [X] T154 [US6] 실측 — quickstart 5-21(비교 화면 주식 — 화면 그림의 ETF 여섯 + 삼성전자, 가상자산 — 비트코인·이더리움, 칩·표·범례·막대·모달·저장 후 불러오기, 코인 검색 결과, 가상자산 메뉴
   검색 결과, 블랙 배경, 1024px 칩 줄바꿈)을 확인하고 `quickstart.md` 8에 기록한다(헤드리스 Chrome) (FR-032, SC-017)
-- [ ] T155 불변 대조 — `014-baseline/fetch.py`(메뉴·비교 응답 차이 0 — 서버를 고치지 않았다)와 가상자산 메뉴 화면이 검색 결과 줄 말고 같은지 (FR-026, SC-010, SC-017)
-- [ ] T156 문서 — `CLAUDE.md`(현재 상태 014 줄·013 비교 화면 이름 주의), `README.md`(투자 비교 설명), `spec.md` Status (FR-032)
+- [X] T155 불변 대조 — `014-baseline/fetch.py`(메뉴·비교 응답 차이 0 — 서버를 고치지 않았다)와 가상자산 메뉴 화면이 검색 결과 줄 말고 같은지 (FR-026, SC-010, SC-017)
+- [X] T156 문서 — `CLAUDE.md`(현재 상태 014 줄·013 비교 화면 이름 주의), `README.md`(투자 비교 설명), `spec.md` Status (FR-032)
 - [ ] T157 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152)뿐인지
   `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
 
