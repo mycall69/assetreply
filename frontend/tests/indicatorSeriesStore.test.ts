@@ -110,14 +110,20 @@ describe("기간", () => {
   });
 
   it("늦게 온 옛 기간 응답은 버린다", async () => {
+    // 014 승인 2026-10-10(반복 2026-10-10c T138) — 1년 → 5년은 같은 일봉 본문이라 받는 중인 요청을 나눈다(다시 부르지 않는다).
+    // 다른 본문으로 바꾸는 1년 → 주(장중)로 늦은 응답 버리기를 본다
     let releaseOld: (v: IndicatorSeriesResponse) => void = () => undefined;
     const old = new Promise<IndicatorSeriesResponse>((r) => { releaseOld = r; });
-    vi.spyOn(apiClient, "get").mockReturnValueOnce(old).mockResolvedValueOnce(seriesOf({ range: "5y" }));
+    const intraday: IndicatorIntradayResponse = {
+      indicator: seriesOf().indicator, range: "5d", intraday: true, status: "ok", fetchedAt: "2026-10-09T14:00:00Z",
+      points: [], notes: [], failure: null, window: null,
+    };
+    vi.spyOn(apiClient, "get").mockReturnValueOnce(old).mockResolvedValueOnce(intraday);
     const first = useIndicatorSeriesStore.getState().open("sp500", "1y");
-    await useIndicatorSeriesStore.getState().setRange("5y", vi.fn());
+    await useIndicatorSeriesStore.getState().setRange("5d", vi.fn());
     releaseOld(seriesOf({ range: "1y" }));
     await first;
-    expect(useIndicatorSeriesStore.getState().series?.range).toBe("5y");
+    expect(useIndicatorSeriesStore.getState().series?.range).toBe("5d");
   });
 });
 
