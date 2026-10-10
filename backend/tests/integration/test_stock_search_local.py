@@ -121,6 +121,9 @@ class Test결과:
             "country": "KR", "market": "KRX", "symbol": "005930.KS", "code": "005930",
             "name": "삼성전자", "nameEn": None, "currency": "KRW", "kind": "stock",
             "listedOn": "1975-06-11", "listingStatus": "listed", "match": "exact",
+            # 014 승인 2026-10-10(반복 2026-10-10f T161) — 저장된 시세 출처 첫 거래일 칸
+            # (FR-033 — 고른 적 없으면 null)
+            "firstTradedOn": None,
         }
 
     async def test_초성으로_보통주와_우선주를_함께_찾는다(self, make_client, seeded) -> None:

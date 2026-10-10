@@ -65,13 +65,15 @@ def test_리비전은_저장한_비교_뒤다() -> None:
     assert "대시보드" in (dashboard.doc or "")
 
 
-def test_시가_리비전이_머리이고_대시보드_뒤다() -> None:
+def test_시가_리비전은_대시보드_뒤다() -> None:
     """반복 2026-10-10b(T097) — 시가·고가·저가 열은 리비전 하나다."""
+    # 014 승인 2026-10-10(반복 2026-10-10f T161) — 첫 거래일 리비전(a6c2e8f41b93)이 그 뒤에
+    # 붙었다 — 시가 리비전은 머리가 아니다. 머리는 `test_stock_first_trade`가 본다(FR-033)
     script = ScriptDirectory.from_config(_alembic_config())
-    head = script.get_revision(script.get_current_head())
-    assert head is not None
-    assert head.down_revision == "c8d4f1a2e9b7"
-    assert "시가" in (head.doc or "")
+    ohlc = script.get_revision("d5e1a7c3b2f8")
+    assert ohlc is not None
+    assert ohlc.down_revision == "c8d4f1a2e9b7"
+    assert "시가" in (ohlc.doc or "")
 
 
 async def test_테이블_넷(engine: AsyncEngine) -> None:

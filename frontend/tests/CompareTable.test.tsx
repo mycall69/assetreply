@@ -23,31 +23,34 @@ const bodyRows = () => screen.getAllByRole("row").slice(1);
 describe("열", () => {
   // 013 승인 2026-10-09 — 반복(단가 등락)으로 투자 원금 뒤에 열이 셋 늘어 칸 번호가 3씩 밀렸다.
   // 013 승인 2026-10-09 — 반복 2026-10-09b(투자 시뮬레이션 모달)로 줄 끝에 열이 하나 늘었다.
-  it("열한 개의 열이다", () => {
+  // 014 승인 2026-10-10(반복 2026-10-10f T161) — 주식·가상자산 표에 대상과 기준일 사이 상장일 열이 늘어 칸 번호가 1씩 밀렸다(FR-033).
+  it("열두 개의 열이다", () => {
     renderTable([row("a", "XLK")]);
     const heads = screen.getAllByRole("columnheader").map((h) => h.textContent ?? "");
     expect(heads.map((h) => h.replace(/[▲▼ⓘ]/g, "").trim())).toEqual(
-      ["대상", "기준일", "투자 원금", "시작일 단가", "기준일 단가", "등락", "현재 가치", "비용", "투자 수익", "수익률", "투자 시뮬레이션"]);
+      ["대상", "상장일", "기준일", "투자 원금", "시작일 단가", "기준일 단가", "등락", "현재 가치", "비용", "투자 수익", "수익률", "투자 시뮬레이션"]);
   });
 
   it("값은 서버 문자열에 형식만 입힌다", () => {
     renderTable([row("a", "XLK")]);
     const cells = within(bodyRows()[0]).getAllByRole("cell");
-    expect(cells[1].textContent).toContain("2026-10-06");
-    expect(cells[2].textContent).toContain("₩20,000,000");
+    // 014 승인 2026-10-10(반복 2026-10-10f T161) — 주식·가상자산 표에 대상과 기준일 사이 상장일 열이 늘어 칸 번호가 1씩 밀렸다(FR-033).
+    expect(cells[2].textContent).toContain("2026-10-06");
+    expect(cells[3].textContent).toContain("₩20,000,000");
     // 013 승인 2026-10-09 — 반복(단가 등락)으로 투자 원금 뒤에 열이 셋 늘어 칸 번호가 3씩 밀렸다.
-    expect(cells[6].textContent).toContain("₩539,297,203");
-    expect(cells[7].textContent).toContain("-₩113,030,970");
-    expect(cells[8].textContent).toContain("₩409,114,677");
+    expect(cells[7].textContent).toContain("₩539,297,203");
+    expect(cells[8].textContent).toContain("-₩113,030,970");
+    expect(cells[9].textContent).toContain("₩409,114,677");
     // 013 승인 2026-10-09 — 반복 2026-10-09c(FR-021): 백분율의 정수부를 세 자리마다 쉼표로 끊는다.
-    expect(cells[9].textContent).toContain("+2,045.57%");
+    expect(cells[10].textContent).toContain("+2,045.57%");
   });
 });
 
 describe("투자 원금", () => {
   it("외화 원금은 입력 통화와 괄호의 원화다", () => {
     renderTable([row("a", "AAPL", { principal: { amount: "10000", currency: "USD", krw: "13581000" } })]);
-    expect(within(bodyRows()[0]).getAllByRole("cell")[2].textContent).toContain("$10,000 (₩13,581,000)");
+    // 014 승인 2026-10-10(반복 2026-10-10f T161) — 주식·가상자산 표에 대상과 기준일 사이 상장일 열이 늘어 칸 번호가 1씩 밀렸다(FR-033).
+    expect(within(bodyRows()[0]).getAllByRole("cell")[3].textContent).toContain("$10,000 (₩13,581,000)");
   });
 
   it("부동산은 투입 금액과 매입가 · 취득 비용 포함이다", () => {
@@ -64,7 +67,8 @@ describe("비용", () => {
   it("합과 반영·매도 가정 두 몫이다", () => {
     renderTable([row("a", "XLK")]);
     // 013 승인 2026-10-09 — 반복(단가 등락)으로 투자 원금 뒤에 열이 셋 늘어 칸 번호가 3씩 밀렸다.
-    const cell = within(bodyRows()[0]).getAllByRole("cell")[7];
+    // 014 승인 2026-10-10(반복 2026-10-10f T161) — 주식·가상자산 표에 대상과 기준일 사이 상장일 열이 늘어 칸 번호가 1씩 밀렸다(FR-033).
+    const cell = within(bodyRows()[0]).getAllByRole("cell")[8];
     expect(cell.textContent).toContain("반영 ₩2,848,444");
     expect(cell.textContent).toContain("매도 가정 ₩110,182,526");
   });
@@ -95,7 +99,8 @@ describe("비용", () => {
     renderTable([row("a", "BTC", { costs, mainBasis: "unavailable", profit: null, returnRate: null } as never)],
       { method: "recurring" });
     // 013 승인 2026-10-09 — 반복(단가 등락)으로 투자 원금 뒤에 열이 셋 늘어 칸 번호가 3씩 밀렸다.
-    const cell = within(bodyRows()[0]).getAllByRole("cell")[7];
+    // 014 승인 2026-10-10(반복 2026-10-10f T161) — 주식·가상자산 표에 대상과 기준일 사이 상장일 열이 늘어 칸 번호가 1씩 밀렸다(FR-033).
+    const cell = within(bodyRows()[0]).getAllByRole("cell")[8];
     expect(cell.textContent).toContain("—");
     expect(cell.textContent).not.toContain("₩0");
     expect(cell.textContent).toContain("과세 시행일 뒤");
@@ -115,22 +120,25 @@ describe("투자 수익·수익률의 기준", () => {
   ])("%s → %s", (basis, text) => {
     renderTable([row("a", "XLK", { mainBasis: basis as never })]);
     // 013 승인 2026-10-09 — 반복(단가 등락)으로 투자 원금 뒤에 열이 셋 늘어 칸 번호가 3씩 밀렸다.
-    expect(within(bodyRows()[0]).getAllByRole("cell")[8].textContent).toContain(text);
+    // 014 승인 2026-10-10(반복 2026-10-10f T161) — 주식·가상자산 표에 대상과 기준일 사이 상장일 열이 늘어 칸 번호가 1씩 밀렸다(FR-033).
+    expect(within(bodyRows()[0]).getAllByRole("cell")[9].textContent).toContain(text);
   });
 
   it("값이 없으면 —", () => {
     renderTable([row("a", "XLK", { mainBasis: "unavailable", profit: null, returnRate: null })]);
     const cells = within(bodyRows()[0]).getAllByRole("cell");
     // 013 승인 2026-10-09 — 반복(단가 등락)으로 투자 원금 뒤에 열이 셋 늘어 칸 번호가 3씩 밀렸다.
-    expect(cells[8].textContent).toContain("—");
+    // 014 승인 2026-10-10(반복 2026-10-10f T161) — 주식·가상자산 표에 대상과 기준일 사이 상장일 열이 늘어 칸 번호가 1씩 밀렸다(FR-033).
     expect(cells[9].textContent).toContain("—");
+    expect(cells[10].textContent).toContain("—");
   });
 });
 
 describe("잠정·환율 (원칙 V)", () => {
   it("잠정 입력을 쓴 대상은 기준일에 ⏳와 까닭이다", () => {
     renderTable([row("a", "시중은행", { provisional: ["unpublished_rate", "not_final"] })]);
-    const cell = within(bodyRows()[0]).getAllByRole("cell")[1];
+    // 014 승인 2026-10-10(반복 2026-10-10f T161) — 주식·가상자산 표에 대상과 기준일 사이 상장일 열이 늘어 칸 번호가 1씩 밀렸다(FR-033).
+    const cell = within(bodyRows()[0]).getAllByRole("cell")[2];
     expect(cell.textContent).toContain("⏳");
     expect(cell.textContent).toContain("미발표 달 금리");
     expect(cell.textContent).toContain("기준일이 계산 끝 전");
@@ -187,7 +195,8 @@ describe("수집 중·실패", () => {
     const cells = within(all[1]).getAllByRole("cell");
     // 013 승인 2026-10-09 — 반복(단가 등락)으로 투자 원금 뒤에 열이 셋 늘어 칸 번호가 3씩 밀렸다.
     // 013 승인 2026-10-09 — 반복 2026-10-09b(투자 시뮬레이션 모달)로 줄 끝에 열이 하나 늘었다.
-    expect(cells.slice(1).map((c) => c.textContent)).toEqual(["", "", "", "", "", "", "", "", "", ""]);
+    // 014 승인 2026-10-10(반복 2026-10-10f T161) — 주식·가상자산 표에 대상과 기준일 사이 상장일 열이 늘어 칸 번호가 1씩 밀렸다(FR-033).
+    expect(cells.slice(1).map((c) => c.textContent)).toEqual(["", "", "", "", "", "", "", "", "", "", ""]);
   });
 
   it("수집 중은 받는 구간과 진행이다", () => {

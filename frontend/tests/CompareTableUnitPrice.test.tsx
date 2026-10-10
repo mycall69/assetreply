@@ -62,7 +62,8 @@ describe("열", () => {
     renderTable([row("a", "삼성전자", SAMSUNG)]);
     const heads = screen.getAllByRole("columnheader").map((h) => (h.textContent ?? "").replace(/[▲▼ⓘ]/g, "").trim());
     // 013 승인 2026-10-09 — 반복 2026-10-09b(투자 시뮬레이션 모달)로 줄 끝에 열이 하나 늘었다.
-    expect(heads).toEqual(["대상", "기준일", "투자 원금", "시작일 단가", "기준일 단가", "등락", "현재 가치", "비용", "투자 수익", "수익률",
+    // 014 승인 2026-10-10(반복 2026-10-10f T161) — 주식·가상자산 표에 대상과 기준일 사이 상장일 열이 늘어 칸 번호가 1씩 밀렸다(FR-033).
+    expect(heads).toEqual(["대상", "상장일", "기준일", "투자 원금", "시작일 단가", "기준일 단가", "등락", "현재 가치", "비용", "투자 수익", "수익률",
       "투자 시뮬레이션"]);
   });
 
@@ -152,7 +153,8 @@ describe("줄바꿈", () => {
   it("단가·등락 칸과 기준일 날짜는 줄을 바꾸지 않는다", () => {
     renderTable([row("a", "삼성전자", SAMSUNG)]);
     for (const id of ["unit-start", "unit-asof", "unit-change"]) expect(cellOf("삼성전자", id).className).toContain("whitespace-nowrap");
-    const asOf = within(screen.getAllByRole("row")[1]).getAllByRole("cell")[1];
+    // 014 승인 2026-10-10(반복 2026-10-10f T161) — 주식·가상자산 표에 대상과 기준일 사이 상장일 열이 늘어 칸 번호가 1씩 밀렸다(FR-033).
+    const asOf = within(screen.getAllByRole("row")[1]).getAllByRole("cell")[2];
     expect(within(asOf).getByText("2026-10-06").className).toContain("whitespace-nowrap");
   });
 });

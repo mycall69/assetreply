@@ -90,7 +90,8 @@ describe("적립식 표", () => {
     render(<ComparePage />);
     fireEvent.click(screen.getByRole("button", { name: "비교 실행" }));
     const table = await screen.findByRole("table", { name: "비교 표" });
-    const cell = within(within(table).getAllByRole("row")[1]).getAllByRole("cell")[2];
+    // 014 승인 2026-10-10(반복 2026-10-10f T161) — 주식·가상자산 표에 대상과 기준일 사이 상장일 열이 늘어 칸 번호가 1씩 밀렸다(FR-033).
+    const cell = within(within(table).getAllByRole("row")[1]).getAllByRole("cell")[3];
     expect(cell.textContent).toContain("₩6,000,000");
     expect(cell.textContent).toContain("총 납입 원금 · 12회 납입");
   });
@@ -109,8 +110,9 @@ describe("적립식 표", () => {
     const table = await screen.findByRole("table", { name: "비교 표" });
     const cells = within(within(table).getAllByRole("row")[1]).getAllByRole("cell");
     // 013 승인 2026-10-09 — 반복(단가 등락)으로 투자 원금 뒤에 열이 셋 늘어 칸 번호가 3씩 밀렸다.
-    expect(cells[7].textContent).toContain("과세 시행일 뒤");
-    expect(cells[8].textContent).toContain("—");
+    // 014 승인 2026-10-10(반복 2026-10-10f T161) — 주식·가상자산 표에 대상과 기준일 사이 상장일 열이 늘어 칸 번호가 1씩 밀렸다(FR-033).
+    expect(cells[8].textContent).toContain("과세 시행일 뒤");
     expect(cells[9].textContent).toContain("—");
+    expect(cells[10].textContent).toContain("—");
   });
 });

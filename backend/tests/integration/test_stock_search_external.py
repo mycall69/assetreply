@@ -70,9 +70,11 @@ class TestTSE만:
         assert res.status_code == 200
         body = res.json()
         assert body["query"] == "toyota"
+        # 014 승인 2026-10-10(반복 2026-10-10f T161) — 저장된 시세 출처 첫 거래일 칸이
+        # 더해졌다(FR-033 — 종목이 없으면 null)
         assert body["results"] == [{
             "market": "TSE", "symbol": "7203.T", "name": "Toyota Motor Corporation",
-            "currency": "JPY", "kind": "stock"}]
+            "currency": "JPY", "kind": "stock", "firstTradedOn": None}]
 
     async def test_ETF_여부를_싣는다(self, make_client) -> None:
         body = (await external(make_client, StubSource([TSE_ETF]), "topix")).json()

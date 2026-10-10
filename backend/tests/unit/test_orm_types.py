@@ -251,5 +251,8 @@ def test_원본은_본문을_한_번만_저장한다() -> None:
 def test_005_종목_테이블이_바뀌지_않는다() -> None:
     """data-model — 목록의 상장일을 `stock.first_available_date`에 복사하지 않는다(R6-8)."""
     cols = {c.name for c in Base.metadata.tables["stock"].columns}
+    # 014 승인 2026-10-10(반복 2026-10-10f T161) — 표시 전용 열 `first_trade_date`(Yahoo 첫
+    # 거래일)가 더해졌다(FR-033).
+    # 목록의 상장일은 여전히 `first_available_date`에 복사하지 않는다 — 시작일 하한과 별개다
     assert cols == {"id", "market", "symbol", "name", "currency",
-                    "first_available_date", "ingested_at"}
+                    "first_available_date", "first_trade_date", "ingested_at"}
