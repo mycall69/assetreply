@@ -41,7 +41,8 @@ function Group({ title, items, value, format }: {
           const share = v === null || largest === 0 ? 0 : (magnitude(v) / largest) * 100;
           return (
             <li key={item.key} className="grid grid-cols-[10rem_1fr_8rem] items-center gap-2 text-xs">
-              <span className="truncate">{item.provisional ? `${item.name} ⏳` : item.name}</span>
+              {/* 014 FR-032 — 칸(10rem)보다 긴 이름은 줄어 티커가 가려진다. 마우스를 올리면 전체 이름이다. */}
+              <span className="truncate" title={item.name}>{item.provisional ? `${item.name} ⏳` : item.name}</span>
               <span className="grid grid-cols-2">
                 <span className="flex justify-end border-r border-gray-300">
                   {v !== null && negative && (

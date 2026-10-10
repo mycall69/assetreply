@@ -16,6 +16,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink } from "@/components/ExternalLink";
 import { ApiError, apiClient } from "@/lib/apiClient";
 import { subscribeCoinListProgress } from "@/lib/cryptoListProgressStream";
+import { coinNameWithSymbol } from "@/lib/displayCode";
 import { coinLink } from "@/lib/externalLinks";
 import { formatKst } from "@/lib/format";
 import { createSequence } from "@/lib/searchSequence";
@@ -248,10 +249,9 @@ export function CoinSearch({
                     }`}
                   >
                     <span>
-                      {coin.nameKo !== null && <span className="font-medium">{coin.nameKo} </span>}
-                      <span className={coin.nameKo === null ? "font-medium" : "text-gray-600"}>
-                        {coin.name}
-                      </span>
+                      {/* 014 FR-032(반복 2026-10-10e) — 맨 앞은 이름(심볼)이다. 투자 비교의 대상 이름과 같은 글자다. */}
+                      <span className="font-medium">{coinNameWithSymbol(coin)}</span>
+                      {coin.nameKo !== null && <span className="text-gray-600"> {coin.name}</span>}
                       {coin.listStatus === "missing" && (
                         // 색만으로 전달하지 않는다 — 글자로 쓴다(ui-wireframes 접근성).
                         <span className="ml-2 text-xs text-amber-700">목록에서 빠짐</span>

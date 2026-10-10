@@ -23,3 +23,11 @@ export function displayCode(market: StockMarket, symbol: string): string {
 export function nameWithCode(stock: { market: StockMarket; symbol: string; name: string }): string {
   return `${stock.name}(${displayCode(stock.market, stock.symbol)})`;
 }
+
+/**
+ * `비트코인(BTC)` — 한글 이름이 없으면 영문 이름(`BitShares(BTS)`). 014 반복 2026-10-10e(FR-032) — 투자 비교의 대상 이름과 코인 검색
+ * 결과 줄의 맨 앞 이름이 함께 쓴다. 같은 코인이 두 자리에서 다른 글자가 되지 않게 한 곳에 둔다.
+ */
+export function coinNameWithSymbol(coin: { name: string; nameKo: string | null; symbol: string }): string {
+  return `${coin.nameKo ?? coin.name}(${coin.symbol})`;
+}

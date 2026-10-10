@@ -4,6 +4,7 @@
  * 정규 조건은 저장 본문(서버 `api/services/comparison_conditions`)과 같은 모양이다. 화면은 이것으로 "지금 조건 = 결과를 낸 조건"을
  * 가른다 — 다르면 결과를 흐린다(명확화 6). 대상 차례도 조건이다. 표의 정렬은 조건이 아니다.
  */
+import { coinNameWithSymbol, nameWithCode } from "@/lib/displayCode";
 import { INSTITUTION_NAMES } from "@/stores/depositStore";
 import type {
   CompareAsset,
@@ -78,10 +79,15 @@ export function targetKey(target: CompareTarget): string {
   return `${target.complexId}|${target.area}`;
 }
 
-/** 화면에 보이는 대상 이름. */
+/**
+ * 화면에 보이는 대상 이름. 비교 화면의 이름 자리(칩·표·막힘 안내·범례·막대·모달 머리·저장 목록·화면 읽기 이름)가 모두 이 함수를 거친다.
+ *
+ * 014 반복 2026-10-10e(FR-032) — 주식·가상자산은 이름(티커)다. 이름이 비슷한 ETF·같은 이름의 코인을 구별한다. 주식은 006의 표시 코드
+ * (메뉴 검색·고른 종목과 같은 글자), 코인은 심볼이다. 대상이 이미 가진 칸으로 만들어 저장 조건은 그대로다.
+ */
 export function targetName(target: CompareTarget): string {
-  if (isStock(target)) return target.name;
-  if (isCrypto(target)) return target.nameKo ?? target.name;
+  if (isStock(target)) return nameWithCode(target);
+  if (isCrypto(target)) return coinNameWithSymbol(target);
   if (isDeposit(target)) return INSTITUTION_NAMES[target.institution];
   return `${target.name} ${target.areaLabel}`;
 }
