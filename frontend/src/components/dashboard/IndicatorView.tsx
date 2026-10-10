@@ -103,7 +103,7 @@ export function IndicatorView({ id, range, titleId, onClose }: {
       )}
       {status === "loading" && <p className="text-sm text-gray-500">이력을 불러오는 중…</p>}
       {status === "error" && <p role="alert" className="text-sm text-amber-800">이력을 불러오지 못했습니다.</p>}
-      {table.status === "ready" && table.table && (
+      {(table.status === "ready" || table.status === "loading") && table.table && (
         <IndicatorTable
           table={{ ...table.table, rows: table.rows, hasMore: table.hasMore, oldestReturned: table.oldestReturned }}
           period={table.period}
@@ -111,12 +111,13 @@ export function IndicatorView({ id, range, titleId, onClose }: {
           onMore={() => void table.loadMore()}
           loading={table.loadingMore}
           error={table.loadError}
+          switching={table.status === "loading"}
         />
       )}
       {(table.status === "collecting" || table.status === "failed") && table.collecting && (
         <SeriesCollecting collecting={table.collecting} name={name} onRetry={retry} />
       )}
-      {table.status === "loading" && <p className="text-sm text-gray-500">일자별 표를 불러오는 중…</p>}
+      {table.status === "loading" && !table.table && <p className="text-sm text-gray-500">일자별 표를 불러오는 중…</p>}
       {table.status === "error" && <p role="alert" className="text-sm text-amber-800">일자별 표를 불러오지 못했습니다.</p>}
     </div>
   );

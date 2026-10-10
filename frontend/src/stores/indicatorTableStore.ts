@@ -1,7 +1,8 @@
 /**
  * 지표 모달의 일자별 표 스토어 (014 반복 2026-10-10b T120) — FR-016, FR-029, data-model 7, contracts A7.
  *
- * - 처음은 일 단위다. 단위를 바꾸면 처음부터 다시 받는다 — 옛 단위의 행을 남기면 두 단위가 섞인 표가 된다
+ * - 처음은 일 단위다. 단위를 바꾸면 처음부터 다시 받는다 — 옛 단위의 행을 남기면 두 단위가 섞인 표가 된다. 받는 동안은 앞 표를
+ *   그대로 보인다(행을 섞지 않고 통째로 바꾼다) — 비우면 표와 단위 단추가 사라졌다 붙어 모달이 흔들렸다(T124 실측)
  * - 더 받기는 `before = oldestReturned`이고 뒤에 붙인다(주식 일자별 표와 같은 쪽 넘기기)
  * - 늦게 온 옛 응답은 버린다(`seq`)
  * - 202는 그래프와 같은 받는 중·실패다 — 받은 만큼만 보인 표를 완성된 이력처럼 보이지 않는다(FR-016). 다시 받는 시점은 모달이
@@ -48,7 +49,9 @@ const BLANK = {
 export const useIndicatorTableStore = create<IndicatorTableState>((set, get) => {
   const first = async (id: string, period: IndicatorTablePeriod) => {
     const seq = get().seq + 1;
-    set({ ...BLANK, id, period, seq, status: "loading" });
+    // 같은 지표의 단위 바꾸기는 앞 표를 남긴다 — 다른 지표면 비운다
+    if (get().id === id && get().table !== null) set({ period, seq, status: "loading", loadingMore: false, loadError: null });
+    else set({ ...BLANK, id, period, seq, status: "loading" });
     try {
       const body = await fetchTable(id, period);
       if (get().seq !== seq) return;

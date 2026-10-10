@@ -56,7 +56,7 @@ function Marks({ row }: { row: PeriodRow }) {
   );
 }
 
-export function IndicatorTable({ table, period, onPeriod, onMore, loading, error = null }: {
+export function IndicatorTable({ table, period, onPeriod, onMore, loading, error = null, switching = false }: {
   table: IndicatorTableResponse;
   period: IndicatorTablePeriod;
   onPeriod: (period: IndicatorTablePeriod) => void;
@@ -65,8 +65,10 @@ export function IndicatorTable({ table, period, onPeriod, onMore, loading, error
   loading: boolean;
   /** 더 받기 실패 — 그동안 감시를 끊는다(같은 오류를 되풀이하지 않는다). */
   error?: string | null;
+  /** 다른 단위의 표를 받는 중 — 앞 표를 흐리게 남긴다(단위 단추는 새 단위다). */
+  switching?: boolean;
 }) {
-  const sentinel = useInfiniteScroll(onMore, table.hasMore && !loading && error === null);
+  const sentinel = useInfiniteScroll(onMore, table.hasMore && !loading && !switching && error === null);
   const year = table.rows[0]?.date.slice(0, 4) ?? null;
   const dateText = (date: string) => (date.slice(0, 4) === year ? date.slice(5) : date);
 
@@ -83,11 +85,12 @@ export function IndicatorTable({ table, period, onPeriod, onMore, loading, error
           ))}
         </div>
         {table.seriesNote === "fx_fixing" && <span className="text-xs text-gray-500">고시 — 하루 한 값</span>}
+        {switching && <span className="text-xs text-gray-500">불러오는 중…</span>}
       </div>
       {table.rows.length === 0 ? (
         <p className="rounded border border-gray-200 px-4 py-6 text-center text-sm text-gray-500">표시할 행이 없습니다.</p>
       ) : (
-        <div className="overflow-x-auto rounded border border-gray-200">
+        <div aria-busy={switching} className={`overflow-x-auto rounded border border-gray-200 ${switching ? "opacity-50" : ""}`}>
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-gray-200 text-gray-500">
