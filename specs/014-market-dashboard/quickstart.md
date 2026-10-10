@@ -132,7 +132,7 @@ cd backend && .venv/bin/python -m pytest -q tests/contract/test_yahoo_market_cli
 **상장일(반복 2026-10-10f — T159)**
 - `unit/test_listing_date.py` — 고르기 규칙(키움 → 첫 거래일 → 없음, 코인 첫 일봉 → 없음)
 - `integration/test_stock_first_trade.py` — 새 열, 등록 때 모르면 한 번(알면·클라이언트 없음·실패면 부르지 않거나 비운 채 성공 — 응답 불변), `collect_range` 청크 기록(비었을 때만), 시작일 판정 불변
-- `integration/test_listing_date_api.py` — 검색 두 응답 `firstTradeDate`(출처 호출 0), 비교 블록 `listing`(listing·first_trade·first_bar·null), 메뉴 응답 불변
+- `integration/test_listing_date_api.py` — 검색 두 응답 `firstTradedOn`(출처 호출 0), 비교 블록 `listing`(listing·first_trade·first_bar·null), 메뉴 응답 불변
 
 ## 4. 화면 (Vitest — `lightweight-charts` 모의, 종료 코드를 본다)
 
@@ -186,7 +186,7 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
 - 014 전 013 테스트(`compareCondition`·이름으로 단추를 찾는 비교 화면 테스트)는 바뀔 것으로 본다 — 실제 실패 목록은 T152 승인
 
 **상장일(반복 2026-10-10f — T160)**
-- `StockSearchListing.test.tsx` — 결과 줄 `상장 …`(국내 `listedOn`)·`첫 거래 …`(`firstTradeDate`)·없으면 글자 없음
+- `StockSearchListing.test.tsx` — 결과 줄 `상장 …`(국내 `listedOn`)·`첫 거래 …`(`firstTradedOn`)·없으면 글자 없음
 - `CoinSearchListing.test.tsx` — `첫 일봉 …`(`firstAvailableDate`)·없으면 글자 없음
 - `CompareTableListing.test.tsx` — 주식·가상자산 표 머리(대상 · 상장일 · 기준일 …), 기준 작은 글자, "—"·`title`, 정렬(비운 칸 끝), 예금·부동산 열 없음
 
@@ -236,7 +236,7 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
 - **외환 일자별 표**(반복 2026-10-10d — T148): `/api/fx/daily` 행은 `change`만 더해진다(다른 칸·차례·`hasMore`·`oldestReturned` 같음 — 014 전 응답과 `change`를 뺀 대조). `/api/fx/latest`·`/series`는
   차이 0이다(SC-016). 외환 화면은 표의 오른쪽 끝 두 열과 CSV 끝 두 열 말고 같다(FR-026 예외)
 - **투자 비교의 티커**(반복 2026-10-10e — T155): 백엔드 변경이 없다 — 기준 29파일이 부동산 기준일·`meta` 말고 같아야 한다. 가상자산 메뉴 화면은 검색 결과 줄의 맨 앞 이름 말고 같다(FR-026 예외)
-- **상장일**(반복 2026-10-10f — T165): 메뉴 시뮬레이션 응답 차이 0, 비교 응답은 `comparison.listing`만 더해진다. 주식 검색 응답 둘은 `firstTradeDate`만 더해지고 등록 응답은 같다
+- **상장일**(반복 2026-10-10f — T165): 메뉴 시뮬레이션 응답 차이 0, 비교 응답은 `comparison.listing`만 더해진다. 주식 검색 응답 둘은 `firstTradedOn`만 더해지고 등록 응답은 같다
 
 ## 7. 성능 (SC-001·SC-002)
 
@@ -500,3 +500,28 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
 - 프론트엔드: `npm test` **224파일·2,004 통과**(종료 코드 0), `tsc --noEmit`·`eslint .` 통과
 - `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests`: 바뀐 기존 테스트 열둘 — T018·US2 승인분 여섯 + T144 `csv.test.ts` + T152 승인분 다섯
   (`ComparePage`·`ComparePageCharts`·`ComparePageSimulate`·`SavedComparisons`·`compareCondition`)뿐이다
+
+### T164 — 반복 2026-10-10f 실측(2026-10-10 22:0x KST, 토요일 — 헤드리스 Chrome CDP, 개발 서버, 1440×900, 개발 DB `alembic upgrade head` 뒤)
+
+- **5-22 주식·가상자산의 상장일**
+  - 고르기 전 주식 메뉴 검색: 삼성전자 `KRX · KRW · 상장 1975-06-11`, VOO·SPY·QQQ는 날짜 없음(아직 모름 — 검색은 출처를 부르지 않는다)
+  - 투자 비교에서 VOO·SPY·QQQ·삼성전자를 고름(등록 때 한 번씩 Yahoo — `collection.log` `stock_first_trade ok` 다섯 줄, 다시 고를 때는 부르지 않음) → 비교 표 머리 `대상 | 상장일 | 기준일 | 투자 원금 …`,
+    VOO `2010-09-09 첫 거래일`·SPY `1993-01-29 첫 거래일`·QQQ `1999-03-10 첫 거래일`·삼성전자 `1975-06-11`(키움 — 기준 글자 없음) — T158의 `firstTradeDate`와 같다(SC-018). `title` 기준 설명
+  - 상장일 정렬: 오름 삼성전자 → SPY → QQQ → VOO, 내림 그 반대
+  - 다시 검색: VOO `NYSE · USD · 첫 거래 2010-09-09`, SPY `첫 거래 1993-01-29`
+  - 도요타(일본 외부 검색): 고르기 전 날짜 없음 → 고른 뒤 `TSE · JPY · 첫 거래 1999-05-06`(출처의 시세 시작일 — `title`이 밝힌다)
+  - 가상자산: 메뉴 검색 비트코인 `BTC · USD #1 · 첫 일봉 2010-07-18`, 비트쉐어는 날짜 없음. 비교 표 비트코인 `2010-07-18 첫 일봉`·이더리움 `2016-03-10 첫 일봉`
+  - 블랙 배경: 비교 화면 글자 212개 중 4.5 미만 **0**(최솟값 6.21). 1024px에서 처음 열면 문서 가로 넘침 없음
+  - **등록 출처 실패**(임시 백엔드 8091 — `STOCK_SOURCE_BASE_URL=http://127.0.0.1:9`): SCHD 고르기 200·응답 불변·첫 거래일 비움. 정상 백엔드에서 다시 고르면 474ms·`2011-10-20`으로 채움
+- **실측 결함 하나를 고쳤다**(test(014) → fix(014)): 출처를 막으면 고르기가 **3,010ms** — 연결이 곧바로 거절되는데 클라이언트의 다시 시도(최대 4회, 2초 간격)가 시간 한도(3초)까지 이어졌다. 등록 경로의
+  첫 거래일 받기는 한 번만 묻는다 → **6ms**
+- **구현 중 바로잡은 것**: API·화면 칸 이름을 `firstTradeDate` → `firstTradedOn` — 출처 칸 이름을 어댑터 밖에 두면 005 가드 `test_layer_boundaries`가 막는다(원칙 II, research R14-26)
+- **고치지 않은 관찰**(013 설계 그대로): 열이 열두 개가 되어 1440px 창에서도 비교 표가 칸보다 넓다 — 맨 오른쪽에 붙인 "투자 시뮬레이션" 열(sticky)이 처음 스크롤 자리에서 수익률 칸을 일부 가린다
+  (가로로 밀면 보인다). 대상 칸이 좁아져 환율 줄이 여러 줄로 꺾인다
+- 스크린샷(저장소 밖 `014f/`): `compare_stock_listing.png`·`compare_stock_listing_dark.png`·`compare_listing_1024.png`
+
+### T165 — 불변 대조(2026-10-10 22:1x KST)
+
+- **응답**: T001 입력으로 다시 받은 29파일(`014-baseline/after_iterf/`) — 메뉴·외환 응답(head·series·`/latest`·`/series`) 차이는 부동산 헬리오시티 기준일 날짜뿐(T084·T125·T139·T148·T155와 같다).
+  비교 응답 여덟은 `comparison.listing` 말고 같다 — 삼성전자 `listing`(1975-06-11)·비트코인 `first_bar`(2010-07-18)·XLK `null`(오늘 고르지 않음 — 다음 수집 청크가 채운다)·예금·부동산 `null`
+- 등록 응답은 같다(실측의 `selection` 응답 — `market`·`symbol`·`name`·`currency`·`listedOn`). 검색 응답 둘은 `firstTradedOn`만 더해졌다(통합 테스트 `test_stock_search_*`·`test_listing_date_api`)

@@ -816,35 +816,35 @@ description: "Task list for 014-market-dashboard"
 
 ### Tests for 반복 2026-10-10f ⚠️
 
-- [ ] T159 [P] [US7] 백엔드 테스트 — 최초 실패 확인 (FR-033, SC-018)
+- [X] T159 [P] [US7] 백엔드 테스트 — 최초 실패 확인 (FR-033, SC-018)
   - 새 `backend/tests/unit/test_listing_date.py` — 고르기 규칙(키움 → 첫 거래일 → 없음, 코인 첫 일봉 → 없음)
   - 새 `backend/tests/contract/test_yahoo_first_trade.py` — meta만 받기(`range=1d`), 거래소 시간대 날짜, `firstTradeDate` 없음 → `None`, 404·429
   - 새 `backend/tests/integration/test_stock_first_trade.py` — 스키마(`first_trade_date` DATE NULL), 등록 때 모르면 한 번 받아 저장·알면 부르지 않음·출처 실패/시간 초과/클라이언트 없음이어도 등록 성공·
     응답 불변, `collect_range` 청크의 기록(비었을 때만 — 덮지 않음), `first_available_date`·시작일 거절 불변
-  - 새 `backend/tests/integration/test_listing_date_api.py` — 검색 두 응답의 `firstTradeDate`(저장된 종목만, 출처 호출 0), 비교 블록 `listing`(국내 `listing`·미국 `first_trade`·코인 `first_bar`·모름
+  - 새 `backend/tests/integration/test_listing_date_api.py` — 검색 두 응답의 `firstTradedOn`(저장된 종목만, 출처 호출 0), 비교 블록 `listing`(국내 `listing`·미국 `first_trade`·코인 `first_bar`·모름
     `null`·예금·부동산 `null`), 메뉴 시뮬레이션 응답 불변
-- [ ] T160 [P] [US7] 화면 테스트 — 최초 실패 확인 (FR-033)
-  - 새 `frontend/tests/StockSearchListing.test.tsx` — 결과 줄 `상장 …`(국내 `listedOn`)·`첫 거래 …`(`firstTradeDate`), 둘 다 없으면 글자 없음
+- [X] T160 [P] [US7] 화면 테스트 — 최초 실패 확인 (FR-033)
+  - 새 `frontend/tests/StockSearchListing.test.tsx` — 결과 줄 `상장 …`(국내 `listedOn`)·`첫 거래 …`(`firstTradedOn`), 둘 다 없으면 글자 없음
   - 새 `frontend/tests/CoinSearchListing.test.tsx` — `첫 일봉 …`(`firstAvailableDate`), 없으면 글자 없음
   - 새 `frontend/tests/CompareTableListing.test.tsx` — 주식·가상자산 표의 머리 차례(대상 · 상장일 · 기준일 …), 날짜·기준 작은 글자(`첫 거래일`·`첫 일봉`·키움은 없음), "—"·`title`, 정렬(비운 칸 끝),
     예금·부동산 열 없음
 
 ### Implementation for 반복 2026-10-10f
 
-- [ ] T161 [US7] 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(예상: 검색·등록 응답 키 견주기, 비교 표 머리·열 수). T111과 같은 절차로 승인받고
+- [X] T161 [US7] 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(예상: 검색·등록 응답 키 견주기, 비교 표 머리·열 수). T111과 같은 절차로 승인받고
   (`014 승인 2026-10-10`) 구현을 치워 실패를 확인한 뒤 `test(014)`. 목록 밖의 실패는 결함으로 보고 멈춘다 (FR-026)
-- [ ] T162 [US7] 백엔드 — 새 마이그레이션 `backend/src/db/migrations/versions/<rev>_주식_첫_거래일.py`, `backend/src/db/models.py`, `backend/src/repository/stock.py`, 새 `backend/src/simulation/listing_date.py`,
+- [X] T162 [US7] 백엔드 — 새 마이그레이션 `backend/src/db/migrations/versions/<rev>_주식_첫_거래일.py`, `backend/src/db/models.py`, `backend/src/repository/stock.py`, 새 `backend/src/simulation/listing_date.py`,
   `backend/src/ingestion/yahoo/client.py`, `backend/src/api/services/stock_selection.py`·`backend/src/api/routes/stock_selection.py`, `backend/src/worker/stock_runner.py`, `backend/src/api/routes/stock_search.py`,
   `backend/src/api/services/comparison_metrics.py`·`backend/src/api/routes/comparison.py` — contracts A10 (FR-033)
-- [ ] T163 [US7] 화면 — `frontend/src/lib/types.ts`, `frontend/src/components/stock/StockSearch.tsx`, `frontend/src/components/crypto/CoinSearch.tsx`, `frontend/src/components/compare/CompareTable.tsx`,
+- [X] T163 [US7] 화면 — `frontend/src/lib/types.ts`, `frontend/src/components/stock/StockSearch.tsx`, `frontend/src/components/crypto/CoinSearch.tsx`, `frontend/src/components/compare/CompareTable.tsx`,
   `frontend/src/stores/compareStore.ts`(정렬 키) — contracts D12 (FR-033)
 
 ### Polish (반복 2026-10-10f)
 
-- [ ] T164 [US7] 실측 — 개발 DB `alembic upgrade head`, quickstart 5-22(삼성전자·VOO·SPY·QQQ·도요타 검색·고르기·비교 표, 비트코인·이더리움·모르는 코인, 등록 출처 실패를 임시 백엔드로, 정렬, 블랙 배경, 1024px)를
+- [X] T164 [US7] 실측 — 개발 DB `alembic upgrade head`, quickstart 5-22(삼성전자·VOO·SPY·QQQ·도요타 검색·고르기·비교 표, 비트코인·이더리움·모르는 코인, 등록 출처 실패를 임시 백엔드로, 정렬, 블랙 배경, 1024px)를
   확인하고 `quickstart.md` 8에 기록한다(헤드리스 Chrome) (FR-033, SC-018)
-- [ ] T165 불변 대조 — `014-baseline/fetch.py`(메뉴 시뮬레이션 응답 차이 0, 비교 응답은 `comparison.listing`만 더해짐), 검색 응답은 `firstTradeDate`만 더해짐, 등록 응답 불변 (FR-026, SC-010, SC-018)
-- [ ] T166 문서 — `CLAUDE.md`(현재 상태 014 줄·상장일 주의 — 새 열·`first_available_date`와 다름·등록 실패 허용·lifespan 클라이언트만·검색은 출처를 부르지 않음), `README.md`, `spec.md` Status (FR-033)
+- [X] T165 불변 대조 — `014-baseline/fetch.py`(메뉴 시뮬레이션 응답 차이 0, 비교 응답은 `comparison.listing`만 더해짐), 검색 응답은 `firstTradedOn`만 더해짐, 등록 응답 불변 (FR-026, SC-010, SC-018)
+- [X] T166 문서 — `CLAUDE.md`(현재 상태 014 줄·상장일 주의 — 새 열·`first_available_date`와 다름·등록 실패 허용·lifespan 클라이언트만·검색은 출처를 부르지 않음), `README.md`, `spec.md` Status (FR-033)
 - [ ] T167 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161)뿐인지
   `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
 

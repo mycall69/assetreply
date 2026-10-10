@@ -119,7 +119,7 @@
 | 공유 부품 변경(반복 2026-10-10c) | ✅(해석 기록) | 차트 다섯 종(`FxChart`·`PerformanceChart`·`ComparisonChart`·`CompareReturnChart`·`IndicatorChart`)이 테마 팔레트를 받는다 — 밝은 테마의 선택 값은 지금과 같다(색·글자). `applyOptions`·라이브러리 열거형을 실행 중에 쓰지 않는다 |
 | 반복 2026-10-10d — 외환 화면 예외(FR-026) | ✅(예외 기록) | 외환 일자별 표와 CSV의 오른쪽 끝 두 열만 바뀐다. `/api/fx/daily`는 행에 `change`가 더해질 뿐 다른 칸·차례·쪽 넘기기·202가 같고, `/api/fx/latest`는 같은 함수를 부르지만 대상 고르기·응답이 같다(`014-baseline` 대조 — T148). CSV 열은 맨 끝이라 001·004 머리 단언(앞 열의 이어짐)이 그대로다. 014 전 테스트는 `frontend/tests/csv.test.ts`의 "진행 중 여부가 열로 남는다"(줄 끝 `/예$/` → 진행 중 열의 차례) 하나가 바뀔 것으로 본다(T144 승인) |
 | 반복 2026-10-10e — 투자 비교·코인 검색 결과 예외(FR-026) | ✅(예외 기록) | 투자 비교 화면의 주식·가상자산 대상 이름과 코인 검색 결과 줄의 맨 앞 이름(가상자산 메뉴 포함)만 바뀐다. 백엔드 변경이 없어 메뉴·비교 응답이 같다(`014-baseline` 대조 — T155). 이름은 그릴 때 만들어 저장한 비교의 조건이 같다. 014 전 013 테스트 변경은 T152 승인 |
-| 반복 2026-10-10f — 상장일 예외(FR-026) | ✅(예외 기록) | 005·006(주식 검색 응답 둘의 `firstTradeDate`·종목 등록 안의 첫 거래일 받기·주식 수집의 저장), 007(코인 검색 결과 줄), 013(비교 표 열·비교 블록 `listing`)이 바뀐다. 메뉴 시뮬레이션 응답·시작일 판정·등록 응답은 같다(`014-baseline` 대조 — T165). 등록 경로의 외부 호출은 실패 허용·관문·lifespan 클라이언트만. 014 전 테스트 변경은 T161 승인 |
+| 반복 2026-10-10f — 상장일 예외(FR-026) | ✅(예외 기록) | 005·006(주식 검색 응답 둘의 `firstTradedOn`·종목 등록 안의 첫 거래일 받기·주식 수집의 저장), 007(코인 검색 결과 줄), 013(비교 표 열·비교 블록 `listing`)이 바뀐다. 메뉴 시뮬레이션 응답·시작일 판정·등록 응답은 같다(`014-baseline` 대조 — T165). 등록 경로의 외부 호출은 실패 허용·관문·lifespan 클라이언트만. 014 전 테스트 변경은 T161 승인 |
 
 ## Project Structure
 
@@ -303,10 +303,10 @@ backend/src/
 ├── ingestion/yahoo/client.py                         (변경 — meta만 받기 fetch_first_trade_date, 기존 차트 요청·파서 재사용)
 ├── api/services/stock_selection.py · api/routes/stock_selection.py  (변경 — 등록 때 모르면 한 번, lifespan 클라이언트만·실패 허용, 응답 불변)
 ├── worker/stock_runner.py                            (변경 — collect_range 청크의 first_trade_date 기록)
-├── api/routes/stock_search.py                        (변경 — 검색 응답 둘의 firstTradeDate)
+├── api/routes/stock_search.py                        (변경 — 검색 응답 둘의 firstTradedOn)
 └── api/services/comparison_metrics.py · api/routes/comparison.py  (변경 — 비교 블록 listing, A10)
 frontend/src/
-├── lib/types.ts                                      (변경 — firstTradeDate·ComparisonBlock.listing)
+├── lib/types.ts                                      (변경 — firstTradedOn·ComparisonBlock.listing)
 ├── components/stock/StockSearch.tsx · components/crypto/CoinSearch.tsx  (변경 — 결과 줄 상장, D12)
 └── components/compare/CompareTable.tsx · stores/compareStore.ts  (변경 — 상장일 열·정렬 키)
 backend/tests/   contract/test_yahoo_first_trade.py(fixtures/stock/chart_meta_*) · integration/test_stock_first_trade.py · integration/test_listing_date_api.py ·

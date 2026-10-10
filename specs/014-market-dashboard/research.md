@@ -559,6 +559,9 @@
     lifespan 없이 도는 006 등록 테스트가 실제 출처를 부른다), 실패·시간 초과·`firstTradeDate` 없음이면 비운 채 등록 성공(응답 불변) (2) `worker/stock_runner.collect_range` — 청크 응답의 `first_trade_date`가 있고 비었으면 기록(추가 요청 없음)
   - 비었을 때만 쓰고 덮어쓰지 않는다 — 표시 전용이라 개정을 남기지 않는다
   - 검색은 출처를 부르지 않는다 — 검색 응답 둘은 저장된 `stock.first_trade_date`만(`market`·`symbol`로 찾음)
+  - **API·화면 칸 이름은 `firstTradedOn`이다**(구현 중 확인 2026-10-10): 출처 칸 이름(`firstTradeDate`)을 그대로 쓰면 005 가드
+    `test_layer_boundaries.test_시세_출처_필드명이_어댑터_밖에_없다`(`STOCK_SOURCE_TOKENS`)가 막는다 — 출처 고유 개념이 어댑터 밖으로 새는 것(원칙 II)이다.
+    가드를 고치지 않고 이름을 우리 것으로 짓는다 — 키움 상장일 `listedOn`과 짝이다
   - 날짜: 거래소 시간대(`zoneinfo` — 014 R14-3). 주식 어댑터의 지금 변환(`gmtoffset`)을 쓰면 서머타임에 하루 어긋날 수 있다 — T158에서 미국 ETF 몇을 재 견준다
   - 비교 블록: `comparison.listing{date, basis}` — 주식·가상자산 경로 넷(일시금·적립식 × 주식·가상자산)에서 라우트가 가진 종목·코인으로 계산, 예금·부동산 `null`
   - 화면: 비교 표의 상장일 열은 `method`가 일시금·적립식일 때(주식·가상자산)만 — 예금·부동산 표는 그대로
