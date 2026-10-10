@@ -117,9 +117,12 @@ describe("기간 단위 내려받기", () => {
   });
 
   it("진행 중 여부가 열로 남는다", () => {
+    // 014 승인 2026-10-10(반복 2026-10-10d T144) — 등락 두 열이 맨 끝에 붙어 줄 끝이 진행 중 칸이 아니다.
+    // 줄 끝 대신 머리의 "진행 중" 자리로 본다(뜻은 같다 — 진행 중 여부가 열로 남는다)
     const lines = buildDailyCsv(WEEKLY).split("\n");
-    expect(lines.find((l) => l.startsWith("2026-07-24"))).toMatch(/예$/);
-    expect(lines.find((l) => l.startsWith("2026-07-16"))).toMatch(/아니오$/);
+    const at = (lines.find((l) => l.startsWith("날짜,")) ?? "").split(",").indexOf("진행 중");
+    expect(lines.find((l) => l.startsWith("2026-07-24"))?.split(",")[at]).toBe("예");
+    expect(lines.find((l) => l.startsWith("2026-07-16"))?.split(",")[at]).toBe("아니오");
   });
 
   it("열 머리글에 두 열이 더해진다", () => {
