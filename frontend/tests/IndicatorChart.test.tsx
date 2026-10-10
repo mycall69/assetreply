@@ -8,6 +8,7 @@
  * - 보는 기간이 곧 범위다 — 받은 점을 모두 보인다(`fitContent`). 처음 범위를 따로 두지 않는다
  *   (014 승인 2026-10-10 — 반복 2026-10-10b T111: 단위마다 처음 보이는 점 수(일 250·주 260·월 240·년 전체)를 대체)
  * - 커서 상자는 날짜·형식 입힌 값·📅 옮김·⏳ 끝나지 않은 구간·⏳ 잠정을 보인다
+ * - (014 승인 2026-10-10 — 반복 2026-10-10c T132) 그래프는 고른 기간(`range`)을 받는다 — 처음 보이는 범위다. 본문에 `windows`가 없으면 전부를 맞춘다
  */
 import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -63,14 +64,14 @@ describe("선", () => {
       { date: "2026-09-17", value: "3.000000" }, { date: "2026-09-18", value: "4.000000" },
       { date: "2026-09-21", value: "5.000000" },
     ];
-    render(<IndicatorChart series={seriesOf({ points, gaps: [{ from: "2026-09-16", to: "2026-09-16", reason: "missing" }] })} />);
+    render(<IndicatorChart series={seriesOf({ points, gaps: [{ from: "2026-09-16", to: "2026-09-16", reason: "missing" }] })} range="1y" />);
     const solid = chart.series.filter((s) => s.options.color === "#1f2937");
     expect(solid.map((s) => s.data.map((d) => d.time))).toEqual([
       ["2026-09-14", "2026-09-15"], ["2026-09-17", "2026-09-18", "2026-09-21"]]);
   });
 
   it("잠정 점은 연한 색 선에 있다", () => {
-    render(<IndicatorChart series={seriesOf()} />);
+    render(<IndicatorChart series={seriesOf()} range="1y" />);
     const light = chart.series.filter((s) => s.options.color === "#9ca3af");
     expect(light).toHaveLength(1);
     expect(light[0].data.map((d) => d.time)).toEqual(["2026-10-08", "2026-10-09"]);
@@ -82,7 +83,7 @@ describe("선", () => {
 describe("범위", () => {
   // 014 승인 2026-10-10 — 처음 범위(단위마다 마지막 n점) → 기간이 범위(늘 전체)
   it.each(["1m", "1y", "5y", "all"] as const)("%s는 받은 점 전부를 보인다", (range) => {
-    render(<IndicatorChart series={seriesOf({ range, points: daily(1000), sourcePointCount: 1000 })} />);
+    render(<IndicatorChart series={seriesOf({ range, points: daily(1000), sourcePointCount: 1000 })} range={range} />);
     expect(chart.range).toBeNull();
     expect(chart.fitted).toBe(1);
   });
@@ -95,7 +96,7 @@ describe("커서 상자", () => {
       { date: "2026-10-09", value: "7793.420000", ongoing: true, provisional: true },
     ];
     // 014 승인 2026-10-10 — `unit` 칸 삭제(보는 기간은 점을 묶지 않는다)
-    render(<IndicatorChart series={seriesOf({ points })} />);
+    render(<IndicatorChart series={seriesOf({ points })} range="1y" />);
     act(() => chart.crosshair?.({ time: "2026-09-30" }));
     const box = screen.getByTestId("indicator-tooltip");
     expect(box).toHaveTextContent("2026-09-30");
@@ -107,7 +108,7 @@ describe("커서 상자", () => {
   });
 
   it("범례", () => {
-    render(<IndicatorChart series={seriesOf()} />);
+    render(<IndicatorChart series={seriesOf()} range="1y" />);
     expect(screen.getByText(/─ 확정/)).toBeInTheDocument();
     expect(screen.getByText(/┄ 잠정/)).toBeInTheDocument();
   });

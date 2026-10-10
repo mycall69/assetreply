@@ -4,7 +4,8 @@
  * 이 파일 안에서 `lightweight-charts`를 모의한다.
  *
  * - 일봉 기간은 받은 점 전부를 그리고 처음 범위를 따로 두지 않는다(`fitContent`) — 기간 단추가 범위다
- * - 장중(일·주)은 점이 모두 잠정이라 연한 선 하나다. 시각은 초 단위 UTC 숫자다(라이브러리 그리기 전용)
+ * - 장중(일·주)은 점이 모두 잠정인 선 하나다. 시각은 초 단위 UTC 숫자다(라이브러리 그리기 전용)
+ *   (014 승인 2026-10-10 — 반복 2026-10-10c T132: 연한 점선 → 확정 선과 같은 진한 실선, 명확화 2026-10-10c. `range` 속성을 넘긴다)
  * - 장중 커서 상자는 그 시장의 현지 시각과 한국 시간·값·⏳ 잠정이다
  */
 import { act, render, screen } from "@testing-library/react";
@@ -53,7 +54,7 @@ describe("일봉 기간", () => {
     const points = Array.from({ length: 600 }, (_, i) => ({
       date: new Date(Date.UTC(2024, 0, 1 + i)).toISOString().slice(0, 10), value: "100.000000",
     }));
-    render(<IndicatorChart series={rangeSeriesOf({ range: "5y", points })} />);
+    render(<IndicatorChart series={rangeSeriesOf({ range: "5y", points })} range="5y" />);
     expect(chart.range).toBeNull();
     expect(chart.fitted).toBe(1);
     expect(chart.series.reduce((n, s) => n + s.data.length, 0)).toBe(600);
@@ -64,7 +65,7 @@ describe("한 화면", () => {
   it("기간의 일봉 전부가 한 화면에 들어간다 — 막대 간격 하한이 작다", () => {
     // T123 실측(2026-10-10) — 라이브러리의 막대 간격 하한(기본 0.5px)에 걸려 S&P "모두"(24,811점)가 2019년부터만 보였다
     // (10년도 잘렸다). 1,000px에 S&P 전부가 들어가려면 하한이 1,000 / 24,811 ≈ 0.04px 이하여야 한다
-    render(<IndicatorChart series={rangeSeriesOf({ range: "all" })} />);
+    render(<IndicatorChart series={rangeSeriesOf({ range: "all" })} range="all" />);
     const timeScale = chart.options[0].timeScale as { minBarSpacing?: number };
     expect(timeScale.minBarSpacing).toBeDefined();
     expect(timeScale.minBarSpacing as number).toBeLessThanOrEqual(1000 / 24811);
@@ -74,19 +75,21 @@ describe("한 화면", () => {
 describe("기간 전환", () => {
   it("다른 기간의 그래프로 바뀌면 옛 커서 상자를 남기지 않는다", () => {
     // T123 실측(2026-10-10) — 기간을 바꿔도 커서가 움직이지 않으면 상자가 옛 기간의 점(날짜·값)을 보였다
-    const { rerender } = render(<IndicatorChart series={rangeSeriesOf({ range: "1y" })} />);
+    const { rerender } = render(<IndicatorChart series={rangeSeriesOf({ range: "1y" })} range="1y" />);
     act(() => chart.crosshair?.({ time: "2026-10-07" }));
     expect(screen.getByTestId("indicator-tooltip")).toHaveTextContent("2026-10-07");
-    rerender(<IndicatorChart series={rangeSeriesOf({ range: "5y", points: [{ date: "2021-10-11", value: "4400.000000" }] })} />);
+    rerender(<IndicatorChart series={rangeSeriesOf({ range: "5y", points: [{ date: "2021-10-11", value: "4400.000000" }] })} range="5y" />);
     expect(screen.queryByTestId("indicator-tooltip")).toBeNull();
   });
 });
 
 describe("장중", () => {
-  it("점이 모두 잠정이라 연한 선 하나이고 시각은 초 단위 숫자다", () => {
-    render(<IndicatorChart series={intradayOf()} />);
+  it("점이 모두 잠정인 진한 실선 하나이고 시각은 초 단위 숫자다", () => {
+    render(<IndicatorChart series={intradayOf()} range="1d" />);
     expect(chart.series).toHaveLength(1);
-    expect(chart.series[0].options.lineStyle).toBe(2);
+    // 014 승인 2026-10-10 — 연한 점선(lineStyle 2) → 진한 실선
+    expect(chart.series[0].options.lineStyle ?? 0).toBe(0);
+    expect(chart.series[0].options.color).toBe("#1f2937");
     expect(chart.series[0].data.map((d) => d.time)).toEqual([
       Date.UTC(2026, 9, 9, 17, 30) / 1000,
       Date.UTC(2026, 9, 9, 17, 35) / 1000,
@@ -94,7 +97,7 @@ describe("장중", () => {
   });
 
   it("커서 상자는 현지·한국 시각과 값, 잠정이다", () => {
-    render(<IndicatorChart series={intradayOf()} />);
+    render(<IndicatorChart series={intradayOf()} range="1d" />);
     act(() => chart.crosshair?.({ time: Date.UTC(2026, 9, 9, 17, 35) / 1000 }));
     const box = screen.getByTestId("indicator-tooltip");
     expect(box).toHaveTextContent("10-09 13:35 (한국 02:35)");
@@ -104,7 +107,7 @@ describe("장중", () => {
 
   it("시간 축 눈금과 커서 시각은 그 시장의 현지 시각이다", () => {
     // T123 실측(2026-10-10) — 라이브러리 기본은 UTC라 항셍(홍콩 09:30~16:00) 장중 축이 "05:00"처럼 보였다
-    render(<IndicatorChart series={intradayOf()} />);
+    render(<IndicatorChart series={intradayOf()} range="1d" />);
     const at = Date.UTC(2026, 9, 9, 17, 30) / 1000; // 뉴욕 10-09 13:30
     const timeScale = chart.options[0].timeScale as { tickMarkFormatter?: (t: number, kind: number) => string };
     expect(timeScale.tickMarkFormatter?.(at, 3)).toBe("13:30"); // 3 = TickMarkType.Time
@@ -115,14 +118,14 @@ describe("장중", () => {
 
   it("실패면 까닭과 다시 시도다", () => {
     const onRetry = vi.fn();
-    render(<IndicatorChart series={intradayOf({ status: "failed", points: [], failure: { reason: "rate_limited", message: "x", retryAfterSeconds: null } })} onRetry={onRetry} />);
+    render(<IndicatorChart series={intradayOf({ status: "failed", points: [], failure: { reason: "rate_limited", message: "x", retryAfterSeconds: null } })} range="1d" onRetry={onRetry} />);
     expect(screen.getByText(/장중 시세를 받지 못했습니다 — 출처 응답 제한/)).toBeInTheDocument();
     act(() => screen.getByRole("button", { name: "다시 시도" }).click());
     expect(onRetry).toHaveBeenCalledTimes(1);
   });
 
   it("환율 장중은 시장 환율임을 밝힌다", () => {
-    render(<IndicatorChart series={intradayOf({ notes: ["market_fx"] })} />);
+    render(<IndicatorChart series={intradayOf({ notes: ["market_fx"] })} range="1d" />);
     expect(screen.getByText("시장 환율 — 고시 이력과 다른 계열")).toBeInTheDocument();
   });
 });

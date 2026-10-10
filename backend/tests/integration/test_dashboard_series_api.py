@@ -163,9 +163,11 @@ async def test_완성되면_기간의_일봉과_잠정_꼬리(client: AsyncClien
             and point["provisional"] is True
         )
         assert not any("ongoing" in p or "shifted" in p for p in body["points"])
-    one_year = sum(1 for d in DAYS if d >= D(2025, 10, 9)) + 1
+    # 014 승인 2026-10-10(반복 2026-10-10c T132) — 1년도 일봉 전부를 싣는다(1년은 처음 보이는
+    # 범위 — `windows`)
     body = (await client.get("/api/dashboard/indicators/sp500/series")).json()
-    assert body["range"] == "1y" and body["sourcePointCount"] == one_year
+    assert body["range"] == "1y" and body["sourcePointCount"] == len(DAYS) + 1
+    assert body["windows"]["1y"] == "2025-10-09"
     body = (await client.get("/api/dashboard/indicators/sp500/series?range=all")).json()
     assert body["history"]["source"] == "yahoo"
     assert body["history"]["firstDate"] == DAYS[0].isoformat()

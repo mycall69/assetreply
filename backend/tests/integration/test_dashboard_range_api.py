@@ -18,6 +18,7 @@ from httpx2 import ASGITransport, AsyncClient
 from src.api.main import create_app
 from src.api.routes import dashboard_series
 from src.api.services import indicator_intraday, market_quotes
+from src.db.models import FxCoverage, FxRate
 from src.db.session import get_session
 from src.repository import market_daily
 from src.simulation.indicator_range import range_start
@@ -111,13 +112,15 @@ async def seed(factory, days=DAYS) -> None:  # type: ignore[no-untyped-def]
 
 
 async def test_1년은_그_기간의_일봉_전부다(client: AsyncClient, session_factory) -> None:  # type: ignore[no-untyped-def]
+    # 014 승인 2026-10-10(반복 2026-10-10c T132) — 1년은 처음 보이는 범위다. 점은 저장된
+    # 일봉 전부이고 1년의 시작일은 `windows["1y"]`다(왼쪽으로 끌면 첫 날까지)
     await seed(session_factory)
     body = (await client.get("/api/dashboard/indicators/sp500/series?range=1y")).json()
     assert body["range"] == "1y" and "unit" not in body
     start = range_start(D(2026, 10, 9), "1y")
-    stored = [d for d in DAYS if start is not None and d >= start]
+    assert start is not None and body["windows"]["1y"] == start.isoformat()
     dates = [p["date"] for p in body["points"]]
-    assert dates == [d.isoformat() for d in stored] + ["2026-10-09"]  # 오늘 잠정 꼬리
+    assert dates == [d.isoformat() for d in DAYS] + ["2026-10-09"]  # 오늘 잠정 꼬리
     assert all("shifted" not in p and "ongoing" not in p for p in body["points"])
 
 
@@ -130,9 +133,11 @@ async def test_모두는_저장된_일봉_전부다(client: AsyncClient, session
 
 async def test_5년은_5년_전부터다(client: AsyncClient, session_factory) -> None:  # type: ignore[no-untyped-def]
     await seed(session_factory)
+    # 014 승인 2026-10-10(반복 2026-10-10c T132) — 5년 앞이 첫 점이 아니라 처음 보이는
+    # 범위의 시작일이다
     body = (await client.get("/api/dashboard/indicators/sp500/series?range=5y")).json()
-    assert body["points"][0]["date"] >= "2021-10-09"
-    assert body["points"][0]["date"] < "2021-10-14"
+    assert body["windows"]["5y"] == "2021-10-09"
+    assert body["points"][0]["date"] == DAYS[0].isoformat()
 
 
 async def test_틀리거나_없거나_옛_unit이면_1년이다(client: AsyncClient, session_factory) -> None:  # type: ignore[no-untyped-def]
@@ -165,6 +170,8 @@ async def test_기간만_읽어도_결측_판정은_모두와_같다(client: Asy
     # T124 — 일봉 기간은 그 기간 앞의 마지막 날부터만 읽는다(약 2만 5천 점을 모두 읽지 않는다).
     # 같은 시장의 다른 지표로 가린 결측과 기간 시작을 가로지르는 긴 빈 구간이 "모두"에서 잘라 낸
     # 것과 같아야 한다
+    # 014 승인 2026-10-10(반복 2026-10-10c T132) — 일봉 기간이 다시 일봉 전부를 싣는다(처음 보이는
+    # 범위만 다르다). 결측 판정이 "모두"와 같다는 성질은 그대로 — 점·결측이 "모두"와 통째로 같다
     start = range_start(D(2026, 10, 9), "1y")
     assert start is not None
     sibling_only = next(d for d in DAYS if d > start + dt.timedelta(days=40))
@@ -178,8 +185,63 @@ async def test_기간만_읽어도_결측_판정은_모두와_같다(client: Asy
         await s.commit()
     one = (await client.get("/api/dashboard/indicators/sp500/series?range=1y")).json()
     every = (await client.get("/api/dashboard/indicators/sp500/series?range=all")).json()
-    clipped = [(g["to"], g["reason"]) for g in every["gaps"] if g["to"] >= start.isoformat()]
-    assert [(g["to"], g["reason"]) for g in one["gaps"]] == clipped
+    assert one["gaps"] == every["gaps"]
     assert any(g["from"] <= sibling_only.isoformat() <= g["to"] for g in one["gaps"])
     assert any(g["from"] <= long_gap[-1].isoformat() <= g["to"] for g in one["gaps"])
-    assert one["points"] == [p for p in every["points"] if p["date"] >= start.isoformat()]
+    assert one["points"] == every["points"]
+
+
+# 반복 2026-10-10c(T129) — 기간은 처음 보이는 범위다(spec FR-011, contracts A2). 일봉 기간은
+# 저장된 일봉 전부를 싣고 `windows`(기간 → 시작일)로 처음 범위를 준다 — 왼쪽으로 끌면 첫 날까지,
+# 월~모두 전환은 다시 받지 않는다
+DAILY_RANGES = ("1m", "1y", "5y", "10y", "20y", "all")
+
+
+def windows_of(today: dt.date) -> dict[str, str | None]:
+    out: dict[str, str | None] = {}
+    for key in DAILY_RANGES:
+        start = range_start(today, key)  # type: ignore[arg-type]
+        out[key] = None if start is None else start.isoformat()
+    return out
+
+
+async def test_일봉_기간은_일봉_전부와_기간마다_시작일이다(
+    client: AsyncClient, session_factory
+) -> None:  # type: ignore[no-untyped-def]
+    await seed(session_factory)
+    every = (await client.get("/api/dashboard/indicators/sp500/series?range=all")).json()
+    for key in ("1m", "1y", "5y"):
+        body = (await client.get(f"/api/dashboard/indicators/sp500/series?range={key}")).json()
+        assert body["range"] == key
+        assert body["points"] == every["points"]
+        assert body["points"][0]["date"] == DAYS[0].isoformat()
+        assert body["windows"] == windows_of(D(2026, 10, 9))
+    assert every["sourcePointCount"] == len(DAYS) + 1
+    assert every["windows"]["all"] is None
+
+
+async def test_환율도_고시_이력_전부와_기간마다_시작일이다(
+    client: AsyncClient, session_factory
+) -> None:  # type: ignore[no-untyped-def]
+    days = weekdays(D(2019, 1, 2), D(2026, 10, 8))
+    async with session_factory() as s:
+        for i, d in enumerate(days):
+            s.add(
+                FxRate(
+                    currency_code="USD",
+                    quote_date=d,
+                    base_rate=Decimal("1100") + i,
+                    quote_unit=1,
+                    source="ecos",
+                    is_provisional=False,
+                )
+            )
+        s.add(FxCoverage(currency_code="USD", covered_from=days[0], covered_through=D(2026, 10, 9)))
+        await s.commit()
+    body = (await client.get("/api/dashboard/indicators/usd/series?range=1y")).json()
+    assert body["range"] == "1y"
+    assert body["points"][0]["date"] == days[0].isoformat()
+    assert len(body["points"]) == len(days)
+    assert body["history"]["firstDate"] == days[0].isoformat()
+    # 환율의 오늘은 한국 날짜다(외환 고시)
+    assert body["windows"] == windows_of(D(2026, 10, 9))

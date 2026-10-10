@@ -114,3 +114,38 @@ async def test_환율은_시장_환율임을_밝힌다() -> None:
     clock, source = Clock(), Source()
     body = await service(source, clock).body(get("usd"), "5d")  # type: ignore[arg-type]
     assert "market_fx" in body["notes"]  # type: ignore[operator]
+
+
+class TwoDays(Source):
+    """뉴욕 10-08·10-09 두 세션의 점."""
+
+    async def fetch_intraday(self, indicator_id: str, range_key: str) -> IntradayFetch:
+        self.calls.append((indicator_id, range_key))
+        first = dt.datetime(2026, 10, 8, 13, 30, tzinfo=dt.UTC)
+        second = dt.datetime(2026, 10, 9, 13, 30, tzinfo=dt.UTC)
+        points = [
+            (first, Decimal("7700.000000")),
+            (first + dt.timedelta(hours=6, minutes=30), Decimal("7710.000000")),
+            (second, Decimal("7790.000000")),
+            (second + dt.timedelta(hours=6, minutes=30), Decimal("7801.000000")),
+        ]
+        return IntradayFetch(points, 200)
+
+
+async def test_처음_보이는_범위는_일이_마지막_세션_주가_최근_5세션이다() -> None:
+    # 반복 2026-10-10c(T129) — 받은 점 전부를 싣고 `window`로 처음 범위를 준다(왼쪽으로 끌면
+    # 앞 세션)
+    clock, source = Clock(), TwoDays()
+    intraday = service(source, clock)
+    day = await intraday.body(get("sp500"), "1d")  # type: ignore[arg-type]
+    assert len(day["points"]) == 4  # type: ignore[arg-type]
+    assert day["window"] == {"from": "2026-10-09T13:30:00Z", "to": "2026-10-09T20:00:00Z"}
+    week = await intraday.body(get("sp500"), "5d")  # type: ignore[arg-type]
+    assert week["window"] == {"from": "2026-10-08T13:30:00Z", "to": "2026-10-09T20:00:00Z"}
+
+
+async def test_실패면_window가_없다() -> None:
+    clock, source = Clock(), Source()
+    source.fail = StockSourceRateLimited("한도")
+    body = await service(source, clock).body(get("sp500"), "1d")  # type: ignore[arg-type]
+    assert body["window"] is None

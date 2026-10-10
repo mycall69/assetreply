@@ -97,14 +97,16 @@ describe("받기", () => {
 });
 
 describe("기간", () => {
-  it("기간을 바꾸면 주소 콜백을 부르고 다시 받는다", async () => {
+  it("기간을 바꾸면 주소 콜백을 부르고 다시 받는다(장중)", async () => {
+    // 014 승인 2026-10-10(반복 2026-10-10c T132) — 월~모두 사이는 같은 본문이라 다시 받지 않는다(아래 "처음 보이는 범위").
+    // 다시 받는 것은 장중 ↔ 일봉이다 — "모두" → "주"(장중)로 바꿨다
     const get = vi.spyOn(apiClient, "get").mockResolvedValue(seriesOf());
     await useIndicatorSeriesStore.getState().open("sp500", "1y");
     const replaceUrl = vi.fn();
-    await useIndicatorSeriesStore.getState().setRange("all", replaceUrl);
-    expect(replaceUrl).toHaveBeenCalledWith("all");
-    expect(useIndicatorSeriesStore.getState().range).toBe("all");
-    expect(get).toHaveBeenLastCalledWith("/api/dashboard/indicators/sp500/series?range=all");
+    await useIndicatorSeriesStore.getState().setRange("5d", replaceUrl);
+    expect(replaceUrl).toHaveBeenCalledWith("5d");
+    expect(useIndicatorSeriesStore.getState().range).toBe("5d");
+    expect(get).toHaveBeenLastCalledWith("/api/dashboard/indicators/sp500/series?range=5d");
   });
 
   it("늦게 온 옛 기간 응답은 버린다", async () => {
@@ -116,6 +118,40 @@ describe("기간", () => {
     releaseOld(seriesOf({ range: "1y" }));
     await first;
     expect(useIndicatorSeriesStore.getState().series?.range).toBe("5y");
+  });
+});
+
+describe("처음 보이는 범위(반복 2026-10-10c T130)", () => {
+  it("월~모두 사이 전환은 다시 받지 않고 기간·주소만 바꾼다", async () => {
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue(seriesOf());
+    await useIndicatorSeriesStore.getState().open("sp500", "1y");
+    const replaceUrl = vi.fn();
+    for (const range of ["5y", "all", "1m"] as const) {
+      await useIndicatorSeriesStore.getState().setRange(range, replaceUrl);
+    }
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(replaceUrl.mock.calls).toEqual([["5y"], ["all"], ["1m"]]);
+    expect(useIndicatorSeriesStore.getState().range).toBe("1m");
+    expect(useIndicatorSeriesStore.getState().status).toBe("ready");
+  });
+
+  it("장중 ↔ 일봉은 받는다", async () => {
+    const intraday: IndicatorIntradayResponse = {
+      indicator: seriesOf().indicator, range: "1d", intraday: true, status: "ok", fetchedAt: "2026-10-09T14:00:00Z",
+      points: [], notes: [], failure: null, window: null,
+    };
+    const get = vi.spyOn(apiClient, "get").mockImplementation(async (path: string) =>
+      path.includes("range=1d") || path.includes("range=5d") ? intraday : seriesOf());
+    await useIndicatorSeriesStore.getState().open("sp500", "1y");
+    await useIndicatorSeriesStore.getState().setRange("1d", vi.fn());
+    await useIndicatorSeriesStore.getState().setRange("5d", vi.fn());
+    await useIndicatorSeriesStore.getState().setRange("1y", vi.fn());
+    expect(get.mock.calls.map(([path]) => path)).toEqual([
+      "/api/dashboard/indicators/sp500/series?range=1y",
+      "/api/dashboard/indicators/sp500/series?range=1d",
+      "/api/dashboard/indicators/sp500/series?range=5d",
+      "/api/dashboard/indicators/sp500/series?range=1y",
+    ]);
   });
 });
 

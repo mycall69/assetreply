@@ -66,7 +66,9 @@ async def test_일은_5분_질의다() -> None:
     session = Session("intraday_GSPC_1d_5m.json")
     async with client(session) as yahoo:
         fetched = await yahoo.fetch_intraday("sp500", "1d")
-    assert session.requests[0] == ("/v8/finance/chart/^GSPC", {"range": "1d", "interval": "5m"})
+    # 014 승인 2026-10-10(반복 2026-10-10c T132) — 일은 최근 5세션을 받는다(`range=1d` → `5d`).
+    # 본문 해석은 같다
+    assert session.requests[0] == ("/v8/finance/chart/^GSPC", {"range": "5d", "interval": "5m"})
     assert len(fetched.points) == 79
     assert fetched.points[0] == (
         dt.datetime(2026, 10, 9, 13, 30, tzinfo=dt.UTC),
@@ -81,7 +83,8 @@ async def test_주는_30분_질의다() -> None:
     session = Session("intraday_GSPC_5d_30m.json")
     async with client(session) as yahoo:
         fetched = await yahoo.fetch_intraday("sp500", "5d")
-    assert session.requests[0][1] == {"range": "5d", "interval": "30m"}
+    # 014 승인 2026-10-10(반복 2026-10-10c T132) — 주는 최근 1개월을 받는다(`range=5d` → `1mo`)
+    assert session.requests[0][1] == {"range": "1mo", "interval": "30m"}
     assert len(fetched.points) == 66
     assert fetched.points[0][0] == dt.datetime(2026, 10, 5, 13, 30, tzinfo=dt.UTC)
 
@@ -109,3 +112,40 @@ async def test_429는_요청_제한이다() -> None:
     async with client(session) as yahoo:
         with pytest.raises(StockSourceRateLimited):
             await yahoo.fetch_intraday("sp500", "1d")
+
+
+# 반복 2026-10-10c(T129) — 왼쪽으로 끌면 앞 구간이 보이도록 받는 범위를 넓힌다(spec FR-028).
+# 실측 본문(T128)
+
+
+async def test_일은_최근_5세션_5분을_받는다() -> None:
+    session = Session("intraday_GSPC_5d_5m.json")
+    async with client(session) as yahoo:
+        fetched = await yahoo.fetch_intraday("sp500", "1d")
+    assert session.requests[0] == ("/v8/finance/chart/^GSPC", {"range": "5d", "interval": "5m"})
+    assert len(fetched.points) == 391
+    assert fetched.points[0] == (
+        dt.datetime(2026, 10, 5, 13, 30, tzinfo=dt.UTC),
+        Decimal("7738.31005859375").quantize(SIX),
+    )
+    assert fetched.points[-1][0] == dt.datetime(2026, 10, 9, 20, 0, tzinfo=dt.UTC)
+
+
+async def test_주는_최근_1개월_30분을_받는다() -> None:
+    session = Session("intraday_GSPC_1mo_30m.json")
+    async with client(session) as yahoo:
+        fetched = await yahoo.fetch_intraday("sp500", "5d")
+    assert session.requests[0][1] == {"range": "1mo", "interval": "30m"}
+    assert len(fetched.points) == 287
+    assert fetched.points[0][0] == dt.datetime(2026, 9, 10, 13, 30, tzinfo=dt.UTC)
+
+
+async def test_환율_1개월은_빈_종가를_건너뛴다() -> None:
+    session = Session("intraday_KRW_X_1mo_30m.json")
+    async with client(session) as yahoo:
+        fetched = await yahoo.fetch_intraday("usd", "5d")
+    assert len(fetched.points) == 1056 - 38
+    assert fetched.points[0] == (
+        dt.datetime(2026, 9, 9, 23, 0, tzinfo=dt.UTC),  # 런던 09-10 0시(서머타임)
+        Decimal("1339.5").quantize(SIX),
+    )
