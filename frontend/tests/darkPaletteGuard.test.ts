@@ -50,3 +50,39 @@ describe("블랙 팔레트", () => {
     expect(block).toContain("color-scheme: dark");
   });
 });
+
+/** `.dark` 블록의 `--color-…: #rrggbb` 값. */
+function darkValues(): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const m of darkBlock().matchAll(/--color-([a-z]+(?:-\d{2,3})?):\s*(#[0-9a-fA-F]{6})/g)) out[m[1]] = m[2];
+  return out;
+}
+
+function luminance(hex: string): number {
+  const channel = (i: number) => {
+    const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+}
+
+function contrast(a: string, b: string): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+describe("블랙 팔레트 대비(SC-015)", () => {
+  // T137 실측(2026-10-10) — 외환 통화 탭(`bg-gray-100`) 안의 `text-gray-400` 보조 글자가 4.27:1이었다
+  const values = darkValues();
+  const surfaces = ["white", "gray-50", "gray-100"];
+  const texts = ["gray-400", "gray-500", "gray-600", "gray-700", "gray-800", "gray-900", "red-700", "blue-700", "emerald-700"];
+
+  it.each(texts.flatMap((t) => surfaces.map((s) => [t, s] as const)))("%s 글자는 %s 바탕에서 4.5:1 이상이다", (text, surface) => {
+    expect(contrast(values[text], values[surface])).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it.each([["amber-800", "amber-50"], ["amber-900", "amber-50"], ["red-700", "red-50"], ["sky-800", "sky-50"], ["green-800", "green-100"]] as const)(
+    "%s 글자는 %s 경고·알림 바탕에서 4.5:1 이상이다", (text, surface) => {
+      expect(contrast(values[text], values[surface])).toBeGreaterThanOrEqual(4.5);
+    });
+});
