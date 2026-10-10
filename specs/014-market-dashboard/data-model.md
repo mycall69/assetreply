@@ -291,3 +291,18 @@ R14-7 표가 상수다. 함수는 둘이다:
 - **화면**: `PeriodRow.change?: DailyChange | null`(선택 칸 — 014 전 테스트의 행 픽스처에 없어도 된다). `DailyChange`는 `LatestChange`와 같은 꼴이고 `percent`만 `null`일
   수 있다(요약 칸의 `LatestChange`는 그대로). `change`가 없거나 `null`이면 두 칸 모두 "—", `percent`만 `null`이면 등락율만 "—"
 - **CSV**: `…,확정 여부,원래 기준일,진행 중,등락폭,등락율`(맨 끝 — 004가 더한 두 열 뒤) — `absolute`·`percent` 글자 그대로, 없으면 빈 칸
+
+## 11. 비교 대상의 표시 이름 (반복 2026-10-10e — FR-032, 화면 파생 값 — 저장하지 않음)
+
+`lib/compareCondition.targetName(target)` 하나가 투자 비교 화면의 모든 이름 자리(칩·표·막힘 안내·범례·커서 상자·막대·모달 머리·저장한 비교 목록·화면 읽기 이름)에 이름을 준다.
+
+| 대상 | 이름 | 예 |
+|------|------|-----|
+| 주식 | `nameWithCode({market, symbol, name})` — `lib/displayCode`(006 FR-025, 시세 식별자에서 표시 코드로 되돌림) | `삼성전자(005930)`·`S&P 500 뱅가드 ETF(VOO)`·`…(BRK-B)`·`도요타자동차(7203)` |
+| 가상자산 | `coinNameWithSymbol({name, nameKo, symbol})` — `lib/displayCode`의 새 함수: `${nameKo ?? name}(${symbol})` | `비트코인(BTC)`·`BitShares(BTS)` |
+| 예금 | 투자처 이름(그대로) | `새마을금고` |
+| 부동산 | `단지 평형`(그대로) | `헬리오시티아파트 30평대(국평)` |
+
+- 대상이 이미 가진 칸(주식 `market`·`symbol`, 코인 `symbol`)으로 만든다 — 저장한 비교의 조건(`saved_comparison.condition`)·비교 경로 응답은 바뀌지 않는다. 이 반복 전에 저장한 비교도 불러오면 티커가 붙는다
+- 코인 검색 결과 줄(`components/crypto/CoinSearch`)의 맨 앞 이름도 `coinNameWithSymbol`이다 — 비교 화면과 가상자산 메뉴가 같은 부품이다. 줄 오른쪽 `심볼 · 통화 #순위`는 그대로
+- 최종 지표 막대(`CompareMetricBars`)의 이름 칸은 줄임(…)이 그대로이고 `title`에 전체 이름을 단다

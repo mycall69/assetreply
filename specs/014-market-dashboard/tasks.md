@@ -24,7 +24,7 @@ description: "Task list for 014-market-dashboard"
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: 병렬 실행 가능 (서로 다른 파일, 미완료 태스크에 의존하지 않음)
-- **[Story]**: 소속 사용자 스토리 (US1~US5 — US4·US5는 반복 2026-10-10c·10d)
+- **[Story]**: 소속 사용자 스토리 (US1~US6 — US4·US5·US6은 반복 2026-10-10c·10d·10e)
 - 모든 태스크는 파일 경로와 **검증하는 FR·SC**를 적는다. 참조하는 태스크가 없는 인수 기준은 헌법 위반이다
 - **ID는 안정적 참조다.** 반복으로 추가된 태스크는 번호를 이어 붙이고, 삭제된 태스크는 번호를 재사용하지 않고 취소선으로 남긴다
 
@@ -754,6 +754,49 @@ description: "Task list for 014-market-dashboard"
 
 ---
 
+## Phase 11: 반복 2026-10-10e — 투자 비교의 티커 표시 (spec Iterations)
+
+**Goal**:
+- 투자 비교 화면(013)의 주식·가상자산 대상 이름을 **"이름(티커)"**로 — 칩·표·막힘 안내·범례·커서 상자·막대·모달 머리·저장한 비교 목록·화면 읽기 이름(US6 — FR-032)
+- 코인 검색 결과 줄의 맨 앞 이름도 같은 꼴(가상자산 메뉴와 같은 부품). 주식 검색 결과는 이미 `이름(코드)`다
+- 화면만이다 — 서버·계산·저장한 비교의 조건은 그대로다
+
+**Independent Test**(spec US6 Independent Test):
+- 비교 화면에 VOO·SPY·QQQ·삼성전자(주식), 비트코인·이더리움(가상자산)을 더해 칩·표·범례·막대·모달·저장 목록이 모두 "이름(티커)"다. 저장했다 불러와도 같다
+- 코인 검색 결과의 맨 앞이 `비트코인(BTC)`다(비교 화면·가상자산 메뉴). 예금·부동산 이름은 그대로, 메뉴·비교 응답은 이 반복 전과 같다
+
+**완료 작업 영향**: 없음 — 014의 화면·경로는 그대로다. 014 전 013 테스트가 바뀔 것으로 본다(`compareCondition.test.ts`의 `targetName`, 이름으로 단추·글자를 찾는 비교 화면 테스트) —
+실제 실패 목록은 T152
+
+### Tests for 반복 2026-10-10e ⚠️
+
+- [ ] T151 [P] [US6] 화면 테스트 — 최초 실패 확인 (FR-032, SC-017)
+  - 새 `frontend/tests/compareTargetTicker.test.ts` — `targetName`: KRX `삼성전자(005930)`(`.KS` 뗌)·코스닥 `.KQ`·미국 `S&P 500 뱅가드 ETF(VOO)`·`BRK-B` 그대로·일본 `.T` 뗌, 코인 한글 이름 `비트코인(BTC)`·
+    한글 이름 없음 `BitShares(BTS)`, 예금·부동산 그대로. `coinNameWithSymbol`
+  - 새 `frontend/tests/ComparePageTicker.test.tsx` — 비교 화면의 칩·표·범례·막대(`title` 전체 이름)·막힘 안내·모달 머리·저장 목록이 같은 "이름(티커)", 화면 읽기 이름(`… 빼기`·`… 투자 시뮬레이션`),
+    이 반복 전 꼴로 저장한 조건을 불러와도 티커 — 이 파일 안에서 `lightweight-charts`를 모의한다
+  - 새 `frontend/tests/CoinSearchTicker.test.tsx` — 검색 결과 줄 맨 앞 `비트코인(BTC)` 뒤 `Bitcoin`, 한글 이름 없으면 `BitShares(BTS)`, 오른쪽 `BTC · USD` 그대로, 주식 검색 결과는 이미
+    `이름(코드)`(회귀 확인)
+
+### Implementation for 반복 2026-10-10e
+
+- [ ] T152 [US6] 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록. 예상: `frontend/tests/compareCondition.test.ts`(`targetName`), 이름으로 단추·글자를 찾는 013
+  화면 테스트(`ComparePage*.test.tsx`·`SimulationModal.test.tsx`·`SavedComparisons.test.tsx` 등). T111과 같은 절차로 승인받고(`014 승인 2026-10-10`) 구현을 치워 실패를 확인한 뒤
+  `test(014)`. 목록 밖의 실패는 결함으로 보고 멈춘다 (FR-026)
+- [ ] T153 [US6] 화면 — `frontend/src/lib/displayCode.ts`(`coinNameWithSymbol`), `frontend/src/lib/compareCondition.ts`(`targetName` — 주식 `nameWithCode`, 코인 `coinNameWithSymbol`),
+  `frontend/src/components/crypto/CoinSearch.tsx`(검색 결과 줄의 맨 앞 이름), `frontend/src/components/compare/CompareMetricBars.tsx`(이름 칸 `title`) — contracts D11 (FR-032)
+
+### Polish (반복 2026-10-10e)
+
+- [ ] T154 [US6] 실측 — quickstart 5-21(비교 화면 주식 — 화면 그림의 ETF 여섯 + 삼성전자, 가상자산 — 비트코인·이더리움, 칩·표·범례·막대·모달·저장 후 불러오기, 코인 검색 결과, 가상자산 메뉴
+  검색 결과, 블랙 배경, 1024px 칩 줄바꿈)을 확인하고 `quickstart.md` 8에 기록한다(헤드리스 Chrome) (FR-032, SC-017)
+- [ ] T155 불변 대조 — `014-baseline/fetch.py`(메뉴·비교 응답 차이 0 — 서버를 고치지 않았다)와 가상자산 메뉴 화면이 검색 결과 줄 말고 같은지 (FR-026, SC-010, SC-017)
+- [ ] T156 문서 — `CLAUDE.md`(현재 상태 014 줄·013 비교 화면 이름 주의), `README.md`(투자 비교 설명), `spec.md` Status (FR-032)
+- [ ] T157 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152)뿐인지
+  `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -774,6 +817,9 @@ description: "Task list for 014-market-dashboard"
 - **반복 2026-10-10d (Phase 10)**: Phase 9 뒤
   1. 테스트 T142·T143(함께 — 최초 실패 확인) → 구현 T145·T146 → T144(실제 실패 목록 — 있으면 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
   2. T147~T150
+- **반복 2026-10-10e (Phase 11)**: Phase 10 뒤
+  1. 테스트 T151(최초 실패 확인) → 구현 T153 → T152(실제 실패 목록 — 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
+  2. T154~T157
 - **Foundational (Phase 2)**: T002·T004 뒤. US1·US2를 막는다. US3는 T011(설정) 뒤면 시작할 수 있다.
 - **US1 (Phase 3)**: Foundational 뒤. **T018(승인)이 이 페이즈의 테스트 커밋을 막는다** — T031~T040 구현을 작업 트리에 둔 뒤 목록을 만든다. 백엔드(T019~T023·T031~T035)와 화면(T024~T030·T036~T040)은 나란히 할 수 있다. MVP다.
 - **US2 (Phase 4)**: US1 뒤(시세 서비스의 캐시가 잠정 꼬리·머리 값을 준다. `main.py`·`types.ts`·`dashboardApi.ts`가 겹친다). 승인 목록이 없을 것으로 본다 — 구현 뒤 목록 밖의 실패는 결함으로 보고 멈춘다.
@@ -802,12 +848,14 @@ description: "Task list for 014-market-dashboard"
 | `frontend/src/app/dashboard/page.tsx` | T040(US1), T079(US3) |
 | `frontend/src/components/shell/Sidebar.tsx`·`TopBar.tsx`·`app/page.tsx` | T040 |
 | `frontend/tests/Sidebar.test.tsx`·`noUnbuiltAssetRoutes.test.ts`·(`TopBarTitle.test.ts`) | T018(승인 뒤에만) |
-| `specs/014-…/quickstart.md`(실행 기록) | T041, T062, T081, T082, T083, T084, T123~T127, T137~T141, T147·T148 |
+| `specs/014-…/quickstart.md`(실행 기록) | T041, T062, T081, T082, T083, T084, T123~T127, T137~T141, T147·T148, T154·T155 |
 | `frontend/src/components/dashboard/IndicatorChart.tsx` | T060·T121(이전), T134·T136(반복 2026-10-10c — 차례로) |
 | `frontend/src/components/shell/TopBar.tsx`·`app/layout.tsx`·`app/globals.css` | T040(이전), T135 |
 | `backend/src/api/routes/latest.py`·`api/services/daily_query.py`·`api/routes/daily.py` | T145(반복 2026-10-10d — 001·004 파일) |
 | `frontend/src/components/fx/DailyTable.tsx`·`lib/csv.ts` | T146(반복 2026-10-10d — 001·004 파일) |
 | `frontend/src/lib/types.ts` | T036·T058·T078·T134(이전), T146 |
+| `frontend/src/lib/compareCondition.ts`·`lib/displayCode.ts`·`components/compare/CompareMetricBars.tsx` | T153(반복 2026-10-10e — 013·006 파일) |
+| `frontend/src/components/crypto/CoinSearch.tsx` | T153(반복 2026-10-10e — 007 파일, 가상자산 메뉴와 함께 씀) |
 
 ### Parallel Opportunities
 
@@ -849,6 +897,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 6. 반복 2026-10-10b — 지표 모달·기간 8개·변화 까닭·일자별 표(Phase 8). 원칙 II 재승인(T095)이 안 되면 까닭·장중을 빼고 모달·일봉 기간 6개·표만 낸다
 7. 반복 2026-10-10c — 차트 앞 구간 스크롤·장중 실선(US2)과 블랙 배경(US4)(Phase 9). 둘은 따로 낼 수 있다 — 블랙 배경(T131·T135·T136)이 막히면(T128(c)) 차트 쪽만 낸다
 8. 반복 2026-10-10d — 외환 일자별 표의 등락폭·등락율(US5)(Phase 10). 014의 다른 화면과 독립이다
+9. 반복 2026-10-10e — 투자 비교의 티커 표시(US6)(Phase 11). 화면만이고 014의 다른 화면과 독립이다
 
 ---
 
@@ -916,12 +965,13 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-023 | T007, T011, T067, T068, T076, T087, T089, T092 |
 | FR-024 | T064, T065, T066, T067, T068, T069, T070, T071, T072, T076, T077, T078, T079, T081, T087 |
 | FR-025 | T070, T079, T085, T121, T126, T140 |
-| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148 |
+| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148, T152, T155 |
 | FR-027 | T095, T103, T104, T105, T109, T113, T118, T119, T120, T121, T123 |
 | FR-028 | T095, T102, T104, T105, T107, T112, T116, T121, T123, T128, T129, T132, T133, T137 |
 | FR-029 | T104, T105, T108, T114, T117, T119, T120, T121, T123, T124 |
 | FR-030 | T128, T131, T135, T136, T137, T140 |
 | FR-031 | T142, T143, T145, T146, T147, T149 |
+| FR-032 | T151, T153, T154, T156 |
 | SC-001 | T071, T082, T087 |
 | SC-002 | T047, T056, T082, T107, T124, T130, T138 |
 | SC-003 | T010, T020, T023, T032, T041 |
@@ -931,10 +981,11 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-007 | T022, T034, T064, T065, T066, T068, T071, T081, T087, T094 |
 | SC-008 | T064, T065, T066, T068, T070, T081, T089, T092 |
 | SC-009 | T019, T026, T031 |
-| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141, T148, T150 |
+| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141, T148, T150, T155, T157 |
 | SC-011 | T062, T087 |
 | SC-012 | T104, T108, T124 |
 | SC-013 | T103, T109, T123 |
 | SC-014 | T097, T098, T101, T123 |
 | SC-015 | T128, T131, T136, T137, T139 |
 | SC-016 | T142, T147, T148 |
+| SC-017 | T151, T154, T155 |
