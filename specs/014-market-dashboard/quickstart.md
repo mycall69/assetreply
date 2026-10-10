@@ -441,3 +441,9 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
   `oldestReturned` 같음). 이웃 행 대비 검사 531행 불일치 **0**, 쪽 경계 행 `null` **0**(SC-016)
 - **응답**: T001 입력으로 다시 받은 29파일(`014-baseline/after_iterd/`) — 차이는 T084·T125·T139와 같다(부동산 헬리오시티 기준일 날짜·`meta.json` 받은 시각). 외환 `/latest` 셋·`/series`,
   주식 셋·가상자산 둘·예금 둘 **차이 0**
+
+### T150 — 게이트(2026-10-10 14:15~14:27 KST, 서버를 내린 채)
+
+- 백엔드: `pytest --cov=src` **3,385 통과**·커버리지 **96.47%**, `mypy src`(strict) 문제 없음(276파일), `ruff check --no-cache src tests` 통과
+- 프론트엔드: `npm test` **220파일·1,984 통과**(종료 코드 0), `tsc --noEmit`·`eslint .` 통과
+- `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests`: 바뀐 기존 테스트 일곱 — T018·US2 승인분 여섯 + T144 승인분 `frontend/tests/csv.test.ts` 하나뿐이다

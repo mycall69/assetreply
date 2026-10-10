@@ -749,7 +749,7 @@ description: "Task list for 014-market-dashboard"
   (FR-031, SC-016)
 - [X] T148 불변 대조 — `014-baseline/fetch.py`(외환 `/latest`·`/series` 차이 0, 메뉴·비교 차이 0)와 `/api/fx/daily` 행이 `change`만 더해졌는지 (FR-026, SC-010, SC-016)
 - [X] T149 문서 — `CLAUDE.md`(현재 상태 014 줄·외환 표 주의), `README.md`(외환 표 설명), `spec.md` Status (FR-031)
-- [ ] T150 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144)뿐인지
+- [X] T150 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144)뿐인지
   `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
 
 ---
