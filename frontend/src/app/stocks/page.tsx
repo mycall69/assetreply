@@ -78,9 +78,11 @@ export default function StocksPage() {
 
       <section className="space-y-3 rounded-lg border border-gray-200 p-4">
         {/* 006 FR-030b — 고르는 순간 등록한다. 식별은 등록 응답이 정한다. */}
+        {/* 014 FR-034 — 결과나 시작 가능 날짜 안내가 오면 고른 줄의 상장일을 다시 묻는다(실행의 수집이 첫 거래일을 알게 할 수 있다). */}
         <StockSearch
           value={input.stock}
           onSelect={(choice) => void selectStock(choice)}
+          listingRefresh={summary !== null || recurring !== null || startable !== null ? "result" : undefined}
         />
         {selecting && (
           <p className="pl-14 text-xs text-gray-500">종목을 등록하는 중…</p>

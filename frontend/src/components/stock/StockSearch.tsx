@@ -16,15 +16,19 @@
  * 뜻하면 사용자는 할 일이 정반대인데 구별할 수 없다.
  *
  * **늦게 온 이전 결과는 그리지 않는다**(FR-029a). 로컬·외부가 번호를 따로 가진다.
+ *
+ * 고른 줄 밑에 상장일 한 줄을 둔다(014 반복 2026-10-10g — FR-034). 고른 대상으로 묻고, 화면이 넘기는 결과 신호(`listingRefresh`)가 오면 다시
+ * 묻는다 — 실행의 수집이 첫 거래일을 알게 할 수 있다.
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink } from "@/components/ExternalLink";
-import { ListingText } from "@/components/ListingText";
+import { ListingText, SelectedListingLine } from "@/components/ListingText";
 import { ApiError, apiClient } from "@/lib/apiClient";
 import { nameWithCode } from "@/lib/displayCode";
 import { stockLink } from "@/lib/externalLinks";
 import { formatKst } from "@/lib/format";
+import { stockListingPath } from "@/lib/listingApi";
 import { stockListingLabel } from "@/lib/listingDate";
 import { createSequence } from "@/lib/searchSequence";
 import type {
@@ -139,9 +143,12 @@ const message = (err: unknown, fallback: string) =>
 export function StockSearch({
   value,
   onSelect,
+  listingRefresh,
 }: {
   value: StockSearchResult | null;
   onSelect: (choice: StockChoice) => void;
+  /** 고른 대상의 결과가 왔다는 신호(014 FR-034). 바뀌면 상장일을 다시 묻는다. `undefined`(결과 없음)로는 묻지 않는다. */
+  listingRefresh?: string;
 }) {
   const [term, setTerm] = useState("");
   const [local, setLocal] = useState<LocalSearchResponse | null>(null);
@@ -317,15 +324,20 @@ export function StockSearch({
       </label>
 
       {value !== null && term === "" && (
-        <p className="mt-1 pl-14 text-sm">
-          {/* 010 FR-024 — 고른 종목의 이름은 네이버 증권 링크다. 목록의 옵션은 고르기 그대로(링크 아님). */}
-          <ExternalLink href={stockLink(value)} label={`${value.name} 네이버 증권에서 보기`} className="font-semibold">
-            {nameWithCode(value)}
-          </ExternalLink>{" "}
-          <span className="text-xs text-gray-500">
-            {value.market} · {value.currency}
-          </span>
-        </p>
+        <>
+          <p className="mt-1 pl-14 text-sm">
+            {/* 010 FR-024 — 고른 종목의 이름은 네이버 증권 링크다. 목록의 옵션은 고르기 그대로(링크 아님). */}
+            <ExternalLink href={stockLink(value)} label={`${value.name} 네이버 증권에서 보기`} className="font-semibold">
+              {nameWithCode(value)}
+            </ExternalLink>{" "}
+            <span className="text-xs text-gray-500">
+              {value.market} · {value.currency}
+            </span>
+          </p>
+          {/* 014 FR-034 — 종목명 밑 한 줄의 상장일(검색 결과 줄과 같은 글자). */}
+          <SelectedListingLine path={stockListingPath(value)} refresh={listingRefresh} asset="stock"
+            testId="stock-selected-listing" />
+        </>
       )}
 
       {open && (

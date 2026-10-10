@@ -36,6 +36,7 @@ from src.observability.logging_config import collection_logger
 from src.repository import stock_listing as listing_repo
 from src.repository.stock import ensure_stock, find_us_stock, record_first_trade_date
 from src.search.price_symbol import US_MARKETS, listing_candidates, to_price_symbol
+from src.simulation.listing_date import ListingDate, stock_listing_date
 
 #: 외부 검색이 맡는 시장과 그 통화 (FR-026).
 _EXTERNAL_MARKET: Final = "TSE"
@@ -183,6 +184,24 @@ async def fill_first_trade_date(
     await record_first_trade_date(session, stock.id, day)
     await session.commit()
     stock.first_trade_date = day
+
+
+async def stock_listing(
+    session: AsyncSession, stock: Stock, lookup: FirstTradeLookup | None
+) -> ListingDate | None:
+    """상장일 — 키움 국내 상장일 → 시세 출처 첫 거래일 → 없음 (014 FR-033·FR-034).
+
+    투자 비교 블록(`comparison.listing`)과 메뉴의 고른 줄(`GET /api/stocks/listing-date`)이
+    이 함수 하나를 쓴다 — 같은 대상이면 같은 글자다. 시작일 하한(`first_available_date`)은 쓰지
+    않는다 — 상장일이 아니다. 키움 상장일이 없고 첫 거래일을 모르면 **여기서 한 번 받아 둔다** —
+    저장한 비교·이력 다시 실행은 등록을 거치지 않고, 이미 받아 둔 종목은 새 수집 청크도 없어
+    그대로면 늘 "—"였다(사용자 보고 2026-10-10 — TQQQ·QLD·SOXL).
+    """
+    listing = await listing_for(session, stock.market, stock.symbol)
+    listed_on = None if listing is None else listing.listed_on
+    if listed_on is None:
+        await fill_first_trade_date(session, stock, lookup)
+    return stock_listing_date(listed_on, stock.first_trade_date)
 
 
 def _event(event: str, **fields: object) -> None:

@@ -5,7 +5,7 @@
  * 상장일보다 늦고(T158 — 도요타 1999-05-06, 1949년 상장), 코인 첫 일봉은 출처의 첫 일봉이지 거래소 상장일이 아니다. 기준 없이 "상장"이라
  * 쓰면 틀린 날짜가 상장일로 읽힌다. 검색 결과 줄·비교 표가 이 한 곳의 글자를 쓴다.
  */
-import type { ListingBasis } from "./types";
+import type { ListingBasis, ListingDate } from "./types";
 
 export interface ListingLabel {
   text: string;
@@ -45,4 +45,18 @@ export function stockListingLabel(listedOn: string | null | undefined, firstTrad
 /** 코인 검색 결과 줄 — 수집으로 알게 된 첫 일봉. 없으면 `null`. */
 export function coinListingLabel(firstAvailableDate: string | null): ListingLabel | null {
   return firstAvailableDate ? label("first_bar", firstAvailableDate) : null;
+}
+
+/**
+ * 고른 줄(검색 칸 아래)의 모르는 상장일의 까닭 (반복 2026-10-10g — FR-034). 이미 고른 뒤라 무엇을 하면 보이는지 말한다 — 주식은 다시 고르거나
+ * 실행하면 다시 받고, 코인은 실행의 수집이 첫 일봉을 알게 한다.
+ */
+export const SELECTED_UNKNOWN: Record<"stock" | "coin", string> = {
+  stock: "출처가 상장일을 주지 않았습니다 — 다시 고르거나 실행하면 다시 받습니다",
+  coin: "첫 일봉을 아직 모릅니다 — 실행해 일봉을 받으면 보입니다",
+};
+
+/** 고른 줄의 글자 (반복 2026-10-10g — FR-034). 검색 결과 줄과 같은 글자이고, 모르면 `상장일 —`와 까닭이다(지어내지 않는다). */
+export function selectedListingLabel(listing: ListingDate | null, asset: "stock" | "coin"): ListingLabel {
+  return listing === null ? { text: "상장일 —", title: SELECTED_UNKNOWN[asset] } : label(listing.basis, listing.date);
 }

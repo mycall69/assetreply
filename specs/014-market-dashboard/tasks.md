@@ -851,7 +851,7 @@ description: "Task list for 014-market-dashboard"
 ## Phase 13: 반복 2026-10-10g — 고른 종목·코인 줄의 상장일 (spec Iterations — 사용자 보고)
 
 **Goal**:
-- 주식·가상자산 메뉴에서 고른 종목·코인 줄(검색 칸 아래)의 종목명 밑에 상장일을 보인다(US7 — FR-034). 등록 뒤·이력 다시 실행 뒤 모두, 실행으로 알게 되면 결과가 온 뒤
+- 주식·가상자산 메뉴에서 고른 종목·코인 줄(검색 칸 아래)의 종목명 밑에 상장일을 보인다(US7 — FR-034). 등록 뒤·이력 다시 실행 뒤 모두, 실행으로 알게 되면 결과·시작 가능 날짜 안내가 온 뒤
 - 고른 대상의 상장일 경로 둘(A11) — 주식은 비교 경로와 같은 함수(모르면 한 번 받아 둠)
 
 **Independent Test**(spec US7 수용 시나리오 8):
@@ -863,20 +863,20 @@ description: "Task list for 014-market-dashboard"
 
 ### Tests for 반복 2026-10-10g ⚠️
 
-- [ ] T168 [P] [US7] 백엔드 테스트 — 새 `backend/tests/integration/test_selected_listing_api.py`(A11 — 국내 `listing`·미국 `first_trade`(출처 호출 0)·모르면 한 번 받아 저장·실패해도 200
+- [X] T168 [P] [US7] 백엔드 테스트 — 새 `backend/tests/integration/test_selected_listing_api.py`(A11 — 국내 `listing`·미국 `first_trade`(출처 호출 0)·모르면 한 번 받아 저장·실패해도 200
   `listing: null`·없는 종목 404·다른 거래소 같은 티커, 코인 `first_bar`·`null`·404, 비교 블록 `listing`과 같은 글자). 최초 실패 확인 (FR-034, SC-019)
-- [ ] T169 [P] [US7] 화면 테스트 — 새 `frontend/tests/SelectedListing.test.tsx`·`frontend/tests/support/listingStub.ts`, `frontend/tests/setup.ts`(대역 한 겹 — 이력·저장 대역과 같은 틀,
+- [X] T169 [P] [US7] 화면 테스트 — 새 `frontend/tests/SelectedListing.test.tsx`·`frontend/tests/support/listingStub.ts`, `frontend/tests/setup.ts`(대역 한 겹 — 이력·저장 대역과 같은 틀,
   `014 승인 2026-10-10`). 주식·코인 고른 줄 아래 글자·`title`, 모름 `상장일 —`, 묻는 동안·실패면 줄 없음, 대상이 바뀌면 다시 묻고 늦은 답은 버림, 결과 신호가 오면 다시 묻고 비면 묻지 않음,
-  이력 다시 실행 뒤 줄, 비교 화면 검색은 묻지 않음. 최초 실패 확인 (FR-034)
+  이력 다시 실행 뒤 줄, 시작 가능 날짜 안내도 신호, 비교 화면 검색은 묻지 않음. 최초 실패 확인 (FR-034)
 
 ### Implementation for 반복 2026-10-10g
 
-- [ ] T170 [US7] 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록. T161과 같은 절차(`014 승인 2026-10-10`)로 승인하고 구현을 치워 실패를 확인한 뒤
+- [X] T170 [US7] 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(결과: **없음** — 백엔드 3,440·화면 2,036 통과, 바뀐 기존 테스트 파일은 T169의 `tests/setup.ts` 대역 한 겹뿐). T161과 같은 절차(`014 승인 2026-10-10`)로 승인하고 구현을 치워 실패를 확인한 뒤
   `test(014)`. 목록 밖의 실패는 결함으로 보고 멈춘다 (FR-026)
-- [ ] T171 [US7] 백엔드 — `backend/src/api/services/stock_selection.py`(`stock_listing` — `routes/comparison._stock_listing`을 옮김), `backend/src/api/routes/stock_selection.py`
+- [X] T171 [US7] 백엔드 — `backend/src/api/services/stock_selection.py`(`stock_listing` — `routes/comparison._stock_listing`을 옮김), `backend/src/api/routes/stock_selection.py`
   (`GET /api/stocks/listing-date`), `backend/src/api/routes/crypto_search.py`(`GET /api/crypto/listing-date`), `backend/src/api/routes/comparison.py` — contracts A11 (FR-034)
-- [ ] T172 [US7] 화면 — 새 `frontend/src/lib/listingApi.ts`·`frontend/src/hooks/useSelectedListing.ts`, `frontend/src/lib/listingDate.ts`, `frontend/src/components/ListingText.tsx`,
-  `frontend/src/components/stock/StockSearch.tsx`, `frontend/src/components/crypto/CoinSearch.tsx`, `frontend/src/app/stocks/page.tsx`·`frontend/src/app/crypto/page.tsx`(결과 신호) — contracts D13 (FR-034)
+- [X] T172 [US7] 화면 — 새 `frontend/src/lib/listingApi.ts`·`frontend/src/hooks/useSelectedListing.ts`, `frontend/src/lib/listingDate.ts`, `frontend/src/components/ListingText.tsx`,
+  `frontend/src/components/stock/StockSearch.tsx`, `frontend/src/components/crypto/CoinSearch.tsx`, `frontend/src/app/stocks/page.tsx`·`frontend/src/app/crypto/page.tsx`(결과·안내 신호) — contracts D13 (FR-034)
 
 ### Polish (반복 2026-10-10g)
 

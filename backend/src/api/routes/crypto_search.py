@@ -14,13 +14,16 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.errors import InvalidQuery
+from src.api.services.comparison_metrics import listing_json
 from src.api.services.crypto_index import CoinView, get_coin_index
 from src.api.services.crypto_list_refresh import EditionState, request_refresh
+from src.api.services.crypto_simulation import require_coin
 from src.api.services.listing_refresh import utc_now
 from src.config.settings import Settings, load_settings
 from src.db.session import get_session
 from src.repository import crypto_coin as repo
 from src.search.match import MatchKind
+from src.simulation.listing_date import coin_listing_date
 from src.worker import crypto_list_queue
 from src.worker.crypto_list_queue import CryptoListQueue
 
@@ -93,3 +96,18 @@ async def search_coins(
         "truncated": outcome.truncated,
         "list": {**edition_json(status.list), "koreanNames": edition_json(status.korean)},
     }
+
+
+@router.get("/listing-date")
+async def get_listing_date(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    coin_id: Annotated[int, Query(alias="coinId")],
+) -> Json:
+    """고른 코인의 상장일 — 수집으로 알게 된 첫 일봉 (014 반복 2026-10-10g — FR-034, contracts A11).
+
+    메뉴의 고른 줄이 고를 때와 실행 결과가 올 때 읽는다 — 첫 일봉은 실행의 수집이 알게 한다. 출처를
+    부르지 않는다. 없는 코인은 404다.
+    """
+    coin = await require_coin(session, coin_id)
+    return {"coinId": int(coin.id),
+            "listing": listing_json(coin_listing_date(coin.first_available_date))}

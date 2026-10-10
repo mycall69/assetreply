@@ -82,7 +82,10 @@ export default function CryptoPage() {
       </header>
 
       <section className="space-y-3 rounded-lg border border-gray-200 p-4">
-        <CoinSearch value={input.coin} onSelect={selectCoin} />
+        {/* 014 FR-034 — 결과나 시작 가능 날짜 안내가 오면 고른 줄의 첫 일봉을 다시 묻는다(실행의 수집이 첫 일봉을 알게 한다 — 시작일이
+            첫 일봉보다 이르면 결과 대신 안내가 온다). */}
+        <CoinSearch value={input.coin} onSelect={selectCoin}
+          listingRefresh={summary !== null || recurring !== null || startable !== null ? "result" : undefined} />
         {/* 011 FR-001 — 투자 방식. 바꾸면 결과가 빈다(조건은 남는다). */}
         <InvestmentModeFields value={plan} start={input.start} asset="crypto" disabled={loading} onChange={setPlan} />
         <CryptoSimulationForm

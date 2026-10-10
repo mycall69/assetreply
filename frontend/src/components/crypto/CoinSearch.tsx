@@ -14,10 +14,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ExternalLink } from "@/components/ExternalLink";
-import { ListingText } from "@/components/ListingText";
+import { ListingText, SelectedListingLine } from "@/components/ListingText";
 import { ApiError, apiClient } from "@/lib/apiClient";
 import { subscribeCoinListProgress } from "@/lib/cryptoListProgressStream";
 import { coinNameWithSymbol } from "@/lib/displayCode";
+import { coinListingPath } from "@/lib/listingApi";
 import { coinListingLabel } from "@/lib/listingDate";
 import { coinLink } from "@/lib/externalLinks";
 import { formatKst } from "@/lib/format";
@@ -93,10 +94,16 @@ const message = (err: unknown) =>
 export function CoinSearch({
   value,
   onSelect,
+  listingRefresh,
 }: {
   /** 고른 코인 — 검색 결과 또는 이력에서 다시 실행한 코인(순위가 없을 수 있다). */
   value: CoinRef | null;
   onSelect: (coin: CoinSearchResult) => void;
+  /**
+   * 고른 코인의 결과가 왔다는 신호(014 FR-034). 바뀌면 첫 일봉을 다시 묻는다 — 실행의 수집이 첫 일봉을 알게 한다. `undefined`(결과 없음)로는
+   * 묻지 않는다.
+   */
+  listingRefresh?: string;
 }) {
   const [term, setTerm] = useState("");
   const [found, setFound] = useState<CoinSearchResponse | null>(null);
@@ -224,6 +231,11 @@ export function CoinSearch({
             {value.symbol} · {value.currency} {rankText(value.rank)}
           </span>
         </p>
+      )}
+      {value !== null && term === "" && (
+        // 014 FR-034 — 고른 코인 이름 밑 한 줄의 첫 일봉(검색 결과 줄과 같은 글자).
+        <SelectedListingLine path={coinListingPath(value)} refresh={listingRefresh} asset="coin"
+          testId="coin-selected-listing" />
       )}
 
       {open && (
