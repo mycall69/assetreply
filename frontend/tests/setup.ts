@@ -55,6 +55,7 @@ if (typeof Storage === "function" && typeof localStorage?.clear !== "function") 
 // 아닌 테스트는 빈 이력과 성공하는 저장을 본다. 그 밖의 경로는 원래 `fetch`로 넘긴다(지금과 같다). 테스트마다 비운다.
 import { beforeEach } from "vitest";
 import { handleHistory, resetHistoryStub } from "./support/historyStub";
+import { handleListing, resetListingStub } from "./support/listingStub";
 import { handleSavedComparisons, resetSavedComparisonStub } from "./support/savedComparisonStub";
 
 const originalFetch = globalThis.fetch;
@@ -73,4 +74,13 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise
   (await handleSavedComparisons(input, init)) ?? historyFetch(input, init);
 beforeEach(() => {
   resetSavedComparisonStub();
+});
+
+// 014 승인 2026-10-10(반복 2026-10-10g T169) — 고른 대상의 상장일 경로 대역(같은 틀). 주식·가상자산 메뉴의 고른 줄은 대상이 있으면 이 경로를
+// 묻는다 — 상장일이 주제가 아닌 테스트는 `listing: null`(모름)을 보고, 요청이 네트워크로 나가지 않는다.
+const savedFetch = globalThis.fetch;
+globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> =>
+  (await handleListing(input)) ?? savedFetch(input, init);
+beforeEach(() => {
+  resetListingStub();
 });
