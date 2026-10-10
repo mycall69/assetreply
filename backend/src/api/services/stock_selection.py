@@ -29,6 +29,7 @@ from typing import Final, Protocol
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.errors import InvalidQuery, UnknownListing
+from src.config.settings import load_settings
 from src.db.models import Stock, StockListing
 from src.ingestion.yahoo.errors import StockSourceError
 from src.observability.logging_config import collection_logger
@@ -145,6 +146,18 @@ def set_shared_first_trade_source(source: FirstTradeSource | None) -> None:
 
 def get_shared_first_trade_source() -> FirstTradeSource | None:
     return _shared_source
+
+
+def get_first_trade() -> FirstTradeLookup | None:
+    """첫 거래일을 받는 수단 — 등록·비교 경로의 의존성 (014 FR-033).
+
+    앱 수명주기의 공유 시세 클라이언트가 없으면 `None`이다(lifespan 없이 도는 테스트는 출처를
+    부르지 않는다).
+    """
+    source = get_shared_first_trade_source()
+    if source is None:
+        return None
+    return FirstTradeLookup(source, load_settings().stock_first_trade_timeout_ms / 1000)
 
 
 async def fill_first_trade_date(

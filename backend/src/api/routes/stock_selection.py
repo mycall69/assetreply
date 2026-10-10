@@ -21,11 +21,10 @@ from src.api.services.stock_selection import (
     FirstTradeLookup,
     Selected,
     fill_first_trade_date,
-    get_shared_first_trade_source,
+    get_first_trade,
     select_external,
     select_listing,
 )
-from src.config.settings import load_settings
 from src.db.session import get_session
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
@@ -47,17 +46,6 @@ def selected_json(selected: Selected) -> Json:
         "currency": stock.currency,
         "listedOn": selected.listed_on.isoformat() if selected.listed_on else None,
     }
-
-
-def get_first_trade() -> FirstTradeLookup | None:
-    """등록 때 첫 거래일을 받는 수단 (014 FR-033).
-
-    앱 수명주기의 공유 시세 클라이언트가 없으면 `None`이다.
-    """
-    source = get_shared_first_trade_source()
-    if source is None:
-        return None
-    return FirstTradeLookup(source, load_settings().stock_first_trade_timeout_ms / 1000)
 
 
 @router.post("/selection")

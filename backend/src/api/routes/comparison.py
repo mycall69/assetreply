@@ -55,7 +55,12 @@ from src.api.services.crypto_collect import collecting_body as crypto_collecting
 from src.api.services.realestate_lists import get_realestate_now, get_realestate_settings
 from src.api.services.stock_collect import collecting_body as stock_collecting
 from src.api.services.stock_sale import DOMESTIC_MARKET
-from src.api.services.stock_selection import listing_for
+from src.api.services.stock_selection import (
+    FirstTradeLookup,
+    fill_first_trade_date,
+    get_first_trade,
+    listing_for,
+)
 from src.config.settings import Settings, load_settings
 from src.db.models import Stock
 from src.db.session import get_session
@@ -77,6 +82,9 @@ from src.worker.apt_trade_runner import kst_date
 router = APIRouter(prefix="/api/comparison", tags=["comparison"])
 
 Session = Annotated[AsyncSession, Depends(get_session)]
+#: 014 FR-033 — 상장일을 낼 때 모르는 첫 거래일을 받는 수단.
+#: lifespan의 공유 클라이언트가 없으면 `None`이다.
+FirstTrade = Annotated[FirstTradeLookup | None, Depends(get_first_trade)]
 #: 비교 시계열의 처음 점 수 — 열 선 × 1000점(헌법 원칙 VII 다운샘플링, research R13-2).
 DEFAULT_COMPARE_POINTS = 1000
 MaxPoints = Annotated[int, Query(alias="maxPoints", ge=2)]
@@ -184,13 +192,20 @@ def _realestate_unit(result: HoldingResult) -> UnitPrice:
     return unit_price("home", "market_price", "KRW", start, at)
 
 
-async def _stock_listing(session: AsyncSession, stock: Stock) -> ListingDate | None:
+async def _stock_listing(
+    session: AsyncSession, stock: Stock, first_trade: FirstTradeLookup | None
+) -> ListingDate | None:
     """상장일 — 키움 국내 상장일 → 시세 출처 첫 거래일 → 없음 (014 반복 2026-10-10f — FR-033).
 
-    시작일 하한(`first_available_date`)은 쓰지 않는다 — 상장일이 아니다.
+    시작일 하한(`first_available_date`)은 쓰지 않는다 — 상장일이 아니다. 키움 상장일이 없고 첫
+    거래일을 모르면 **여기서 한 번 받아 둔다** — 저장한 비교·이력 다시 실행은 등록을 거치지 않고,
+    이미 받아 둔 종목은 새 수집 청크도 없어 그대로면 늘 "—"였다(사용자 보고 2026-10-10 —
+    TQQQ·QLD·SOXL).
     """
     listing = await listing_for(session, stock.market, stock.symbol)
     listed_on = None if listing is None else listing.listed_on
+    if listed_on is None:
+        await fill_first_trade_date(session, stock, first_trade)
     return stock_listing_date(listed_on, stock.first_trade_date)
 
 
@@ -204,6 +219,7 @@ def _body(*, target: Json, condition: Json, exchange: Json | None, summary: Json
 @router.get("/stocks/simulation", response_model=None)
 async def compare_stock(
     session: Session,
+    first_trade: FirstTrade,
     market: Annotated[str, Query()],
     symbol: Annotated[str, Query()],
     start: Annotated[dt.date, Query()],
@@ -261,7 +277,7 @@ async def compare_stock(
         comparison=comparison_block("stock_lump", summary, costs,
                                     principal_currency=principal_currency, fx=fx,
                                     unit_price=_stock_lump_unit(result, stock.currency),
-                                    listing=await _stock_listing(session, stock)))
+                                    listing=await _stock_listing(session, stock, first_trade)))
 
 
 @router.get("/crypto/simulation", response_model=None)
@@ -410,6 +426,7 @@ async def compare_realestate(
 @router.get("/stocks/recurring-simulation", response_model=None)
 async def compare_stock_recurring(
     session: Session,
+    first_trade: FirstTrade,
     market: Annotated[str, Query()],
     symbol: Annotated[str, Query()],
     start: Annotated[dt.date, Query()],
@@ -454,7 +471,7 @@ async def compare_stock_recurring(
         comparison=comparison_block("stock_recurring", summary, costs,
                                     principal_currency=principal_currency, fx=fx,
                                     unit_price=_stock_recurring_unit(result, stock.currency),
-                                    listing=await _stock_listing(session, stock)))
+                                    listing=await _stock_listing(session, stock, first_trade)))
 
 
 @router.get("/crypto/recurring-simulation", response_model=None)
