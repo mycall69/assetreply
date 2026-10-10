@@ -528,3 +528,29 @@
   - 자리마다 티커를 붙인다 — 빠뜨린 자리가 생긴다(실패 양상)
   - 코인 검색 결과 오른쪽의 심볼을 지운다 — 007 메뉴 화면·테스트가 더 바뀐다
   - 화면 읽기 이름은 이름만 둔다 — 보이는 글자와 읽히는 이름이 달라진다
+
+## R14-26 주식·가상자산의 상장일 (반복 2026-10-10f)
+
+- **확인한 사실**(define 2026-10-10):
+  - 국내: 키움 목록의 `regDay` → `stock_listing.listed_on` → 검색 `listedOn`(삼성전자 `1975-06-11`)
+  - **미국: 키움 미국 목록(`usa10099`)에 상장일 칸이 없다**(원본 칸 `stk_cd`·`stk_nm`·`stk_enm`·`isEtf`·`mkgb`·`upgb`·`stex_tp` — `parse_us`가 `listed_on=None`). 실제 응답에서 VOO `listedOn: null`
+  - 일본: 외부 검색 결과(Yahoo)에 상장일이 없다
+  - Yahoo 차트 `meta.firstTradeDate`: 주식 어댑터가 `ChartData.first_trade_date`로 읽지만 **저장하지 않는다**. `stock.first_available_date`는 문서상 "시세 출처가 준 시세 시작일"이나 쓰는 곳이 없다.
+    삼성전자 픽스처의 `firstTradeDate`(171644400) = 1975-06-11 KST — 키움 상장일과 같다
+  - 가상자산: 코인 목록 원본에 상장일·출시일 칸이 없다(007 R7-10). 첫 일봉은 시작일을 그보다 앞으로 잡아 수집했을 때만 기록된다 — 지금 비트코인 `2010-07-18`·이더리움 `2016-03-10`, 대부분 `null`
+- **결정**:
+  - 고르기: 주식 키움 `listed_on`(기준 `listing`) → `stock.first_trade_date`(`first_trade`) → 없음, 코인 `first_available_date`(`first_bar`) → 없음 — 순수 모듈 `simulation/listing_date.py`
+  - 저장: **새 열 `stock.first_trade_date`**(표시 전용). `first_available_date`에 쓰면 `require_start_available`의 `price_start` 거절이 수집 전에 일어나 메뉴의 시작일 판정·거절 날짜가 바뀐다(FR-026)
+  - 채우기: (1) 등록 — 모를 때만, `range=1d` 차트 한 번(meta만), 주식 관문(`YahooGate`), 짧은 시간 초과(설정), **앱 수명주기의 공유 시세 클라이언트가 있을 때만**(apply 중 확인 — 등록 경로에 지금 클라이언트가 없다. 새로 만들면
+    lifespan 없이 도는 006 등록 테스트가 실제 출처를 부른다), 실패·시간 초과·`firstTradeDate` 없음이면 비운 채 등록 성공(응답 불변) (2) `worker/stock_runner.collect_range` — 청크 응답의 `first_trade_date`가 있고 비었으면 기록(추가 요청 없음)
+  - 비었을 때만 쓰고 덮어쓰지 않는다 — 표시 전용이라 개정을 남기지 않는다
+  - 검색은 출처를 부르지 않는다 — 검색 응답 둘은 저장된 `stock.first_trade_date`만(`market`·`symbol`로 찾음)
+  - 날짜: 거래소 시간대(`zoneinfo` — 014 R14-3). 주식 어댑터의 지금 변환(`gmtoffset`)을 쓰면 서머타임에 하루 어긋날 수 있다 — T158에서 미국 ETF 몇을 재 견준다
+  - 비교 블록: `comparison.listing{date, basis}` — 주식·가상자산 경로 넷(일시금·적립식 × 주식·가상자산)에서 라우트가 가진 종목·코인으로 계산, 예금·부동산 `null`
+  - 화면: 비교 표의 상장일 열은 `method`가 일시금·적립식일 때(주식·가상자산)만 — 예금·부동산 표는 그대로
+- **대안**:
+  - 검색 결과마다 출처를 부른다 — 검색 한 번에 요청 수십 개라 요청 제한(429)이 주식 수집을 막는다
+  - 코인 첫 일봉 탐색(이분 탐색 약 13회 × 코인) — 간격 제한(`INVESTING_MIN_INTERVAL_SECONDS`)으로 느리고 출처 부담이 크다
+  - `first_available_date` 재사용 — 메뉴의 시작일 판정이 바뀐다
+  - 새 출처(CoinMarketCap 등) — 원칙 II 새 이탈
+  - 등록을 출처 실패에 묶는다 — 출처가 막히면 종목을 고를 수 없다

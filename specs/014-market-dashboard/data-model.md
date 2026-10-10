@@ -306,3 +306,20 @@ R14-7 표가 상수다. 함수는 둘이다:
 - 대상이 이미 가진 칸(주식 `market`·`symbol`, 코인 `symbol`)으로 만든다 — 저장한 비교의 조건(`saved_comparison.condition`)·비교 경로 응답은 바뀌지 않는다. 이 반복 전에 저장한 비교도 불러오면 티커가 붙는다
 - 코인 검색 결과 줄(`components/crypto/CoinSearch`)의 맨 앞 이름도 `coinNameWithSymbol`이다 — 비교 화면과 가상자산 메뉴가 같은 부품이다. 줄 오른쪽 `심볼 · 통화 #순위`는 그대로
 - 최종 지표 막대(`CompareMetricBars`)의 이름 칸은 줄임(…)이 그대로이고 `title`에 전체 이름을 단다
+
+## 12. 상장일 (반복 2026-10-10f — FR-033)
+
+| 칸 | 꼴 | 뜻 |
+|----|-----|-----|
+| `stock.first_trade_date` | `DATE NULL`(새 열 — Alembic 리비전 하나) | Yahoo 차트 `meta.firstTradeDate`(초)를 **거래소 시간대**(`zoneinfo` — 014 R14-3)의 날짜로. 표시 전용 — 시작일 하한(`first_available_date`)·시작일 판정과 별개 |
+| 검색 행 `firstTradeDate` | 날짜 \| `null` | `/api/stocks/search`·`/api/stocks/search/external`의 행마다 — 그 시세 식별자(`market`·`symbol`)의 `stock.first_trade_date`. 종목이 없거나 모르면 `null`. 검색은 출처를 부르지 않는다 |
+| 검색 행 `listedOn` | 그대로 | 키움 국내 상장일(시작일 하한 — 006 FR-005a). 미국은 늘 `null`(목록에 칸이 없다) |
+| 코인 검색 행 `firstAvailableDate` | 그대로 | 수집으로 알게 된 첫 일봉(007 R7-10) |
+| `comparison.listing` | `{ date, basis }` \| `null` | 비교 블록. 주식 `listing`(키움 `listed_on`) → `first_trade`(`stock.first_trade_date`) → `null`, 코인 `first_bar`(`crypto_coin.first_available_date`) → `null`. 예금·부동산 블록은 `null` |
+
+- **쓰는 때**: 비어 있을 때만 쓰고 덮어쓰지 않는다(출처가 다른 날짜를 주어도 — 개정은 남기지 않는다, 표시 전용)
+  - 등록(`POST /api/stocks/selection`): 그 종목의 `first_trade_date`가 없고 **앱 수명주기의 공유 시세 클라이언트가 있으면** 차트 `range=1d`의 `meta`만 한 번 받는다 — Yahoo 관문, 짧은 시간 초과
+    (설정), 실패·시간 초과·`firstTradeDate` 없음이면 비워 둔 채 등록을 마친다. 등록 응답은 바뀌지 않는다
+  - 주식 수집(`worker/stock_runner.collect_range`): 청크 응답의 `ChartData.first_trade_date`가 있고 종목의 값이 비었으면 쓴다 — 추가 요청 없음
+- **고르기 규칙**(순수 함수 하나 — `simulation/listing_date.py`): 주식 `(listed_on, first_trade_date) → listing | first_trade | None`, 코인 `first_available_date → first_bar | None`
+- **화면**: 검색 결과 줄은 주식 `listedOn ?? firstTradeDate`·코인 `firstAvailableDate`로 `상장 YYYY-MM-DD`(없으면 그 글자를 뺀다). 비교 표는 `comparison.listing` — 열은 `method`가 일시금·적립식일 때만

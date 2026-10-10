@@ -260,10 +260,26 @@
 - 저장하지 않는다(요청마다 계산 — data-model §10)
 - `/api/fx/latest`의 `change`(요약 칸의 전일 대비)는 같은 꼴·같은 글자다 — 그 경로의 대상 고르기와 응답은 바뀌지 않는다
 
+## A10. 상장일 (반복 2026-10-10f — spec FR-033)
+
+- `GET /api/stocks/search` 행·`GET /api/stocks/search/external` 행에 `firstTradeDate: "2010-09-09" | null` — 그 시세 식별자의 저장된 Yahoo 첫 거래일(종목이 없거나 모르면 `null`). 검색은 출처를 부르지
+  않는다. `listedOn`(키움 국내 상장일 — 시작일 하한)은 그대로다
+- `GET /api/crypto/search` 행의 `firstAvailableDate`는 그대로다(화면이 상장일 — 첫 일봉 — 으로 쓴다)
+- `POST /api/stocks/selection` 응답은 **그대로**다. 안에서 그 종목의 첫 거래일을 모르면 앱 수명주기의 공유 시세 클라이언트로 한 번 받는다(실패해도 등록 성공)
+- 비교 블록(`/api/comparison/*`)에 `listing`:
+
+```json
+"listing": { "date": "2010-09-09", "basis": "first_trade" }
+```
+
+- `basis`: `listing`(키움 국내 상장일) · `first_trade`(Yahoo 첫 거래일) · `first_bar`(코인 첫 일봉). 모르면 `listing: null`. 예금·부동산 경로는 늘 `null`
+- 메뉴 시뮬레이션 응답(`/api/stocks/*`·`/api/crypto/*`)은 바뀌지 않는다
+
 ## A6. 불변
 
 기존 경로의 응답은 바뀌지 않는다(FR-026):
 - 외환: `/api/fx/*` — (반복 2026-10-10d) 예외 하나: `/api/fx/daily`의 행에 `change`가 더해진다(A9). `/api/fx/latest`·`/api/fx/series`·수집 경로는 그대로다
+- (반복 2026-10-10f) 주식 검색 응답 둘의 행에 `firstTradeDate`, 비교 블록에 `listing`만 더해진다(A10). 등록 응답·메뉴 시뮬레이션 응답은 그대로다
 - 주식: `/api/stocks/*`
 - 가상자산: `/api/crypto/*`
 - 예금: `/api/deposit/*`

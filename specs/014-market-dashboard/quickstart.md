@@ -76,6 +76,9 @@ cd backend && .venv/bin/python -m pytest -q tests/contract/test_yahoo_market_cli
 - 장중(`interval=5m&range=1d`·`interval=30m&range=5d`): 시각 UTC, 세션 밖 점, 환율 심볼, 429
 - 시황 출처마다의 목록 파싱: 제목·요약 원문, 게시 시각, 허용 도메인, 목록 표지 없음 → `parse_empty`
 
+**상장일(반복 2026-10-10f — T159)**
+- `contract/test_yahoo_first_trade.py` — 차트 `range=1d`의 `meta.firstTradeDate`(본문 픽스처 `fixtures/stock/chart_meta_*`), 거래소 시간대 날짜, 없음 → `None`, 404·429
+
 ## 3. 저장·워커·API — 통합 (`assetreplay_test`)
 
 ```bash
@@ -125,6 +128,11 @@ cd backend && .venv/bin/python -m pytest -q tests/contract/test_yahoo_market_cli
 **외환 일자별 표의 등락(반복 2026-10-10d — T142)**
 - `unit/test_fx_change.py` — 오름·내림·같음, 등락율 소수 둘째 자리, 직전 없음 → `None`, 직전 0 이하 → 등락율 `None`
 - `integration/test_fx_daily_change.py` — A9: 일 = 직전 고시일 대비, 쪽 경계 행 = 쪽 너머 한 건 대비, 첫 고시 `null`, 주·월 = 직전 대표값 대비, 잠정 행, `/api/fx/latest` 그대로
+
+**상장일(반복 2026-10-10f — T159)**
+- `unit/test_listing_date.py` — 고르기 규칙(키움 → 첫 거래일 → 없음, 코인 첫 일봉 → 없음)
+- `integration/test_stock_first_trade.py` — 새 열, 등록 때 모르면 한 번(알면·클라이언트 없음·실패면 부르지 않거나 비운 채 성공 — 응답 불변), `collect_range` 청크 기록(비었을 때만), 시작일 판정 불변
+- `integration/test_listing_date_api.py` — 검색 두 응답 `firstTradeDate`(출처 호출 0), 비교 블록 `listing`(listing·first_trade·first_bar·null), 메뉴 응답 불변
 
 ## 4. 화면 (Vitest — `lightweight-charts` 모의, 종료 코드를 본다)
 
@@ -177,6 +185,11 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
 - `CoinSearchTicker.test.tsx` — 검색 결과 줄 맨 앞 `비트코인(BTC)`, 오른쪽 `BTC · USD` 그대로, 주식 검색 결과는 이미 `이름(코드)`
 - 014 전 013 테스트(`compareCondition`·이름으로 단추를 찾는 비교 화면 테스트)는 바뀔 것으로 본다 — 실제 실패 목록은 T152 승인
 
+**상장일(반복 2026-10-10f — T160)**
+- `StockSearchListing.test.tsx` — 결과 줄 `상장 …`(국내 `listedOn`·미국 `firstTradeDate`·없으면 글자 없음)
+- `CoinSearchListing.test.tsx` — `상장 …`(`firstAvailableDate`)·없으면 글자 없음
+- `CompareTableListing.test.tsx` — 주식·가상자산 표 머리(대상 · 상장일 · 기준일 …), 기준 작은 글자, "—"·`title`, 정렬(비운 칸 끝), 예금·부동산 열 없음
+
 **뉴스**
 - 세 칸이 온 차례로 그려진다
 - 링크는 `target="_blank" rel="noopener noreferrer"`다
@@ -212,6 +225,7 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
 | 5-19 | 밝은 테마 불변 | T128 기준선 스크린샷과 같은 화면을 다시 찍어 견준다 — 상단 바 단추 자리 밖에서 다른 곳이 없다 |
 | 5-20 | (반복 2026-10-10d) 외환 일자별 표의 등락 | USD 일 표 첫 쪽 행들의 등락폭·등락율이 이웃 행 매매기준율의 차·비율(소수 둘째 자리)과 같다. 아래로 더 받은 뒤 앞 쪽 마지막 행에 값이 있다. 주·월은 직전 대표값 대비(📅·⏳ 그대로). JPY(100엔)도 같다. 잠정 행(⚠)은 바로 아래 행 대비. 맨 위 행 = 요약 칸의 전일 대비(같은 두 날이면 같은 글자). CSV 맨 끝 두 열, 앞 열 그대로. 블랙 배경에서 빨강·파랑 글자 대비 4.5:1 |
 | 5-21 | (반복 2026-10-10e) 투자 비교의 티커 | 주식(화면 그림의 ETF 여섯 + 삼성전자)·가상자산(비트코인·이더리움)을 더해 칩·표·범례·커서 상자·막대(잘리면 `title`)·막힘 안내·모달 머리·저장 후 불러오기가 모두 "이름(티커)"이고 자리마다 같은 글자다. 코인 검색 결과 줄 맨 앞 `비트코인(BTC)`(비교 화면·가상자산 메뉴), 주식 검색 결과 `이름(코드)`. 예금·부동산 이름 그대로. 블랙 배경, 1024px에서 칩 줄바꿈·가로 넘침 없음 |
+| 5-22 | (반복 2026-10-10f) 주식·가상자산의 상장일 | 삼성전자 검색 `상장 1975-06-11`, VOO 검색(처음엔 없음) → 고르기 → 비교 표 상장일 = Yahoo 첫 거래일 + `첫 거래일`, 다시 검색하면 `상장 …`. 도요타(일본) 같음. 비트코인·이더리움 `첫 일봉`, 모르는 코인 "—"(`title`). 등록 출처 실패(임시 백엔드 — Yahoo 주소를 막음)여도 고르기 성공·상장일 "—". 상장일 머리 정렬(비운 칸 끝). 예금·부동산 표 열 없음. 블랙 배경 대비, 1024px |
 
 ## 6. 불변 (FR-026·SC-010)
 
@@ -222,6 +236,7 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
 - **외환 일자별 표**(반복 2026-10-10d — T148): `/api/fx/daily` 행은 `change`만 더해진다(다른 칸·차례·`hasMore`·`oldestReturned` 같음 — 014 전 응답과 `change`를 뺀 대조). `/api/fx/latest`·`/series`는
   차이 0이다(SC-016). 외환 화면은 표의 오른쪽 끝 두 열과 CSV 끝 두 열 말고 같다(FR-026 예외)
 - **투자 비교의 티커**(반복 2026-10-10e — T155): 백엔드 변경이 없다 — 기준 29파일이 부동산 기준일·`meta` 말고 같아야 한다. 가상자산 메뉴 화면은 검색 결과 줄의 맨 앞 이름 말고 같다(FR-026 예외)
+- **상장일**(반복 2026-10-10f — T165): 메뉴 시뮬레이션 응답 차이 0, 비교 응답은 `comparison.listing`만 더해진다. 주식 검색 응답 둘은 `firstTradeDate`만 더해지고 등록 응답은 같다
 
 ## 7. 성능 (SC-001·SC-002)
 
