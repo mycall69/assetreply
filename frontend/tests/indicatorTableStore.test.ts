@@ -56,6 +56,21 @@ describe("열기·단위", () => {
   });
 });
 
+describe("같은 요청 나누기(반복 2026-10-10c T138)", () => {
+  it("받는 중인 같은 첫 쪽은 다시 부르지 않는다 — 닫았다 다시 열어도", async () => {
+    let release: (v: IndicatorTableResponse) => void = () => undefined;
+    const get = vi.spyOn(apiClient, "get").mockImplementation(
+      () => new Promise((resolve) => { release = resolve as (v: IndicatorTableResponse) => void; }));
+    const first = useIndicatorTableStore.getState().open("sp500");
+    useIndicatorTableStore.getState().close();
+    const second = useIndicatorTableStore.getState().open("sp500");
+    release(tableOf());
+    await Promise.all([first, second]);
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(useIndicatorTableStore.getState().status).toBe("ready");
+  });
+});
+
 describe("더 받기", () => {
   it("before = oldestReturned이고 뒤에 붙인다", async () => {
     const get = vi.spyOn(apiClient, "get").mockResolvedValueOnce(tableOf({ hasMore: true, oldestReturned: "2026-10-08" }));

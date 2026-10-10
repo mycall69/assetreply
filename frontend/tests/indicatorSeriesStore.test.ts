@@ -155,6 +155,30 @@ describe("처음 보이는 범위(반복 2026-10-10c T130)", () => {
   });
 });
 
+describe("같은 요청 나누기(반복 2026-10-10c T138)", () => {
+  it("받는 중인 같은 본문은 다시 부르지 않는다 — 닫았다 다시 열어도(개발 모드 이중 효과)", async () => {
+    // T138 실측 — 모달을 열 때 일봉 전부(약 1MB)를 두 번 받아 그래프가 1.1초에야 그려졌다
+    let release: (v: IndicatorSeriesResponse) => void = () => undefined;
+    const get = vi.spyOn(apiClient, "get").mockImplementation(
+      () => new Promise((resolve) => { release = resolve as (v: IndicatorSeriesResponse) => void; }));
+    const first = useIndicatorSeriesStore.getState().open("sp500", "1y");
+    useIndicatorSeriesStore.getState().close();
+    const second = useIndicatorSeriesStore.getState().open("sp500", "1y");
+    release(seriesOf());
+    await Promise.all([first, second]);
+    expect(get).toHaveBeenCalledTimes(1);
+    expect(useIndicatorSeriesStore.getState().status).toBe("ready");
+  });
+
+  it("다 받은 뒤에는 다시 부른다", async () => {
+    const get = vi.spyOn(apiClient, "get").mockResolvedValue(seriesOf());
+    await useIndicatorSeriesStore.getState().open("sp500", "1y");
+    useIndicatorSeriesStore.getState().close();
+    await useIndicatorSeriesStore.getState().open("sp500", "1y");
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("다시 시도와 닫기", () => {
   it("다시 시도는 POST하고 다시 받는다", async () => {
     vi.spyOn(apiClient, "get").mockResolvedValue(collectingOf());
