@@ -21,6 +21,7 @@ from typing import Self
 from src.config.settings import load_settings
 from src.ingestion.yahoo.gate import YahooGate
 from src.ingestion.yahoo.market import YahooMarketClient
+from src.ingestion.yahoo.market_parse import load, ohlc_from_raw, parse_daily
 
 FIX = Path(__file__).parent / "fixtures" / "market"
 D = dt.date
@@ -156,3 +157,46 @@ async def test_구간에_시세가_없으면_빈_결과() -> None:
             "sox", D(1980, 1, 1), D(1981, 12, 31), current_date=D(2026, 10, 9)
         )
     assert fetched.chunk.closes == [] and fetched.chunk.first_trade_date is None
+
+
+# 반복 2026-10-10b(T101) — 시가·고가·저가(spec FR-017). 0이면 비운다(옛 일봉 — 0으로 메우지 않는다),
+# 음수는 그대로다.
+SIX = Decimal("0.000001")
+
+
+async def test_일봉_청크의_시가_고가_저가() -> None:
+    session = Session("chart_KS11_2024_2025.json")
+    async with client(session) as yahoo:
+        fetched = await yahoo.fetch_daily(
+            "kospi", D(2024, 1, 1), D(2025, 12, 31), current_date=D(2026, 10, 9)
+        )
+    assert set(fetched.chunk.ohlc) == {d for d, _ in fetched.chunk.closes}
+    assert fetched.chunk.ohlc[D(2024, 1, 2)] == (
+        Decimal("2645.469970703125").quantize(SIX),
+        Decimal("2675.800048828125").quantize(SIX),
+        Decimal("2641.8798828125").quantize(SIX),
+    )
+
+
+def test_음수_저가는_그대로이고_0은_비운다() -> None:
+    body = load((FIX / "chart_CL_F_2020.json").read_text(encoding="utf-8"))
+    chunk = parse_daily(body, current_date=D(2026, 10, 9))
+    assert chunk.ohlc[D(2020, 4, 20)][2] == Decimal("-40.320000")
+    result = body["chart"]["result"][0]  # type: ignore[index]
+    quote = result["indicators"]["quote"][0]
+    index = next(i for i, c in enumerate(quote["close"]) if c is not None)
+    quote["open"][index] = Decimal(0)
+    quote["high"][index] = None
+    first = parse_daily(body, current_date=D(2026, 10, 9))
+    day = first.closes[0][0]
+    assert first.ohlc[day][0] is None and first.ohlc[day][1] is None
+    assert first.ohlc[day][2] is not None
+
+
+def test_원본_본문에서_시가_고가_저가를_읽는다() -> None:
+    raw = (FIX / "chart_KS11_2024_2025.json").read_text(encoding="utf-8")
+    values = ohlc_from_raw(raw)
+    chunk = parse_daily(load(raw), current_date=D(2026, 10, 9))
+    assert {d: values[d] for d, _ in chunk.closes} == chunk.ohlc
+    assert ohlc_from_raw("깨진 본문") == {}
+

@@ -58,10 +58,20 @@ async def columns(engine: AsyncEngine, table: str) -> dict[str, dict[str, object
 
 def test_리비전은_저장한_비교_뒤다() -> None:
     script = ScriptDirectory.from_config(_alembic_config())
+    # 014 승인 2026-10-10 — 반복 2026-10-10b에 시가 리비전이 그 뒤에 붙었다(머리가 아니다)
+    dashboard = script.get_revision("c8d4f1a2e9b7")
+    assert dashboard is not None
+    assert dashboard.down_revision == "b3e7d5a1c924"
+    assert "대시보드" in (dashboard.doc or "")
+
+
+def test_시가_리비전이_머리이고_대시보드_뒤다() -> None:
+    """반복 2026-10-10b(T097) — 시가·고가·저가 열은 리비전 하나다."""
+    script = ScriptDirectory.from_config(_alembic_config())
     head = script.get_revision(script.get_current_head())
     assert head is not None
-    assert head.down_revision == "b3e7d5a1c924"
-    assert "대시보드" in (head.doc or "")
+    assert head.down_revision == "c8d4f1a2e9b7"
+    assert "시가" in (head.doc or "")
 
 
 async def test_테이블_넷(engine: AsyncEngine) -> None:
@@ -72,7 +82,20 @@ async def test_테이블_넷(engine: AsyncEngine) -> None:
 
 async def test_일별_종가(engine: AsyncEngine) -> None:
     cols = await columns(engine, "market_indicator_daily")
-    assert set(cols) == {"indicator_id", "trade_date", "close", "source", "ingested_at"}
+    # 014 승인 2026-10-10 — 반복 2026-10-10b의 시가·고가·저가 열 셋(T097)
+    assert set(cols) == {
+        "indicator_id",
+        "trade_date",
+        "close",
+        "open_price",
+        "high_price",
+        "low_price",
+        "source",
+        "ingested_at",
+    }
+    for name in ("open_price", "high_price", "low_price"):
+        o = cols[name]
+        assert (o["type"], o["precision"], o["scale"], o["nullable"]) == ("decimal", 20, 6, True)
     assert (cols["indicator_id"]["type"], cols["indicator_id"]["length"]) == ("varchar", 32)
     assert cols["trade_date"]["type"] == "date"
     c = cols["close"]

@@ -162,3 +162,97 @@ async def test_이력의_전일_종가와_구간(session_factory: async_sessionm
             ("2026-10-07", "6803.900000"), ("2026-10-08", "6625.930000")
         )
         assert await market_daily.closes(s, "kosdaq") == []
+
+
+# 반복 2026-10-10b(T097) — 시가·고가·저가. 종가와 같은 불변식이다: 새 날만 넣고 덮지 않는다(spec
+# FR-017).
+OHLC = {D(2026, 10, 7): (Decimal("6700"), Decimal("6810.5"), Decimal("6690"))}
+
+
+async def test_시가_고가_저가는_새_날에만_넣고_덮지_않는다(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    async with session_factory() as s:
+        await market_daily.store_closes(
+            s, "kospi", _closes(("2026-10-07", "6803.9")), detected_at=AT, ohlc=OHLC
+        )
+        await s.commit()
+        other = {D(2026, 10, 7): (Decimal("1"), Decimal("2"), Decimal("3"))}
+        again = await market_daily.store_closes(
+            s, "kospi", _closes(("2026-10-07", "6803.9")), detected_at=AT, ohlc=other
+        )
+        await s.commit()
+        assert again.inserted == 0
+        assert await market_daily.bars(s, "kospi") == [
+            market_daily.Bar(
+                D(2026, 10, 7),
+                Decimal("6700.000000"),
+                Decimal("6810.500000"),
+                Decimal("6690.000000"),
+                Decimal("6803.900000"),
+            )
+        ]
+
+
+async def test_시가가_없으면_비운다(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    async with session_factory() as s:
+        await market_daily.store_closes(
+            s, "kospi", _closes(("2026-10-06", "6700.5")), detected_at=AT
+        )
+        await s.commit()
+        (bar,) = await market_daily.bars(s, "kospi")
+        assert (bar.open, bar.high, bar.low) == (None, None, None)
+
+
+async def test_채우기는_비운_날만이고_다시_해도_같다(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    async with session_factory() as s:
+        await market_daily.store_closes(
+            s, "kospi", _closes(("2026-10-06", "6700.5")), detected_at=AT
+        )
+        await market_daily.store_closes(
+            s, "kospi", _closes(("2026-10-07", "6803.9")), detected_at=AT, ohlc=OHLC
+        )
+        await s.commit()
+        values = {
+            D(2026, 10, 6): (Decimal("6650"), Decimal("6720"), Decimal("6640")),
+            D(2026, 10, 7): (Decimal("9"), Decimal("9"), Decimal("9")),
+        }
+        assert await market_daily.fill_ohlc(s, "kospi", values) == 1
+        await s.commit()
+        assert await market_daily.fill_ohlc(s, "kospi", values) == 0
+        await s.commit()
+        bars = {b.date: b for b in await market_daily.bars(s, "kospi")}
+        assert bars[D(2026, 10, 6)].open == Decimal("6650.000000")
+        assert bars[D(2026, 10, 7)].open == Decimal("6700.000000")  # 있는 날은 덮지 않는다
+
+
+async def test_원본_본문은_받은_차례다(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    async with session_factory() as s:
+        for body, at in (("늦게", AT + dt.timedelta(hours=1)), ("먼저", AT)):
+            await market_daily.store_raw(
+                s,
+                "kospi",
+                requested_from=D(2026, 10, 1),
+                requested_to=D(2026, 10, 8),
+                status_code=200,
+                body=body,
+                received_at=at,
+            )
+        await s.commit()
+        assert await market_daily.raw_bodies(s, "kospi") == ["먼저", "늦게"]
+
+
+async def test_구간의_일봉(session_factory: async_sessionmaker[AsyncSession]) -> None:
+    async with session_factory() as s:
+        await market_daily.store_closes(
+            s,
+            "kospi",
+            _closes(("2026-10-05", "1"), ("2026-10-06", "2"), ("2026-10-07", "3")),
+            detected_at=AT,
+        )
+        await s.commit()
+        bars = await market_daily.bars(s, "kospi", D(2026, 10, 6), D(2026, 10, 7))
+        assert [b.date for b in bars] == [D(2026, 10, 6), D(2026, 10, 7)]
+
