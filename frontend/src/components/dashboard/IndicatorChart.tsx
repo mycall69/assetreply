@@ -11,17 +11,18 @@
  *   휴장은 `gaps`에 없어 선이 이어진다(원칙 V). 장중의 빈 값은 출처가 주지 않아 점이 없다(선이 이어진다)
  * - 잠정 점(오늘·외환 잠정 고시)은 연한 색 선이다 — 앞의 확정 점에서 이어 확정 선과 섞이지 않게 한다
  * - 커서 상자는 서버 문자열에 형식만 입힌다. 숫자 변환은 그리기 전용이고 `lib/chartSeries`의 `toChartData`·`toIntradayData` 안에 있다(원칙 VI)
- * - 장중 커서 상자는 그 시장의 현지 시각과 한국 시각이다(한국 시장은 하나)
+ * - 장중 커서 상자는 그 시장의 현지 시각과 한국 시각이다(한국 시장은 하나). 시간 축 눈금·커서 시각 글자도 그 시장의 현지 시각이다 —
+ *   라이브러리 기본(UTC)이면 항셍 장중 축이 "05:00"처럼 보였다(T123 실측)
  * - 커서 상자는 그것을 낸 그래프에만 보인다 — 기간을 바꿔도 커서가 움직이지 않으면 옛 기간의 점이 남았다(T123 실측)
  *
  * 새 부품이다 — `FxChart`·`PerformanceChart`를 고치지 않는다.
  */
 import { useEffect, useRef, useState } from "react";
-import { createChart, LineSeries, type UTCTimestamp } from "lightweight-charts";
+import { createChart, LineSeries, type Time, type TickMarkType, type UTCTimestamp } from "lightweight-charts";
 import { failureLabel } from "@/components/dashboard/IndicatorHeader";
 import { splitSeriesAtGaps, toChartData, toIntradayData, type IntradayDatum } from "@/lib/chartSeries";
 import { formatRate } from "@/lib/format";
-import { formatZonedDate, formatZonedTime, KST_ZONE } from "@/lib/kstClock";
+import { formatZonedDate, formatZonedDay, formatZonedTime, KST_ZONE } from "@/lib/kstClock";
 import type { IndicatorChartSeries, IndicatorIntradayResponse, IndicatorPoint, IndicatorRangeSeries } from "@/lib/types";
 
 const SOLID = "#1f2937";
@@ -125,6 +126,22 @@ function DailyChart({ series }: { series: IndicatorRangeSeries }) {
   );
 }
 
+/** 라이브러리 시각(초 단위 UTC) → ISO 글자. */
+const isoOf = (time: Time) => new Date((time as number) * 1000).toISOString();
+
+/**
+ * 장중 시간 축 눈금 — 그 시장의 현지 시각. 종류는 라이브러리 `TickMarkType`의 값이다(0 해·1 달·2 날·3 시각·4 초까지) — 열거형을
+ * 실행 중에 쓰지 않는다(차트 테스트의 모의에 없다 — 010 주의).
+ */
+function intradayTick(time: Time, kind: TickMarkType, timeZone: string): string {
+  const iso = isoOf(time);
+  const [year, month, day] = formatZonedDay(iso, timeZone).split("-");
+  if (kind === 0) return `${year}년`;
+  if (kind === 1) return `${month.replace(/^0/, "")}월`;
+  if (kind === 2) return `${day.replace(/^0/, "")}일`;
+  return formatZonedTime(iso, timeZone);
+}
+
 /** 장중 시각 — 그 시장의 현지 `MM-DD HH:mm`, 현지가 한국이 아니면 한국 시각을 덧붙인다. */
 function intradayTime(at: string, timeZone: string): string {
   const local = `${formatZonedDate(at, timeZone)} ${formatZonedTime(at, timeZone)}`;
@@ -141,7 +158,13 @@ function IntradayChart({ series }: { series: IndicatorIntradayResponse }) {
     if (!container.current) return;
     const instance = createChart(container.current, {
       ...CHART_OPTIONS,
-      timeScale: { borderVisible: false, minBarSpacing: MIN_BAR_SPACING, timeVisible: true, secondsVisible: false },
+      timeScale: {
+        borderVisible: false, minBarSpacing: MIN_BAR_SPACING, timeVisible: true, secondsVisible: false,
+        tickMarkFormatter: (time: Time, kind: TickMarkType) => intradayTick(time, kind, zone),
+      },
+      localization: {
+        timeFormatter: (time: Time) => `${formatZonedDate(isoOf(time), zone)} ${formatZonedTime(isoOf(time), zone)}`,
+      },
     });
     const data = toIntradayData(series.points);
     const line = instance.addSeries(LineSeries, {
@@ -156,7 +179,7 @@ function IntradayChart({ series }: { series: IndicatorIntradayResponse }) {
     });
     instance.timeScale().fitContent();
     return () => instance.remove();
-  }, [series]);
+  }, [series, zone]);
 
   return (
     <section className="rounded-lg border border-gray-200 p-4">
