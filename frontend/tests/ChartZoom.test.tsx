@@ -40,6 +40,8 @@ vi.mock("lightweight-charts", () => ({
       setVisibleRange: (range: { from: unknown; to: unknown }) => { chart.setVisibleRange.push(range); },
       coordinateToTime: (x: number) => { chart.coordinateToTime.push(x); return chart.timeAt; },
     }),
+    // 014 승인 2026-10-11(반복 2026-10-11c T195) — 확대 단추를 오른쪽 가격 축 밖에 두려고 처음 누를 때 축 폭을 잰다(FR-039)
+    priceScale: () => ({ width: () => 60 }),
     remove: () => undefined,
   }),
 }));
@@ -246,18 +248,14 @@ describe("이력 수익률 비교의 날짜", () => {
   });
 });
 
-describe("대상 밖 그래프", () => {
+describe("확대 그래프", () => {
   const source = (path: string) => readFileSync(resolve(__dirname, "../src", path), "utf8");
 
-  it("외환 환율 그래프와 대시보드 지표 그래프는 두 지점 확대가 없다", () => {
-    for (const path of ["components/FxChart.tsx", "components/dashboard/IndicatorChart.tsx"]) {
-      expect(source(path)).not.toMatch(/useChartZoom|ChartZoomControls/);
-    }
-  });
-
-  it("수익률 그래프 셋은 같은 훅과 단추를 쓴다", () => {
+  // 014 승인 2026-10-11(반복 2026-10-11c T195) — 외환 추이·지표 일봉 그래프에도 두 지점 확대를 더한다(FR-039 — FR-037의 "대상 밖"을 대체).
+  // 지표 장중 그래프는 대상 밖이다(ChartZoomPlacement.test.tsx).
+  it("수익률 그래프 셋과 외환·지표 그래프가 같은 훅과 단추를 쓴다", () => {
     for (const path of ["components/compare/CompareReturnChart.tsx", "components/stock/PerformanceChart.tsx",
-      "components/stock/ComparisonChart.tsx"]) {
+      "components/stock/ComparisonChart.tsx", "components/FxChart.tsx", "components/dashboard/IndicatorChart.tsx"]) {
       expect(source(path)).toMatch(/useChartZoom/);
       expect(source(path)).toMatch(/ChartZoomControls/);
     }
