@@ -124,12 +124,14 @@ class Test스키마:
                 "AND column_name = 'first_trade_date'"))).one()
         assert (row[0], row[1]) == ("date", "YES")
 
-    def test_리비전은_시가_리비전_뒤의_머리다(self) -> None:
+    def test_리비전은_시가_리비전_뒤다(self) -> None:
+        # 014 승인 2026-10-11(반복 2026-10-11d T206) — 기준금리 리비전(e9f3b7c2a4d1)이 그 뒤에
+        # 붙었다 — 첫 거래일 리비전은 머리가 아니다. 머리는 `test_policy_rate_worker`가 본다(FR-043)
         script = ScriptDirectory.from_config(_alembic_config())
-        head = script.get_revision(script.get_current_head())
-        assert head is not None
-        assert head.down_revision == "d5e1a7c3b2f8"
-        assert "첫 거래일" in (head.doc or "")
+        revision = script.get_revision("a6c2e8f41b93")
+        assert revision is not None
+        assert revision.down_revision == "d5e1a7c3b2f8"
+        assert "첫 거래일" in (revision.doc or "")
 
 
 class Test등록:

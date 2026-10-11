@@ -36,7 +36,9 @@ def test_lifespan이_가상자산_두_줄과_기동_정리를_등록한다() -> 
     assert "crypto_worker_loop(" in body
     assert "crypto_list_worker_loop(" in body
     assert "crypto_startup(" in body
-    assert body.count("asyncio.create_task(") == 9  # 014 승인 2026-10-10 — 대시보드 지표 이력 수집
+    # 014 승인 2026-10-10 — 대시보드 지표 이력 수집
+    # 014 승인 2026-10-11(반복 2026-10-11d T206) — 기준금리 수집(열째)
+    assert body.count("asyncio.create_task(") == 10
 
 
 async def test_기동_시_남은_가상자산_점유를_회수한다(session_factory) -> None:

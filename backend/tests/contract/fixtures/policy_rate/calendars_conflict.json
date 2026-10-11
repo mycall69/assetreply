@@ -1,0 +1,57 @@
+[
+ {
+  "localTradedAt": "2026-09-17T20:00:00+09:00",
+  "closePrice": "3.75",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2026-07-30T20:00:00+09:00",
+  "closePrice": "3.75",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2026-07-30T23:59:59+09:00",
+  "closePrice": "3.50",
+  "fluctuations": "-0.25",
+  "fluctuationsType": {
+   "code": "5",
+   "text": "하락",
+   "name": "FALLING"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2026-06-18T20:00:00+09:00",
+  "closePrice": "3.75",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2026-04-30T20:00:00+09:00",
+  "closePrice": "3.75",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ }
+]

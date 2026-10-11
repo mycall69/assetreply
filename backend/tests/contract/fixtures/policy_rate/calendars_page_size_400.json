@@ -1,0 +1,1 @@
+{"detailCode":"HttpError","message":"Bad Request","result":"getStandardInterestCalendars.pageSize: must be less than or equal to 60"}

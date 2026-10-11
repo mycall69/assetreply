@@ -1,0 +1,288 @@
+[
+ {
+  "localTradedAt": "2026-09-18T11:54:04+09:00",
+  "closePrice": "1.25",
+  "fluctuations": "0.25",
+  "fluctuationsType": {
+   "code": "2",
+   "text": "상승",
+   "name": "RISING"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2026-09-18T23:59:59+09:00",
+  "closePrice": "1.25",
+  "fluctuations": "0.25",
+  "fluctuationsType": {
+   "code": "2",
+   "text": "상승",
+   "name": "RISING"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2026-07-31T23:59:59+09:00",
+  "closePrice": "1.00",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2026-06-16T12:19:04+09:00",
+  "closePrice": "1.00",
+  "fluctuations": "0.25",
+  "fluctuationsType": {
+   "code": "2",
+   "text": "상승",
+   "name": "RISING"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2026-06-16T23:59:59+09:00",
+  "closePrice": "1.00",
+  "fluctuations": "0.25",
+  "fluctuationsType": {
+   "code": "2",
+   "text": "상승",
+   "name": "RISING"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2026-04-28T23:59:59+09:00",
+  "closePrice": "0.75",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2026-03-19T23:59:59+09:00",
+  "closePrice": "0.75",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2026-01-23T23:59:59+09:00",
+  "closePrice": "0.75",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2025-12-19T23:59:59+09:00",
+  "closePrice": "0.75",
+  "fluctuations": "0.25",
+  "fluctuationsType": {
+   "code": "2",
+   "text": "상승",
+   "name": "RISING"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2025-10-30T23:59:59+09:00",
+  "closePrice": "0.50",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2025-09-19T23:59:59+09:00",
+  "closePrice": "0.50",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2025-07-31T23:59:59+09:00",
+  "closePrice": "0.50",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2025-06-17T23:59:59+09:00",
+  "closePrice": "0.50",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2025-05-01T23:59:59+09:00",
+  "closePrice": "0.50",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2025-03-19T23:59:59+09:00",
+  "closePrice": "0.50",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2025-01-24T23:59:59+09:00",
+  "closePrice": "0.50",
+  "fluctuations": "0.25",
+  "fluctuationsType": {
+   "code": "2",
+   "text": "상승",
+   "name": "RISING"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2024-12-19T23:59:59+09:00",
+  "closePrice": "0.25",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2024-10-31T23:59:59+09:00",
+  "closePrice": "0.25",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2024-09-20T13:00:00+09:00",
+  "closePrice": "0.25",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2024-07-31T23:59:59+09:00",
+  "closePrice": "0.25",
+  "fluctuations": "0.15",
+  "fluctuationsType": {
+   "code": "2",
+   "text": "상승",
+   "name": "RISING"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2024-06-14T23:59:59+09:00",
+  "closePrice": "0.10",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2024-04-26T23:59:59+09:00",
+  "closePrice": "0.10",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2024-03-19T23:59:59+09:00",
+  "closePrice": "0.10",
+  "fluctuations": "0.20",
+  "fluctuationsType": {
+   "code": "2",
+   "text": "상승",
+   "name": "RISING"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2024-01-23T23:59:59+09:00",
+  "closePrice": "-0.10",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2023-12-19T23:59:59+09:00",
+  "closePrice": "-0.10",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ },
+ {
+  "localTradedAt": "2023-10-31T23:59:59+09:00",
+  "closePrice": "-0.10",
+  "fluctuations": "0.00",
+  "fluctuationsType": {
+   "code": "3",
+   "text": "보합",
+   "name": "UNCHANGED"
+  },
+  "isRelease": true
+ }
+]
