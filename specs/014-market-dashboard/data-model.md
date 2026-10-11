@@ -395,3 +395,78 @@ R14-7 표가 상수다. 함수는 둘이다:
   함께 산다 — 받은 자료로 다시 그려도 `zoomed`를 비우지 않는다. 시계열·대상·테마가 바뀌거나 [리셋]이면 `detail`을 버린다
 - 끼워 그리기(`lib/chartDetail` — 순수): 원래 점 가운데 [from, to] 밖의 점 + 받은 점(날짜 차례), `gaps`는 원래 것과 받은 것을 합친다(같은 구간은 한 번). 비교의 `valueLine.points`도 같은 규칙
 - 확대 단추 자리: `{ right: 오른쪽 가격 축 폭 + 8, top: 4 }`(px) — 축 폭은 처음 누를 때 `priceScale("right").width()`로 잰다
+
+## 17. 기준금리 결정 (반복 2026-10-11d — FR-040~FR-043)
+
+새 테이블 셋 — Alembic 리비전 하나(`down_revision = "a6c2e8f41b93"` — 주식 첫 거래일). 시각은 UTC `TS`, 열거형은 비원생이다. 금리는 `Numeric(8, 4)`(출처는 소수 둘째 자리 — 넉넉히 넷).
+
+### 17.1 `policy_rate_decision` — 결정 이력(정규화)
+
+| 열 | 형 | 제약 | 뜻 |
+|----|----|------|----|
+| `id` | BIGINT | PK | |
+| `bank` | VARCHAR(8) | NOT NULL | 은행 id(`fed`·`bok`·`ecb`·`boe`·`boj` — 17.4) |
+| `decided_on` | DATE | NOT NULL | 결정일 — 출처 시각(`localTradedAt`, 한국 시각)의 **한국 날짜** |
+| `announced_at` | TS | NULL | 발표 시각(UTC). 출처의 자리 표시 시각(`23:59:59`)이면 NULL — 시각을 만들지 않는다 |
+| `rate` | Numeric(8, 4) | NOT NULL | 결정한 금리(%). 마이너스 가능(일본 2016 −0.10) |
+| `source` | VARCHAR(32) | NOT NULL | `naver_standard_interest` |
+| `ingested_at` | TS | NOT NULL | 처음 저장한 시각 |
+
+- UNIQUE(`bank`, `decided_on`) — 멱등 저장(새 날만 넣는다). 이미 있는 날의 금리가 다르면 **덮지 않고** `policy_rate_revised` 사건(17.5)
+- 동결도 결정이다. 발표 전 행(`isRelease:false`·`closePrice:"-"`)은 넣지 않는다
+- 같은 응답에 같은 `decided_on`이 둘: 금리가 같으면 하나(실제 시각 행 — 자리 표시 행보다 먼저), 다르면 그 날을 넣지 않고 `policy_rate_conflict`
+- 전회대비는 저장하지 않는다 — 조회 때 같은 은행의 직전 `decided_on` 행과의 차이(`simulation/policy_rate`)
+
+### 17.2 `policy_rate_raw` — 원본 응답(본문만)
+
+| 열 | 형 | 제약 | 뜻 |
+|----|----|------|----|
+| `id` | BIGINT | PK | |
+| `kind` | Enum(`list`·`calendars`) | NOT NULL | 목록 · 결정 이력 쪽 |
+| `bank` | VARCHAR(8) | NULL | `calendars`의 은행 |
+| `page` | INT | NULL | `calendars`의 쪽 |
+| `body` | MEDIUMTEXT | NOT NULL | 응답 본문 그대로 — 요청 주소·머리 없이 |
+| `source` | VARCHAR(32) | NOT NULL | |
+| `fetched_at` | TS | NOT NULL | |
+
+### 17.3 `policy_rate_bank` — 은행 상태(커버리지)
+
+| 열 | 형 | 제약 | 뜻 |
+|----|----|------|----|
+| `bank` | VARCHAR(8) | PK | |
+| `next_meeting_on` | DATE | NULL | 목록의 `nextReleaseKoreaDate`(한국 날짜). 오늘(한국)보다 이르면 NULL로 둔다 |
+| `history_complete` | BOOL | NOT NULL 기본 false | 처음 받기(결정 이력 전부)가 끝났다 — 짧은 쪽까지 받은 뒤에만 true |
+| `last_overlap_on` | DATE | NULL | 마지막으로 첫 쪽을 겹쳐 받은 한국 날짜(하루 한 번 규칙) |
+| `last_success_at` | TS | NULL | |
+| `last_failure_at` | TS | NULL | |
+| `failure_kind` | VARCHAR(16) | NULL | contracts A0의 다섯(`connection`·`rate_limited`·`blocked`·`invalid_body`·`not_found`) |
+| `failure_message` | VARCHAR(255) | NULL | 본문·머리 없이 |
+
+- 성공하면 `failure_*`를 비운다. 화면의 "받는 중" = 받은 결정이 없고 실패도 없다, "최근 갱신 실패" = 받은 결정이 있고 `last_failure_at` > `last_success_at`
+
+### 17.4 은행 표 (코드 한 곳 — `backend/src/ingestion/naver_rate/banks.py`)
+
+| id | 출처 `nationType` | 이름(화면) | 금리 종류 | 국기 | 차례 |
+|----|-------------------|------------|-----------|------|------|
+| `fed` | `USA` | 미국연방준비은행 | 연방기금금리 목표 범위 상단 | 🇺🇸 | 1 |
+| `bok` | `KOR` | 한국은행 | 기준금리 | 🇰🇷 | 2 |
+| `ecb` | `EUZ` | 유럽중앙은행 | 주요 재융자 금리 | 🇪🇺 | 3 |
+| `boe` | `GBR` | 영국은행 | Bank Rate | 🇬🇧 | 4 |
+| `boj` | `JPN` | 일본은행 | 단기 정책금리 | 🇯🇵 | 5 |
+
+- 변화 까닭의 은행 낱말(FR-042)도 이 표에 둔다 — `fed` 연준·FOMC·파월 / `bok` 한은·한국은행·금통위 / `ecb` ECB·유럽중앙은행 / `boe` 영란은행·BOE·영국 중앙은행 / `boj` 일본은행·BOJ·日銀·일은
+
+### 17.5 수집 사건 (수집 로그 `logs/collection.log` — 표 없음)
+
+| 사건 | 칸 |
+|------|----|
+| `policy_rate_fetch` | 종류(`list`·`calendars`)·은행·쪽·결과(성공·실패 종류)·행 수 |
+| `policy_rate_revised` | 은행·결정일·저장값·출처의 새 값 |
+| `policy_rate_conflict` | 은행·결정일·두 값 |
+
+### 17.6 응답 꼴 (contracts A14~A16)
+
+- 칸 행: `bank`·`name`·`flag`·`rateKind`·`rate`(문자열 — `"4.00"`)·`change`(문자열, 첫 결정이면 `null`)·`direction`(`up`·`down`·`flat`·`null`)·`decidedOn`·`announcedAt`(ISO UTC 또는
+  `null`)·`nextMeetingOn`·`state`(`ready`·`collecting`·`failed`)·`failure`(`{kind, message, at}` 또는 `null`)·`lastSuccessAt`
+- 모달: 칸 행 + `decisions[]`(최신부터 전부 — `decidedOn`·`announcedAt`·`rate`·`change`·`direction`) + `firstDecidedOn`·`lastDecidedOn`
+- 변화 까닭: A8과 같은 `items[]`·`failure` + `decisionDate`

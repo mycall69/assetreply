@@ -1029,6 +1029,64 @@ description: "Task list for 014-market-dashboard"
 
 ---
 
+## Phase 17: 반복 2026-10-11d — 대시보드 기준금리 (spec Iterations — 사용자 요청)
+
+**Goal**:
+- 대시보드의 환율 묶음과 원자재·변동성 묶음 사이에 다섯 중앙은행의 기준금리 칸(금리·전회대비·기준 일자)을 보이고(US12 — FR-040), 은행을 누르면 주소 있는 모달에 계단선 그래프·"금리 추이" 표·
+  변화 까닭을 보인다(FR-041·FR-042). 결정 이력은 로컬 DB에 쌓는다(FR-043)
+
+**Independent Test**(spec US12):
+- 대시보드의 기준금리 칸 다섯 행이 출처(네이버 증권 기준금리)의 금리·전회대비·기준 일자와 같고, 은행 다섯의 모달 표가 결정 이력(동결 포함)과 같다. 까닭은 그 은행의 최근 결정 기사뿐이다
+- 처음 기동은 "받는 중" → 채워짐, 출처가 막히면 받아 둔 값 + "최근 갱신 실패". 지표 카드·지표 모달·뉴스·외환은 그대로다
+
+**완료 작업 영향**: 손대는 완료 산출물은 `IndicatorGroups.tsx`(환율 뒤 자리)·`IndicatorModal.tsx`(은행 id면 금리 화면)·`api/main.py`(lifespan 열째)·`ingestion/news/commentary.py`(은행 출처)다.
+014가 만든 대시보드 화면 테스트의 요청 모의가 바뀔 수 있다 — T206에서 실제 실패 목록으로 승인한다. **원칙 II 새 경로는 T202 승인 전에 구현하지 않는다**
+
+### Source & approval (반복 2026-10-11d)
+
+- [ ] T202 출처 실측·픽스처·**원칙 II 승인** — (a) 네이버 기준금리 목록·결정 이력(다섯 은행의 깊이·`pageSize` 상한 60·자리 표시 시각·같은 날 두 행·발표 전 행·다음 결정일·계열의 뜻·응답 크기·
+  시간)과 뉴스 포커스 404·403·429의 결정 날 기사(은행마다 "은행 낱말 + 금리 낱말"로 고른 수)를 재고, robots·약관을 확인해 `research.md` R14-32·R14-33을 실측값으로 고친다. (b) 픽스처
+  `backend/tests/contract/fixtures/policy_rate/`(본문만 — 주소·머리 없이: 목록, 은행마다 결정 이력 첫 쪽 일부, 같은 날 두 행·발표 전 행·하락 행·마이너스 금리가 든 조각, 결정 날 뉴스 포커스
+  조각) + README 표. (c) `plan.md` Complexity Tracking의 새 표를 실측으로 채우고 **사용자에게 승인을 받는다** — 승인되지 않으면 T203 이후를 하지 않고 멈춘다 (FR-040, FR-042, FR-043)
+
+### Tests for 반복 2026-10-11d ⚠️
+
+- [ ] T203 [P] [US12] 계약 테스트 — 새 `backend/tests/contract/test_policy_rate_parse.py`(목록·결정 이력 픽스처: 금리 `Decimal`·하락 부호·발표 전 행 → 결정 아님·자리 표시 시각 → 시각 없음·한국 날짜·
+  같은 날 같은 값 하나(실제 시각)/다른 값 충돌·다음 결정일·실패 종류 다섯(contracts A0 — 400 `pageSize` 상한 포함)). 최초 실패 확인 (FR-043, SC-026)
+- [ ] T204 [P] [US12] 백엔드 테스트 — 새 `backend/tests/unit/test_policy_rate_rules.py`(전회대비·방향·첫 결정 `null`·예정일이 오늘(한국)보다 이르면 없음), 새
+  `backend/tests/integration/test_policy_rate_worker.py`(처음 전부 — 짧은 쪽에서 끝남, 중간 실패는 끝남으로 기록하지 않고 다음 바퀴에 이어 받음, 새 결정이 보이면 첫 쪽, 하루 한 번 겹쳐 받기,
+  개정은 덮지 않고 `policy_rate_revised`, 같은 날 충돌 `policy_rate_conflict`, 은행마다 따로 실패, 깨우기, 원본 본문만), 새 `backend/tests/integration/test_dashboard_rates_api.py`(A14~A17 —
+  차례·값·한국 날짜·받는 중·실패·받아 둔 값 + 최근 갱신 실패·없는 은행 404·칸 경로가 출처를 부르지 않음), 새 `backend/tests/unit/test_policy_rate_commentary.py`(결정일·다음 날, 분류 차례
+  404 → 403 → 429, 은행 낱말·금리 낱말 둘 다, 최대 3·같은 제목 한 번, 같은 (분류, 날짜) 한 번, 찾지 못함·실패·0건 읽기, 캐시). 최초 실패 확인 (FR-040~FR-043, SC-025, SC-026)
+- [ ] T205 [P] [US12] 화면 테스트 — 새 `frontend/tests/PolicyRateTable.test.tsx`(환율 묶음 뒤·원자재·변동성 앞, 다섯 행·국기·`4.00%`·▲▼·`0.00` 색·`09. 17.`·칸 머리, 받는 중 5초 뒤 다시·
+  실패·받아 둔 값 + 최근 갱신 실패·[다시 시도] = 깨우기, 행 누르면 `/dashboard/fed?range=1y`, 화면 계산 없음), 새 `frontend/tests/RateModal.test.tsx`(머리·금리 종류·다음 결정 예정·저장된 기간,
+  계단선(라인 종류)·결정 점·커서 상자, 기간 넷·처음 1년·바꾸면 처음 범위, 두 지점 확대·[리셋] = 기간 처음 범위, 표 = 예정 행 + 결정 전부(최신부터), 까닭 줄·찾지 못함·실패, 블랙 배경,
+  닫으면 그 은행 행으로 포커스, 없는 은행). 최초 실패 확인 (FR-040~FR-042, SC-025, SC-026)
+
+### Implementation for 반복 2026-10-11d
+
+- [ ] T206 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(예상: 014가 만든 대시보드 화면 테스트의 요청 모의만). T195와 같은 절차
+  (`014 승인 2026-10-11(반복 2026-10-11d T206)`)로 승인하고 구현을 치워 실패를 확인한 뒤 `test(014)`. 014 전 테스트가 실패하면 결함으로 보고 멈춘다 (FR-026)
+- [ ] T207 [US12] 백엔드 저장·수집 — Alembic 리비전(`policy_rate_decision`·`policy_rate_raw`·`policy_rate_bank` — down `a6c2e8f41b93`), `backend/src/db/models.py`,
+  새 `backend/src/repository/policy_rate_repository.py`, 새 `backend/src/ingestion/naver_rate/`(`client.py`·`parse.py`·`banks.py`), 새 `backend/src/worker/policy_rate_worker.py`·
+  `backend/src/api/main.py`(lifespan 열째), `backend/src/config/settings.py`·`.env.example`(`POLICY_RATE_*`), 개발 DB `alembic upgrade head` — DM17 (FR-043)
+- [ ] T208 [US12] 백엔드 조회·까닭 — 새 `backend/src/simulation/policy_rate.py`(순수), 새 `backend/src/api/routes/dashboard_rates.py`(A14~A17), `backend/src/ingestion/news/commentary.py`(은행 출처 —
+  결정일·다음 날·분류 404 → 403 → 429·낱말 둘 다), 새 `backend/src/api/services/policy_rate_commentary.py` — contracts A14~A17 (FR-040~FR-042)
+- [ ] T209 [US12] 화면 — `frontend/src/lib/types.ts`, 새 `frontend/src/stores/policyRateStore.ts`, 새 `frontend/src/components/dashboard/PolicyRateTable.tsx`·`RateView.tsx`·`RateChart.tsx`·
+  `RateTable.tsx`, `components/dashboard/IndicatorGroups.tsx`(환율 뒤 자리), `components/dashboard/IndicatorModal.tsx`(은행 id면 `RateView`·포커스 복귀 `data-rate`)·`RangePicker.tsx`(금리 기간 넷),
+  `app/dashboard/page.tsx` — contracts D18 (FR-040~FR-042)
+
+### Polish (반복 2026-10-11d)
+
+- [ ] T210 [US12] 실측 — quickstart 5-27(처음 기동 받는 중 → 다섯 행, 값 = 출처 목록, 은행 다섯 모달 — 표 = 결정 이력·예정 행, 그래프 계단선·기간·확대, 까닭 = 그 은행 기사, 블랙 배경, 출처 막힘)을
+  헤드리스 Chrome으로 확인하고 `quickstart.md` 8에 기록한다 (FR-040~FR-043, SC-025, SC-026)
+- [ ] T211 불변 대조·문서 — `014-baseline/fetch.py`(기준 29파일 — 차이 0), `docs/implementation-notes.md` §7(기준금리 절), `CLAUDE.md`(014 줄·lifespan 열째·원칙 II 이탈 수), `README.md`(기능·데이터 출처),
+  `INSTALL.md`(첫 수집·업데이트의 014 테이블), `spec.md` Status (FR-026, SC-010)
+- [ ] T212 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177·T185·T195·T206)뿐인지
+  `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -1067,6 +1125,10 @@ description: "Task list for 014-market-dashboard"
 - **반복 2026-10-11c (Phase 16)**: Phase 15 뒤
   1. 테스트 T192·T193·T194(함께 — 최초 실패 확인) → 구현 T196 → T197 → T198 → T195(실제 실패 목록 — 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
   2. T199~T201
+- **반복 2026-10-11d (Phase 17)**: Phase 16 뒤
+  1. T202(출처 실측·픽스처·**원칙 II 승인** — 승인 전에는 아래를 하지 않는다)
+  2. 테스트 T203·T204·T205(함께 — 최초 실패 확인) → 구현 T207 → T208 → T209 → T206(실제 실패 목록 — 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
+  3. T210(개발 DB `alembic upgrade head` 먼저)~T212
 - **Foundational (Phase 2)**: T002·T004 뒤. US1·US2를 막는다. US3는 T011(설정) 뒤면 시작할 수 있다.
 - **US1 (Phase 3)**: Foundational 뒤. **T018(승인)이 이 페이즈의 테스트 커밋을 막는다** — T031~T040 구현을 작업 트리에 둔 뒤 목록을 만든다. 백엔드(T019~T023·T031~T035)와 화면(T024~T030·T036~T040)은 나란히 할 수 있다. MVP다.
 - **US2 (Phase 4)**: US1 뒤(시세 서비스의 캐시가 잠정 꼬리·머리 값을 준다. `main.py`·`types.ts`·`dashboardApi.ts`가 겹친다). 승인 목록이 없을 것으로 본다 — 구현 뒤 목록 밖의 실패는 결함으로 보고 멈춘다.
@@ -1163,6 +1225,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 12. 반복 2026-10-11 — 투자 성과표의 처음 단위 월(US8)(Phase 14). 화면만 — 사용자 요청
 13. 반복 2026-10-11b — 수익률 추이의 현재 가치 축(US9)과 두 지점 확대(US10)(Phase 15). 비교 블록 키 하나 + 화면 — 사용자 요청. 둘은 따로 낼 수 있다(T186·T187과 T188)
 14. 반복 2026-10-11c — 확대 구간의 일 단위 자료·외환/지표 확대·단추 자리(US11)(Phase 16). 시계열 경로의 선택 질의 둘 + 화면 — 사용자 보고
+15. 반복 2026-10-11d — 대시보드 기준금리(US12)(Phase 17). 새 테이블 셋·새 워커·새 경로 넷 + 화면 — 사용자 요청. 원칙 II 새 경로라 T202 승인이 먼저다(승인되지 않으면 이 Phase는 빠진다)
 
 ---
 
@@ -1230,7 +1293,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-023 | T007, T011, T067, T068, T076, T087, T089, T092 |
 | FR-024 | T064, T065, T066, T067, T068, T069, T070, T071, T072, T076, T077, T078, T079, T081, T087 |
 | FR-025 | T070, T079, T085, T121, T126, T140 |
-| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148, T152, T155, T161, T165, T169, T170, T174, T177, T180, T185, T190, T195, T200 |
+| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148, T152, T155, T161, T165, T169, T170, T174, T177, T180, T185, T190, T195, T200, T206, T211 |
 | FR-027 | T095, T103, T104, T105, T109, T113, T118, T119, T120, T121, T123 |
 | FR-028 | T095, T102, T104, T105, T107, T112, T116, T121, T123, T128, T129, T132, T133, T137 |
 | FR-029 | T104, T105, T108, T114, T117, T119, T120, T121, T123, T124 |
@@ -1244,6 +1307,10 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-037 | T184, T185, T188, T189 |
 | FR-038 | T192, T193, T195, T196, T197, T198, T199, T200 |
 | FR-039 | T194, T195, T197, T198, T199 |
+| FR-040 | T202, T204, T205, T208, T209, T210 |
+| FR-041 | T204, T205, T208, T209, T210 |
+| FR-042 | T202, T204, T205, T208, T209, T210 |
+| FR-043 | T202, T203, T204, T207, T210 |
 | SC-001 | T071, T082, T087 |
 | SC-002 | T047, T056, T082, T107, T124, T130, T138 |
 | SC-003 | T010, T020, T023, T032, T041 |
@@ -1253,7 +1320,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-007 | T022, T034, T064, T065, T066, T068, T071, T081, T087, T094 |
 | SC-008 | T064, T065, T066, T068, T070, T081, T089, T092 |
 | SC-009 | T019, T026, T031 |
-| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141, T148, T150, T155, T157, T165, T167, T174, T175, T180, T181, T190, T191, T200, T201 |
+| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141, T148, T150, T155, T157, T165, T167, T174, T175, T180, T181, T190, T191, T200, T201, T211, T212 |
 | SC-011 | T062, T087 |
 | SC-012 | T104, T108, T124 |
 | SC-013 | T103, T109, T123 |
@@ -1268,3 +1335,5 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-022 | T184, T189 |
 | SC-023 | T192, T193, T199, T200 |
 | SC-024 | T194, T199 |
+| SC-025 | T204, T205, T210 |
+| SC-026 | T203, T204, T205, T210 |

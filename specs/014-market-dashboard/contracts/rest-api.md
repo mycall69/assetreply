@@ -17,6 +17,9 @@
 
 반복 2026-10-10b: A2 장중(`1d`·`5d`)·A7·A8의 실패도 위 이름을 쓴다(A8의 목록 표지 없음은 `parse_empty`).
 
+반복 2026-10-11d: 기준금리 수집(A14·A15의 `failure.kind`)은 `connection`(403·429 밖의 4xx 포함 — `pageSize` 상한 400도 이것)·`rate_limited`·`blocked`·`invalid_body`(JSON 배열이 아님·행의
+금리를 읽을 수 없음)·`not_found`(목록에 그 은행이 없음·결정 이력 404)를 쓴다. A16은 A8과 같다.
+
 ## A1. `GET /api/dashboard/quotes` — 지표 15개의 현재 시세
 
 같은 순간의 요청은 서버 캐시(R14-6)를 함께 쓴다. 출처가 실패해도 **200**이다 — 실패는 지표마다 `status: "failed"`로 싣는다(FR-009).
@@ -328,6 +331,78 @@
 - 비교 경로는 같은 구간 점으로 `comparison.valueLine`을 낸다(A12 규칙). `summary`·블록의 다른 칸은 질의와 무관하다
 - 202·거절은 지금과 같다(수집 판정이 먼저다). 외환 `/api/fx/series`는 이미 `from`·`to`를 받는다 — 경로 변경 없음
 
+## A14. `GET /api/dashboard/rates` — 기준금리 칸 (반복 2026-10-11d — spec FR-040)
+
+**DB만 읽는다** — 출처를 부르지 않는다(수집은 워커 — FR-043). 은행마다 따로 실패해도 **200**이다.
+
+```json
+{
+  "source": "네이버 증권",
+  "sourceUrl": "https://stock.naver.com/market/marketindex/bondAndInterest/standardInterest",
+  "refreshAfterSeconds": 60,
+  "banks": [
+    { "bank": "fed", "name": "미국연방준비은행", "flag": "🇺🇸", "rateKind": "연방기금금리 목표 범위 상단",
+      "rate": "4.00", "change": "0.25", "direction": "up", "decidedOn": "2026-09-17", "announcedAt": "2026-09-16T18:00:00Z",
+      "nextMeetingOn": "2026-10-29", "state": "ready", "failure": null, "lastSuccessAt": "2026-10-11T09:30:00Z" },
+    { "bank": "bok", "name": "한국은행", "flag": "🇰🇷", "rateKind": "기준금리",
+      "rate": null, "change": null, "direction": null, "decidedOn": null, "announcedAt": null, "nextMeetingOn": null,
+      "state": "collecting", "failure": null, "lastSuccessAt": null }
+  ]
+}
+```
+
+- `banks`는 늘 다섯이고 차례는 은행 표(DM17.4)다 — `fed`·`bok`·`ecb`·`boe`·`boj`
+- `rate`·`change`는 서버 `Decimal`의 문자열이다(소수 둘째 자리 이상 — 저장값의 뜻 있는 자리). `change`는 저장된 직전 결정과의 차이, 첫 결정이면 `null`(`direction`도 `null`). `direction`:
+  `up`·`down`·`flat`
+- `decidedOn`은 한국 날짜, `announcedAt`은 UTC(자리 표시 시각이면 `null`), `nextMeetingOn`은 한국 날짜(없거나 오늘(한국)보다 이르면 `null`)
+- `state`: `ready`(결정이 있다 — 실패가 있으면 `failure`도 실린다: "최근 갱신 실패"), `collecting`(받은 결정이 없고 실패도 없다), `failed`(받은 결정이 없고 실패했다). `failure`:
+  `{ "kind": A0, "message": "…", "at": "ISO UTC" }`
+- `refreshAfterSeconds`는 화면의 다시 읽기 주기(지표 카드와 같은 설정). 화면은 `collecting`이 있으면 5초 뒤 다시 읽는다
+
+## A15. `GET /api/dashboard/rates/{bank}` — 금리 모달 (반복 2026-10-11d — spec FR-041)
+
+없는 `bank`는 404 `{ "error": "not_found" }`다. DB만 읽는다.
+
+```json
+{
+  "bank": "bok", "name": "한국은행", "flag": "🇰🇷", "rateKind": "기준금리",
+  "rate": "3.00", "change": "0.25", "direction": "up", "decidedOn": "2026-08-27", "announcedAt": "2026-08-27T01:00:00Z",
+  "nextMeetingOn": "2026-10-22", "state": "ready", "failure": null, "lastSuccessAt": "2026-10-11T09:30:00Z",
+  "firstDecidedOn": "2016-01-14", "lastDecidedOn": "2026-08-27",
+  "decisions": [
+    { "decidedOn": "2026-08-27", "announcedAt": "2026-08-27T01:00:00Z", "rate": "3.00", "change": "0.25", "direction": "up" },
+    { "decidedOn": "2016-01-14", "announcedAt": null, "rate": "1.50", "change": null, "direction": null }
+  ]
+}
+```
+
+- 머리 칸은 A14 행과 같은 값이다(같은 함수)
+- `decisions`는 **최신부터 전부**다(쪽을 나누지 않는다 — 은행마다 약 90행). 그래프와 표가 같은 배열을 쓴다. 다음 결정 예정은 `decisions`에 넣지 않는다(`nextMeetingOn`)
+- 받는 중·실패는 A14와 같은 `state`·`failure`(`decisions: []`)
+
+## A16. `GET /api/dashboard/rates/{bank}/commentary` — 금리 변화 까닭 (반복 2026-10-11d — spec FR-042)
+
+A8과 같은 꼴이다(`sessionDate` 대신 `decisionDate`). 출처가 실패해도 **200**, 없는 `bank`는 404, 저장하지 않는다(메모리 — `DASHBOARD_COMMENTARY_CACHE_SECONDS`).
+
+```json
+{
+  "bank": "bok", "source": "네이버 증권", "sourceUrl": "https://stock.naver.com/news",
+  "status": "ok", "fetchedAt": "2026-10-11T09:40:00Z", "decisionDate": "2026-08-27",
+  "items": [
+    { "title": "[속보]한은 금리 인상 결정에…", "summary": "…(출처 요약 원문)…", "publisher": "…",
+      "publishedAt": "2026-08-27T01:05:00Z", "publishedDate": null, "publishedText": null, "url": "https://n.news.naver.com/mnews/article/…" }
+  ],
+  "failure": null
+}
+```
+
+- `status`: `ok`(1~3개) · `none`(화면 "최근 결정을 다룬 기사를 찾지 못했습니다") · `failed`(A0 — 목록 표지 없음은 `parse_empty`). 결정이 아직 없으면 `none`·`decisionDate: null`
+- 고르기는 spec FR-042 — 결정일(한국)과 다음 날, 분류 404 → 403 → 429, 은행 낱말 + 금리 낱말 둘 다, 최대 3·같은 제목 한 번(R14-33)
+
+## A17. `POST /api/dashboard/rates/collect` — 다시 시도 (반복 2026-10-11d)
+
+수집 워커를 곧바로 깨운다 — **202** `{ "accepted": true }`. 출처를 이 요청 안에서 부르지 않는다. 화면은 5초 뒤 A14를 다시 읽는다.
+
 ## A6. 불변
 
 기존 경로의 응답은 바뀌지 않는다(FR-026):
@@ -337,6 +412,7 @@
 - (반복 2026-10-11) 경로 변경이 없다 — 표 경로(`/api/fx/daily`·주식·가상자산 일시금·적립식)는 `period`가 없으면 그대로 일이다. 화면이 처음 요청부터 `period=monthly`를 싣는다(FR-035)
 - (반복 2026-10-11b) 비교 경로 일곱의 200 `comparison`에 `valueLine`만 더해진다(A12). 메뉴 경로·비교 블록의 다른 칸은 그대로다. 그래프 확대(FR-037)는 요청이 없다
 - (반복 2026-10-11c) 주식·가상자산 시계열 경로 여덟에 선택 질의 `viewFrom`·`viewTo`(A13) — 질의가 없으면 응답은 그대로다. 확대는 일 단위 그래프에서 구간을 받는다(FR-038)
+- (반복 2026-10-11d) 새 경로 넷(A14~A17)만 더해진다. 대시보드의 지표·뉴스 경로(A1~A5·A7·A8)와 외환·다른 메뉴 경로의 응답은 그대로다
 - 주식: `/api/stocks/*`
 - 가상자산: `/api/crypto/*`
 - 예금: `/api/deposit/*`

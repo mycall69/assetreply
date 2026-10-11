@@ -53,6 +53,11 @@ cd backend && .venv/bin/python -m pytest -q tests/contract/test_yahoo_market_cli
 
 픽스처는 실측 본문을 줄여 `tests/contract/fixtures/market/`·`fixtures/news/`에 둔다(R14-1·R14-13). README 표에 받은 날·주소 종류·내용을 적는다.
 
+**네이버 기준금리(반복 2026-10-11d — T203)** — `tests/contract/test_policy_rate_parse.py`, 픽스처 `fixtures/policy_rate/`(본문만 — T202)
+- 금리는 `Decimal`, 하락은 음수, 결정일은 한국 날짜, 자리 표시 시각(23:59)은 시각 없음
+- 발표 전 행(`isRelease:false`·`"-"`)은 결정이 아니다. 같은 날 두 행 — 같은 값은 하나(실제 시각), 다른 값은 충돌
+- 다음 결정일(`nextReleaseKoreaDate`)을 읽는다. 실패 다섯(A0 — `pageSize` 상한 400은 `connection`)
+
 **Yahoo 차트·spark**
 - 현지 날짜가 `zoneinfo` 기준이다 — 겨울 CL=F 자정 행이 하루 앞당겨지지 않는다
 - 종가 `null` 행은 버린다. 오늘 봉은 확정으로 내지 않는다. `firstTradeDate`를 읽는다
@@ -85,6 +90,12 @@ cd backend && .venv/bin/python -m pytest -q tests/contract/test_yahoo_market_cli
 ./stop.sh && (cd backend && .venv/bin/python -m pytest -q tests/integration/test_market_worker.py tests/integration/test_market_repository.py tests/integration/test_dashboard_quotes_api.py \
   tests/integration/test_dashboard_series_api.py tests/integration/test_dashboard_news_api.py tests/integration/test_market_schema.py) ; ./start.sh
 ```
+
+**기준금리(반복 2026-10-11d — T204)** — `test_policy_rate_worker.py`·`test_dashboard_rates_api.py`(+ 단위 `test_policy_rate_rules.py`·`test_policy_rate_commentary.py`)
+- 워커: 처음은 은행마다 결정 이력 전부(짧은 쪽에서 끝), 중간 실패는 끝남으로 기록하지 않음, 새 결정이 보이면 첫 쪽, 하루 한 번 겹쳐 받기, 개정은 덮지 않고 `policy_rate_revised`,
+  같은 날 충돌 `policy_rate_conflict`, 은행마다 따로 실패, 깨우기, 원본 본문만
+- 경로: A14 차례·값·한국 날짜·`collecting`·`failed`·받아 둔 값 + `failure`, 칸 경로가 출처를 부르지 않음, A15 결정 전부(최신부터)·없는 은행 404, A16 고르기, A17 깨우기
+- 까닭: 결정일·다음 날, 분류 404 → 403 → 429, 은행 낱말 + 금리 낱말 둘 다, 최대 3, 같은 (분류, 날짜) 한 번
 
 **워커**
 - 처음 바퀴: 열두 지표의 최근 청크를 먼저 받고 `first_day`를 기록한다. 그다음 백필을 지표마다 돌아가며 받는다
@@ -227,6 +238,10 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
 - `ChartZoomDetail.test.tsx` — 확대 끝에 구간 받기, 받은 점으로 다시 그리고 확대 유지, 받는 중·실패, 늦은 응답 버림, 리셋, 받은 구간 안 재확대, 화면 연결(주식 늘·가상자산·외환은 줄였을 때만)
 - `ChartZoomPlacement.test.tsx` — 단추 자리(오른쪽 축 폭 + 8px), 외환·지표 일봉 그래프의 두 지점 확대, 지표 리셋 = 기간 처음 범위, 장중 단추 없음
 
+**기준금리 칸·금리 모달(반복 2026-10-11d — T205)**
+- `PolicyRateTable.test.tsx` — 환율 묶음 뒤·원자재·변동성 앞, 다섯 행(국기·`%`·▲▼ 색·한국 날짜), 받는 중 5초 뒤 다시, 실패·받아 둔 값 + 최근 갱신 실패·[다시 시도], 행 → `/dashboard/{bank}?range=1y`
+- `RateModal.test.tsx` — 머리·금리 종류·다음 결정 예정, 계단선(`lineType: 1`)·결정 점, 기간 넷·처음 1년, 두 지점 확대·[리셋] = 기간 처음 범위, 표 = 예정 행 + 결정 전부, 까닭, 블랙 배경, 포커스 복귀
+
 **뉴스**
 - 세 칸이 온 차례로 그려진다
 - 링크는 `target="_blank" rel="noopener noreferrer"`다
@@ -267,6 +282,7 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
 | 5-24 | (반복 2026-10-11) 투자 성과표의 처음 단위 월 | 외환 메뉴를 새로 열면 일자별 표 "월" 선택·행이 달마다(USD·JPY 바꿔도 월), 요청 `period=monthly`. 가상자산·주식 일시금·적립식 실행과 이력 다시 실행의 표가 "월"(보드·차트는 같은 조건의 "일" 실행과 같은 글자). "일"을 고른 뒤 다시 실행하면 "일"이 남고 새로 고치면 월. 투자 비교 모달(주식·가상자산) "월", 닫고 다시 열어도 월, 예금 모달 단추 없음. 대시보드 지표 모달 표는 "일". 블랙 배경 |
 | 5-25 | (반복 2026-10-11b) 수익률 추이의 현재 가치 축·두 지점 확대 | 투자 비교 주식 일시금(삼성전자·QLD): 왼쪽 축 원화(소수 없음·쉼표)·오른쪽 축 %, 대상마다 가는 선이 굵은 선과 겹치고 기준일 선 끝 금액(커서 상자) = 표 "현재 가치", 매도 후 점이 두 축에서 같은 자리. 주식 적립식: 가는 선이 납입으로 오른다. 예금·부동산 비교도 선 끝 = 표. 확대: 비교 수익률 추이·주식·가상자산·예금·부동산 메뉴 성과 추이·이력 수익률 비교·비교 모달 성과 추이에서 두 날 → 그 사이만 보이고 세로 축이 맞음, [리셋] → 처음 범위·단추 사라짐, [취소]·Esc·같은 날, 끌어 옮기기는 확대 아님, 다시 실행 → 처음 범위. 확대·리셋 동안 요청 없음(네트워크 기록). 외환·대시보드 그래프 그대로. 블랙 배경에서 가는 선·상태 줄·단추 대비 |
 | 5-26 | (반복 2026-10-11c) 확대 구간의 일 단위 자료·단추 자리 | 주식 메뉴(삼성전자 2024-01-02 일시금·적립식)·투자 비교(주식 여럿)·비교 모달·이력 비교를 두 지점으로 확대하면 그 구간의 거래일마다 점(날짜 눈금이 고르다), 커서 상자 값 = 일자별 표 "일" 행. 가상자산(긴 기간 — 줄여짐)·외환(긴 기간)도 구간 전부. 지표(1년) 확대·[리셋] = 1년 처음 범위·기간 바꾸면 풀림. 받는 중 상태 줄. [리셋]·상태 줄이 오른쪽 축 칸과 겹치지 않음(밝은·블랙 — 칸 좌표로 잰다). 예금·부동산·장중 그대로 |
+| 5-27 | (반복 2026-10-11d) 대시보드 기준금리 | 처음 기동(빈 테이블의 임시 백엔드)이면 칸이 은행마다 "받는 중" → 채워짐(처음 받기 호출 수·시간을 잰다). 칸이 "환율"과 "원자재·변동성" 사이이고 다섯 행의 금리·전회대비·기준 일자 = 출처 목록(같은 시각에 받아 견준다). 은행 다섯의 모달 — 표 = 출처 결정 이력 전부(동결 포함, 같은 날 두 행 규칙)·맨 위 예정 행, 그래프 계단선·기간 넷·왼쪽 끌기로 첫 결정까지·두 지점 확대·[리셋], 까닭 = 그 은행 기사만(다른 은행 0). 새로고침·뒤로 가기·포커스 복귀. 블랙 배경 대비. 출처 막힘(사용자 에이전트를 비운 임시 백엔드) — 받아 둔 값 + 최근 갱신 실패. 지표 카드·지표 모달·뉴스 그대로 |
 
 ## 6. 불변 (FR-026·SC-010)
 
