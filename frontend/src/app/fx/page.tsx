@@ -116,6 +116,7 @@ export default function FxPage() {
               selectedDate={selectedDate}
               loading={loading}
               onSelect={(d) => void selectDate(d)}
+              currency={currency}
             />
           </section>
 

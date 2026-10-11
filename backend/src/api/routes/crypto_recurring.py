@@ -34,8 +34,12 @@ from src.api.services.crypto_simulation import (
     require_start_available,
     source_missing,
 )
-from src.api.services.recurring_series import RecurringSeries, build_crypto_series
-from src.api.services.series_query import DEFAULT_MAX_POINTS
+from src.api.services.recurring_series import (
+    RecurringSeries,
+    build_crypto_series,
+    build_crypto_window,
+)
+from src.api.services.series_query import DEFAULT_MAX_POINTS, view_window
 from src.api.services.stock_recurring import parse_amount, parse_frequency
 from src.api.services.table_rows import parse_period, row_body
 from src.config.settings import load_settings
@@ -229,16 +233,23 @@ async def get_recurring_series(
     frequency: Annotated[str, Query()],
     end: Annotated[dt.date | None, Query()] = None,
     max_points: Annotated[int, Query(alias="maxPoints", ge=2)] = DEFAULT_MAX_POINTS,
+    view_from: Annotated[dt.date | None, Query(alias="viewFrom")] = None,
+    view_to: Annotated[dt.date | None, Query(alias="viewTo")] = None,
 ) -> Json | JSONResponse:
-    """표와 같은 조건으로 일봉마다의 시계열을 돌려준다."""
+    """표와 같은 조건으로 일봉마다의 시계열을 돌려준다. 보기 구간이면 그 구간의 일봉
+    그대로(contracts A13)."""
+    window = view_window(view_from, view_to, start=start, end=calculation_end(end))
     prepared = await prepare_or_collect(
         session, coin_id=coin_id, start=start, amount_raw=amount,
         principal_currency=principal_currency, frequency_raw=frequency, end=end, daily=True)
     if isinstance(prepared, JSONResponse):
         return prepared
     coin = prepared.coin
-    series = build_crypto_series(
-        prepared.result, start=start, end=calculation_end(end),
-        covered=await crypto_daily.get_coverage(session, int(coin.id)), max_points=max_points)
+    covered = await crypto_daily.get_coverage(session, int(coin.id))
+    series = (build_crypto_window(prepared.result, window=window, covered=covered,
+                                  max_points=max_points)
+              if window is not None else
+              build_crypto_series(prepared.result, start=start, end=calculation_end(end),
+                                  covered=covered, max_points=max_points))
     return series_json(series, principal_currency=principal_currency,
                        price_currency=coin.quote_currency)

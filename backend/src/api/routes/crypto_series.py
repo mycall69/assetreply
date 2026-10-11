@@ -19,14 +19,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.errors import StartAfterEnd
 from src.api.routes.crypto_simulation import calculation_end
 from src.api.services.crypto_collect import collecting_body
-from src.api.services.crypto_series import CryptoSeries, build_series
+from src.api.services.crypto_series import CryptoSeries, build_series, build_window
 from src.api.services.crypto_simulation import (
     check_principal_currency,
     prepare,
     require_coin,
     require_start_available,
 )
-from src.api.services.series_query import DEFAULT_MAX_POINTS
+from src.api.services.series_query import DEFAULT_MAX_POINTS, view_window
 from src.api.services.stock_simulation import parse_principal
 from src.config.settings import load_settings
 from src.db.session import get_session
@@ -72,10 +72,14 @@ async def get_simulation_series(
     principal_currency: Annotated[str, Query(alias="principalCurrency")],
     end: Annotated[dt.date | None, Query()] = None,
     max_points: Annotated[int, Query(alias="maxPoints", ge=2)] = DEFAULT_MAX_POINTS,
+    view_from: Annotated[dt.date | None, Query(alias="viewFrom")] = None,
+    view_to: Annotated[dt.date | None, Query(alias="viewTo")] = None,
 ) -> Json | JSONResponse:
-    """표와 같은 조건으로 일봉마다의 시계열을 돌려준다."""
+    """표와 같은 조건으로 일봉마다의 시계열을 돌려준다. 보기 구간이면 그 구간의 일봉
+    그대로(contracts A13)."""
     amount = parse_principal(principal)
     finish = calculation_end(end)
+    window = view_window(view_from, view_to, start=start, end=finish)
     if start > finish:
         raise StartAfterEnd(finish)
     coin = await require_coin(session, coin_id)
@@ -88,8 +92,10 @@ async def get_simulation_series(
 
     prepared = await prepare(session, coin, start=start, end=finish, principal=amount,
                              principal_currency=principal_currency, daily=True)
-    series = build_series(prepared.result, start=start, end=finish,
-                          covered=await crypto_daily.get_coverage(session, int(coin.id)),
-                          max_points=max_points)
+    covered = await crypto_daily.get_coverage(session, int(coin.id))
+    series = (build_window(prepared.result, window=window, covered=covered, max_points=max_points)
+              if window is not None else
+              build_series(prepared.result, start=start, end=finish, covered=covered,
+                           max_points=max_points))
     return series_json(series, principal_currency=principal_currency,
                        price_currency=coin.quote_currency)

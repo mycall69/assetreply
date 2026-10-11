@@ -11,6 +11,11 @@
 원주가 종가 ÷ 그 날 뒤 분할 비율(`simulation/split_adjust`, research R10-13). 원주가 시가(표의
 "시작가")를 그리면 분할 날 폭락처럼 보였다. 잔고와 같은 날의 값이고(FR-007), 점은 표의 행 날짜뿐이다
 — 일별 주가가 아니다(spec FR-001). 분할 기록은 응답에 싣지 않는다(분할 표식 없음 — FR-008).
+
+014 반복 2026-10-11c — **보기 구간**(`build_window`, contracts A13): 그 구간의 시세일마다 점 하나다.
+고르는 규칙은 일자별 표 "일" 행(`stock_simulation.table`)과 같다 — 그 날 행(월·배당락·재투자)이
+있으면 그날의 마지막 행(원래 점과 같은 값), 없으면 하루하루 상태(`daily`)를 같은 원화
+평가(`convert`)로. 새로 계산하지 않는다.
 """
 
 from __future__ import annotations
@@ -20,8 +25,14 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Literal
 
-from src.api.services.series_query import DEFAULT_MAX_POINTS, Gap, compute_gaps
-from src.api.services.stock_simulation import SimulationResult
+from src.api.services.series_query import (
+    DEFAULT_MAX_POINTS,
+    Gap,
+    ViewWindow,
+    compute_gaps,
+    window_gaps,
+)
+from src.api.services.stock_simulation import ConvertedRow, SimulationResult
 from src.simulation.downsample import Point, lttb
 from src.simulation.split_adjust import split_restated_close
 
@@ -67,16 +78,34 @@ def _one_per_day(result: SimulationResult) -> list[SeriesPoint]:
     표의 `balance`를 그리면 원화 원금 실행의 선이 달러 규모로 떨어지는데, 수익률 선은 KRW라 두 선이
     다른 기준을 말한다.
     """
-    latest: dict[dt.date, SeriesPoint] = {}
+    latest = _last_rows(result)
+    return [_point(latest[day], result) for day in sorted(latest)]
+
+
+def _last_rows(result: SimulationResult) -> dict[dt.date, ConvertedRow]:
+    """날짜 → 그 날 행 가운데 **마지막 것**(시뮬레이터가 덧붙인 차례 — 그 날의 최종 상태)."""
+    latest: dict[dt.date, ConvertedRow] = {}
     for converted in sorted(result.rows, key=lambda c: c.row.date):
-        row = converted.row
-        balance = converted.balance_krw if converted.balance_krw is not None else row.balance
-        close = result.closes.get(row.date)
-        latest[row.date] = (
-            SeriesPoint(row.date, balance, row.return_rate, None, "missing") if close is None
-            else SeriesPoint(row.date, balance, row.return_rate,
-                             split_restated_close(close, row.date, result.splits)))
-    return [latest[day] for day in sorted(latest)]
+        latest[converted.row.date] = converted
+    return latest
+
+
+def _point(converted: ConvertedRow, result: SimulationResult) -> SeriesPoint:
+    row = converted.row
+    balance = converted.balance_krw if converted.balance_krw is not None else row.balance
+    close = result.closes.get(row.date)
+    if close is None:
+        return SeriesPoint(row.date, balance, row.return_rate, None, "missing")
+    return SeriesPoint(row.date, balance, row.return_rate,
+                       split_restated_close(close, row.date, result.splits))
+
+
+def window_states(result: SimulationResult, window: ViewWindow) -> list[ConvertedRow]:
+    """보기 구간의 시세일마다 그 날의 상태(014 반복 2026-10-11c). 일자별 표 "일" 행과 같은 규칙이다
+    — 그 날 행이 있으면 그날의 마지막 행, 없으면 하루하루 상태를 같은 원화 평가로."""
+    latest = _last_rows(result)
+    return [latest.get(row.date) or result.convert(row)
+            for row in result.daily if window.contains(row.date)]
 
 
 def _downsample(points: list[SeriesPoint], max_points: int) -> list[SeriesPoint]:
@@ -90,6 +119,19 @@ def _downsample(points: list[SeriesPoint], max_points: int) -> list[SeriesPoint]
     by_date = {p.date: p for p in points}
     picked = lttb([Point(p.date, p.balance) for p in points], target=max_points)
     return [by_date[p.date] for p in picked]
+
+
+def build_window(result: SimulationResult, *, window: ViewWindow,
+                 covered: tuple[dt.date, dt.date] | None,
+                 max_points: int = DEFAULT_MAX_POINTS) -> StockSeries:
+    """보기 구간의 시계열 — 구간의 시세일마다 점 하나, 결측은 그 구간에서 다시 판정한다(contracts
+    A13). 점이 `max_points`보다 많으면 그 안에서 줄인다."""
+    points = [_point(c, result) for c in window_states(result, window)]
+    gaps = window_gaps(window, set(result.quote_dates),
+                       covered[0] if covered else None, covered[1] if covered else None)
+    reduced = _downsample(points, max_points)
+    return StockSeries(start=window.start, end=window.end, points=tuple(reduced), gaps=tuple(gaps),
+                       downsampled=len(reduced) < len(points), source_point_count=len(points))
 
 
 def build_series(

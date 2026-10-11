@@ -48,10 +48,13 @@
  * 확대·리셋은 누를 때만이다. 네 메뉴와 투자 비교 모달이 이 부품을 함께 쓴다.
  */
 
-import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
 import { ChartZoomControls } from "@/components/ChartZoomControls";
 import { useChartZoom } from "@/hooks/useChartZoom";
+import { useZoomDetail } from "@/hooks/useZoomDetail";
+import { withDetail } from "@/lib/chartDetail";
+import type { ZoomRange } from "@/lib/chartZoom";
 import { hoverView, placeHover, PRICE_NAME, type HoverView } from "@/lib/chartHover";
 import {
   axisPriceFormat, gapSlots, priceSegments, splitSeriesAtGaps, toPerformanceData,
@@ -146,11 +149,14 @@ export function PerformanceChart({
   series,
   collecting,
   loading,
+  loadDetail,
 }: {
   series: SimulationSeriesResponse | null;
   /** 수집 중이면 차트 대신 안내 — 주식(005·006)·가상자산(007)·예금(008)·부동산(009)의 202. */
   collecting: SimulationCollecting | CryptoCollecting | DepositCollecting | RealEstateTradeCollecting | null;
   loading: boolean;
+  /** 014 반복 2026-10-11c — 확대 구간의 일 단위 자료를 받는 함수(`lib/seriesDetail`). 없으면 확대만 한다. */
+  loadDetail?: (range: ZoomRange) => Promise<SimulationSeriesResponse>;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const area = useRef<HTMLDivElement>(null);
@@ -159,8 +165,13 @@ export function PerformanceChart({
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
   // 014 반복 2026-10-10c — 블랙 테마면 어두운 팔레트로 다시 만든다(밝으면 선택 값 그대로)
   const theme = useThemeStore((s) => s.theme);
-  const zoom = useChartZoom();
-  const { attach: attachZoom, detach: detachZoom, track: trackZoom } = zoom;
+  // 014 반복 2026-10-11c — 확대 구간의 일 단위 자료(받는 함수가 있을 때만 — 주식 늘, 가상자산은 줄였을 때).
+  const zoomDetail = useZoomDetail(series, theme, loadDetail);
+  const detail = zoomDetail.detail;
+  const shown = useMemo(() => (series !== null && detail !== null ? withDetail(series, detail.data, detail.range) : series),
+    [series, detail]);
+  const zoom = useChartZoom({ onZoom: zoomDetail.onZoom, onReset: zoomDetail.onReset });
+  const { attach: attachZoom, release: releaseZoom, clear: clearZoom, track: trackZoom } = zoom;
 
   // 상자를 그린 뒤 크기를 재서 칸 안에 둔다 — 크기를 모르고 자리를 정하면 오른쪽·아래 끝에서 잘린다(FR-012).
   useLayoutEffect(() => {
@@ -178,10 +189,12 @@ export function PerformanceChart({
   }, [hover]);
 
   useEffect(() => {
-    if (!container.current || series === null || series.points.length === 0) return;
+    // 014 반복 2026-10-11c — 확대 구간의 일 단위 자료가 있으면 끼운 점으로 그린다(범례·점 수는 원래 시계열).
+    const data = shown;
+    if (!container.current || data === null || data.points.length === 0) return;
 
     // 010 — 가격이 있는 응답에만 가격 선(겹침 축)을 만든다. 키가 없으면(005~009) 지금과 같은 차트다.
-    const hasPrice = series.points.some((p) => p.price !== undefined);
+    const hasPrice = data.points.some((p) => p.price !== undefined);
     const instance = createChart(container.current, themedChartOptions({
       height: 360,
       layout: { attributionLogo: false },
@@ -193,14 +206,14 @@ export function PerformanceChart({
     }, theme));
     attachZoom(instance);
 
-    const balanceFormat = axisPriceFormat(NO_DECIMAL_CURRENCIES.has(series.basisCurrency) ? 0 : 2);
+    const balanceFormat = axisPriceFormat(NO_DECIMAL_CURRENCIES.has(data.basisCurrency) ? 0 : 2);
     // 이력 비교 차트의 수익률 축과 같은 형식이다(FR-046a) — 같은 화면에서 두 수익률 축이 갈리지 않는다.
     const returnFormat = axisPriceFormat(2);
 
     // 구간마다 두 시리즈 — **잔고와 수익률이 같은 자리에서 함께 끊겨야 한다.**
     // 한쪽만 끊기면 두 선이 다른 구간을 말하게 되고 어느 쪽이 맞는지 알 수 없다.
-    const provisionalFrom = series.provisionalFrom ?? null;
-    const parts = splitSeriesAtGaps(series.points, series.gaps)
+    const provisionalFrom = data.provisionalFrom ?? null;
+    const parts = splitSeriesAtGaps(data.points, data.gaps)
       .flatMap((segment) => splitAtProvisional(segment, provisionalFrom));
     for (const { points: segment, tone } of parts) {
       const balance = instance.addSeries(LineSeries, {
@@ -249,7 +262,7 @@ export function PerformanceChart({
     }
 
     // 009 — 추정 시세 점에만 표식. 평가액 축 위에 점만 그리고, 확정·잠정 구간의 선 색을 따른다. 추정 점이 없으면 만들지 않는다.
-    const estimated = series.points.filter((p) => p.estimated === true);
+    const estimated = data.points.filter((p) => p.estimated === true);
     for (const { points: marked, tone } of splitByTone(estimated, provisionalFrom)) {
       for (const [color, radius] of [
         [ink(COLORS[tone].balance, theme), ESTIMATED_MARKER.ring], [ink(ESTIMATED_MARKER.holeColor, theme), ESTIMATED_MARKER.hole],
@@ -271,8 +284,8 @@ export function PerformanceChart({
 
     // 010 — 가격 선. 잔고와 같은 자리 + 가격이 없는 점에서 끊고, 잠정은 연한 색. 점 하나 구간과 부동산은 점 표식.
     if (hasPrice) {
-      const markersAlways = series.priceKind === "apt_average";
-      for (const segment of priceSegments(series.points, series.gaps)) {
+      const markersAlways = data.priceKind === "apt_average";
+      for (const segment of priceSegments(data.points, data.gaps)) {
         for (const { points: part, tone } of splitPriceAtProvisional(segment, provisionalFrom)) {
           const price = instance.addSeries(LineSeries, {
             color: ink(COLORS[tone].price, theme),
@@ -287,7 +300,7 @@ export function PerformanceChart({
       }
 
       // FR-011 — 점이 없는 출처 결측·시세 없음 구간마다 값 없는 자리 하나. 그리는 것이 없고 커서가 놓일 자리만 생긴다.
-      const slots = gapSlots(series.points, series.gaps);
+      const slots = gapSlots(data.points, data.gaps);
       if (slots.length > 0) {
         const slot = instance.addSeries(LineSeries, {
           priceScaleId: PRICE_AXIS,
@@ -306,7 +319,7 @@ export function PerformanceChart({
       const point = param.point;
       // 상자는 **원본 문자열**을 보여준다. 렌더링용 변환값이 값의 진실이 되면 정밀도가 손실된 값을 사용자가 보게 된다.
       // 커서가 차트를 벗어나면 `time`·`point`가 없다 — 상자를 지운다.
-      const view = time !== undefined && point !== undefined ? hoverView(series, time) : null;
+      const view = time !== undefined && point !== undefined ? hoverView(data, time) : null;
       const source = param.sourceEvent;
       // 014 반복 2026-10-11b — 누른 자리의 날짜. 커서가 칸을 떠나면 비운다(FR-037).
       trackZoom(point === undefined ? undefined : time);
@@ -317,15 +330,20 @@ export function PerformanceChart({
       });
     });
 
-    instance.timeScale().fitContent();
+    // 받은 자료로 다시 그렸으면 확대 범위를 지킨다(FR-038) — 아니면 처음 범위.
+    if (detail !== null) instance.timeScale().setVisibleRange(detail.range);
+    else instance.timeScale().fitContent();
     return () => {
       instance.remove();
       // 다른 실행의 상자가 남으면 새 차트의 값처럼 읽힌다.
       setHover(null);
-      // 다시 만든 차트는 처음 범위다 — 확대 단추가 남으면 확대된 것처럼 보인다(FR-037).
-      detachZoom();
+      // 차트만 놓는다 — 확대 상태는 바탕 자료·테마가 바뀔 때만 비운다(아래 효과).
+      releaseZoom();
     };
-  }, [series, theme, attachZoom, detachZoom, trackZoom]);
+  }, [shown, detail, theme, attachZoom, releaseZoom, trackZoom]);
+
+  // 다시 실행·테마가 바뀌면 처음 범위다 — 확대 단추가 남으면 확대된 것처럼 보인다(FR-037).
+  useEffect(() => () => clearZoom(), [series, theme, clearZoom]);
 
   if (collecting) {
     return (
@@ -360,7 +378,8 @@ export function PerformanceChart({
     <section className="rounded-lg border border-gray-200 p-4">
       <div ref={area} className="relative">
         <div ref={container} data-testid="performance-canvas" {...zoom.surface} />
-        <ChartZoomControls state={zoom.state} onCancel={zoom.cancel} onReset={zoom.reset} />
+        <ChartZoomControls state={zoom.state} onCancel={zoom.cancel} onReset={zoom.reset}
+          right={zoom.controlsRight} note={zoomDetail.note} />
 
         {hover && (
           <div

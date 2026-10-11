@@ -84,6 +84,12 @@ interface CryptoState {
   oldestReturned: string | null;
   /** 차트용 일봉 시계열(FR-043). 표와 **같은 조건**으로 따로 받는다. */
   series: SimulationSeriesResponse | null;
+  /**
+   * 014 반복 2026-10-11c — 차트 시계열을 받은 경로(일시금·적립식). 그래프를 확대하면 같은 경로에 보기 구간을 붙여 그 구간의 일 단위 자료를 받는다
+   * (`lib/seriesDetail`). 시계열과 함께 바뀐다.
+   */
+  seriesPath: string | null;
+  recurringSeriesPath: string | null;
   /** 차트만 실패한 사유. **표를 지우지 않는다** — 차트가 비는 것과 결과가 없는 것은 다른 사건이다(005와 같다). */
   seriesError: string | null;
   collecting: CryptoCollecting | null;
@@ -324,10 +330,10 @@ async function runRecurring(input: CryptoInput & { coin: CoinRef }, set: Setter,
       coin: coinRef(input.coin), start: input.start, principal: input.principal,
       principalCurrency: input.principalCurrency, mode: "recurring", frequency: plan.frequency }, get, set);
     try {
-      const series = await apiClient.get<SimulationSeriesResponse>(
-        `/api/crypto/recurring-simulation/series?${query}`);
+      const path = `/api/crypto/recurring-simulation/series?${query}`;
+      const series = await apiClient.get<SimulationSeriesResponse>(path);
       const current = get().recurring;
-      set({ recurring: current === null ? null : { ...current, series }, loading: false });
+      set({ recurring: current === null ? null : { ...current, series }, recurringSeriesPath: path, loading: false });
     } catch (err) {
       const current = get().recurring;
       set({
@@ -354,6 +360,8 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
   hasMore: false,
   oldestReturned: null,
   series: null,
+  seriesPath: null,
+  recurringSeriesPath: null,
   seriesError: null,
   collecting: null,
   progress: null,
@@ -426,9 +434,9 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
         principalCurrency: input.principalCurrency }, get, set);
       // **표가 수집 중이 아님을 확인한 뒤에 받는다** — 나란히 보내면 같은 구간에 수집 요청이 두 번 나간다(005와 같다).
       try {
-        const series = await apiClient.get<SimulationSeriesResponse>(
-          `/api/crypto/simulation/series?${toQuery(input)}`);
-        set({ series, loading: false });
+        const path = `/api/crypto/simulation/series?${toQuery(input)}`;
+        const series = await apiClient.get<SimulationSeriesResponse>(path);
+        set({ series, seriesPath: path, loading: false });
       } catch (err) {
         set({ seriesError: message(err, "차트를 불러오지 못했습니다."), loading: false });
       }
@@ -494,7 +502,8 @@ export const useCryptoStore = create<CryptoState>((set, get) => ({
           failed.push(`${label}(아직 받지 못한 구간이 있습니다 — 실행해서 받으세요)`);
           continue;
         }
-        items.push({ id: entry.id, label, start: entry.start, series: body as SimulationSeriesResponse });
+        // 014 반복 2026-10-11c — 확대 구간을 같은 경로로 받는다.
+        items.push({ id: entry.id, label, start: entry.start, series: body as SimulationSeriesResponse, path });
       } catch (err) {
         failed.push(err instanceof ApiError && err.code === "unknown_coin"
           ? `${label}(검색에서 다시 고르세요)` : label);

@@ -108,6 +108,12 @@ interface StockState {
   /** 차트용 전 구간 시계열 (FR-033). 표와 **같은 조건**으로 따로 받는다. */
   series: SimulationSeriesResponse | null;
   /**
+   * 014 반복 2026-10-11c — 차트 시계열을 받은 경로(일시금·적립식). 그래프를 확대하면 같은 경로에 보기 구간을 붙여 그 구간의 일 단위 자료를 받는다
+   * (`lib/seriesDetail`). 시계열과 함께 바뀐다.
+   */
+  seriesPath: string | null;
+  recurringSeriesPath: string | null;
+  /**
    * 차트만 실패했을 때의 사유.
    *
    * **표를 지우지 않는다.** 차트가 비는 것과 결과가 없는 것은 다른 사건인데,
@@ -399,11 +405,10 @@ async function runRecurring(
       }, get, set);
     }
     try {
-      const series = await apiClient.get<SimulationSeriesResponse>(
-        `/api/stocks/recurring-simulation/series?${query}`,
-      );
+      const path = `/api/stocks/recurring-simulation/series?${query}`;
+      const series = await apiClient.get<SimulationSeriesResponse>(path);
       const current = get().recurring;
-      set({ recurring: current === null ? null : { ...current, series }, loading: false });
+      set({ recurring: current === null ? null : { ...current, series }, recurringSeriesPath: path, loading: false });
     } catch (err) {
       const current = get().recurring;
       set({
@@ -495,6 +500,8 @@ export const useStockStore = create<StockState>((set, get) => ({
   hasMore: false,
   oldestReturned: null,
   series: null,
+  seriesPath: null,
+  recurringSeriesPath: null,
   seriesError: null,
   collecting: null,
   fxBlocked: null,
@@ -619,10 +626,9 @@ export const useStockStore = create<StockState>((set, get) => ({
       // **표가 수집 중이 아님을 확인한 뒤에 받는다.** 나란히 보내면 같은 구간에
       // 수집 요청이 두 번 나가고, 둘 다 작업을 만들려 해 하나는 점유에 걸린다.
       try {
-        const series = await apiClient.get<SimulationSeriesResponse>(
-          `/api/stocks/simulation/series?${query}`,
-        );
-        set({ series, loading: false });
+        const path = `/api/stocks/simulation/series?${query}`;
+        const series = await apiClient.get<SimulationSeriesResponse>(path);
+        set({ series, seriesPath: path, loading: false });
       } catch (err) {
         set({
           seriesError: message(err, "차트를 불러오지 못했습니다."),
@@ -826,6 +832,8 @@ export const useStockStore = create<StockState>((set, get) => ({
           label,
           start: entry.start,
           series: body as SimulationSeriesResponse,
+          // 014 반복 2026-10-11c — 확대 구간을 같은 경로로 받는다.
+          path,
         });
       } catch {
         failed.push(entry.stock.name);

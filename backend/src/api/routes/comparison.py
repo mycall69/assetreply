@@ -10,6 +10,10 @@ R13-1·R13-2·R13-18, contracts/rest-api.md 1.
 
 **이력을 쓰지 않는다**(FR-020). 비교는 화면이 대상마다 이 경로를 부르고 끝이다.
 
+014 반복 2026-10-11c — 보기 구간(`viewFrom`·`viewTo`, contracts A13): 주식·가상자산 경로 넷이 메뉴
+시계열 경로와 같은 질의를 받아 같은 구간 빌더를 부른다 — `series`가 메뉴의 구간 시계열과 같고
+`valueLine`도 그 점들이다.
+
 014 반복 2026-10-11b — 현재 가치 선(`comparison.valueLine`, contracts A12): 시계열 본문의 점마다
 그 날의 원화 총자산을 고른다. 일시금 주식·가상자산은 점 `balance`가 보유분만이라 그 계산의 행에서
 원화 원금 + 투자 수익을 고르고(`comparison_values`), 나머지는 점 `balance` 그대로다. 메뉴 응답·
@@ -59,6 +63,7 @@ from src.api.services.comparison_metrics import FxInfo, Json, comparison_block, 
 from src.api.services.comparison_values import crypto_lump_totals, stock_lump_totals
 from src.api.services.crypto_collect import collecting_body as crypto_collecting
 from src.api.services.realestate_lists import get_realestate_now, get_realestate_settings
+from src.api.services.series_query import view_window
 from src.api.services.stock_collect import collecting_body as stock_collecting
 from src.api.services.stock_sale import DOMESTIC_MARKET
 from src.api.services.stock_selection import FirstTradeLookup, get_first_trade, stock_listing
@@ -88,6 +93,9 @@ FirstTrade = Annotated[FirstTradeLookup | None, Depends(get_first_trade)]
 #: 비교 시계열의 처음 점 수 — 열 선 × 1000점(헌법 원칙 VII 다운샘플링, research R13-2).
 DEFAULT_COMPARE_POINTS = 1000
 MaxPoints = Annotated[int, Query(alias="maxPoints", ge=2)]
+#: 014 반복 2026-10-11c — 보기 구간(contracts A13). 둘 다 없으면 응답이 지금과 같다.
+ViewFrom = Annotated[dt.date | None, Query(alias="viewFrom")]
+ViewTo = Annotated[dt.date | None, Query(alias="viewTo")]
 
 
 def _decimal(value: object) -> Decimal | None:
@@ -211,11 +219,14 @@ async def compare_stock(
     reinvest: Annotated[bool, Query()] = True,
     end: Annotated[dt.date | None, Query()] = None,
     max_points: MaxPoints = DEFAULT_COMPARE_POINTS,
+    view_from: ViewFrom = None,
+    view_to: ViewTo = None,
 ) -> Json | JSONResponse:
     """주식 일시금 — `routes/stock_simulation.get_simulation`과 같은 차례."""
     stock_service.check_principal_currency(principal_currency)
     amount = stock_service.parse_principal(principal)
     finish = end or (dt.date.today() - dt.timedelta(days=1))
+    window = view_window(view_from, view_to, start=start, end=finish)
     stock = await stock_service.require_stock(session, market, symbol)
     stock_service.check_principal_currency(principal_currency, stock.currency)
     await stock_service.require_start_available(session, stock, start)
@@ -230,9 +241,13 @@ async def compare_stock(
     summary = stock_routes.summary_json(result, amount, market=stock.market,
                                         fee_rate=prepared.settings.trade_fee_rate,
                                         sale_tax=prepared.sale_tax)
-    series = stock_series_service.build_series(
-        result, start=start, end=finish, covered=await get_coverage(session, int(stock.id)),
-        max_points=max_points)
+    covered = await get_coverage(session, int(stock.id))
+    series = (stock_series_service.build_window(result, window=window, covered=covered,
+                                                max_points=max_points)
+              if window is not None else
+              stock_series_service.build_series(result, start=start, end=finish, covered=covered,
+                                                max_points=max_points))
+    states = None if window is None else stock_series_service.window_states(result, window)
 
     domestic = stock.market == DOMESTIC_MARKET
     sale = summary.get("saleCost")
@@ -262,7 +277,7 @@ async def compare_stock(
                                     unit_price=_stock_lump_unit(result, stock.currency),
                                     listing=await stock_listing(session, stock, first_trade),
                                     value_points=value_points(
-                                        series_body, stock_lump_totals(result, amount))))
+                                        series_body, stock_lump_totals(result, amount, states))))
 
 
 @router.get("/crypto/simulation", response_model=None)
@@ -274,6 +289,8 @@ async def compare_crypto(
     principal_currency: Annotated[str, Query(alias="principalCurrency")],
     end: Annotated[dt.date | None, Query()] = None,
     max_points: MaxPoints = DEFAULT_COMPARE_POINTS,
+    view_from: ViewFrom = None,
+    view_to: ViewTo = None,
 ) -> Json | JSONResponse:
     """가상자산 일시금 — `routes/crypto_simulation.get_simulation`과 같은 차례.
 
@@ -282,6 +299,7 @@ async def compare_crypto(
     """
     amount = stock_service.parse_principal(principal)
     finish = crypto_routes.calculation_end(end)
+    window = view_window(view_from, view_to, start=start, end=finish)
     if start > finish:
         raise StartAfterEnd(finish)
     coin = await crypto_service.require_coin(session, coin_id)
@@ -297,9 +315,12 @@ async def compare_crypto(
                                             principal_currency=principal_currency, daily=True)
     result = prepared.result
     summary = crypto_routes.summary_json(result, amount)
-    series = crypto_series_service.build_series(
-        result, start=start, end=finish,
-        covered=await crypto_daily.get_coverage(session, int(coin.id)), max_points=max_points)
+    covered = await crypto_daily.get_coverage(session, int(coin.id))
+    series = (crypto_series_service.build_window(result, window=window, covered=covered,
+                                                 max_points=max_points)
+              if window is not None else
+              crypto_series_service.build_series(result, start=start, end=finish, covered=covered,
+                                                 max_points=max_points))
 
     domestic = coin.quote_currency == "KRW"
     costs = crypto_costs(buy_fee=krw_sum(((v.row.trade_fee, v.fx_rate) for v in result.rows),
@@ -427,8 +448,12 @@ async def compare_stock_recurring(
     reinvest: Annotated[bool, Query()] = True,
     end: Annotated[dt.date | None, Query()] = None,
     max_points: MaxPoints = DEFAULT_COMPARE_POINTS,
+    view_from: ViewFrom = None,
+    view_to: ViewTo = None,
 ) -> Json | JSONResponse:
     """주식 적립식 — `routes/stock_recurring`과 같은 판정·계산(`prepare_or_collect`)."""
+    window = view_window(view_from, view_to, start=start,
+                         end=end or (dt.date.today() - dt.timedelta(days=1)))
     prepared = await stock_recurring_routes.prepare_or_collect(
         session, market=market, symbol=symbol, start=start, amount_raw=amount,
         principal_currency=principal_currency, frequency_raw=frequency, reinvest=reinvest, end=end)
@@ -438,9 +463,12 @@ async def compare_stock_recurring(
     finish = end or (dt.date.today() - dt.timedelta(days=1))
     summary = stock_recurring_service.summary_json(
         result, amount=stock_recurring_service.parse_amount(amount), stock=stock)
-    series = recurring_series.build_stock_series(
-        result, start=start, end=finish, covered=await get_coverage(session, int(stock.id)),
-        max_points=max_points)
+    stock_covered = await get_coverage(session, int(stock.id))
+    series = (recurring_series.build_stock_window(result, window=window, covered=stock_covered,
+                                                  max_points=max_points)
+              if window is not None else
+              recurring_series.build_stock_series(result, start=start, end=finish,
+                                                  covered=stock_covered, max_points=max_points))
     sale = _object(summary["saleCost"])
     costs = stock_costs(
         buy_fee=_required(summary, "buyFeeTotal"),
@@ -476,9 +504,12 @@ async def compare_crypto_recurring(
     frequency: Annotated[str, Query(description="daily · weekly · monthly · yearly")],
     end: Annotated[dt.date | None, Query()] = None,
     max_points: MaxPoints = DEFAULT_COMPARE_POINTS,
+    view_from: ViewFrom = None,
+    view_to: ViewTo = None,
 ) -> Json | JSONResponse:
     """가상자산 적립식 — `routes/crypto_recurring`과 같은 판정·계산. 요약과 시계열을 한 번에 내려고
     `daily=True`로 계산한다(일시금과 같은 전제 — 통합 테스트가 요약 동일성으로 지킨다)."""
+    window = view_window(view_from, view_to, start=start, end=crypto_routes.calculation_end(end))
     prepared = await crypto_recurring_routes.prepare_or_collect(
         session, coin_id=coin_id, start=start, amount_raw=amount,
         principal_currency=principal_currency, frequency_raw=frequency, end=end, daily=True)
@@ -487,9 +518,13 @@ async def compare_crypto_recurring(
     coin, result = prepared.coin, prepared.result
     summary = crypto_recurring_routes.summary_json(result,
                                                    pending_after_end=result.pending_after_end)
-    series = recurring_series.build_crypto_series(
-        result, start=start, end=crypto_routes.calculation_end(end),
-        covered=await crypto_daily.get_coverage(session, int(coin.id)), max_points=max_points)
+    coin_covered = await crypto_daily.get_coverage(session, int(coin.id))
+    series = (recurring_series.build_crypto_window(result, window=window, covered=coin_covered,
+                                                   max_points=max_points)
+              if window is not None else
+              recurring_series.build_crypto_series(result, start=start,
+                                                   end=crypto_routes.calculation_end(end),
+                                                   covered=coin_covered, max_points=max_points))
     sale = _object(summary["saleCost"])
     costs = crypto_costs(buy_fee=_required(summary, "buyFeeTotal"), sale_fee=_decimal(sale["fee"]),
                          sale_tax=_decimal(sale["tax"]), tax_kind=str(sale["taxKind"]))

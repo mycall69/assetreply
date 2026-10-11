@@ -11,8 +11,13 @@
  * 값을 사용자가 보게 된다.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createChart, LineSeries, type IChartApi } from "lightweight-charts";
+import { ChartZoomControls } from "@/components/ChartZoomControls";
+import { useChartZoom } from "@/hooks/useChartZoom";
+import { useZoomDetail } from "@/hooks/useZoomDetail";
+import { withDetail } from "@/lib/chartDetail";
+import type { ZoomRange } from "@/lib/chartZoom";
 import { ink, themedChartOptions } from "@/lib/chartTheme";
 import { splitSeriesAtGaps, toChartData } from "@/lib/chartSeries";
 import { formatRate, unitLabel } from "@/lib/format";
@@ -27,15 +32,24 @@ interface Hover {
 export function FxChart({
   data,
   onSelectDate,
+  loadDetail,
 }: {
   data: SeriesResponse;
   onSelectDate?: (date: string) => void;
+  /** 014 반복 2026-10-11c — 확대 구간의 고시일 전부(받은 자료가 줄여졌을 때만 — `TrendChart`가 넘긴다). */
+  loadDetail?: (range: ZoomRange) => Promise<SeriesResponse>;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const [hover, setHover] = useState<Hover | null>(null);
   // 014 반복 2026-10-10c — 블랙 테마면 어두운 팔레트로 다시 만든다(밝으면 선택 값 그대로)
   const theme = useThemeStore((s) => s.theme);
+  // 014 반복 2026-10-11c(FR-039) — 두 지점 확대·리셋. 줄여진 긴 기간이면 확대 구간의 고시일 전부를 받아 끼운다(FR-038).
+  const zoomDetail = useZoomDetail(data, theme, loadDetail);
+  const detail = zoomDetail.detail;
+  const shown = useMemo(() => (detail === null ? data : withDetail(data, detail.data, detail.range)), [data, detail]);
+  const zoom = useChartZoom({ onZoom: zoomDetail.onZoom, onReset: zoomDetail.onReset });
+  const { attach: attachZoom, release: releaseZoom, clear: clearZoom, track: trackZoom } = zoom;
 
   useEffect(() => {
     if (!container.current) return;
@@ -47,10 +61,11 @@ export function FxChart({
       timeScale: { borderVisible: false },
     }, theme));
     chart.current = instance;
+    attachZoom(instance);
 
     // 구간마다 별도 시리즈 — 미수집 구간이 선으로 이어지지 않게 한다
     const lookup = new Map<string, string>();
-    for (const segment of splitSeriesAtGaps(data.points, data.gaps)) {
+    for (const segment of splitSeriesAtGaps(shown.points, shown.gaps)) {
       const series = instance.addSeries(LineSeries, {
         color: ink("#1f2937", theme),
         lineWidth: 2,
@@ -66,15 +81,22 @@ export function FxChart({
       const time = param.time as string | undefined;
       // 표시 날짜는 **실제 포인트의 날짜**다 (contracts/ui-chart.md)
       const raw = time ? lookup.get(time) : undefined;
+      trackZoom(param.point === undefined ? undefined : time);
       setHover(time && raw ? { date: time, raw } : null);
     });
 
-    instance.timeScale().fitContent();
+    // 받은 자료로 다시 그렸으면 확대 범위를 지킨다(FR-038) — 아니면 처음 범위.
+    if (detail !== null) instance.timeScale().setVisibleRange(detail.range);
+    else instance.timeScale().fitContent();
     return () => {
       instance.remove();
       chart.current = null;
+      releaseZoom();
     };
-  }, [data, theme]);
+  }, [shown, detail, theme, attachZoom, releaseZoom, trackZoom]);
+
+  // 다른 통화·기간·테마로 다시 그리면 처음 범위다(FR-037).
+  useEffect(() => () => clearZoom(), [data, theme, clearZoom]);
 
   // 휴장일 구간 수는 세지 않는다. 이어 그리는 구간을 "없음"이라 부르면 화면과 말이
   // 어긋난다 — 선은 이어져 있는데 범례는 비었다고 말하게 된다 (T124).
@@ -82,7 +104,11 @@ export function FxChart({
 
   return (
     <section className="rounded-lg border border-gray-200 p-4">
-      <div ref={container} data-testid="chart-canvas" />
+      <div className="relative">
+        <div ref={container} data-testid="chart-canvas" {...zoom.surface} />
+        <ChartZoomControls state={zoom.state} onCancel={zoom.cancel} onReset={zoom.reset}
+          right={zoom.controlsRight} note={zoomDetail.note} />
+      </div>
 
       {hover && (
         <div

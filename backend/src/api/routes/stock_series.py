@@ -17,9 +17,9 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.services.series_query import DEFAULT_MAX_POINTS
+from src.api.services.series_query import DEFAULT_MAX_POINTS, view_window
 from src.api.services.stock_collect import collecting_body
-from src.api.services.stock_series import StockSeries, build_series
+from src.api.services.stock_series import StockSeries, build_series, build_window
 from src.api.services.stock_simulation import (
     check_principal_currency,
     parse_principal,
@@ -78,13 +78,17 @@ async def get_simulation_series(
     reinvest: Annotated[bool, Query()] = True,
     end: Annotated[dt.date | None, Query()] = None,
     max_points: Annotated[int, Query(alias="maxPoints", ge=2)] = DEFAULT_MAX_POINTS,
+    view_from: Annotated[dt.date | None, Query(alias="viewFrom")] = None,
+    view_to: Annotated[dt.date | None, Query(alias="viewTo")] = None,
 ) -> Json | JSONResponse:
-    """표와 같은 조건으로 전 구간 시계열을 돌려준다."""
+    """표와 같은 조건으로 전 구간 시계열을 돌려준다. 보기 구간(`viewFrom`·`viewTo` — 014 반복
+    2026-10-11c)이면 계산은 그대로 두고 그 구간의 시세일마다 점이다(contracts A13)."""
     check_principal_currency(principal_currency)
     amount = parse_principal(principal)
 
     # 끝은 기본적으로 어제다. 표와 같은 기준이어야 끝점이 맞는다.
     finish = end or (dt.date.today() - dt.timedelta(days=1))
+    window = view_window(view_from, view_to, start=start, end=finish)
 
     # 표와 **같은 판정**을 쓴다. 한쪽만 막으면 한쪽은 비어 있고 한쪽은 받은 만큼만
     # 계산한 틀린 값을 보여준다 (FR-049).
@@ -105,9 +109,10 @@ async def get_simulation_series(
         reinvest=reinvest)
 
     covered = await get_coverage(session, int(stock.id))
-    series = build_series(
-        prepared.result, start=start, end=finish, covered=covered,
-        max_points=max_points)
+    series = (build_window(prepared.result, window=window, covered=covered, max_points=max_points)
+              if window is not None else
+              build_series(prepared.result, start=start, end=finish, covered=covered,
+                           max_points=max_points))
 
     return series_json(series, principal_currency=principal_currency,
                        price_currency=stock.currency)

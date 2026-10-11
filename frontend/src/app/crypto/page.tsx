@@ -23,9 +23,10 @@ import { InvestmentModeFields } from "@/components/recurring/InvestmentModeField
 import { RecurringBoard } from "@/components/recurring/RecurringBoard";
 import { RecurringCryptoTable } from "@/components/recurring/RecurringCryptoTable";
 import { CollectingNotice, FxUnavailableNotice } from "@/components/stock/CollectingNotice";
-import { ComparisonChart } from "@/components/stock/ComparisonChart";
+import { ComparisonChart, historyDetailLoader } from "@/components/stock/ComparisonChart";
 import { PerformanceBoard } from "@/components/stock/PerformanceBoard";
 import { PerformanceChart } from "@/components/stock/PerformanceChart";
+import { seriesDetailLoader } from "@/lib/seriesDetail";
 import { cryptoBoardNotes } from "@/lib/boardNotes";
 import { amountLabel } from "@/lib/recurringText";
 import { utcYesterday } from "@/lib/startDate";
@@ -40,6 +41,7 @@ const coinName = (coin: { name: string; nameKo: string | null } | null) =>
 export default function CryptoPage() {
   const {
     input, plan, recurring, setPlan, rows, summary, condition, exchange, hasMore, series, seriesError, collecting,
+    seriesPath, recurringSeriesPath,
     progress, fxBlocked,
     startable, loading, loadingMore, error, loadMoreError,
     tablePeriod, tableLoading, tableError, setTablePeriod,
@@ -133,7 +135,8 @@ export default function CryptoPage() {
             </p>
           ) : (
             // 점은 일봉마다, 출처 결측에서 끊긴다. 누적 납입 원금 점선이 함께다(FR-019).
-            <PerformanceChart series={recurring.series} collecting={collecting} loading={loading} />
+            <PerformanceChart series={recurring.series} collecting={collecting} loading={loading}
+              loadDetail={seriesDetailLoader(recurringSeriesPath, recurring.series)} />
           )}
         </section>
       )}
@@ -153,7 +156,8 @@ export default function CryptoPage() {
             </p>
           ) : (
             // 점은 일봉마다, 출처 결측에서 끊긴다(FR-023, FR-043).
-            <PerformanceChart series={series} collecting={collecting} loading={loading} />
+            <PerformanceChart series={series} collecting={collecting} loading={loading}
+              loadDetail={seriesDetailLoader(seriesPath, series)} />
           )}
         </section>
       )}
@@ -211,7 +215,8 @@ export default function CryptoPage() {
 
       {(comparing || comparison.length > 0 || comparisonError !== null) && (
         // FR-046 — 모두 KRW 기준 수익률로 겹친다. 주식 이력과 섞이지 않는다.
-        <ComparisonChart items={comparison} loading={comparing} error={comparisonError} />
+        <ComparisonChart items={comparison} loading={comparing} error={comparisonError}
+          loadDetail={historyDetailLoader(comparison)} />
       )}
     </div>
   );

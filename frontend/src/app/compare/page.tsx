@@ -30,6 +30,8 @@ import { ProductPicker } from "@/components/deposit/ProductPicker";
 import { InvestmentModeFields } from "@/components/recurring/InvestmentModeFields";
 import { TargetChips } from "@/components/compare/TargetChips";
 import { TableWithHistory } from "@/components/TableWithHistory";
+import { comparisonPath } from "@/lib/compareApi";
+import { compareDetailLoader } from "@/lib/seriesDetail";
 import { overall, suggestion, type BlockReason } from "@/lib/compareBlock";
 import { autoName, maxTargets, targetKey, targetName } from "@/lib/compareCondition";
 import { coinLink, complexSearchLink, stockLink } from "@/lib/externalLinks";
@@ -80,6 +82,9 @@ export default function ComparePage() {
       // 014 반복 2026-10-11b — 왼쪽 축의 현재 가치(FR-036). 값은 서버가 고른 것 그대로다.
       valueLine: r.state.data.comparison.valueLine, currentValue: r.state.data.comparison.currentValue,
     }] : []));
+  // 014 반복 2026-10-11c — 확대하면 그 구간의 일 단위 자료를 대상마다의 비교 경로로 받는다(주식 늘·가상자산은 줄였을 때만 — FR-038).
+  const loadChartDetail = run === null ? undefined : compareDetailLoader(runRows(run).flatMap(({ key, target, state }) => (
+    state.status === "ok" ? [{ key, path: comparisonPath(run.condition, target), series: state.data.series }] : [])));
   const metricItems: MetricItem[] = sortedRows(rows, sort).flatMap((r) => (r.state.status === "ok"
     ? [{
       key: r.key, name: r.name, returnRate: r.state.data.comparison.returnRate, profit: r.state.data.comparison.profit,
@@ -145,7 +150,7 @@ export default function ComparePage() {
                   }} />
                 {chartItems.length > 0 && (
                   <>
-                    <CompareReturnChart items={chartItems} />
+                    <CompareReturnChart items={chartItems} loadDetail={loadChartDetail} />
                     <CompareMetricBars items={metricItems} />
                   </>
                 )}

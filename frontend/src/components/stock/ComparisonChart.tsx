@@ -20,10 +20,14 @@
  * 화면 좌표를 그래프 칸 기준으로 바꿔 `coordinateToTime`으로 날짜를 묻는다 — 왼쪽 가격 축이 없어 칸의 왼쪽 끝이 그래프 칸의 시작이다.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
 import { ChartZoomControls } from "@/components/ChartZoomControls";
 import { useChartZoom, type TimeAt } from "@/hooks/useChartZoom";
+import { useZoomDetail } from "@/hooks/useZoomDetail";
+import { withDetail } from "@/lib/chartDetail";
+import type { ZoomRange } from "@/lib/chartZoom";
+import { fetchSeriesDetail, needsDetail } from "@/lib/seriesDetail";
 import { axisPriceFormat, splitSeriesAtGaps, toPerformanceData } from "@/lib/chartSeries";
 import { ink, themedChartOptions } from "@/lib/chartTheme";
 import type { SimulationSeriesResponse } from "@/lib/types";
@@ -35,6 +39,25 @@ export interface ComparisonItem {
   label: string;
   start: string;
   series: SimulationSeriesResponse;
+  /** 014 반복 2026-10-11c — 그 시계열을 받은 경로. 확대 구간의 일 단위 자료를 같은 경로로 받는다(없으면 받지 않는다). */
+  path?: string;
+}
+
+/** 이력 비교 항목마다 확대 구간을 받는 함수 — 받을 항목(주식 늘·가상자산은 줄였을 때)이 없으면 `undefined`. 일부만 받으면 받은 것만 끼운다. */
+export function historyDetailLoader(
+  items: ComparisonItem[],
+): ((range: ZoomRange) => Promise<Record<string, SimulationSeriesResponse>>) | undefined {
+  const wanted = items.filter((item) => item.path !== undefined && needsDetail(item.path, item.series));
+  if (wanted.length === 0) return undefined;
+  return async (range) => {
+    const settled = await Promise.allSettled(wanted.map((item) => fetchSeriesDetail(item.path as string, range)));
+    const out: Record<string, SimulationSeriesResponse> = {};
+    settled.forEach((result, index) => {
+      if (result.status === "fulfilled") out[wanted[index].id] = result.value;
+    });
+    if (Object.keys(out).length === 0) throw new Error("detail");
+    return out;
+  };
 }
 
 /** 누른 자리의 날짜 — 점이 없는 자리면 `null`(무시한다). 날짜는 넣은 점의 글자 그대로 돌아온다. */
@@ -63,17 +86,26 @@ export function ComparisonChart({
   items,
   loading,
   error,
+  loadDetail,
 }: {
   items: ComparisonItem[];
   loading: boolean;
   error: string | null;
+  /** 014 반복 2026-10-11c — 확대 구간의 일 단위 자료(항목 id → 구간 시계열). 없으면 확대만 한다. */
+  loadDetail?: (range: ZoomRange) => Promise<Record<string, SimulationSeriesResponse>>;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const drawable = !loading && items.length > 0;
   // 014 반복 2026-10-10c — 블랙 테마면 어두운 팔레트로 다시 만든다(밝으면 선택 값 그대로)
   const theme = useThemeStore((s) => s.theme);
-  const zoom = useChartZoom(timeAtPress);
-  const { attach: attachZoom, detach: detachZoom } = zoom;
+  const zoomDetail = useZoomDetail(items, theme, loadDetail);
+  const detail = zoomDetail.detail;
+  const shown = useMemo(() => (detail === null ? items : items.map((item) => {
+    const received = detail.data[item.id];
+    return received === undefined ? item : { ...item, series: withDetail(item.series, received, detail.range) };
+  })), [items, detail]);
+  const zoom = useChartZoom({ timeAt: timeAtPress, onZoom: zoomDetail.onZoom, onReset: zoomDetail.onReset });
+  const { attach: attachZoom, release: releaseZoom, clear: clearZoom } = zoom;
 
   useEffect(() => {
     if (!container.current || !drawable) return;
@@ -88,7 +120,7 @@ export function ComparisonChart({
 
     const returnFormat = axisPriceFormat(2);
 
-    items.forEach((item, index) => {
+    shown.forEach((item, index) => {
       const color = ink(COLORS[index % COLORS.length], theme);
       // 결측 규칙은 성과 차트와 같다 — 휴장일은 잇고 미수집은 끊는다 (FR-034).
       for (const segment of splitSeriesAtGaps(item.series.points, item.series.gaps)) {
@@ -107,13 +139,17 @@ export function ComparisonChart({
       }
     });
 
-    instance.timeScale().fitContent();
+    // 받은 자료로 다시 그렸으면 확대 범위를 지킨다(FR-038) — 아니면 처음 범위.
+    if (detail !== null) instance.timeScale().setVisibleRange(detail.range);
+    else instance.timeScale().fitContent();
     return () => {
       instance.remove();
-      // 다시 만든 차트는 처음 범위다(FR-037).
-      detachZoom();
+      releaseZoom();
     };
-  }, [items, drawable, theme, attachZoom, detachZoom]);
+  }, [shown, detail, drawable, theme, attachZoom, releaseZoom]);
+
+  // 다른 항목·테마로 다시 그리면 처음 범위다(FR-037).
+  useEffect(() => () => clearZoom(), [items, theme, clearZoom]);
 
   if (loading) {
     return (
@@ -139,7 +175,8 @@ export function ComparisonChart({
 
       <div className="relative">
         <div ref={container} data-testid="comparison-canvas" {...zoom.surface} />
-        <ChartZoomControls state={zoom.state} onCancel={zoom.cancel} onReset={zoom.reset} />
+        <ChartZoomControls state={zoom.state} onCancel={zoom.cancel} onReset={zoom.reset}
+          right={zoom.controlsRight} note={zoomDetail.note} />
       </div>
 
       <footer className="mt-4 space-y-1 text-xs text-gray-500">

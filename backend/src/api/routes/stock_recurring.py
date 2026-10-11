@@ -16,8 +16,12 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.services.recurring_series import RecurringSeries, build_stock_series
-from src.api.services.series_query import DEFAULT_MAX_POINTS
+from src.api.services.recurring_series import (
+    RecurringSeries,
+    build_stock_series,
+    build_stock_window,
+)
+from src.api.services.series_query import DEFAULT_MAX_POINTS, view_window
 from src.api.services.stock_collect import collecting_body
 from src.api.services.stock_recurring import (
     PreparedRecurring,
@@ -149,17 +153,24 @@ async def get_recurring_series(
     reinvest: Annotated[bool, Query()] = True,
     end: Annotated[dt.date | None, Query()] = None,
     max_points: Annotated[int, Query(alias="maxPoints", ge=2)] = DEFAULT_MAX_POINTS,
+    view_from: Annotated[dt.date | None, Query(alias="viewFrom")] = None,
+    view_to: Annotated[dt.date | None, Query(alias="viewTo")] = None,
 ) -> Json | JSONResponse:
-    """표와 같은 조건으로 전 구간 시계열을 돌려준다."""
+    """표와 같은 조건으로 전 구간 시계열을 돌려준다. 보기 구간이면 그 구간의 시세일마다(contracts
+    A13)."""
+    finish = end or (dt.date.today() - dt.timedelta(days=1))
+    window = view_window(view_from, view_to, start=start, end=finish)
     prepared = await prepare_or_collect(
         session, market=market, symbol=symbol, start=start, amount_raw=amount,
         principal_currency=principal_currency, frequency_raw=frequency, reinvest=reinvest, end=end)
     if isinstance(prepared, JSONResponse):
         return prepared
     stock = prepared.stock
-    finish = end or (dt.date.today() - dt.timedelta(days=1))
     covered = await get_coverage(session, int(stock.id))
-    series = build_stock_series(prepared.result, start=start, end=finish, covered=covered,
-                                max_points=max_points)
+    series = (build_stock_window(prepared.result, window=window, covered=covered,
+                                 max_points=max_points)
+              if window is not None else
+              build_stock_series(prepared.result, start=start, end=finish, covered=covered,
+                                 max_points=max_points))
     return series_json(series, principal_currency=principal_currency,
                        price_currency=stock.currency)

@@ -13,6 +13,8 @@
  */
 
 import { FxChart } from "@/components/FxChart";
+import type { ZoomRange } from "@/lib/chartZoom";
+import { fetchFxDetail } from "@/lib/seriesDetail";
 import { formatRate } from "@/lib/format";
 import type { SeriesCollecting, SeriesResponse } from "@/lib/types";
 
@@ -22,12 +24,15 @@ export function TrendChart({
   selectedDate,
   loading,
   onSelect,
+  currency,
 }: {
   series: SeriesResponse | null;
   collecting: SeriesCollecting | null;
   selectedDate: string | null;
   loading: boolean;
   onSelect: (date: string) => void;
+  /** 014 반복 2026-10-11c — 확대 구간을 받을 통화. 받은 자료가 줄여졌을 때만 받는다(FR-038). */
+  currency?: string;
 }) {
   if (collecting) {
     return (
@@ -43,6 +48,8 @@ export function TrendChart({
     return <p className="py-12 text-center text-sm text-gray-500">표시할 구간이 없습니다.</p>;
   }
 
+  const loadDetail = currency !== undefined && series.downsampled
+    ? (range: ZoomRange) => fetchFxDetail(currency, range) : undefined;
   const first = series.points[0].date;
   const last = series.points[series.points.length - 1].date;
   const outsideRange =
@@ -75,7 +82,7 @@ export function TrendChart({
         </p>
       )}
 
-      <FxChart data={series} onSelectDate={onSelect} />
+      <FxChart data={series} onSelectDate={onSelect} loadDetail={loadDetail} />
 
       <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
         <span>─ 확정</span>

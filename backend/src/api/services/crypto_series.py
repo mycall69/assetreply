@@ -23,7 +23,13 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from src.api.services.crypto_simulation import CryptoResult
-from src.api.services.series_query import DEFAULT_MAX_POINTS, Gap, compute_gaps
+from src.api.services.series_query import (
+    DEFAULT_MAX_POINTS,
+    Gap,
+    ViewWindow,
+    compute_gaps,
+    window_gaps,
+)
 from src.simulation.downsample import Point, lttb
 
 
@@ -54,6 +60,27 @@ def _downsample(points: list[SeriesPoint], max_points: int) -> list[SeriesPoint]
     return [by_date[p.date] for p in picked]
 
 
+def _points(result: CryptoResult, window: ViewWindow | None = None) -> list[SeriesPoint]:
+    return [SeriesPoint(v.row.date,
+                        v.balance_krw if v.balance_krw is not None else v.row.balance,
+                        v.return_rate, v.row.open_price)
+            for v in result.daily if window is None or window.contains(v.row.date)]
+
+
+def build_window(result: CryptoResult, *, window: ViewWindow,
+                 covered: tuple[dt.date, dt.date] | None,
+                 max_points: int = DEFAULT_MAX_POINTS) -> CryptoSeries:
+    """보기 구간의 시계열(014 반복 2026-10-11c, contracts A13) — 일봉 그대로(줄이기 전), 결측은 그
+    구간에서 다시 판정한다. 점이 `max_points`보다 많으면 그 안에서 줄인다."""
+    points = _points(result, window)
+    gaps = window_gaps(window, set(result.quote_dates),
+                       covered[0] if covered else None, covered[1] if covered else None,
+                       inside_reason="source_missing")
+    reduced = _downsample(points, max_points)
+    return CryptoSeries(start=window.start, end=window.end, points=tuple(reduced), gaps=tuple(gaps),
+                        downsampled=len(reduced) < len(points), source_point_count=len(points))
+
+
 def build_series(
     result: CryptoResult,
     *,
@@ -63,10 +90,7 @@ def build_series(
     max_points: int = DEFAULT_MAX_POINTS,
 ) -> CryptoSeries:
     """일봉마다의 평가를 차트용 시계열로. 결측은 시작 월 1일(매수일이 속한 달)부터 본다."""
-    points = [SeriesPoint(v.row.date,
-                          v.balance_krw if v.balance_krw is not None else v.row.balance,
-                          v.return_rate, v.row.open_price)
-              for v in result.daily]
+    points = _points(result)
     gaps = compute_gaps(
         start.replace(day=1), end, set(result.quote_dates),
         covered[0] if covered else None, covered[1] if covered else None,

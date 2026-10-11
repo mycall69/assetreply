@@ -26,6 +26,8 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { createChart, LineSeries, type IChartApi, type Time, type TickMarkType, type UTCTimestamp } from "lightweight-charts";
+import { ChartZoomControls } from "@/components/ChartZoomControls";
+import { useChartZoom } from "@/hooks/useChartZoom";
 import { failureLabel } from "@/components/dashboard/IndicatorHeader";
 import { RANGE_LABELS } from "@/components/dashboard/RangePicker";
 import { ink, themedChartOptions } from "@/lib/chartTheme";
@@ -106,12 +108,23 @@ export function IndicatorChart({ series, range, onRetry }: {
   return <IntradayChart series={series} />;
 }
 
+/** 고른 기간의 처음 보이는 범위의 시작일 — 장중·"모두"는 없음(전체). */
+const windowStart = (series: IndicatorRangeSeries, range: IndicatorRange) =>
+  (range === "1d" || range === "5d" ? null : series.windows?.[range as DailyRange]);
+
 function DailyChart({ series, range }: { series: IndicatorRangeSeries; range: IndicatorRange }) {
   const container = useRef<HTMLDivElement>(null);
   const chart = useRef<IChartApi | null>(null);
   const theme = useThemeStore((s) => s.theme);
   const [hovered, setHovered] = useState<{ of: IndicatorRangeSeries; point: IndicatorPoint } | null>(null);
   const hover = hovered?.of === series ? hovered.point : null;
+  // 014 반복 2026-10-11c(FR-039) — 두 지점 확대. 이미 일봉 전부라 받지 않는다. [리셋]은 그 기간의 처음 보이는 범위다(`fitContent`가 아니다).
+  const zoom = useChartZoom({
+    resetView: () => {
+      if (chart.current !== null) showWindow(chart.current, series.points.map((p) => p.date), windowStart(series, range));
+    },
+  });
+  const { attach: attachZoom, detach: detachZoom, clear: clearZoom, track: trackZoom } = zoom;
 
   // 그래프는 본문·테마가 바뀔 때만 다시 만든다 — 기간(처음 범위)은 아래 효과가 범위만 바꾼다
   useEffect(() => {
@@ -134,25 +147,32 @@ function DailyChart({ series, range }: { series: IndicatorRangeSeries; range: In
     instance.subscribeCrosshairMove((param) => {
       const time = param.time as string | undefined;
       const point = time ? byDate.get(time) ?? null : null;
+      trackZoom(param.point === undefined ? undefined : time);
       setHovered(point ? { of: series, point } : null);
     });
     chart.current = instance;
+    attachZoom(instance);
     return () => {
       instance.remove();
       chart.current = null;
+      detachZoom();
     };
-  }, [series, theme]);
+  }, [series, theme, attachZoom, detachZoom, trackZoom]);
 
   // 처음 보이는 범위 — 만든 뒤(같은 커밋에서 위 효과 다음)와 기간이 바뀔 때
   useEffect(() => {
     if (chart.current === null) return;
-    const start = range === "1d" || range === "5d" ? null : series.windows?.[range as DailyRange];
-    showWindow(chart.current, series.points.map((p) => p.date), start);
-  }, [series, theme, range]);
+    showWindow(chart.current, series.points.map((p) => p.date), windowStart(series, range));
+    // 기간을 바꾸면 확대가 풀린다(FR-039) — 새 기간의 처음 범위다.
+    return () => clearZoom();
+  }, [series, theme, range, clearZoom]);
 
   return (
     <section className="rounded-lg border border-gray-200 p-4">
-      <div ref={container} data-testid="indicator-canvas" />
+      <div className="relative">
+        <div ref={container} data-testid="indicator-canvas" {...zoom.surface} />
+        <ChartZoomControls state={zoom.state} onCancel={zoom.cancel} onReset={zoom.reset} right={zoom.controlsRight} />
+      </div>
       {hover && (
         <div data-testid="indicator-tooltip"
           className="mt-3 inline-flex flex-wrap items-center gap-3 rounded border border-gray-200 px-3 py-2 text-sm">

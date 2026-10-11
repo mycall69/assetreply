@@ -15,7 +15,7 @@ import { cryptoBoardNotes } from "@/lib/boardNotes";
 import { CRYPTO_PERIOD_TITLES } from "@/lib/tablePeriod";
 import type { CryptoSimulationResponse, RecurringCryptoResponse } from "@/lib/types";
 import type { DetailState } from "@/stores/compareDetailStore";
-import { ChartSection } from "./ChartSection";
+import { ChartSection, detailSeriesPath } from "./ChartSection";
 
 export function CryptoDetail({ menu, recurring, principalCurrency, state }: {
   menu: CryptoSimulationResponse | RecurringCryptoResponse;
@@ -39,7 +39,7 @@ export function CryptoDetail({ menu, recurring, principalCurrency, state }: {
         <div data-testid="simulation-modal-board">
           <RecurringBoard asset="crypto" summary={body.summary} principalCurrency={principalCurrency} quoteCurrency={quote} />
         </div>
-        <ChartSection series={state.series} error={state.seriesError} />
+        <ChartSection series={state.series} error={state.seriesError} path={detailSeriesPath(state)} />
         {table(
           <RecurringCryptoTable rows={body.rows} principalCurrency={principalCurrency} quoteCurrency={quote}
             hasMore={body.hasMore} loadingMore={state.loadingMore} loadError={state.loadMoreError}
@@ -55,7 +55,7 @@ export function CryptoDetail({ menu, recurring, principalCurrency, state }: {
         <PerformanceBoard summary={lump.summary} currency={principalCurrency} exchange={lump.exchange ?? undefined}
           notes={cryptoBoardNotes(lump.summary, lump.condition)} />
       </div>
-      <ChartSection series={state.series} error={state.seriesError} />
+      <ChartSection series={state.series} error={state.seriesError} path={detailSeriesPath(state)} />
       {table(
         <CryptoPerformanceTable rows={lump.rows} currency={principalCurrency} quoteCurrency={quote} summary={lump.summary}
           hasMore={lump.hasMore} loadingMore={state.loadingMore} loadError={state.loadMoreError}

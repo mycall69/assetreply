@@ -17,7 +17,7 @@ import {
   CollectingNotice,
   FxUnavailableNotice,
 } from "@/components/stock/CollectingNotice";
-import { ComparisonChart } from "@/components/stock/ComparisonChart";
+import { ComparisonChart, historyDetailLoader } from "@/components/stock/ComparisonChart";
 import { InvestmentModeFields } from "@/components/recurring/InvestmentModeFields";
 import { RecurringBoard } from "@/components/recurring/RecurringBoard";
 import { RecurringStockTable } from "@/components/recurring/RecurringStockTable";
@@ -26,6 +26,7 @@ import { SimulationForm } from "@/components/stock/SimulationForm";
 import { StockSearch } from "@/components/stock/StockSearch";
 import { useEffect, useMemo } from "react";
 import { useHeightHold } from "@/hooks/useHeightHold";
+import { seriesDetailLoader } from "@/lib/seriesDetail";
 import { amountLabel } from "@/lib/recurringText";
 import { localYesterday } from "@/lib/startDate";
 import { STOCK_PERIOD_TITLES } from "@/lib/tablePeriod";
@@ -35,7 +36,7 @@ import { useStockStore } from "@/stores/stockStore";
 export default function StocksPage() {
   const {
     input, plan, recurring, setPlan, rows, summary, exchange, hasMore, collecting,
-    series, seriesError, loading, loadingMore, error, loadMoreError,
+    series, seriesError, seriesPath, recurringSeriesPath, loading, loadingMore, error, loadMoreError,
     tablePeriod, tableLoading, tableError, setTablePeriod,
     history, historySaveError, historyLoading, historyLoadError, historyNotice, retentionDays,
     selectedHistory, comparison, comparing,
@@ -166,7 +167,8 @@ export default function StocksPage() {
               {recurring.seriesError}
             </p>
           ) : (
-            <PerformanceChart series={recurring.series} collecting={collecting} loading={loading} />
+            <PerformanceChart series={recurring.series} collecting={collecting} loading={loading}
+              loadDetail={seriesDetailLoader(recurringSeriesPath, recurring.series)} />
           )}
         </section>
       )}
@@ -192,6 +194,8 @@ export default function StocksPage() {
               series={series}
               collecting={collecting}
               loading={loading}
+              // 014 반복 2026-10-11c — 확대하면 그 구간의 거래일마다(FR-038)
+              loadDetail={seriesDetailLoader(seriesPath, series)}
             />
           )}
         </section>
@@ -253,6 +257,7 @@ export default function StocksPage() {
           items={comparison}
           loading={comparing}
           error={comparisonError}
+          loadDetail={historyDetailLoader(comparison)}
         />
       )}
     </div>

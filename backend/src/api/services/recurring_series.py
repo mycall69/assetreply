@@ -13,6 +13,9 @@
 - `principal` = 그날까지의 원화 총 납입 원금 — 차트가 누적 납입 원금 점선을 그린다
 - 다운샘플은 총자산 축으로 고르고 그 날짜의 점을 통째로 가져온다(005와 같다 — 따로 줄이면 한 점 안의
   값이 다른 날의 것이 된다)
+- 014 반복 2026-10-11c — **보기 구간**(`build_stock_window`·`build_crypto_window`, contracts A13):
+  그 구간의 시세일마다 점 하나. 주식은 일자별 표 "일" 행과 같은 규칙(그 날 행이 있으면 그날의 마지막
+  상태, 없으면 하루하루 상태를 `view_of`로), 가상자산은 일봉 그대로다
 """
 
 from __future__ import annotations
@@ -24,8 +27,14 @@ from decimal import Decimal
 from typing import Literal
 
 from src.api.services.crypto_recurring import CryptoRecurringResult
-from src.api.services.series_query import DEFAULT_MAX_POINTS, Gap, compute_gaps
-from src.api.services.stock_recurring import RecurringResult
+from src.api.services.series_query import (
+    DEFAULT_MAX_POINTS,
+    Gap,
+    ViewWindow,
+    compute_gaps,
+    window_gaps,
+)
+from src.api.services.stock_recurring import RecurringResult, RecurringView
 from src.simulation.downsample import Point, lttb
 from src.simulation.installment_ladder import LadderOutcome
 from src.simulation.split_adjust import split_restated_close
@@ -64,20 +73,63 @@ def build_stock_series(result: RecurringResult, *, start: dt.date, end: dt.date,
                        max_points: int = DEFAULT_MAX_POINTS) -> RecurringSeries:
     """주식 적립식 결과를 시계열로. `covered`는 그 종목의 수집 구간이다(휴장 `no_quote`와 미수집
     `not_collected`를 가른다)."""
-    last: dict[dt.date, RecurringPoint] = {}
-    # 표는 최신순이고 같은 날 안에서도 나중 사건이 위다 — 거꾸로(오래된 순) 훑으면 그 날의 마지막
-    # 상태가 남는다.
-    for v in reversed(result.views):
-        row = v.row
-        last[row.date] = RecurringPoint(
-            date=row.date, balance=v.total_krw, return_rate=v.return_rate, principal=row.basis_krw,
-            price=split_restated_close(row.close_price, row.date, result.splits))
-    points = [last[day] for day in sorted(last)]
+    last = _last_views(result)
+    points = [_stock_point(last[day], result) for day in sorted(last)]
     gaps = compute_gaps(start, end, set(result.quote_dates),
                         covered[0] if covered else None, covered[1] if covered else None)
     reduced = _downsample(points, max_points)
     return RecurringSeries(start=start, end=end, points=tuple(reduced), gaps=tuple(gaps),
                            downsampled=len(reduced) < len(points), source_point_count=len(points))
+
+
+def _last_views(result: RecurringResult) -> dict[dt.date, RecurringView]:
+    """날짜 → 그 날의 마지막 상태. 표는 최신순이고 같은 날 안에서도 나중 사건이 위다 — 거꾸로(오래된
+    순) 훑으면 그 날의 마지막 상태가 남는다."""
+    last: dict[dt.date, RecurringView] = {}
+    for v in reversed(result.views):
+        last[v.row.date] = v
+    return last
+
+
+def _stock_point(v: RecurringView, result: RecurringResult) -> RecurringPoint:
+    row = v.row
+    return RecurringPoint(date=row.date, balance=v.total_krw, return_rate=v.return_rate,
+                          principal=row.basis_krw,
+                          price=split_restated_close(row.close_price, row.date, result.splits))
+
+
+def build_stock_window(result: RecurringResult, *, window: ViewWindow,
+                       covered: tuple[dt.date, dt.date] | None,
+                       max_points: int = DEFAULT_MAX_POINTS) -> RecurringSeries:
+    """주식 적립식의 보기 구간 — 구간의 시세일마다 그 날의 상태(014 반복 2026-10-11c, contracts
+    A13)."""
+    last = _last_views(result)
+    view_of = result.view_of
+    assert view_of is not None
+    points = [_stock_point(last.get(row.date) or view_of(row), result)
+              for row in result.daily if window.contains(row.date)]
+    gaps = window_gaps(window, set(result.quote_dates),
+                       covered[0] if covered else None, covered[1] if covered else None)
+    reduced = _downsample(points, max_points)
+    return RecurringSeries(start=window.start, end=window.end, points=tuple(reduced),
+                           gaps=tuple(gaps), downsampled=len(reduced) < len(points),
+                           source_point_count=len(points))
+
+
+def build_crypto_window(result: CryptoRecurringResult, *, window: ViewWindow,
+                        covered: tuple[dt.date, dt.date] | None,
+                        max_points: int = DEFAULT_MAX_POINTS) -> RecurringSeries:
+    """가상자산 적립식의 보기 구간 — 일봉 그대로(줄이기 전), 결측은 그 구간에서 다시 판정한다."""
+    points = [RecurringPoint(date=v.row.date, balance=v.total_krw, return_rate=v.return_rate,
+                             principal=v.row.basis_krw, price=v.row.open_price)
+              for v in result.daily if window.contains(v.row.date)]
+    gaps = window_gaps(window, set(result.quote_dates),
+                       covered[0] if covered else None, covered[1] if covered else None,
+                       inside_reason="source_missing")
+    reduced = _downsample(points, max_points)
+    return RecurringSeries(start=window.start, end=window.end, points=tuple(reduced),
+                           gaps=tuple(gaps), downsampled=len(reduced) < len(points),
+                           source_point_count=len(points))
 
 
 def build_crypto_series(result: CryptoRecurringResult, *, start: dt.date, end: dt.date,

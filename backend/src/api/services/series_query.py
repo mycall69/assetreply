@@ -11,6 +11,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.errors import InvalidQuery
 from src.repository.coverage import get_coverage
 from src.repository.fx_rate import series as fetch_series
 from src.simulation.downsample import Point, lttb
@@ -87,6 +88,47 @@ def compute_gaps(
         day += dt.timedelta(days=1)
 
     return _merge_runs(not_collected, "not_collected") + _merge_runs(no_quote, inside_reason)
+
+
+@dataclass(frozen=True, slots=True)
+class ViewWindow:
+    """보기 구간 (014 반복 2026-10-11c — FR-038, contracts A13). 계산 구간으로 자른 뒤라 시작이
+    끝보다 늦으면 빈 구간이다(점이 없다). 계산(시작일·기준일)은 바꾸지 않는다 — 점만 고른다."""
+
+    start: dt.date
+    end: dt.date
+
+    @property
+    def empty(self) -> bool:
+        return self.start > self.end
+
+    def contains(self, day: dt.date) -> bool:
+        return self.start <= day <= self.end
+
+
+def view_window(view_from: dt.date | None, view_to: dt.date | None, *, start: dt.date,
+                end: dt.date) -> ViewWindow | None:
+    """질의 `viewFrom`·`viewTo`를 검증하고 계산 구간 [start, end]로 자른다.
+
+    둘 다 없으면 `None`이다 — 응답이 지금과 같다. 하나만이거나 차례가 거꾸로면 400이다(경로가 다른
+    검증보다 먼저 부른다 — 수집·계산 전에 거절한다).
+    """
+    if view_from is None and view_to is None:
+        return None
+    if view_from is None or view_to is None:
+        raise InvalidQuery("viewFrom과 viewTo는 함께 보내야 합니다.")
+    if view_from > view_to:
+        raise InvalidQuery("viewFrom이 viewTo보다 늦습니다.")
+    return ViewWindow(max(view_from, start), min(view_to, end))
+
+
+def window_gaps(window: ViewWindow, present: set[dt.date], covered_from: dt.date | None,
+                covered_through: dt.date | None, *, inside_reason: str = "no_quote") -> list[Gap]:
+    """보기 구간에서 다시 판정한 결측 구간 — 규칙은 `compute_gaps` 그대로다. 빈 구간이면 없다."""
+    if window.empty:
+        return []
+    return compute_gaps(window.start, window.end, present, covered_from, covered_through,
+                        inside_reason=inside_reason)
 
 
 async def query_series(

@@ -14,10 +14,11 @@ spec FR-036, contracts A12, data-model 14, research R14-29.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from decimal import Decimal
 
 from src.api.services.crypto_simulation import CryptoResult
-from src.api.services.stock_simulation import SimulationResult
+from src.api.services.stock_simulation import ConvertedRow, SimulationResult
 
 
 def _basis(principal_krw: Decimal | None, principal: Decimal) -> Decimal:
@@ -25,15 +26,18 @@ def _basis(principal_krw: Decimal | None, principal: Decimal) -> Decimal:
     return principal_krw if principal_krw is not None else principal
 
 
-def stock_lump_totals(result: SimulationResult, principal: Decimal) -> dict[str, str]:
+def stock_lump_totals(result: SimulationResult, principal: Decimal,
+                      states: Iterable[ConvertedRow] | None = None) -> dict[str, str]:
     """날짜 글자 → 그 날 **마지막 행**의 원화 총자산.
 
     시계열(`stock_series._one_per_day`)과 같은 차례로 같은 행을 고른다 — 배당락 날처럼 한 날에 행이
-    둘이면 나중 것이 그 날의 최종 상태다.
+    둘이면 나중 것이 그 날의 최종 상태다. 보기 구간(014 반복 2026-10-11c)이면 그 구간 점의 상태
+    (`stock_series.window_states`)를 넘긴다.
     """
     basis = _basis(result.principal_krw, principal)
     totals: dict[str, str] = {}
-    for converted in sorted(result.rows, key=lambda c: c.row.date):
+    source = states if states is not None else sorted(result.rows, key=lambda c: c.row.date)
+    for converted in source:
         totals[converted.row.date.isoformat()] = format(converted.row.profit + basis, "f")
     return totals
 

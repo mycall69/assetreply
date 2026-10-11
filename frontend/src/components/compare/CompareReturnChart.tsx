@@ -20,11 +20,18 @@
  *
  * **두 지점 확대**(014 반복 2026-10-11b — FR-037): 차트 칸을 두 번 누르면 그 사이로, 오른쪽 위 [리셋]은 처음 범위로(`useChartZoom`).
  * 누른 날짜는 커서 추적(`time`)이 준다 — 그릴 때 새 API를 부르지 않는다.
+ *
+ * **확대 구간의 일 단위 자료**(014 반복 2026-10-11c — FR-038): 확대가 끝나면 `loadDetail`로 그 구간을 받아 대상마다 시계열·현재 가치 선에 끼우고
+ * 확대 범위를 지킨 채 다시 그린다(`useZoomDetail`). 주식 대상은 시계열이 매달 첫 거래일·사건 날뿐이라 늘, 가상자산은 줄였을 때만 받는다.
  */
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
 import { ChartZoomControls } from "@/components/ChartZoomControls";
 import { useChartZoom } from "@/hooks/useChartZoom";
+import { useZoomDetail } from "@/hooks/useZoomDetail";
+import { withDetail, withValueDetail } from "@/lib/chartDetail";
+import type { ZoomRange } from "@/lib/chartZoom";
+import type { CompareDetail } from "@/lib/seriesDetail";
 import { placeHover } from "@/lib/chartHover";
 import { axisPriceFormat, splitSeriesAtGaps, toPerformanceData } from "@/lib/chartSeries";
 import { themedChartOptions } from "@/lib/chartTheme";
@@ -115,7 +122,14 @@ function hoverLine(item: CompareChartItem, date: string): string {
   return `${item.name} ${formatPercent(point.returnRate)}${value === null ? "" : ` · ${value}`}`;
 }
 
-export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
+/** 대상 key → 확대 구간의 일 단위 자료(시계열·현재 가치 선) — 014 반복 2026-10-11c. */
+export type CompareDetailMap = Record<string, CompareDetail>;
+
+export function CompareReturnChart({ items, loadDetail }: {
+  items: CompareChartItem[];
+  /** 014 반복 2026-10-11c — 확대 구간을 받는 함수(주식 대상 늘·가상자산은 줄였을 때). 없으면 확대만 한다. */
+  loadDetail?: (range: ZoomRange) => Promise<CompareDetailMap>;
+}) {
   const container = useRef<HTMLDivElement>(null);
   const area = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
@@ -123,8 +137,18 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
   // 014 반복 2026-10-10c — 블랙 테마면 어두운 팔레트로 다시 만든다(밝으면 선택 값 그대로). 대상 색은 두 바탕에서 다 보인다
   const theme = useThemeStore((s) => s.theme);
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
-  const zoom = useChartZoom();
-  const { attach: attachZoom, detach: detachZoom, track: trackZoom } = zoom;
+  const zoomDetail = useZoomDetail(items, theme, loadDetail);
+  const detail = zoomDetail.detail;
+  // 받은 대상만 그 구간을 끼운다 — 시계열과 현재 가치 선을 같은 구간으로(FR-038).
+  const shown = useMemo(() => (detail === null ? items : items.map((item) => {
+    const received = detail.data[item.key];
+    if (received === undefined) return item;
+    const valueLine = item.valueLine !== undefined && received.valueLine !== undefined
+      ? withValueDetail(item.valueLine, received.valueLine, detail.range) : item.valueLine;
+    return { ...item, series: withDetail(item.series, received.series, detail.range), valueLine };
+  })), [items, detail]);
+  const zoom = useChartZoom({ onZoom: zoomDetail.onZoom, onReset: zoomDetail.onReset });
+  const { attach: attachZoom, release: releaseZoom, clear: clearZoom, track: trackZoom } = zoom;
   const hasValue = items.some((item) => item.valueLine !== undefined);
 
   useLayoutEffect(() => {
@@ -139,8 +163,8 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
   }, [hover]);
 
   useEffect(() => {
-    if (!container.current || items.length === 0) return;
-    const withValue = items.some((item) => item.valueLine !== undefined);
+    if (!container.current || shown.length === 0) return;
+    const withValue = shown.some((item) => item.valueLine !== undefined);
     const instance = createChart(container.current, themedChartOptions({
       height: 360,
       layout: { attributionLogo: false },
@@ -160,7 +184,7 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
       priceLineVisible: false, lastValueVisible: false,
     });
 
-    items.forEach((item, index) => {
+    shown.forEach((item, index) => {
       const palette = paletteOf(theme);
       const base = palette[index % palette.length];
       const lineStyle = lineStyleOf(index);
@@ -227,13 +251,17 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
         client: source === undefined || source === null ? null : { x: source.clientX, y: source.clientY },
       });
     });
-    instance.timeScale().fitContent();
+    // 받은 자료로 다시 그렸으면 확대 범위를 지킨다(FR-038) — 아니면 처음 범위.
+    if (detail !== null) instance.timeScale().setVisibleRange(detail.range);
+    else instance.timeScale().fitContent();
     return () => {
       instance.remove();
-      // 다시 만든 차트는 처음 범위다 — 확대 단추가 남으면 확대된 것처럼 보인다(FR-037).
-      detachZoom();
+      releaseZoom();
     };
-  }, [items, theme, attachZoom, detachZoom, trackZoom]);
+  }, [shown, detail, theme, attachZoom, releaseZoom, trackZoom]);
+
+  // 다른 결과·테마로 다시 그리면 처음 범위다 — 확대 단추가 남으면 확대된 것처럼 보인다(FR-037).
+  useEffect(() => () => clearZoom(), [items, theme, clearZoom]);
 
   return (
     <section className="rounded-lg border border-gray-200 p-4" data-testid="compare-chart">
@@ -246,14 +274,15 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
       )}
       <div ref={area} className="relative">
         <div ref={container} data-testid="compare-canvas" {...zoom.surface} />
-        <ChartZoomControls state={zoom.state} onCancel={zoom.cancel} onReset={zoom.reset} />
+        <ChartZoomControls state={zoom.state} onCancel={zoom.cancel} onReset={zoom.reset}
+          right={zoom.controlsRight} note={zoomDetail.note} />
         {hover && (
           <div ref={box} role="tooltip" data-testid="compare-hover"
             className="pointer-events-none absolute z-10 rounded border border-gray-200 bg-white/95 px-3 py-2 text-xs shadow-md"
             style={place === null ? { left: 0, top: 0, visibility: "hidden" } : { left: place.left, top: place.top }}>
             <p className="mb-1 font-medium text-gray-700">{hover.date}</p>
             <ul className="space-y-0.5 whitespace-nowrap">
-              {items.map((item, index) => (
+              {shown.map((item, index) => (
                 <li key={item.key} style={{ color: colorOf(index, theme) }}>{hoverLine(item, hover.date)}</li>
               ))}
             </ul>

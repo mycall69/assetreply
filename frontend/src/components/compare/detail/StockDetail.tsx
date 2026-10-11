@@ -14,7 +14,7 @@ import { PerformanceTable } from "@/components/stock/PerformanceTable";
 import { STOCK_PERIOD_TITLES } from "@/lib/tablePeriod";
 import type { RecurringStockResponse, SimulationResponse } from "@/lib/types";
 import type { DetailState } from "@/stores/compareDetailStore";
-import { ChartSection } from "./ChartSection";
+import { ChartSection, detailSeriesPath } from "./ChartSection";
 
 export function StockDetail({ menu, recurring, principalCurrency, state }: {
   menu: SimulationResponse | RecurringStockResponse;
@@ -39,7 +39,7 @@ export function StockDetail({ menu, recurring, principalCurrency, state }: {
         <div data-testid="simulation-modal-board">
           <RecurringBoard asset="stock" summary={body.summary} principalCurrency={principalCurrency} quoteCurrency={currency} />
         </div>
-        <ChartSection series={state.series} error={state.seriesError} />
+        <ChartSection series={state.series} error={state.seriesError} path={detailSeriesPath(state)} />
         {table(
           <RecurringStockTable rows={body.rows} principalCurrency={principalCurrency} stockCurrency={currency}
             hasMore={body.hasMore} loadingMore={state.loadingMore} loadError={state.loadMoreError}
@@ -54,7 +54,7 @@ export function StockDetail({ menu, recurring, principalCurrency, state }: {
       <div data-testid="simulation-modal-board">
         <PerformanceBoard summary={lump.summary} currency={principalCurrency} exchange={lump.exchange ?? undefined} />
       </div>
-      <ChartSection series={state.series} error={state.seriesError} />
+      <ChartSection series={state.series} error={state.seriesError} path={detailSeriesPath(state)} />
       {table(
         <PerformanceTable rows={lump.rows} currency={principalCurrency} stockCurrency={currency} summary={lump.summary}
           hasMore={lump.hasMore} loadingMore={state.loadingMore} loadError={state.loadMoreError}
