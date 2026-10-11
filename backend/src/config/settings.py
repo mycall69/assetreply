@@ -295,6 +295,16 @@ class Settings:
     dashboard_table_page_limit: int = 30
     news_commentary_naver_url: str = "https://stock.naver.com/api/domestic/news/focus"
     news_commentary_yahoo_base: str = "https://finance.yahoo.com"
+    # 014 반복 2026-10-11d — 기준금리(네이버 증권 기준금리 내부 API — 원칙 II 이탈, 사용자 승인
+    # 2026-10-11, research R14-32). 결정 이력을 저장한다(data-model 17). 사용자 에이전트는 같은
+    # 호스트의 `news_user_agent`를 쓴다.
+    policy_rate_url: str = (
+        "https://stock.naver.com/api/securityService/marketindex/standardInterest")
+    policy_rate_collect_interval_seconds: int = 1800
+    policy_rate_min_interval_ms: int = 1000
+    policy_rate_request_timeout_seconds: int = 10
+    policy_rate_retry_max_attempts: int = 2
+    policy_rate_retry_base_delay_ms: int = 1000
 
     # ── 검색용 종목 목록 — 키움증권 REST API (006 research R6-1·R6-3) ──
     #
@@ -515,6 +525,16 @@ def load_settings(env_file: Path | None = None) -> Settings:
         news_commentary_naver_url=_env_str(
             "NEWS_COMMENTARY_NAVER_URL", "https://stock.naver.com/api/domestic/news/focus"),
         news_commentary_yahoo_base=_env_str("NEWS_COMMENTARY_YAHOO_BASE", "https://finance.yahoo.com"),
+        policy_rate_url=_env_str(
+            "POLICY_RATE_URL",
+            "https://stock.naver.com/api/securityService/marketindex/standardInterest"),
+        policy_rate_collect_interval_seconds=_env_int(
+            "POLICY_RATE_COLLECT_INTERVAL_SECONDS", 1800, minimum=1),
+        policy_rate_min_interval_ms=_env_seconds_ms("POLICY_RATE_MIN_INTERVAL_SECONDS", "1"),
+        policy_rate_request_timeout_seconds=_env_int(
+            "POLICY_RATE_REQUEST_TIMEOUT_SECONDS", 10, minimum=1),
+        policy_rate_retry_max_attempts=_env_int("POLICY_RATE_RETRY_MAX_ATTEMPTS", 2, minimum=1),
+        policy_rate_retry_base_delay_ms=_env_int("POLICY_RATE_RETRY_BASE_DELAY_MS", 1000),
         kiwoom_mode=_env_choice("KIWOOM_MODE", "real", KIWOOM_MODES),
         kiwoom_app_key=_Secret(_env_str("KIWOOM_APP_KEY")),
         kiwoom_app_secret=_Secret(_env_str("KIWOOM_APP_SECRET")),

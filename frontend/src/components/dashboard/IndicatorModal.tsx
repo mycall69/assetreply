@@ -12,18 +12,22 @@
  *   사용자가 자리를 잃는다. Tab·Shift+Tab은 모달 안에서 돈다(`aria-modal`만으로는 브라우저가 가두지 않는다 — 013 `SimulationModal`과 같다)
  * - 열린 동안 배경(`body`) 스크롤을 잠근다
  * - 머리 값은 대시보드와 같은 스토어다. 갱신 주기는 뒤의 대시보드가 진다 — 모달이 닫힐 때 멈추면 대시보드 카드의 갱신까지 멈춘다
+ * - (014 반복 2026-10-11d — FR-041) id가 은행(`fed`·`bok`·`ecb`·`boe`·`boj`)이면 금리 모달이다(`RateView`) — 껍데기·주소·닫기 규칙이 같고,
+ *   닫으면 기준금리 칸의 그 은행 행(`data-rate`)으로 포커스가 돌아온다
  */
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
 import { IndicatorView } from "@/components/dashboard/IndicatorView";
-import type { IndicatorRange } from "@/lib/types";
+import { RateView } from "@/components/dashboard/RateView";
+import { isPolicyRateBank, type IndicatorRange } from "@/lib/types";
 import { useMarketQuotesStore } from "@/stores/marketQuotesStore";
 
 const FOCUSABLE = "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea, [tabindex]:not([tabindex='-1'])";
 const TITLE_ID = "indicator-modal-title";
 
 function focusCard(id: string): boolean {
-  const link = document.querySelector<HTMLElement>(`[data-indicator="${id.replace(/["\\]/g, "\\$&")}"] a`);
+  const key = id.replace(/["\\]/g, "\\$&");
+  const link = document.querySelector<HTMLElement>(`[data-indicator="${key}"] a, [data-rate="${key}"] a`);
   link?.focus();
   return link !== null;
 }
@@ -94,7 +98,9 @@ export function IndicatorModal({ id, range, mode }: { id: string; range: Indicat
           className="absolute right-3 top-3 rounded px-2 text-xl leading-none text-gray-500 hover:text-gray-900">
           ×
         </button>
-        <IndicatorView id={id} range={range} titleId={TITLE_ID} onClose={close} />
+        {isPolicyRateBank(id)
+          ? <RateView bank={id} range={range} titleId={TITLE_ID} />
+          : <IndicatorView id={id} range={range} titleId={TITLE_ID} onClose={close} />}
       </div>
     </div>
   );

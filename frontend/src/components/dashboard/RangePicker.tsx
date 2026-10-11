@@ -3,6 +3,8 @@
  *
  * 여덟 개 — 일·주·월·1년·5년·10년·20년·모두. 기간은 **보는 범위**다(점을 묶지 않는다 — 012 전의 단위 단추를 대체). 일·주는 장중 시세,
  * 월 이상은 그 기간의 일봉 전부다. 고른 단추는 `aria-pressed="true"`다.
+ *
+ * (014 반복 2026-10-11d — FR-041) 금리 모달은 그 가운데 넷(1년·5년·10년·모두)만 보인다(`ranges`).
  */
 import { DEFAULT_INDICATOR_RANGE, INDICATOR_RANGES, type IndicatorRange } from "@/lib/types";
 
@@ -17,10 +19,15 @@ export const RANGE_LABELS: Record<IndicatorRange, string> = {
   all: "모두",
 };
 
-export function RangePicker({ value, onChange }: { value: IndicatorRange; onChange: (range: IndicatorRange) => void }) {
+export function RangePicker({ value, onChange, ranges = INDICATOR_RANGES }: {
+  value: IndicatorRange;
+  onChange: (range: IndicatorRange) => void;
+  /** 보이는 단추 — 처음 값은 여덟 모두. */
+  ranges?: readonly IndicatorRange[];
+}) {
   return (
     <div role="group" aria-label="보는 기간" className="inline-flex flex-wrap rounded border border-gray-300">
-      {INDICATOR_RANGES.map((range) => (
+      {ranges.map((range) => (
         <button key={range} type="button" aria-pressed={value === range} onClick={() => onChange(range)}
           className={`px-3 py-1.5 text-sm ${value === range ? "bg-gray-900 text-white" : "text-gray-700 hover:bg-gray-50"}`}>
           {RANGE_LABELS[range]}

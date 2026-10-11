@@ -1260,3 +1260,78 @@ class MarketCloseRevision(Base):
     stored_close: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
     source_close: Mapped[Decimal] = mapped_column(PRICE, nullable=False)
     detected_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+
+# ── 014 반복 2026-10-11d — 기준금리 (data-model 17) ──
+
+#: 기준금리(%) — 출처는 소수 둘째 자리다. 넉넉히 넷(마이너스 가능 — 일본 2016 −0.10).
+POLICY_RATE = Numeric(8, 4, asdecimal=True)
+
+
+class PolicyRateDecision(Base):
+    """중앙은행 하나의 결정 하나(동결 포함) — (은행, 결정일) 유일. **새 날만 넣는다** — 있는 날의
+    금리가 출처에서 달라지면 덮지 않고 수집 로그에 개정을 남긴다(014 FR-043, 008 금리 개정과 같은
+    뜻)."""
+
+    __tablename__ = "policy_rate_decision"
+    __table_args__ = (UniqueConstraint("bank", "decided_on", name="ux_policy_rate_decision"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    #: 은행 id(`fed`·`bok`·`ecb`·`boe`·`boj` — `simulation/policy_rate.BANKS`)
+    bank: Mapped[str] = mapped_column(String(8), nullable=False)
+    #: 결정일 — 출처 시각(한국 시각)의 한국 날짜
+    decided_on: Mapped[dt.date] = mapped_column(Date, nullable=False)
+    #: 발표 시각(UTC). 출처의 자리 표시 시각이면 비운다 — 시각을 만들지 않는다
+    announced_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    rate: Mapped[Decimal] = mapped_column(POLICY_RATE, nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    ingested_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+
+class PolicyRateRawKind(StrEnum):
+    LIST = "list"
+    CALENDARS = "calendars"
+
+
+class PolicyRateRaw(Base):
+    """기준금리 출처의 응답 본문 그대로(014 data-model 17.2) — 요청 주소·머리 없이."""
+
+    __tablename__ = "policy_rate_raw"
+    __table_args__ = (Index("ix_policy_rate_raw_fetched", "bank", "fetched_at"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    kind: Mapped[PolicyRateRawKind] = mapped_column(
+        Enum(
+            PolicyRateRawKind,
+            native_enum=False,
+            length=16,
+            values_callable=lambda kinds: [kind.value for kind in kinds],
+        ),
+        nullable=False,
+    )
+    bank: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    page: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    body: Mapped[str] = mapped_column(Text(length=16_777_215), nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    fetched_at: Mapped[dt.datetime] = mapped_column(TS, nullable=False)
+
+
+class PolicyRateBank(Base):
+    """은행마다의 수집 상태(014 data-model 17.3) — 다음 결정 예정일, 처음 받기 끝남, 마지막
+    성공·실패."""
+
+    __tablename__ = "policy_rate_bank"
+
+    bank: Mapped[str] = mapped_column(String(8), primary_key=True)
+    #: 출처 목록의 다음 결정일(한국 날짜). 지난 날짜면 비운다
+    next_meeting_on: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    #: 결정 이력을 짧은 쪽까지 다 받았다 — 그 전에는 다음 바퀴에 처음부터 다시 받는다
+    history_complete: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("0"))
+    #: 첫 쪽을 마지막으로 겹쳐 받은 한국 날짜 — 하루 한 번
+    last_overlap_on: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    last_success_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    last_failure_at: Mapped[dt.datetime | None] = mapped_column(TS, nullable=True)
+    #: `connection`·`rate_limited`·`blocked`·`invalid_body`·`not_found`
+    failure_kind: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    failure_message: Mapped[str | None] = mapped_column(String(255), nullable=True)

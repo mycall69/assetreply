@@ -14,6 +14,9 @@ import type {
   IndicatorTableResponse,
   NewsListResponse,
   NewsSourceKey,
+  PolicyRateDetail,
+  PolicyRatesResponse,
+  RateCommentaryResponse,
 } from "@/lib/types";
 
 /** 지표 15개의 현재 시세. 출처가 실패해도 200이다 — 실패는 지표마다 싣는다(FR-009). */
@@ -52,4 +55,28 @@ export function requestCollect(id: string): Promise<{ status: string }> {
 /** 뉴스 칸 하나. 출처가 실패해도 200이다 — 칸마다 따로 실패한다(FR-024). */
 export function fetchNews(source: NewsSourceKey): Promise<NewsListResponse> {
   return apiClient.get<NewsListResponse>(`/api/dashboard/news/${source}`);
+}
+
+/* ── 반복 2026-10-11d — 기준금리(contracts A14~A17) ── */
+
+/** 기준금리 칸 — DB만 읽는다(출처를 부르지 않는다). 은행마다 따로 실패한다. */
+export function fetchRates(): Promise<PolicyRatesResponse> {
+  return apiClient.get<PolicyRatesResponse>("/api/dashboard/rates");
+}
+
+const ratePath = (bank: string) => `/api/dashboard/rates/${encodeURIComponent(bank)}`;
+
+/** 금리 모달 — 결정 전부(최신부터). */
+export function fetchRateDetail(bank: string): Promise<PolicyRateDetail> {
+  return apiClient.get<PolicyRateDetail>(ratePath(bank));
+}
+
+/** 금리 변화 까닭 — 출처가 실패해도 200이다(`status: "failed"`). */
+export function fetchRateCommentary(bank: string): Promise<RateCommentaryResponse> {
+  return apiClient.get<RateCommentaryResponse>(`${ratePath(bank)}/commentary`);
+}
+
+/** 다시 시도 — 수집 워커를 곧바로 깨운다(202). */
+export function requestRateCollect(): Promise<{ accepted: boolean }> {
+  return apiClient.post<{ accepted: boolean }>("/api/dashboard/rates/collect", {});
 }

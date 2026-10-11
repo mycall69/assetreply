@@ -74,6 +74,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         indicator_intraday,
         market_quotes,
         news_cache,
+        policy_rate_commentary,
         stock_selection,
     )
     from src.config.settings import load_settings
@@ -85,6 +86,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from src.ingestion.investing.client import InvestingClient
     from src.ingestion.kiwoom.client import KiwoomClient
     from src.ingestion.naver_land.client import NaverLandClient
+    from src.ingestion.naver_rate.client import NaverRateClient
     from src.ingestion.news.client import NewsClient
     from src.ingestion.news.commentary import CommentaryClient
     from src.ingestion.yahoo.client import YahooStockClient
@@ -109,6 +111,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from src.worker.listing_worker import listing_worker_loop
     from src.worker.listing_worker import startup as listing_startup
     from src.worker.market_worker import market_worker_loop
+    from src.worker.policy_rate_worker import policy_rate_worker_loop
     from src.worker.queue import get_queue
     from src.worker.reconcile import reconcile_loop, reconcile_on_startup
     from src.worker.runner import worker_loop
@@ -197,6 +200,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     indicator_commentary.set_shared_service(indicator_commentary.CommentaryService(
         CommentaryClient(news_client, settings, clock=indicator_commentary.utc_now),
         quote_service, settings))
+    # 014 반복 2026-10-11d — 기준금리(네이버 증권 기준금리 내부 API — 원칙 II 이탈, 사용자 승인
+    # 2026-10-11). 결정 이력은 수집 워커가 쌓고(아래 열째 태스크), 변화 까닭은 뉴스와 같은
+    # HTTP 클라이언트의 뉴스 포커스다 — 메모리 캐시뿐(R14-33).
+    rate_client = NaverRateClient(settings)
+    await rate_client.__aenter__()
+    policy_rate_commentary.set_shared_service(policy_rate_commentary.RateCommentaryService(
+        CommentaryClient(news_client, settings, clock=policy_rate_commentary.utc_now),
+        policy_rate_commentary.DbLatestDecision(factory), settings))
 
     tasks = [
         asyncio.create_task(worker_loop(
@@ -226,6 +237,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # 막지 않는다. 같은 Yahoo
         # 출처의 한도는 관문이 함께 지킨다(R14-10). 클라이언트는 현재 시세 서비스와 함께 쓴다.
         asyncio.create_task(market_worker_loop(factory, market_client, settings=settings)),
+        # 014 반복 2026-10-11d — 기준금리 결정 이력 수집. **지표 수집과 따로다** — 출처(네이버
+        # 증권)가 달라 한쪽이 막혀도 다른 쪽이 기다리지 않는다.
+        asyncio.create_task(policy_rate_worker_loop(factory, rate_client, settings=settings)),
     ]
     try:
         yield
@@ -248,6 +262,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         await market_client.__aexit__(None, None, None)
         stock_selection.set_shared_first_trade_source(None)
         await first_trade_client.__aexit__(None, None, None)
+        policy_rate_commentary.set_shared_service(None)
+        await rate_client.__aexit__(None, None, None)
         news_cache.set_shared_service(None)
         await news_client.__aexit__(None, None, None)
         await shutdown_engine()
@@ -502,6 +518,7 @@ def create_app() -> FastAPI:
     from src.api.routes import dashboard_commentary as dashboard_commentary_routes
     from src.api.routes import dashboard_news as dashboard_news_routes
     from src.api.routes import dashboard_quotes as dashboard_quotes_routes
+    from src.api.routes import dashboard_rates as dashboard_rates_routes
     from src.api.routes import dashboard_series as dashboard_series_routes
     from src.api.routes import dashboard_table as dashboard_table_routes
     from src.api.routes import deposit_installment as deposit_installment_routes
@@ -587,6 +604,8 @@ def create_app() -> FastAPI:
     app.include_router(dashboard_table_routes.router)
     app.include_router(dashboard_commentary_routes.router)
     app.include_router(dashboard_news_routes.router)
+    # 반복 2026-10-11d — 기준금리 칸·금리 모달·변화 까닭·다시 시도
+    app.include_router(dashboard_rates_routes.router)
 
     return app
 

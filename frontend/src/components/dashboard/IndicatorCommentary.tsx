@@ -7,11 +7,20 @@
  * - 시각은 늘 날짜를 붙인다(한국 시간 `MM-DD HH:mm`) — 기사가 지난 세션부터 오늘까지 여러 날에 걸친다. 상대 표기("18h ago")는 글자 그대로이고
  *   어림한 시각보다 먼저다 — 서버가 고르기에 쓰려고 어림한 `publishedAt`을 정확한 시각처럼 보이면 출처에 없는 시각을 꾸며 낸다(T123 실측)
  * - 없으면 "변화를 다룬 기사를 찾지 못했습니다", 실패면 까닭과 다시 시도(뉴스 칸과 같은 글자)
+ * - (014 반복 2026-10-11d — FR-042) 금리 모달도 같은 칸이다 — 본문 꼴이 같고(contracts A16), 없을 때의 글자만
+ *   "최근 결정을 다룬 기사를 찾지 못했습니다"(`noneText`)다
  */
 import { NEWS_REASONS } from "@/components/dashboard/NewsColumn";
 import { formatZonedDate, formatZonedTime, KST_ZONE } from "@/lib/kstClock";
-import type { IndicatorCommentaryItem, NewsFailureReason } from "@/lib/types";
-import type { CommentaryEntry } from "@/stores/indicatorCommentaryStore";
+import type { IndicatorCommentaryItem, IndicatorCommentaryResponse, NewsFailureReason } from "@/lib/types";
+
+/** 칸이 읽는 본문 — 지표 까닭(A8)과 금리 까닭(A16)이 같은 꼴이다. */
+export type CommentaryBody = Pick<IndicatorCommentaryResponse, "status" | "items" | "failure" | "source" | "sourceUrl">;
+
+export interface CommentaryState {
+  status: "loading" | "ready" | "error";
+  body: CommentaryBody | null;
+}
 
 function itemTime(item: IndicatorCommentaryItem): string | null {
   if (item.publishedText) return item.publishedText;
@@ -30,7 +39,12 @@ function Retry({ onRetry }: { onRetry: () => void }) {
   return <button type="button" onClick={onRetry} className="text-sm text-gray-700 underline">다시 시도</button>;
 }
 
-export function IndicatorCommentary({ state, onRetry }: { state: CommentaryEntry; onRetry: () => void }) {
+export function IndicatorCommentary({ state, onRetry, noneText = "변화를 다룬 기사를 찾지 못했습니다" }: {
+  state: CommentaryState;
+  onRetry: () => void;
+  /** 기사가 없을 때의 글자. */
+  noneText?: string;
+}) {
   const body = state.status === "ready" ? state.body : null;
   return (
     <section data-testid="indicator-commentary" aria-label="변화 까닭" className="space-y-2 rounded-lg border border-gray-200 p-3">
@@ -51,7 +65,7 @@ export function IndicatorCommentary({ state, onRetry }: { state: CommentaryEntry
           <Retry onRetry={onRetry} />
         </div>
       )}
-      {body?.status === "none" && <p className="text-sm text-gray-500">변화를 다룬 기사를 찾지 못했습니다</p>}
+      {body?.status === "none" && <p className="text-sm text-gray-500">{noneText}</p>}
       {body?.status === "ok" && (
         <ul className="space-y-2">
           {body.items.map((item) => {

@@ -2014,3 +2014,82 @@ export interface NewsListResponse {
   items: NewsItem[];
   failure: NewsFailure | null;
 }
+
+/* ── 014 반복 2026-10-11d — 대시보드 기준금리(contracts A14~A16) ── */
+
+/** 은행 id — 차례는 서버가 정한다(칸의 `banks` 차례). 지표 모달 주소 `/dashboard/{은행}`도 같은 id다. */
+export type PolicyRateBankId = "fed" | "bok" | "ecb" | "boe" | "boj";
+
+export const POLICY_RATE_BANKS: readonly PolicyRateBankId[] = ["fed", "bok", "ecb", "boe", "boj"];
+
+export function isPolicyRateBank(id: string): id is PolicyRateBankId {
+  return (POLICY_RATE_BANKS as readonly string[]).includes(id);
+}
+
+export type PolicyRateState = "ready" | "collecting" | "failed";
+
+/** 수집 실패 — 종류는 지표와 같은 다섯(contracts A0). */
+export interface PolicyRateFailure {
+  kind: string;
+  message: string;
+  at: string;
+}
+
+/** 칸 한 행(A14). 금리·전회대비는 서버 글자 — 화면은 계산하지 않는다(원칙 VI). */
+export interface PolicyRateRow {
+  bank: PolicyRateBankId;
+  name: string;
+  flag: string;
+  rateKind: string;
+  rate: string | null;
+  change: string | null;
+  direction: "up" | "down" | "flat" | null;
+  /** 결정일 — 한국 날짜 */
+  decidedOn: string | null;
+  /** 발표 시각(UTC) — 자리 표시면 없음 */
+  announcedAt: string | null;
+  nextMeetingOn: string | null;
+  state: PolicyRateState;
+  failure: PolicyRateFailure | null;
+  lastSuccessAt: string | null;
+}
+
+/** `GET /api/dashboard/rates`. DB만 읽는다. */
+export interface PolicyRatesResponse {
+  source: string;
+  sourceUrl: string;
+  refreshAfterSeconds: number;
+  banks: PolicyRateRow[];
+}
+
+export interface PolicyRateDecision {
+  decidedOn: string;
+  announcedAt: string | null;
+  rate: string;
+  change: string | null;
+  direction: "up" | "down" | "flat" | null;
+}
+
+/** `GET /api/dashboard/rates/{bank}` — 칸 행 + 결정 전부(최신부터). */
+export interface PolicyRateDetail extends PolicyRateRow {
+  firstDecidedOn: string | null;
+  lastDecidedOn: string | null;
+  decisions: PolicyRateDecision[];
+}
+
+/** `GET /api/dashboard/rates/{bank}/commentary` — 지표 까닭과 같은 꼴(A8). */
+export interface RateCommentaryResponse {
+  bank: string;
+  source: string;
+  sourceUrl: string;
+  status: "ok" | "none" | "failed";
+  fetchedAt: string | null;
+  decisionDate: string | null;
+  items: IndicatorCommentaryItem[];
+  failure: IndicatorSourceFailure | null;
+}
+
+/** 금리 모달의 보는 기간 — 1년·5년·10년·모두(처음 1년). */
+export type RateRange = "1y" | "5y" | "10y" | "all";
+
+export const RATE_RANGES: readonly RateRange[] = ["1y", "5y", "10y", "all"];

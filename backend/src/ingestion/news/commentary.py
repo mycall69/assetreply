@@ -84,6 +84,26 @@ SOURCES: Final[dict[str, CommentarySource]] = {
 }
 
 
+#: (014 반복 2026-10-11d — FR-042, R14-33) 기준금리의 변화 까닭 — 은행 낱말. 제목에 이 가운데
+#: 하나와 금리 낱말이 **둘 다** 있어야 그 은행 결정의 기사다. 은행 낱말만이면 결정 날의
+#: "한은 총재 '환율…'"이, 금리 낱말만이면 다른 은행의 기사가 섞인다(T202 실측).
+BANK_WORDS: Final[dict[str, tuple[str, ...]]] = {
+    "fed": ("연준", "FOMC", "파월"),
+    "bok": ("한은", "한국은행", "금통위"),
+    "ecb": ("ECB", "유럽중앙은행"),
+    "boe": ("영란은행", "BOE", "영국 중앙은행", "영국중앙은행"),
+    "boj": ("일본은행", "BOJ", "日銀", "일은"),
+}
+RATE_WORDS: Final = ("금리", "동결", "인상", "인하")
+#: 기준금리 기사의 뉴스 포커스 분류 차례 — 채권·선물 → 해외 증시 → 환율(R14-33).
+BANK_SIDS: Final = ("404", "403", "429")
+
+
+def matches_bank(title: str, bank_id: str) -> bool:
+    """그 은행 결정의 기사인가 — 은행 낱말과 금리 낱말이 둘 다 든 제목."""
+    return matches(title, BANK_WORDS[bank_id]) and matches(title, RATE_WORDS)
+
+
 def source_of(indicator_id: str) -> CommentarySource:
     """지표의 출처. 모르는 지표는 `KeyError`다(목록은 고정 15개 — spec FR-003)."""
     return SOURCES[indicator_id]
@@ -333,6 +353,21 @@ class CommentaryClient:
         self._http = http
         self._settings = settings
         self._clock = clock
+
+    async def fetch_day(self, sid: str, day: dt.date) -> list[CommentaryItem]:
+        """뉴스 포커스의 한 분류·한 날짜(한국)의 기사 — 출처 차례, 거르기 전(기준금리 까닭 — 반복
+        2026-10-11d). 실패는 `NewsError`다."""
+        raw = await self._http.get_text(
+            self._settings.news_commentary_naver_url,
+            params={
+                "sid": sid,
+                "page": "1",
+                "pageSize": _PAGE_SIZE,
+                "date": day.strftime("%Y%m%d"),
+            },
+            accept_language=_NAVER_LANGUAGE,
+        )
+        return parse_naver_focus(raw)
 
     async def fetch(self, indicator_id: str) -> list[CommentaryItem]:
         """그 지표의 기사(출처 차례 — 고르기 전). 실패는 `NewsError`다."""
