@@ -24,7 +24,7 @@ description: "Task list for 014-market-dashboard"
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: 병렬 실행 가능 (서로 다른 파일, 미완료 태스크에 의존하지 않음)
-- **[Story]**: 소속 사용자 스토리 (US1~US10 — US4~US10은 반복 2026-10-10c·10d·10e·10f(·10g)·2026-10-11·2026-10-11b)
+- **[Story]**: 소속 사용자 스토리 (US1~US11 — US4~US11은 반복 2026-10-10c·10d·10e·10f(·10g)·2026-10-11·2026-10-11b·2026-10-11c)
 - 모든 태스크는 파일 경로와 **검증하는 FR·SC**를 적는다. 참조하는 태스크가 없는 인수 기준은 헌법 위반이다
 - **ID는 안정적 참조다.** 반복으로 추가된 태스크는 번호를 이어 붙이고, 삭제된 태스크는 번호를 재사용하지 않고 취소선으로 남긴다
 
@@ -978,6 +978,57 @@ description: "Task list for 014-market-dashboard"
 
 ---
 
+## Phase 16: 반복 2026-10-11c — 확대 구간의 일 단위 자료·확대 단추 자리 (spec Iterations — 사용자 보고)
+
+**Goal**:
+- 일 단위로 볼 수 있는 그래프에서 확대하면 그 구간을 날마다의 점으로 다시 그린다(US11 — FR-038). 서버는 보기 구간 질의, 화면은 받아서 끼우기
+- 외환 추이·지표 일봉 그래프에도 두 지점 확대, 확대 단추는 오른쪽 가격 축 밖(FR-039)
+
+**Independent Test**(spec US11):
+- 주식 메뉴(삼성전자 2024-01-02)를 확대하면 그 구간의 거래일마다 점이고 값이 일자별 표 "일" 행과 같다. 투자 비교(주식 여럿)·외환(긴 기간)·지표(1년)도 확대된다. [리셋]은 처음 범위
+- [리셋]·상태 줄이 오른쪽 축 숫자를 가리지 않는다. 질의 없는 응답·예금·부동산·장중 그래프는 그대로다
+
+**완료 작업 영향**: FR-037(T184·T188)의 "요청 없음"·"외환·대시보드는 대상 밖"·단추 자리가 바뀐다 — `ChartZoom.test.tsx`의 해당 단언은 T195에서 실제 실패 목록으로 승인한다
+
+### Tests for 반복 2026-10-11c ⚠️
+
+- [ ] T192 [P] [US11] 백엔드 테스트 — 새 `backend/tests/integration/test_series_view_window.py`(메뉴 넷·비교 넷 — 질의 있으면 그 구간 ∩ 계산 구간의 시세일마다 점(주식 일시금·적립식: 빠진
+  거래일·남는 날 0, 값 = 같은 조건 표 `period=daily` 행의 잔고·수익률, 사건 날 값 = 원래 점), 가상자산: 원래 일봉의 그 구간 그대로(줄이지 않음), 구간 `gaps`, `maxPoints` 넘으면 줄임,
+  비교 `valueLine` 날짜 = 구간 점·주식 일시금 값 = 원금 + 그 날 수익, 한쪽만·`viewFrom` > `viewTo` 400 `invalid_query`, 질의 없으면 응답 불변(대조))·새 `backend/tests/unit/test_series_view_window.py`
+  (`view_window` 검증·자르기). 최초 실패 확인 (FR-038, SC-023)
+- [ ] T193 [P] [US11] 화면 테스트 — 새 `frontend/tests/chartDetail.test.ts`(끼워 그리기·`gaps` 합치기·`valueLine` 끼우기·덮음 판정)·새 `frontend/tests/ChartZoomDetail.test.tsx`(세 수익률
+  그래프·외환 — 확대가 끝나면 구간 받기 함수를 그 범위로 부름, 받은 점으로 다시 그리고 `setVisibleRange(범위)` 유지, 받는 중·실패 상태 줄, 늦은 응답 버림, [리셋]이면 원래 점·`fitContent`, 받은
+  구간 안 다시 확대는 받지 않음, 받기 함수가 없으면 지금처럼, 화면 연결 — 주식 메뉴는 늘·가상자산·외환은 `downsampled`일 때만·투자 비교 주식 대상·이력 비교·비교 모달, 예금·부동산은 받기 함수 없음,
+  구간 요청 주소의 `viewFrom`·`viewTo`·`maxPoints=5000`). 최초 실패 확인 (FR-038, SC-023)
+- [ ] T194 [P] [US11] 화면 테스트 — 새 `frontend/tests/ChartZoomPlacement.test.tsx`(확대 단추·상태 줄의 자리 = 오른쪽 축 폭 + 8px·위 4px, 축 폭은 처음 누를 때만 `priceScale("right").width()`,
+  외환 추이·지표 일봉 그래프의 두 지점 확대·취소·리셋, 지표 [리셋] = 그 기간의 `setVisibleLogicalRange` 처음 범위(모두면 `fitContent`), 지표 기간 바꾸면 확대 풀림, 장중은 단추 없음).
+  최초 실패 확인 (FR-039, SC-024)
+
+### Implementation for 반복 2026-10-11c
+
+- [ ] T195 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(예상: `ChartZoom.test.tsx`의 요청 0회·대상 밖·모의의 `priceScale`). T161과 같은 절차
+  (`014 승인 2026-10-11(반복 2026-10-11c T195)`)로 승인하고 구현을 치워 실패를 확인한 뒤 `test(014)`. 목록 밖의 실패는 결함으로 보고 멈춘다 (FR-026)
+- [ ] T196 [US11] 백엔드 — `backend/src/api/services/series_query.py`(`view_window`), `backend/src/api/services/stock_series.py`·`recurring_series.py`·`crypto_series.py`(구간 점 빌더 — 날마다
+  상태에서 고르기), `backend/src/api/services/comparison_values.py`(구간 점의 원화 총자산), `backend/src/api/routes/stock_series.py`·`stock_recurring.py`·`crypto_series.py`·`crypto_recurring.py`·
+  `comparison.py`(질의 둘) — DM16, contracts A13 (FR-038)
+- [ ] T197 [US11] 화면 — 새 `frontend/src/lib/chartDetail.ts`·`frontend/src/lib/seriesDetail.ts`, `frontend/src/hooks/useChartZoom.ts`(확대 끝 알림·사용자 리셋·축 폭)·
+  `frontend/src/components/ChartZoomControls.tsx`(자리·받는 중/실패 줄), `frontend/src/components/compare/CompareReturnChart.tsx`·`components/stock/PerformanceChart.tsx`·
+  `components/stock/ComparisonChart.tsx`(받은 자료 끼우기), 스토어(`stockStore`·`cryptoStore`·`compareStore`·`compareDetailStore` — 시계열 경로 기억)와 화면(`app/stocks`·`app/crypto`·`app/compare`·
+  비교 모달) — DM16, contracts D17 (FR-038, FR-039)
+- [ ] T198 [US11] 화면 — `frontend/src/components/FxChart.tsx`·`components/fx/TrendChart.tsx`(두 지점 확대·구간 받기 — `fxWorkspaceStore`), `frontend/src/components/dashboard/IndicatorChart.tsx`
+  (일봉 그래프의 두 지점 확대 — [리셋] = 기간 처음 범위, 기간 바꾸면 풀림) — DM16, contracts D17 (FR-039)
+
+### Polish (반복 2026-10-11c)
+
+- [ ] T199 [US11] 실측 — quickstart 5-26(주식 메뉴·투자 비교(주식 여럿)·비교 모달·이력 비교·가상자산(줄여진 긴 기간)·외환(긴 기간)·지표(1년) 확대 → 구간 점 간격·값 = 표 "일" 행·리셋, 받는 중·
+  실패, 단추가 축과 겹치지 않음(밝은·블랙), 예금·부동산·장중 그대로)을 헤드리스 Chrome으로 확인하고 `quickstart.md` 8에 기록한다 (FR-038, FR-039, SC-023, SC-024)
+- [ ] T200 불변 대조·문서 — `014-baseline/fetch.py`(기준 29파일 — 질의 없는 응답 차이 0), `docs/implementation-notes.md`(§5 확대 절)·`CLAUDE.md`(014 줄·색인), `README.md`, `spec.md` Status
+  (FR-026, FR-038, SC-010, SC-023)
+- [ ] T201 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177·T185·T195)뿐인지
+  `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -1013,6 +1064,9 @@ description: "Task list for 014-market-dashboard"
 - **반복 2026-10-11b (Phase 15)**: Phase 14 뒤
   1. 테스트 T182·T183·T184(함께 — 최초 실패 확인) → 구현 T186 → T187 → T188(`CompareReturnChart.tsx`는 T187 뒤 T188) → T185(실제 실패 목록 — 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
   2. T189~T191
+- **반복 2026-10-11c (Phase 16)**: Phase 15 뒤
+  1. 테스트 T192·T193·T194(함께 — 최초 실패 확인) → 구현 T196 → T197 → T198 → T195(실제 실패 목록 — 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
+  2. T199~T201
 - **Foundational (Phase 2)**: T002·T004 뒤. US1·US2를 막는다. US3는 T011(설정) 뒤면 시작할 수 있다.
 - **US1 (Phase 3)**: Foundational 뒤. **T018(승인)이 이 페이즈의 테스트 커밋을 막는다** — T031~T040 구현을 작업 트리에 둔 뒤 목록을 만든다. 백엔드(T019~T023·T031~T035)와 화면(T024~T030·T036~T040)은 나란히 할 수 있다. MVP다.
 - **US2 (Phase 4)**: US1 뒤(시세 서비스의 캐시가 잠정 꼬리·머리 값을 준다. `main.py`·`types.ts`·`dashboardApi.ts`가 겹친다). 승인 목록이 없을 것으로 본다 — 구현 뒤 목록 밖의 실패는 결함으로 보고 멈춘다.
@@ -1060,6 +1114,8 @@ description: "Task list for 014-market-dashboard"
 | `frontend/src/components/compare/CompareReturnChart.tsx` | T187 → T188(반복 2026-10-11b — 차례로, 013 파일) |
 | `frontend/src/components/stock/PerformanceChart.tsx`·`components/stock/ComparisonChart.tsx` | T188(반복 2026-10-11b — 005·010·011 파일, 네 메뉴·비교 모달이 함께 씀) |
 | `frontend/src/lib/types.ts`·`app/compare/page.tsx` | T163(이전), T187(반복 2026-10-11b) |
+| `frontend/src/hooks/useChartZoom.ts`·`components/ChartZoomControls.tsx`·차트 셋 | T188(이전), T197 → T198(반복 2026-10-11c — 차례로) |
+| `backend/src/api/routes/comparison.py`·`api/services/comparison_values.py` | T186(이전), T196(반복 2026-10-11c) |
 
 ### Parallel Opportunities
 
@@ -1106,6 +1162,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 11. 반복 2026-10-10g — 고른 종목·코인 줄의 상장일(US7 확장)(Phase 13). 스키마 변경 없음 — 사용자 보고
 12. 반복 2026-10-11 — 투자 성과표의 처음 단위 월(US8)(Phase 14). 화면만 — 사용자 요청
 13. 반복 2026-10-11b — 수익률 추이의 현재 가치 축(US9)과 두 지점 확대(US10)(Phase 15). 비교 블록 키 하나 + 화면 — 사용자 요청. 둘은 따로 낼 수 있다(T186·T187과 T188)
+14. 반복 2026-10-11c — 확대 구간의 일 단위 자료·외환/지표 확대·단추 자리(US11)(Phase 16). 시계열 경로의 선택 질의 둘 + 화면 — 사용자 보고
 
 ---
 
@@ -1173,7 +1230,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-023 | T007, T011, T067, T068, T076, T087, T089, T092 |
 | FR-024 | T064, T065, T066, T067, T068, T069, T070, T071, T072, T076, T077, T078, T079, T081, T087 |
 | FR-025 | T070, T079, T085, T121, T126, T140 |
-| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148, T152, T155, T161, T165, T169, T170, T174, T177, T180, T185, T190 |
+| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148, T152, T155, T161, T165, T169, T170, T174, T177, T180, T185, T190, T195, T200 |
 | FR-027 | T095, T103, T104, T105, T109, T113, T118, T119, T120, T121, T123 |
 | FR-028 | T095, T102, T104, T105, T107, T112, T116, T121, T123, T128, T129, T132, T133, T137 |
 | FR-029 | T104, T105, T108, T114, T117, T119, T120, T121, T123, T124 |
@@ -1185,6 +1242,8 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-035 | T176, T177, T178, T179, T180 |
 | FR-036 | T182, T183, T185, T186, T187, T189, T190 |
 | FR-037 | T184, T185, T188, T189 |
+| FR-038 | T192, T193, T195, T196, T197, T198, T199, T200 |
+| FR-039 | T194, T195, T197, T198, T199 |
 | SC-001 | T071, T082, T087 |
 | SC-002 | T047, T056, T082, T107, T124, T130, T138 |
 | SC-003 | T010, T020, T023, T032, T041 |
@@ -1194,7 +1253,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-007 | T022, T034, T064, T065, T066, T068, T071, T081, T087, T094 |
 | SC-008 | T064, T065, T066, T068, T070, T081, T089, T092 |
 | SC-009 | T019, T026, T031 |
-| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141, T148, T150, T155, T157, T165, T167, T174, T175, T180, T181, T190, T191 |
+| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141, T148, T150, T155, T157, T165, T167, T174, T175, T180, T181, T190, T191, T200, T201 |
 | SC-011 | T062, T087 |
 | SC-012 | T104, T108, T124 |
 | SC-013 | T103, T109, T123 |
@@ -1207,3 +1266,5 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-020 | T176, T179, T180 |
 | SC-021 | T182, T183, T189, T190 |
 | SC-022 | T184, T189 |
+| SC-023 | T192, T193, T199, T200 |
+| SC-024 | T194, T199 |

@@ -315,6 +315,19 @@
   - `afterSaleValue`: `principal.krw` + 매도 후 투자 수익(`comparison.profit`) — `mainBasis`가 `after_sale`일 때만, 아니면 `null`(`lineEnd.afterSaleReturnRate`와 짝)
   - 메뉴 경로(`/api/stocks/simulation/series` 등)의 응답에는 없다 — 메뉴 응답은 그대로다
 
+## A13. 보기 구간 질의 (반복 2026-10-11c — spec FR-038)
+
+- 대상 경로 여덟: `/api/stocks/simulation/series`·`/api/stocks/recurring-simulation/series`·`/api/crypto/simulation/series`·`/api/crypto/recurring-simulation/series`와
+  `/api/comparison/stocks/simulation`·`stocks/recurring-simulation`·`crypto/simulation`·`crypto/recurring-simulation`
+- 선택 질의 `viewFrom=YYYY-MM-DD&viewTo=YYYY-MM-DD` — 둘 다 또는 둘 다 없음. 하나만이거나 `viewFrom` > `viewTo`면 400 `invalid_query`. 계산(`start`·`end`·원금 등)은 그대로다
+- 있으면 시계열 본문(`points`·`gaps`·`downsampled`·`sourcePointCount`)이 **[`viewFrom`, `viewTo`] ∩ 계산 구간의 시세일마다 점 하나**다
+  - 주식 일시금: 그 날 행(월·배당락·재투자)이 있으면 그날의 마지막 행, 없으면 그 날 상태(일자별 표 `period=daily` 행과 같은 잔고·수익률·가격)
+  - 주식 적립식: 같은 규칙(납입·배당·재투자 행 / 그 날 상태, `principal` 포함)
+  - 가상자산 일시금·적립식: 일봉 그대로(줄이기 전)
+  - `gaps`는 그 구간에서 다시 판정, 점이 `maxPoints`보다 많으면 그 안에서 줄인다(`downsampled: true`)
+- 비교 경로는 같은 구간 점으로 `comparison.valueLine`을 낸다(A12 규칙). `summary`·블록의 다른 칸은 질의와 무관하다
+- 202·거절은 지금과 같다(수집 판정이 먼저다). 외환 `/api/fx/series`는 이미 `from`·`to`를 받는다 — 경로 변경 없음
+
 ## A6. 불변
 
 기존 경로의 응답은 바뀌지 않는다(FR-026):
@@ -323,6 +336,7 @@
 - (반복 2026-10-10g) 새 읽기 경로 둘(A11)이 더해진다. 기존 경로의 응답은 그대로다
 - (반복 2026-10-11) 경로 변경이 없다 — 표 경로(`/api/fx/daily`·주식·가상자산 일시금·적립식)는 `period`가 없으면 그대로 일이다. 화면이 처음 요청부터 `period=monthly`를 싣는다(FR-035)
 - (반복 2026-10-11b) 비교 경로 일곱의 200 `comparison`에 `valueLine`만 더해진다(A12). 메뉴 경로·비교 블록의 다른 칸은 그대로다. 그래프 확대(FR-037)는 요청이 없다
+- (반복 2026-10-11c) 주식·가상자산 시계열 경로 여덟에 선택 질의 `viewFrom`·`viewTo`(A13) — 질의가 없으면 응답은 그대로다. 확대는 일 단위 그래프에서 구간을 받는다(FR-038)
 - 주식: `/api/stocks/*`
 - 가상자산: `/api/crypto/*`
 - 예금: `/api/deposit/*`
