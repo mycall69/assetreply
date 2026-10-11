@@ -10,6 +10,11 @@ R13-1·R13-2·R13-18, contracts/rest-api.md 1.
 
 **이력을 쓰지 않는다**(FR-020). 비교는 화면이 대상마다 이 경로를 부르고 끝이다.
 
+014 반복 2026-10-11b — 현재 가치 선(`comparison.valueLine`, contracts A12): 시계열 본문의 점마다
+그 날의 원화 총자산을 고른다. 일시금 주식·가상자산은 점 `balance`가 보유분만이라 그 계산의 행에서
+원화 원금 + 투자 수익을 고르고(`comparison_values`), 나머지는 점 `balance` 그대로다. 메뉴 응답·
+`series`는 그대로다.
+
 반복 2026-10-09 — 단가 등락(`comparison.unitPrice`, data-model 3.2)의 두 값을 그 계산이 이미 가진
 값에서 고른다: 주식은 수정주가(메뉴 차트의 주가 선과 같은 `split_restated_close`), 가상자산은 일봉
 시가, 예금은 발표 금리, 부동산은 그 달 시세. 차이·등락률은 순수 모듈(`simulation/unit_price`)이
@@ -50,7 +55,8 @@ from src.api.services import recurring_series
 from src.api.services import stock_recurring as stock_recurring_service
 from src.api.services import stock_series as stock_series_service
 from src.api.services import stock_simulation as stock_service
-from src.api.services.comparison_metrics import FxInfo, Json, comparison_block
+from src.api.services.comparison_metrics import FxInfo, Json, comparison_block, value_points
+from src.api.services.comparison_values import crypto_lump_totals, stock_lump_totals
 from src.api.services.crypto_collect import collecting_body as crypto_collecting
 from src.api.services.realestate_lists import get_realestate_now, get_realestate_settings
 from src.api.services.stock_collect import collecting_body as stock_collecting
@@ -243,18 +249,20 @@ async def compare_stock(
     fx = (FxInfo(stock.currency, latest.fx_rate, latest.fx_rate_date, exchange)
           if not domestic and latest is not None and latest.fx_rate is not None
           and latest.fx_rate_date is not None else None)
+    series_body = stock_series_routes.series_json(series, principal_currency=principal_currency,
+                                                  price_currency=stock.currency)
     return _body(
         target=stock_routes.stock_json(stock),
         condition=stock_routes.condition_json(prepared, start=start, principal=amount,
                                               principal_currency=principal_currency,
                                               reinvest=reinvest),
-        exchange=exchange, summary=summary,
-        series=stock_series_routes.series_json(series, principal_currency=principal_currency,
-                                               price_currency=stock.currency),
+        exchange=exchange, summary=summary, series=series_body,
         comparison=comparison_block("stock_lump", summary, costs,
                                     principal_currency=principal_currency, fx=fx,
                                     unit_price=_stock_lump_unit(result, stock.currency),
-                                    listing=await stock_listing(session, stock, first_trade)))
+                                    listing=await stock_listing(session, stock, first_trade),
+                                    value_points=value_points(
+                                        series_body, stock_lump_totals(result, amount))))
 
 
 @router.get("/crypto/simulation", response_model=None)
@@ -301,17 +309,19 @@ async def compare_crypto(
     fx = (FxInfo(coin.quote_currency, latest.fx_rate, latest.fx_rate_date, exchange)
           if not domestic and latest is not None and latest.fx_rate is not None
           and latest.fx_rate_date is not None else None)
+    series_body = crypto_series_routes.series_json(series, principal_currency=principal_currency,
+                                                   price_currency=coin.quote_currency)
     return _body(
         target=crypto_routes.coin_json(coin),
         condition=crypto_routes.condition_json(prepared, start=start, principal=amount,
                                                principal_currency=principal_currency),
-        exchange=exchange, summary=summary,
-        series=crypto_series_routes.series_json(series, principal_currency=principal_currency,
-                                                price_currency=coin.quote_currency),
+        exchange=exchange, summary=summary, series=series_body,
         comparison=comparison_block("crypto_lump", summary, costs,
                                     principal_currency=principal_currency, fx=fx,
                                     unit_price=_crypto_lump_unit(result, coin.quote_currency),
-                                    listing=coin_listing_date(coin.first_available_date)))
+                                    listing=coin_listing_date(coin.first_available_date),
+                                    value_points=value_points(
+                                        series_body, crypto_lump_totals(result, amount))))
 
 
 @router.get("/deposit/simulation", response_model=None)
@@ -337,12 +347,14 @@ async def compare_deposit(
         max_points=max_points)
     costs = deposit_costs(matured_taxes=[t.tax for t in outcome.terms],
                           open_tax=outcome.summary.accrued_tax)
+    series_body = deposit_series_routes.series_json(series)
     return _body(
         target=deposit_routes.institution_json(request),
         condition=deposit_routes.condition_json(request, result), exchange=None,
-        summary=summary, series=deposit_series_routes.series_json(series),
+        summary=summary, series=series_body,
         comparison=comparison_block("deposit", summary, costs, unit_price=_rate_unit(
-            result.rates, result.latest_month, request.start, outcome.summary.as_of)))
+            result.rates, result.latest_month, request.start, outcome.summary.as_of),
+            value_points=value_points(series_body)))
 
 
 @router.get("/realestate/simulation", response_model=None)
@@ -391,13 +403,15 @@ async def compare_realestate(
         local_tax=None if sale_body is None else _decimal(sale_body["localTax"]),
         sale_kind=None if sale_body is None else str(sale_body["kind"]))
     series = realestate_series_service.build_series(prepared.result, max_points=max_points)
+    series_body = realestate_series_routes.series_json(
+        series, provisional_from=prepared.provisional_from)
     return _body(
         target={"complex": body["complex"], "area": body["area"]},
         condition=_object(body["condition"]), exchange=None, summary=summary,
-        series=realestate_series_routes.series_json(
-            series, provisional_from=prepared.provisional_from),
+        series=series_body,
         comparison=comparison_block("realestate", summary, costs,
-                                    unit_price=_realestate_unit(prepared.result)))
+                                    unit_price=_realestate_unit(prepared.result),
+                                    value_points=value_points(series_body)))
 
 
 @router.get("/stocks/recurring-simulation", response_model=None)
@@ -437,18 +451,19 @@ async def compare_stock_recurring(
     fx = (FxInfo(stock.currency, latest.fx_rate, latest.fx_rate_date)
           if stock.market != DOMESTIC_MARKET and latest is not None and latest.fx_rate is not None
           and latest.fx_rate_date is not None else None)
+    series_body = stock_recurring_routes.series_json(series, principal_currency=principal_currency,
+                                                     price_currency=stock.currency)
     return _body(
         target=stock_routes.stock_json(stock),
         condition=stock_recurring_routes.condition_json(
             prepared, start=start, amount_raw=amount, principal_currency=principal_currency,
             frequency_raw=frequency, reinvest=reinvest),
-        exchange=None, summary=summary,
-        series=stock_recurring_routes.series_json(series, principal_currency=principal_currency,
-                                                  price_currency=stock.currency),
+        exchange=None, summary=summary, series=series_body,
         comparison=comparison_block("stock_recurring", summary, costs,
                                     principal_currency=principal_currency, fx=fx,
                                     unit_price=_stock_recurring_unit(result, stock.currency),
-                                    listing=await stock_listing(session, stock, first_trade)))
+                                    listing=await stock_listing(session, stock, first_trade),
+                                    value_points=value_points(series_body)))
 
 
 @router.get("/crypto/recurring-simulation", response_model=None)
@@ -482,18 +497,19 @@ async def compare_crypto_recurring(
     fx = (FxInfo(coin.quote_currency, latest.fx_rate, latest.fx_rate_date)
           if coin.quote_currency != "KRW" and latest.fx_rate is not None
           and latest.fx_rate_date is not None else None)
+    series_body = crypto_recurring_routes.series_json(
+        series, principal_currency=principal_currency, price_currency=coin.quote_currency)
     return _body(
         target=crypto_routes.coin_json(coin),
         condition=crypto_recurring_routes.condition_json(
             prepared, start=start, amount_raw=amount, principal_currency=principal_currency,
             frequency_raw=frequency),
-        exchange=None, summary=summary,
-        series=crypto_recurring_routes.series_json(series, principal_currency=principal_currency,
-                                                   price_currency=coin.quote_currency),
+        exchange=None, summary=summary, series=series_body,
         comparison=comparison_block("crypto_recurring", summary, costs,
                                     principal_currency=principal_currency, fx=fx,
                                     unit_price=_crypto_recurring_unit(result, coin.quote_currency),
-                                    listing=coin_listing_date(coin.first_available_date)))
+                                    listing=coin_listing_date(coin.first_available_date),
+                                    value_points=value_points(series_body)))
 
 
 @router.get("/deposit/installment-simulation", response_model=None)
@@ -518,10 +534,11 @@ async def compare_installment(
         deposit_latest=result.deposit_latest, max_points=max_points)
     costs = deposit_costs(matured_taxes=[outcome.summary.tax_total],
                           open_tax=outcome.summary.open_tax)
+    series_body = installment_routes.series_json(series)
     return _body(
         target=installment_routes.institution_json(request),
         condition=installment_routes.condition_json(request, result), exchange=None,
-        summary=summary, series=installment_routes.series_json(series),
+        summary=summary, series=series_body,
         comparison=comparison_block("installment", summary, costs, unit_price=_rate_unit(
             result.installment_rates, result.installment_latest, request.start,
-            outcome.summary.as_of)))
+            outcome.summary.as_of), value_points=value_points(series_body)))

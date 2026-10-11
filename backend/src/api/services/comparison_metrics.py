@@ -12,15 +12,21 @@ R13-18, data-model 3.
 
 화면은 이 값을 보이고 견주기만 한다 — 합·차이를 계산하지 않는다(헌법 원칙 VI).
 
+014 반복 2026-10-11b — 현재 가치 선(`valueLine`, contracts A12): 시계열 점마다 그 날의 원화
+총자산(`value_points` — 이미 낸 값에서 고른다)과 기준일의 매도 후 금액(원화 원금 + 매도 후 투자
+수익)이다. 수익률 추이의 왼쪽 축이 이것을 그린다. `lineEnd`에는 더하지 않는다 — 그 객체를 통째로
+견주는 단위 테스트가 있다.
+
 **순수 함수 모듈이다.** DB·HTTP·저장소·경로 모듈을 부르지 않는다(헌법 원칙 IV).
 """
 
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Literal
+from typing import Literal, cast
 
 from src.simulation.comparison_costs import CostPart, Costs
 from src.simulation.listing_date import ListingDate
@@ -149,6 +155,31 @@ def _point_json(point: PricePoint, *, with_missing: bool) -> Json:
     return body
 
 
+def value_points(series: Json, totals: Mapping[str, str] | None = None) -> list[Json]:
+    """시계열 점마다 그 날의 원화 총자산 (014 반복 2026-10-11b — FR-036, contracts A12).
+
+    `totals`(날짜 글자 → 금액 글자)가 있으면 그 값이다 — 주식·가상자산 일시금은 점 `balance`가
+    보유분만의 평가라 예수금을 더한 원화 총자산을 따로 넘긴다. 없으면 점 `balance`다 — 적립식·
+    정기예금·적금·부동산은 점 잔고가 곧 원화 총자산이다. **계산하지 않고 고른다.** 점과 같은
+    날짜·같은 차례로 하나씩이고, 점에 없는 날을 지어내지 않는다(`totals`에 그 날이 없으면
+    `KeyError` — 같은 계산의 행에서 만든 것이라 오지 않는다).
+    """
+    out: list[Json] = []
+    for point in cast(list[Json], series["points"]):
+        date = str(point["date"])
+        out.append({"date": date,
+                    "value": _text(totals[date] if totals is not None else point["balance"])})
+    return out
+
+
+def _after_sale_value(basis: str, principal: Json, profit: str | None) -> str | None:
+    """기준일에 판다고 가정한 금액 = 원화 원금 + 매도 후 투자 수익. 매도 후 기준일 때만이다."""
+    krw = principal.get("krw")
+    if basis != "after_sale" or krw is None or profit is None:
+        return None
+    return _dec(Decimal(str(krw)) + Decimal(profit))
+
+
 def unit_price_json(unit: UnitPrice | None) -> Json | None:
     """단가 등락(반복 2026-10-09 — data-model 3.2). 값은 서버가 계산한 문자열이다 — 화면은
     형식만 입힌다."""
@@ -173,17 +204,21 @@ def listing_json(listing: ListingDate | None) -> Json | None:
 def comparison_block(family: Family, summary: Json, costs: Costs, *,
                      principal_currency: str = "KRW", fx: FxInfo | None = None,
                      unit_price: UnitPrice | None = None,
-                     listing: ListingDate | None = None) -> Json:
+                     listing: ListingDate | None = None,
+                     value_points: list[Json] | None = None) -> Json:
     """비교 표 한 줄의 칸 — data-model 3. `unit_price`는 반복 2026-10-09의 단가 등락(3.2)이다.
 
     `listing`은 014 반복 2026-10-10f의 상장일이다 — 주식·가상자산 경로만 넘긴다(예금·부동산 `None`).
+    `value_points`는 014 반복 2026-10-11b의 현재 가치 선(`value_points`가 고른 점)이다 — 넘기면
+    `valueLine`이 붙는다.
     """
     basis, profit, rate = _main(family, summary)
     holding_rate = _text(summary.get("returnRate"))
-    return {
+    principal = _principal(family, summary, principal_currency)
+    block: Json = {
         "asOf": summary.get("asOf"),
         "isFinal": summary.get("isFinal"),
-        "principal": _principal(family, summary, principal_currency),
+        "principal": principal,
         "currentValue": _current_value(family, summary),
         "mainBasis": basis,
         "profit": profit,
@@ -197,3 +232,7 @@ def comparison_block(family: Family, summary: Json, costs: Costs, *,
         "unitPrice": unit_price_json(unit_price),
         "listing": listing_json(listing),
     }
+    if value_points is not None:
+        block["valueLine"] = {"points": value_points,
+                              "afterSaleValue": _after_sale_value(basis, principal, profit)}
+    return block

@@ -75,7 +75,11 @@ export default function ComparePage() {
   const proposal = suggestion(states);
   // 그래프에는 계산된 대상만 — 수집 중 대상은 끝나면 더해진다(명확화 2). 선은 실행 차례라 정렬해도 색이 바뀌지 않고, 막대는 표의 지금 정렬이다.
   const chartItems: CompareChartItem[] = rows.flatMap((r) => (r.state.status === "ok"
-    ? [{ key: r.key, name: r.name, series: r.state.data.series, lineEnd: r.state.data.comparison.lineEnd }] : []));
+    ? [{
+      key: r.key, name: r.name, series: r.state.data.series, lineEnd: r.state.data.comparison.lineEnd,
+      // 014 반복 2026-10-11b — 왼쪽 축의 현재 가치(FR-036). 값은 서버가 고른 것 그대로다.
+      valueLine: r.state.data.comparison.valueLine, currentValue: r.state.data.comparison.currentValue,
+    }] : []));
   const metricItems: MetricItem[] = sortedRows(rows, sort).flatMap((r) => (r.state.status === "ok"
     ? [{
       key: r.key, name: r.name, returnRate: r.state.data.comparison.returnRate, profit: r.state.data.comparison.profit,

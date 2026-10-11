@@ -42,10 +42,16 @@
  * **누적 납입 원금은 잔고 축의 점선이다**(011 FR-015, research R11-12). 적립식·적금 점에만 있는 `principal`을 잔고와 같은 구간·같은 잠정
  * 경계로 끊어 그린다 — 한쪽만 끊기면 두 선이 다른 구간을 말한다. **점에 `principal` 키가 없으면 시리즈를 만들지 않는다** — 일시금·정기예금·
  * 부동산 차트는 010과 같다.
+ *
+ * **두 지점 확대**(014 반복 2026-10-11b — FR-037, research R14-30). 차트 칸을 두 번 누르면 그 사이로, 오른쪽 위 [리셋]은 처음 범위로
+ * (`useChartZoom`). 누른 날짜는 커서 추적의 `time`이다(결측 구간의 값 없는 자리도 날짜가 있다). 그릴 때 새 API를 부르지 않는다 —
+ * 확대·리셋은 누를 때만이다. 네 메뉴와 투자 비교 모달이 이 부품을 함께 쓴다.
  */
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
+import { ChartZoomControls } from "@/components/ChartZoomControls";
+import { useChartZoom } from "@/hooks/useChartZoom";
 import { hoverView, placeHover, PRICE_NAME, type HoverView } from "@/lib/chartHover";
 import {
   axisPriceFormat, gapSlots, priceSegments, splitSeriesAtGaps, toPerformanceData,
@@ -153,6 +159,8 @@ export function PerformanceChart({
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
   // 014 반복 2026-10-10c — 블랙 테마면 어두운 팔레트로 다시 만든다(밝으면 선택 값 그대로)
   const theme = useThemeStore((s) => s.theme);
+  const zoom = useChartZoom();
+  const { attach: attachZoom, detach: detachZoom, track: trackZoom } = zoom;
 
   // 상자를 그린 뒤 크기를 재서 칸 안에 둔다 — 크기를 모르고 자리를 정하면 오른쪽·아래 끝에서 잘린다(FR-012).
   useLayoutEffect(() => {
@@ -183,6 +191,7 @@ export function PerformanceChart({
       // 겹침 축의 위아래 여백 — 가격 선이 잔고 선과 차트 끝에 붙지 않게. `priceScale().applyOptions`는 모의 객체에 없다.
       ...(hasPrice ? { overlayPriceScales: { scaleMargins: { top: 0.1, bottom: 0.1 } } } : {}),
     }, theme));
+    attachZoom(instance);
 
     const balanceFormat = axisPriceFormat(NO_DECIMAL_CURRENCIES.has(series.basisCurrency) ? 0 : 2);
     // 이력 비교 차트의 수익률 축과 같은 형식이다(FR-046a) — 같은 화면에서 두 수익률 축이 갈리지 않는다.
@@ -299,6 +308,8 @@ export function PerformanceChart({
       // 커서가 차트를 벗어나면 `time`·`point`가 없다 — 상자를 지운다.
       const view = time !== undefined && point !== undefined ? hoverView(series, time) : null;
       const source = param.sourceEvent;
+      // 014 반복 2026-10-11b — 누른 자리의 날짜. 커서가 칸을 떠나면 비운다(FR-037).
+      trackZoom(point === undefined ? undefined : time);
       setHover(view === null || point === undefined ? null : {
         view,
         point: { x: point.x, y: point.y },
@@ -311,8 +322,10 @@ export function PerformanceChart({
       instance.remove();
       // 다른 실행의 상자가 남으면 새 차트의 값처럼 읽힌다.
       setHover(null);
+      // 다시 만든 차트는 처음 범위다 — 확대 단추가 남으면 확대된 것처럼 보인다(FR-037).
+      detachZoom();
     };
-  }, [series, theme]);
+  }, [series, theme, attachZoom, detachZoom, trackZoom]);
 
   if (collecting) {
     return (
@@ -346,7 +359,8 @@ export function PerformanceChart({
   return (
     <section className="rounded-lg border border-gray-200 p-4">
       <div ref={area} className="relative">
-        <div ref={container} data-testid="performance-canvas" />
+        <div ref={container} data-testid="performance-canvas" {...zoom.surface} />
+        <ChartZoomControls state={zoom.state} onCancel={zoom.cancel} onReset={zoom.reset} />
 
         {hover && (
           <div

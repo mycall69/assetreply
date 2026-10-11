@@ -12,14 +12,24 @@
  *   실행 중에 읽지 않는다(선 모양은 수 상수). 커서 상자는 `sourceEvent`의 화면 좌표로 놓는다(010)
  *
  * 그리기 위해서만 숫자로 바꾼다(`toPerformanceData`) — 상자의 값은 원본 문자열을 형식 함수로 보인다(헌법 원칙 VI).
+ *
+ * **왼쪽 축은 현재 가치다**(014 반복 2026-10-11b — FR-036, research R14-29). 비교 블록의 `valueLine`이 있으면 왼쪽 가격 축을 켜고 대상마다
+ * 가는 선(1px, 그 대상의 색·선 모양, 원화 축 형식)을 그린다 — 점은 서버가 고른 그 날의 원화 총자산이고, 결측·잠정 나누기는 수익률 선과 같은
+ * 구간에서 한다. 기준일까지 `currentValue`로 잇고, 매도 후 금액이 있으면 기준일에 점이다(두 축의 범위가 같은 비율로 맞아 일시금의 두 선이
+ * 겹친다). `valueLine`에 없는 날은 그 점만 비운다(앞 값으로 메우지 않는다). 키가 없으면(014 전 응답의 대역) 왼쪽 축도 선도 없다.
+ *
+ * **두 지점 확대**(014 반복 2026-10-11b — FR-037): 차트 칸을 두 번 누르면 그 사이로, 오른쪽 위 [리셋]은 처음 범위로(`useChartZoom`).
+ * 누른 날짜는 커서 추적(`time`)이 준다 — 그릴 때 새 API를 부르지 않는다.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
+import { ChartZoomControls } from "@/components/ChartZoomControls";
+import { useChartZoom } from "@/hooks/useChartZoom";
 import { placeHover } from "@/lib/chartHover";
 import { axisPriceFormat, splitSeriesAtGaps, toPerformanceData } from "@/lib/chartSeries";
 import { themedChartOptions } from "@/lib/chartTheme";
-import { formatPercent } from "@/lib/format";
-import type { ComparisonBlock, SimulationPoint, SimulationSeriesResponse } from "@/lib/types";
+import { formatMoneyWithSymbol, formatPercent } from "@/lib/format";
+import type { ComparisonBlock, DecimalString, SimulationPoint, SimulationSeriesResponse } from "@/lib/types";
 import { useThemeStore, type Theme } from "@/stores/themeStore";
 
 export interface CompareChartItem {
@@ -27,6 +37,10 @@ export interface CompareChartItem {
   name: string;
   series: SimulationSeriesResponse;
   lineEnd: ComparisonBlock["lineEnd"];
+  /** 014 반복 2026-10-11b — 현재 가치 선(비교 블록 그대로). 없으면 왼쪽 축·가는 선을 그리지 않는다. */
+  valueLine?: ComparisonBlock["valueLine"];
+  /** 기준일의 현재 가치(비교 표의 그 칸) — 가는 선을 기준일까지 잇는 값. */
+  currentValue?: DecimalString | null;
 }
 
 /** 대상 10개를 가를 색 — 서로 다른 색상(hue)으로 고른다. */
@@ -46,6 +60,8 @@ const paletteOf = (theme: Theme) => (theme === "dark" ? DARK_PALETTE : PALETTE);
 /** 선 모양 — 라이브러리의 `LineStyle` 값(0 실선, 2 점선). 열거형을 실행 중에 읽지 않는다. */
 const SOLID = 0;
 const DASHED = 2;
+/** 014 반복 2026-10-11b — 현재 가치는 왼쪽 축이다(수익률은 오른쪽 — 라이브러리 기본). */
+const VALUE_AXIS = "left";
 
 const rgb = ([r, g, b]: readonly number[], alpha = 1) => (alpha === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${alpha})`);
 export const colorOf = (index: number, theme: Theme = "light") => {
@@ -64,6 +80,17 @@ function splitProvisional(points: SimulationPoint[], from: string | null | undef
 }
 
 const percentValue = (rate: string) => toPerformanceData([{ date: "", balance: "0", returnRate: rate }], "returnRate")[0].value;
+const moneyValue = (value: string) => toPerformanceData([{ date: "", balance: value, returnRate: "0" }], "balance")[0].value;
+const won = (value: string | null | undefined) => (value === null || value === undefined ? null : formatMoneyWithSymbol(value, "KRW"));
+
+/** 구간의 점을 그 날의 현재 가치로 — `valueLine`에 없는 날은 뺀다(앞 값으로 메우지 않는다). */
+function valueData(part: SimulationPoint[], values: Map<string, string>) {
+  const known = part.flatMap((p) => {
+    const value = values.get(p.date);
+    return value === undefined ? [] : [{ ...p, balance: value }];
+  });
+  return toPerformanceData(known, "balance").map((d) => ({ time: d.time, value: d.value }));
+}
 
 interface Hover {
   date: string;
@@ -72,13 +99,20 @@ interface Hover {
 }
 
 function hoverLine(item: CompareChartItem, date: string): string {
+  // 014 반복 2026-10-11b — 현재 가치가 있으면 금액을 덧붙인다(표와 같은 형식). 없으면 014 전과 같은 글자다.
+  const line = item.valueLine;
   if (date === item.lineEnd.date && item.lineEnd.holdingReturnRate !== null) {
     const after = item.lineEnd.afterSaleReturnRate;
+    const holdingValue = line === undefined ? null : won(item.currentValue);
+    const afterValue = line === undefined ? null : won(line.afterSaleValue);
     return `${item.name} 보유 중 ${formatPercent(item.lineEnd.holdingReturnRate)}`
-      + (after === null ? "" : ` · 매도 후 ${formatPercent(after)}`);
+      + (holdingValue === null ? "" : ` (${holdingValue})`)
+      + (after === null ? "" : ` · 매도 후 ${formatPercent(after)}${afterValue === null ? "" : ` (${afterValue})`}`);
   }
   const point = item.series.points.find((p) => p.date === date);
-  return `${item.name} ${point === undefined ? "값 없음" : formatPercent(point.returnRate)}`;
+  if (point === undefined) return `${item.name} 값 없음`;
+  const value = won(line?.points.find((v) => v.date === date)?.value);
+  return `${item.name} ${formatPercent(point.returnRate)}${value === null ? "" : ` · ${value}`}`;
 }
 
 export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
@@ -89,6 +123,9 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
   // 014 반복 2026-10-10c — 블랙 테마면 어두운 팔레트로 다시 만든다(밝으면 선택 값 그대로). 대상 색은 두 바탕에서 다 보인다
   const theme = useThemeStore((s) => s.theme);
   const [place, setPlace] = useState<{ left: number; top: number } | null>(null);
+  const zoom = useChartZoom();
+  const { attach: attachZoom, detach: detachZoom, track: trackZoom } = zoom;
+  const hasValue = items.some((item) => item.valueLine !== undefined);
 
   useLayoutEffect(() => {
     if (hover === null || area.current === null || box.current === null) {
@@ -103,15 +140,24 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
 
   useEffect(() => {
     if (!container.current || items.length === 0) return;
+    const withValue = items.some((item) => item.valueLine !== undefined);
     const instance = createChart(container.current, themedChartOptions({
       height: 360,
       layout: { attributionLogo: false },
       rightPriceScale: { borderVisible: false },
+      // 014 반복 2026-10-11b — 현재 가치가 있을 때만 왼쪽 축을 켠다(없으면 014 전과 같은 옵션).
+      ...(withValue ? { leftPriceScale: { visible: true, borderVisible: false } } : {}),
       timeScale: { borderVisible: false },
     }, theme));
+    attachZoom(instance);
     const priceFormat = axisPriceFormat(2);
+    const valueFormat = axisPriceFormat(0);
     const line = (color: string, lineStyle: number) => instance.addSeries(LineSeries, {
       color, lineWidth: 2, lineStyle, priceFormat, priceLineVisible: false, lastValueVisible: false,
+    });
+    const valueSeries = (color: string, lineStyle: number) => instance.addSeries(LineSeries, {
+      color, lineWidth: 1, lineStyle, priceScaleId: VALUE_AXIS, priceFormat: valueFormat,
+      priceLineVisible: false, lastValueVisible: false,
     });
 
     items.forEach((item, index) => {
@@ -143,12 +189,39 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
           priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
         }).setData([{ time: date, value: percentValue(afterSaleReturnRate) }]);
       }
+
+      // 014 반복 2026-10-11b — 현재 가치 가는 선(왼쪽 축). 수익률 선과 같은 구간·같은 잠정 경계로 나눈다.
+      const valueLine = item.valueLine;
+      if (valueLine === undefined) return;
+      const values = new Map(valueLine.points.map((v) => [v.date, v.value]));
+      for (const segment of splitSeriesAtGaps(item.series.points, item.series.gaps)) {
+        const [confirmed, provisional] = splitProvisional(segment, item.series.provisionalFrom);
+        for (const [part, alpha] of [[confirmed, 1], [provisional, 0.4]] as const) {
+          const data = valueData(part, values);
+          if (data.length > 0) valueSeries(rgb(base, alpha), lineStyle).setData(data);
+        }
+      }
+      const lastValue = last === null ? undefined : values.get(last.date);
+      if (last !== null && last.date < date && lastValue !== undefined
+        && item.currentValue !== null && item.currentValue !== undefined) {
+        valueSeries(rgb(base), lineStyle).setData([
+          { time: last.date, value: moneyValue(lastValue) },
+          { time: date, value: moneyValue(item.currentValue) },
+        ]);
+      }
+      if (valueLine.afterSaleValue !== null) {
+        instance.addSeries(LineSeries, {
+          color: rgb(base), lineVisible: false, pointMarkersVisible: true, pointMarkersRadius: 3, priceScaleId: VALUE_AXIS,
+          priceFormat: valueFormat, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+        }).setData([{ time: date, value: moneyValue(valueLine.afterSaleValue) }]);
+      }
     });
 
     instance.subscribeCrosshairMove((param) => {
       const time = param.time as string | undefined;
       const point = param.point;
       const source = param.sourceEvent;
+      trackZoom(point === undefined ? undefined : time);
       setHover(time === undefined || point === undefined ? null : {
         date: time, point: { x: point.x, y: point.y },
         client: source === undefined || source === null ? null : { x: source.clientX, y: source.clientY },
@@ -157,15 +230,23 @@ export function CompareReturnChart({ items }: { items: CompareChartItem[] }) {
     instance.timeScale().fitContent();
     return () => {
       instance.remove();
+      // 다시 만든 차트는 처음 범위다 — 확대 단추가 남으면 확대된 것처럼 보인다(FR-037).
+      detachZoom();
     };
-  }, [items, theme]);
+  }, [items, theme, attachZoom, detachZoom, trackZoom]);
 
   return (
     <section className="rounded-lg border border-gray-200 p-4" data-testid="compare-chart">
       <h3 className="mb-1 text-sm font-semibold">수익률 추이 (KRW)</h3>
       <p data-testid="compare-basis" className="mb-2 text-xs text-gray-500">선: 보유 중(매도 전) · 끝 점: 매도 후</p>
+      {hasValue && (
+        <p data-testid="compare-axes" className="mb-2 text-xs text-gray-500">
+          굵은 선 수익률(오른쪽 축, %) · 가는 선 현재 가치(왼쪽 축, KRW)
+        </p>
+      )}
       <div ref={area} className="relative">
-        <div ref={container} />
+        <div ref={container} data-testid="compare-canvas" {...zoom.surface} />
+        <ChartZoomControls state={zoom.state} onCancel={zoom.cancel} onReset={zoom.reset} />
         {hover && (
           <div ref={box} role="tooltip" data-testid="compare-hover"
             className="pointer-events-none absolute z-10 rounded border border-gray-200 bg-white/95 px-3 py-2 text-xs shadow-md"

@@ -1699,6 +1699,11 @@ export interface ComparisonBlock {
   unitPrice: UnitPrice | null;
   /** 상장일과 기준(014 반복 2026-10-10f — FR-033). 주식·가상자산만, 모르면 `null`. 014 전 응답에는 칸이 없다. */
   listing?: ListingDate | null;
+  /**
+   * 현재 가치 선(014 반복 2026-10-11b — FR-036, contracts A12). `points`는 시계열 점과 같은 날짜·같은 차례로 그 날의 원화 총자산,
+   * `afterSaleValue`는 기준일의 매도 후 금액(매도 후 기준일 때만). 014 전 응답 모양의 대역에는 칸이 없다.
+   */
+  valueLine?: { points: { date: string; value: DecimalString }[]; afterSaleValue: DecimalString | null };
 }
 
 /** 비교 경로 200(contracts/rest-api.md 1.2). `summary`·`condition`은 메뉴 응답의 것 그대로다. */

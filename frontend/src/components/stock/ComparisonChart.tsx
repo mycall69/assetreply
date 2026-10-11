@@ -14,10 +14,16 @@
  * **수익률 축 눈금에 천 단위 쉼표를 넣는다**(007 FR-046a, 반복 2026-10-04 #2) — `1,881.47`. 성과 추이 차트의 수익률 축과
  * 같은 형식 함수(`axisPriceFormat`)를 쓴다. 이력 항목마다, 결측으로 끊긴 구간마다 시리즈가 따로라 **모든 시리즈에** 준다 —
  * 일부에만 주면 축이 다른 시리즈를 따를 때 쉼표가 빠진다.
+ *
+ * **두 지점 확대**(014 반복 2026-10-11b — FR-037, research R14-30). 차트 칸을 두 번 누르면 그 사이로, 오른쪽 위 [리셋]은 처음 범위로
+ * (`useChartZoom`). 이 차트는 커서를 쫓지 않아(`subscribeCrosshairMove`를 그릴 때 부르면 그것이 없는 모의가 깨진다) **누를 때**
+ * 화면 좌표를 그래프 칸 기준으로 바꿔 `coordinateToTime`으로 날짜를 묻는다 — 왼쪽 가격 축이 없어 칸의 왼쪽 끝이 그래프 칸의 시작이다.
  */
 
 import { useEffect, useRef } from "react";
 import { createChart, LineSeries } from "lightweight-charts";
+import { ChartZoomControls } from "@/components/ChartZoomControls";
+import { useChartZoom, type TimeAt } from "@/hooks/useChartZoom";
 import { axisPriceFormat, splitSeriesAtGaps, toPerformanceData } from "@/lib/chartSeries";
 import { ink, themedChartOptions } from "@/lib/chartTheme";
 import type { SimulationSeriesResponse } from "@/lib/types";
@@ -30,6 +36,12 @@ export interface ComparisonItem {
   start: string;
   series: SimulationSeriesResponse;
 }
+
+/** 누른 자리의 날짜 — 점이 없는 자리면 `null`(무시한다). 날짜는 넣은 점의 글자 그대로 돌아온다. */
+const timeAtPress: TimeAt = (chart, clientX, surface) => {
+  const time = chart.timeScale().coordinateToTime(clientX - surface.getBoundingClientRect().left);
+  return typeof time === "string" ? time : null;
+};
 
 /** 항목마다 다른 색. 같은 색이면 범례로도 어느 선인지 가릴 수 없다. */
 const COLORS = ["#1f2937", "#b45309", "#1d4ed8", "#be123c", "#047857"];
@@ -60,6 +72,8 @@ export function ComparisonChart({
   const drawable = !loading && items.length > 0;
   // 014 반복 2026-10-10c — 블랙 테마면 어두운 팔레트로 다시 만든다(밝으면 선택 값 그대로)
   const theme = useThemeStore((s) => s.theme);
+  const zoom = useChartZoom(timeAtPress);
+  const { attach: attachZoom, detach: detachZoom } = zoom;
 
   useEffect(() => {
     if (!container.current || !drawable) return;
@@ -70,6 +84,7 @@ export function ComparisonChart({
       rightPriceScale: { borderVisible: false },
       timeScale: { borderVisible: false },
     }, theme));
+    attachZoom(instance);
 
     const returnFormat = axisPriceFormat(2);
 
@@ -95,8 +110,10 @@ export function ComparisonChart({
     instance.timeScale().fitContent();
     return () => {
       instance.remove();
+      // 다시 만든 차트는 처음 범위다(FR-037).
+      detachZoom();
     };
-  }, [items, drawable, theme]);
+  }, [items, drawable, theme, attachZoom, detachZoom]);
 
   if (loading) {
     return (
@@ -120,7 +137,10 @@ export function ComparisonChart({
         </p>
       )}
 
-      <div ref={container} data-testid="comparison-canvas" />
+      <div className="relative">
+        <div ref={container} data-testid="comparison-canvas" {...zoom.surface} />
+        <ChartZoomControls state={zoom.state} onCancel={zoom.cancel} onReset={zoom.reset} />
+      </div>
 
       <footer className="mt-4 space-y-1 text-xs text-gray-500">
         <p data-testid="comparison-legend" className="flex flex-wrap gap-x-4 gap-y-1">
