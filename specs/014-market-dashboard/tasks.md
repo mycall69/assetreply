@@ -942,38 +942,38 @@ description: "Task list for 014-market-dashboard"
 
 ### Tests for 반복 2026-10-11b ⚠️
 
-- [ ] T182 [P] [US9] 백엔드 테스트 — 새 `backend/tests/integration/test_comparison_value_line.py`(비교 경로 일곱 — `valueLine.points`의 날짜·차례 = `series.points`, 주식 일시금은 예수금이
+- [X] T182 [P] [US9] 백엔드 테스트 — 새 `backend/tests/integration/test_comparison_value_line.py`(비교 경로 일곱 — `valueLine.points`의 날짜·차례 = `series.points`, 주식 일시금은 예수금이
   있는 날 점 `balance`와 다르고 KRW 원금 + 그 날 투자 수익과 같음, 가상자산 일시금 같은 규칙, 적립식·정기예금·적금·부동산은 점 `balance`, 마지막 점이 기준일이면 `currentValue`와 같은 글자,
   `afterSaleValue` = `principal.krw` + 매도 후 투자 수익·매도 후 기준이 아니면 `null`, 메뉴 경로와의 대조 — `series`·`summary`·`lineEnd`와 블록의 다른 칸 불변, 메뉴 응답에 키 없음)·새
   `backend/tests/unit/test_comparison_value_line.py`(`comparison_block`의 `valueLine` 모양, 금액 문자열에 지수 표기 없음). 최초 실패 확인 (FR-036, SC-021)
-- [ ] T183 [P] [US9] 화면 테스트 — 새 `frontend/tests/CompareReturnChartValue.test.tsx`(왼쪽 가격 축 보임, 대상마다 `priceScaleId "left"`·`lineWidth 1`·그 대상의 색·선 모양의 현재 가치 선,
+- [X] T183 [P] [US9] 화면 테스트 — 새 `frontend/tests/CompareReturnChartValue.test.tsx`(왼쪽 가격 축 보임, 대상마다 `priceScaleId "left"`·`lineWidth 1`·그 대상의 색·선 모양의 현재 가치 선,
   원화 축 형식(소수 없음), 결측 구간 끊기·잠정 연한 색이 수익률 선과 같은 자리, 기준일까지 `currentValue`로 잇기, 매도 후 금액 점(`afterSaleValue`, 없으면 없음), 커서 상자 대상 줄의
   `₩` 현재 가치·기준일 줄, 축 설명 `compare-axes`, `valueLine`이 없으면 현재 가치 선·왼쪽 축 없음, 비교 화면이 블록의 `valueLine`·`currentValue`를 넘김). 최초 실패 확인 (FR-036, SC-021)
-- [ ] T184 [P] [US10] 화면 테스트 — 새 `frontend/tests/ChartZoom.test.tsx`(세 그래프 `CompareReturnChart`·`PerformanceChart`·`ComparisonChart` — 커서 날짜가 있을 때 첫 누름이면 오른쪽 위
+- [X] T184 [P] [US10] 화면 테스트 — 새 `frontend/tests/ChartZoom.test.tsx`(세 그래프 `CompareReturnChart`·`PerformanceChart`·`ComparisonChart` — 커서 날짜가 있을 때 첫 누름이면 오른쪽 위
   상태 줄 `시작 … · 끝 지점을 누르세요`·[취소], 둘째 누름이면 `timeScale().setVisibleRange({ from, to })`(앞뒤 정렬), 상태 줄 대신 [리셋], [리셋]이면 `fitContent`·단추 사라짐, 확대 안
   다시 확대·리셋은 처음, 같은 날·[취소]·Esc 취소, 4px 넘게 움직인 누름 무시, 커서 날짜를 모르면 무시, 시계열·테마가 바뀌면 처음 범위·단추 없음, 그릴 때 `setVisibleRange`·`subscribeClick`
   0회, 확대·리셋의 요청 0회, `FxChart`·`IndicatorChart`에는 확대 단추 없음)·새 `frontend/tests/chartZoom.test.ts`(순수 규칙 — 정렬·같은 날·끌기 거리·상태 전이). 최초 실패 확인 (FR-037, SC-022)
 
 ### Implementation for 반복 2026-10-11b
 
-- [ ] T185 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록. T161과 같은 절차(`014 승인 2026-10-11(반복 2026-10-11b T185)`)로 승인하고 구현을 치워 실패를 확인한 뒤
+- [X] T185 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(결과: **없음** — 백엔드 3,460·화면 232파일 2,122 통과, 바뀐 기존 테스트 파일 없음). T161과 같은 절차(`014 승인 2026-10-11(반복 2026-10-11b T185)`)로 승인하고 구현을 치워 실패를 확인한 뒤
   `test(014)`. 목록 밖의 실패는 결함으로 보고 멈춘다 (FR-026)
-- [ ] T186 [US9] 백엔드 — `backend/src/api/services/comparison_metrics.py`(`comparison_block(..., value_points=…)` → `valueLine` — `afterSaleValue`는 `principal.krw` + 매도 후 수익),
+- [X] T186 [US9] 백엔드 — `backend/src/api/services/comparison_metrics.py`(`comparison_block(..., value_points=…)` → `valueLine` — `afterSaleValue`는 `principal.krw` + 매도 후 수익),
   `backend/src/api/routes/comparison.py`(일곱 경로 — 메뉴 함수·`series_json` 불변), 필요하면 새 `backend/src/api/services/comparison_values.py`(시계열 점 날짜마다 원화 총자산 고르기 —
   일시금은 그 날 마지막 행의 KRW 원금 + 투자 수익, 나머지는 점 `balance`) — DM14, contracts A12 (FR-036)
-- [ ] T187 [US9] 화면 — `frontend/src/lib/types.ts`(`ComparisonBlock.valueLine?`), `frontend/src/components/compare/CompareReturnChart.tsx`(왼쪽 축·현재 가치 가는 선·기준일 잇기·매도 후 금액 점·
+- [X] T187 [US9] 화면 — `frontend/src/lib/types.ts`(`ComparisonBlock.valueLine?`), `frontend/src/components/compare/CompareReturnChart.tsx`(왼쪽 축·현재 가치 가는 선·기준일 잇기·매도 후 금액 점·
   커서 상자·축 설명), `frontend/src/app/compare/page.tsx`(차트 항목에 `valueLine`·`currentValue`) — DM14, contracts D15 (FR-036)
-- [ ] T188 [US10] 화면 — 새 `frontend/src/lib/chartZoom.ts`·`frontend/src/hooks/useChartZoom.ts`·`frontend/src/components/ChartZoomControls.tsx`, `frontend/src/components/compare/CompareReturnChart.tsx`,
+- [X] T188 [US10] 화면 — 새 `frontend/src/lib/chartZoom.ts`·`frontend/src/hooks/useChartZoom.ts`·`frontend/src/components/ChartZoomControls.tsx`, `frontend/src/components/compare/CompareReturnChart.tsx`,
   `frontend/src/components/stock/PerformanceChart.tsx`, `frontend/src/components/stock/ComparisonChart.tsx` — DM15, contracts D16 (FR-037)
 
 ### Polish (반복 2026-10-11b)
 
-- [ ] T189 [US9] [US10] 실측 — quickstart 5-25(투자 비교 주식 일시금 삼성전자·QLD·적립식·예금·부동산의 왼쪽 축·선 끝 = 표 현재 가치·커서 상자, 확대: 비교 수익률 추이·주식·가상자산·예금·부동산
+- [X] T189 [US9] [US10] 실측 — quickstart 5-25(투자 비교 주식 일시금 삼성전자·QLD·적립식·예금·부동산의 왼쪽 축·선 끝 = 표 현재 가치·커서 상자, 확대: 비교 수익률 추이·주식·가상자산·예금·부동산
   메뉴 성과 추이·이력 수익률 비교·비교 모달 성과 추이에서 두 지점·리셋·취소·Esc·끌기, 외환·대시보드 그래프 그대로, 블랙 배경 대비)를 헤드리스 Chrome으로 확인하고 `quickstart.md` 8에 기록한다
   (FR-036, FR-037, SC-021, SC-022)
-- [ ] T190 불변 대조·문서 — `014-baseline/fetch.py`(기준 29파일 — 메뉴 파일 차이 0, `*.comparison.json`은 `comparison.valueLine`을 빼면 차이 0, 부동산 기준일·`meta` 말고), `CLAUDE.md`(014 줄·
+- [X] T190 불변 대조·문서 — `014-baseline/fetch.py`(기준 29파일 — 메뉴 파일 차이 0, `*.comparison.json`은 `comparison.valueLine`을 빼면 차이 0, 부동산 기준일·`meta` 말고), `CLAUDE.md`(014 줄·
   차트 확대·비교 블록 주의), `README.md`, `spec.md` Status (FR-026, FR-036, SC-010, SC-021)
-- [ ] T191 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177·T185)뿐인지
+- [X] T191 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177·T185)뿐인지
   `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
 
 ---
