@@ -115,7 +115,7 @@
 | 원칙 | 판정 | 근거 |
 |------|------|------|
 | I. 비동기 우선 | ✅ | 출처 요청은 aiohttp, DB는 비동기 세션이다. 뉴스 파싱(`html.parser` — 약 1MB 한 장)은 요청 경로의 CPU 작업이지만 10분 캐시 뒤 한 번이다. 측정해 50ms를 넘으면 `run_in_executor`로 옮긴다(태스크에 측정 단계) |
-| II. 데이터 소스 격리 | ⚠ 이탈 넷(사용자 승인 2026-10-09 — Complexity Tracking) + 반복 2026-10-10b 새 경로 둘(시황 기사·장중 시세 — **T095에서 실측 뒤 재승인**). 반복 2026-10-10c는 장중 받는 범위만 넓힌다(같은 엔드포인트 `range=5d·5m`·`1mo·30m` — 승인 그대로, 새 출처 없음, T128 실측) | 어댑터 격리: 출처 응답 형태는 `ingestion/yahoo/market*.py`·`ingestion/news/*` 밖으로 나가지 않는다. 심볼 대응은 `market_symbols.py` 한 곳이다. 한도·재시도·UA·주소는 설정이다(data-model §8). Yahoo 관문으로 주식과 한도를 함께 지킨다(R14-10). 출처를 화면·README에 밝힌다 반복 2026-10-10f는 같은 출처·같은 엔드포인트(주식 차트 `range=1d`의 `meta`)라 새 이탈이 없다 — 주식 관문을 함께 지나고, 검색은 출처를 부르지 않는다. **반복 2026-10-11d: 새 경로 하나(네이버 증권 기준금리 내부 API — ⚠ T202 실측 뒤 승인 대기)**. 출처 응답 꼴은 `ingestion/naver_rate/` 밖으로 나가지 않고, 은행 ↔ 출처 `nationType` 대응은 `banks.py` 한 곳이다. 주기·간격·재시도·시간 초과는 설정(`POLICY_RATE_*`), 사용자 에이전트는 같은 호스트의 `NEWS_USER_AGENT`. 변화 까닭은 승인된 뉴스 포커스 엔드포인트의 분류 404 — 새 경로 아님 |
+| II. 데이터 소스 격리 | ⚠ 이탈 넷(사용자 승인 2026-10-09 — Complexity Tracking) + 반복 2026-10-10b 새 경로 둘(시황 기사·장중 시세 — **T095에서 실측 뒤 재승인**). 반복 2026-10-10c는 장중 받는 범위만 넓힌다(같은 엔드포인트 `range=5d·5m`·`1mo·30m` — 승인 그대로, 새 출처 없음, T128 실측) | 어댑터 격리: 출처 응답 형태는 `ingestion/yahoo/market*.py`·`ingestion/news/*` 밖으로 나가지 않는다. 심볼 대응은 `market_symbols.py` 한 곳이다. 한도·재시도·UA·주소는 설정이다(data-model §8). Yahoo 관문으로 주식과 한도를 함께 지킨다(R14-10). 출처를 화면·README에 밝힌다 반복 2026-10-10f는 같은 출처·같은 엔드포인트(주식 차트 `range=1d`의 `meta`)라 새 이탈이 없다 — 주식 관문을 함께 지나고, 검색은 출처를 부르지 않는다. **반복 2026-10-11d: 새 경로 하나(네이버 증권 기준금리 내부 API — T202 실측 뒤 사용자 승인 2026-10-11)**. 출처 응답 꼴은 `ingestion/naver_rate/` 밖으로 나가지 않고, 은행 ↔ 출처 `nationType` 대응은 `banks.py` 한 곳이다. 주기·간격·재시도·시간 초과는 설정(`POLICY_RATE_*`), 사용자 에이전트는 같은 호스트의 `NEWS_USER_AGENT`. 변화 까닭은 승인된 뉴스 포커스 엔드포인트의 분류 404 — 새 경로 아님 |
 | III. TDD (NON-NEGOTIABLE) | ✅ | 테스트를 먼저 커밋 → 최초 실패 확인 → 구현. 구현 뒤 실패하면 멈추고 보고한다. 먼저 쓸 테스트는 quickstart 1~4다. 출처 다섯 갈래(차트·spark·뉴스 셋)는 저장 본문 픽스처 계약 테스트다 — 네트워크 없음. 바뀌는 기존 테스트는 R14-16 목록이고 구현 뒤 실제 실패 목록으로 승인을 받는다. 반복 2026-10-10d: 새 테스트 넷을 먼저. 014 전 외환 테스트는 단언 하나가 바뀔 것으로 본다 — `frontend/tests/csv.test.ts`의 "진행 중 여부가 열로 남는다"(줄 끝 `/예$/` → 진행 중 열의 차례). 나머지는 키 부분집합·CSV 머리 이어짐·선택 칸이라 그대로다. 실제 실패 목록으로 T144 승인. 반복 2026-10-10e: 새 테스트 셋을 먼저. 014 전 013 테스트(`compareCondition.test.ts`의 `targetName`, 이름으로 단추를 찾는 비교 화면 테스트)가 바뀔 것으로 본다 — 실제 실패 목록으로 T152 승인 반복 2026-10-10f: 계약 테스트(차트 meta 픽스처 — T158), 등록 경로는 lifespan의 공유 클라이언트가 없으면 건너뛰어 006 등록 테스트가 네트워크를 부르지 않는다. 014 전 테스트 변경은 T161 승인 |
 | IV. 모듈화 | ✅ | 순수 함수: `simulation/market_indicators.py`·`market_session.py`·`market_quote.py`·`market_gaps.py`·`indicator_periods.py`(DB·HTTP 없음). 서비스는 Protocol에 기댄다: `MarketQuoteSource`(spark), `MarketHistoryRepository`(이력 읽기), `NewsSource`(칸마다 어댑터). 경로가 구체 구현을 주입한다(013 `SavedComparisonRepository` 관례). 반복 2026-10-10d: 외환 등락 계산은 순수 모듈 `simulation/fx_change.py`(경로 둘이 함께 부른다). 반복 2026-10-10e: 비교 대상 이름은 화면의 한 함수(`targetName`)가 만든다 반복 2026-10-10f: 상장일 고르기 규칙은 순수 모듈 `simulation/listing_date.py` |
 | V. 정합성·재현성 | ✅ | (지표, 현지 거래일) PK. 새 날만 넣고, 바뀐 확정 값은 덮어쓰지 않고 개정 표에 남긴다. `source`·`ingested_at`, 원본 분리, UTC 저장. 오늘 봉·장중 값은 잠정이고 저장하지 않는다. 휴장·결측을 메우지 않는다(R14-5). 받은 구간만 커버리지다. 발견한 첫 날을 기록한다(날짜 하드코딩 없음). 거래소 현지 날짜는 `zoneinfo`다. 해석 둘을 Complexity Tracking에 기록한다: 거래소 달력 대신 출처 거래일·묶음 판정, 잠정 값은 보이기만 하고 확정 추적은 청크 원본·개정 표. 수집 상태는 그래프 경로(`history.lastSuccessAt`·`lastFailure`)로 조회한다(FR-019). 반복 2026-10-10b: 시가·고가·저가는 종가와 같은 불변식(새 날만·덮지 않음)이고 이미 저장한 날은 원본에서 되살린다(R14-18). 장중 시세는 저장하지 않는다. 반복 2026-10-10c: 장중 세션은 점이 있는 날뿐이다(빈 세션을 꾸미지 않는다) 반복 2026-10-10f: 상장일은 지어내지 않는다 — 모르면 비우고(오늘·시작일·첫 저장 일봉으로 메우지 않음), 비었을 때만 쓰고 덮어쓰지 않는다. 날짜는 거래소 시간대. 반복 2026-10-11d: (은행, 결정일) 유일·새 날만·개정은 덮지 않고 로그(008 선례)·같은 날 두 값은 고르지 않음·발표 전 행은 결정 아님·`source`·`ingested_at`·원본 분리·UTC. 계단선은 그리기의 뜻이고 날마다 값을 저장하지 않는다(R14-34). 자리 표시 시각은 NULL(꾸며 내지 않음) |
@@ -146,7 +146,7 @@
 | 반복 2026-10-11 — 처음 단위 예외(FR-026) | ✅(예외 기록) | 004·012·013 화면 스토어 넷의 처음 값(월)과 비교 모달의 첫 표 요청만 바뀐다. 서버·계산·응답·이력 불변(`014-baseline` 대조 — T180). 014 전 테스트 변경은 T177 승인(범위 확인 12파일 22개 — 처음 값 단언·처음 요청 글자·외환 이어 보기의 응답 단위 대조) |
 | 반복 2026-10-11b — 현재 가치 축·두 지점 확대 예외(FR-026) | ✅(예외 기록) | 013 비교 블록에 `valueLine` 키 하나(값은 이미 낸 행·점에서 고른다 — 원칙 VI·IV, 계산 새로 없음)와 013 수익률 추이의 왼쪽 축, 005·010·011·013 차트 셋의 누르기 확대·[리셋]. 메뉴 응답·`series`·`summary`·`lineEnd` 불변(013 대조·`014-baseline` — 비교 파일은 `valueLine`만 차이, T190). 그릴 때 새 차트 API 없음(기존 모의 그대로). 테스트 먼저(T182~T184, 원칙 III), 014 전 테스트 변경은 T185 승인 |
 | 반복 2026-10-11c — 확대 구간 일 단위·단추 자리 예외(FR-026) | ✅(예외 기록) | 시계열 경로 여덟의 선택 질의 둘(질의 없으면 응답 불변 — 013 대조·`014-baseline`), 구간 점은 이미 낸 날마다 상태에서 고른다(원칙 VI·IV — 새 계산 없음), 결측은 구간에서 다시 판정(원칙 V). 화면은 받은 글자 그대로. 새 차트 API는 누를 때만(`priceScale().width()` 포함). 테스트 먼저(T192~T194), 014 테스트 변경은 T195 승인 |
-| 반복 2026-10-11d — 대시보드 기준금리 | ⚠ 승인 필요(T202·T206) | 원칙 II 새 경로(네이버 기준금리 내부 API)는 T202 실측 뒤 사용자 승인 — 승인 전에는 T203 이후를 하지 않는다. 새 칸·새 경로 넷·새 테이블 셋·새 워커뿐이라 지표·뉴스·외환·메뉴 응답은 그대로(`014-baseline` 대조 — T211). 새 워커는 테스트의 lifespan에서도 돌지만 바깥 연결은 `conftest`가 막는다(지표 워커와 같다). 014가 만든 대시보드 화면 테스트의 요청 모의가 바뀔 수 있다 — T206에서 실제 실패 목록으로 승인. 새 차트(`RateChart`)는 새 부품이라 기존 모의를 건드리지 않는다 |
+| 반복 2026-10-11d — 대시보드 기준금리 | ✅ 승인됨(T202·T206) | 원칙 II 새 경로(네이버 기준금리 내부 API)는 T202 실측 뒤 사용자 승인 2026-10-11. 새 칸·새 경로 넷·새 테이블 셋·새 워커뿐이라 지표·뉴스·외환·메뉴 응답은 그대로(`014-baseline` 대조 — T211). 새 워커는 테스트의 lifespan에서도 돌지만 바깥 연결은 `conftest`가 막는다(지표 워커와 같다). 014가 만든 대시보드 화면 테스트의 요청 모의가 바뀔 수 있다 — T206에서 실제 실패 목록으로 승인(결과: 화면 0, lifespan 태스크 수 단언 셋 9 → 10 — 014가 이미 고친 줄, 첫 거래일 리비전 "머리" 하나). 새 차트(`RateChart`)는 새 부품이라 기존 모의를 건드리지 않는다 |
 | 반복 2026-10-10f — 상장일 예외(FR-026) | ✅(예외 기록) | 005·006(주식 검색 응답 둘의 `firstTradedOn`·종목 등록 안의 첫 거래일 받기·주식 수집의 저장), 007(코인 검색 결과 줄), 013(비교 표 열·비교 블록 `listing`)이 바뀐다. 메뉴 시뮬레이션 응답·시작일 판정·등록 응답은 같다(`014-baseline` 대조 — T165). 등록 경로의 외부 호출은 실패 허용·관문·lifespan 클라이언트만. 014 전 테스트 변경은 T161 승인 |
 
 ## Project Structure
@@ -416,22 +416,25 @@ frontend/tests/  chartDetail.test.ts · ChartZoomDetail.test.tsx · ChartZoomPla
 backend/src/
 ├── db/migrations/versions/<rev>_기준금리.py          (신규 — policy_rate_decision · policy_rate_raw · policy_rate_bank, down = a6c2e8f41b93)
 ├── db/models.py                                     (변경 — 모델 셋)
-├── ingestion/naver_rate/                            (신규 — client.py(목록·결정 이력, 간격·재시도·시간 초과) · parse.py(행 → 결정·예정·같은 날 규칙) · banks.py(은행 표 한 곳))
+├── ingestion/naver_rate/                            (신규 — client.py(목록·결정 이력, 간격·재시도·시간 초과) · parse.py(행 → 결정·예정·같은 날 규칙) · banks.py(은행 ↔ 출처 국가 코드 한 곳) · errors.py)
 ├── repository/policy_rate_repository.py             (신규 — 새 날만 넣기·개정 판정·은행 상태)
-├── simulation/policy_rate.py                        (신규 — 순수: 전회대비·방향·예정일 숨김)
+├── simulation/policy_rate.py                        (신규 — 순수: 은행 표(이름·금리 종류·국기·차례)·전회대비·방향·글자·예정일 숨김)
+├── worker/policy_rate_runner.py                     (신규 — 한 바퀴: 목록 → 은행마다 결정 이력, 처음 전부·새 결정·하루 한 번 첫 쪽)
 ├── worker/policy_rate_worker.py                     (신규 — 주기 루프 + 깨우기 이벤트, lifespan 열째)
 ├── ingestion/news/commentary.py                     (변경 — 은행 출처: 결정일·다음 날, 분류 404 → 403 → 429, 낱말 둘 다)
 ├── api/services/policy_rate_commentary.py           (신규 — 메모리 캐시·같은 (분류, 날짜) 한 번)
+├── api/services/policy_rates.py                     (신규 — 칸·모달 본문: 상태·성공 뒤의 실패·예정일)
 ├── api/routes/dashboard_rates.py                    (신규 — A14~A17)
 ├── api/main.py                                      (변경 — 라우터·lifespan 열째)
 └── config/settings.py                               (변경 — POLICY_RATE_* — .env.example도)
 frontend/src/
-├── lib/types.ts                                     (변경 — 기준금리 응답 꼴)
+├── lib/types.ts · lib/dashboardApi.ts                (변경 — 기준금리 응답 꼴·요청 넷)
+├── lib/rateFormat.ts                                (신규 — 날짜 글자(`2026. 10. 22.`·`09. 17.`)·기간의 처음 범위·주소의 기간)
 ├── stores/policyRateStore.ts                        (신규 — 칸 읽기·1분·받는 중 5초·다시 시도)
 ├── components/dashboard/PolicyRateTable.tsx         (신규 — 칸 표)
 ├── components/dashboard/RateView.tsx · RateChart.tsx · RateTable.tsx   (신규 — 모달 내용: 머리·까닭·계단선·기간·확대·표)
 ├── components/dashboard/IndicatorGroups.tsx         (변경 — 환율 묶음 뒤 자리)
-├── components/dashboard/IndicatorModal.tsx · RangePicker.tsx   (변경 — 은행 id면 RateView·포커스 복귀, 금리 기간 넷)
+├── components/dashboard/IndicatorModal.tsx · RangePicker.tsx · IndicatorCommentary.tsx   (변경 — 은행 id면 RateView·포커스 복귀, 금리 기간 넷, 없을 때 글자)
 └── app/dashboard/page.tsx                           (변경 — 칸 연결)
 backend/tests/   contract/test_policy_rate_parse.py · fixtures/policy_rate/ · unit/test_policy_rate_rules.py · unit/test_policy_rate_commentary.py ·
                  integration/test_policy_rate_worker.py · integration/test_dashboard_rates_api.py
@@ -542,7 +545,7 @@ frontend/tests/  PolicyRateTable.test.tsx · RateModal.test.tsx   (014 테스트
 | **변화 까닭의 시황 기사** — 네이버 증권 뉴스 포커스 내부 API(`/api/domestic/news/focus?sid=401·403·429&date=`)와 Yahoo Finance 종목 뉴스 화면(`/quote/{심볼}/news/`) — 지표마다 하나(R14-17) | 네이버: robots.txt `Disallow: /`, 약관이 자동 수집 금지(주요뉴스와 같다). Yahoo: robots가 `/quote/` 허용, 약관이 자동 수집 금지 | 사용자가 "출처의 시황 기사"를 골랐다. 네이버만이면 다섯 지표(니케이·항셍·상해·금·VIX)가 늘 "찾지 못함"(실측 0~2) | 네이버만 · Yahoo 종목 뉴스만 · 빼기(사용자에게 제시) | 저장 안 함, 지표마다 10분에 많아야 한 번(네이버는 날짜 둘), 제목·요약·링크뿐, 출처를 밝힘 |
 | **장중 시세** — Yahoo 차트 `range=1d&interval=5m`·`range=5d&interval=30m`(005 이탈의 같은 엔드포인트, R14-19). 반복 2026-10-10c: 받는 범위를 `range=5d&interval=5m`·`range=1mo&interval=30m`로 넓힌다(왼쪽 스크롤 — 사용자 요청 2026-10-10, 새 출처 아님) | 005와 같다 | 사용자가 "보는 기간 8개, 장중 포함"을 골랐다 | 일봉만(사용자에게 제시) | 저장 안 함, 일 60초·주 5분 캐시, 주식과 같은 관문·같은 사용자 에이전트 |
 
-**반복 2026-10-11d의 새 경로 — ⚠ T202 실측 뒤 사용자 승인 대기**(define 2026-10-11 실측 — R14-32):
+**반복 2026-10-11d의 새 경로 — 사용자 승인 2026-10-11**(T202 실측 뒤 — `/speckit-implement` "T202~T212 모두 구현해줘. 선택 해야 하는 항목은 모두 추천값으로 선택해줘." — R14-32):
 
 | 이탈 | 출처의 규칙 | 왜 필요한가 | 버린 대안 | 피해를 줄이는 장치 |
 |------|-------------|-------------|-----------|---------------------|

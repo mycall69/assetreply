@@ -442,9 +442,10 @@ R14-7 표가 상수다. 함수는 둘이다:
 | `failure_kind` | VARCHAR(16) | NULL | contracts A0의 다섯(`connection`·`rate_limited`·`blocked`·`invalid_body`·`not_found`) |
 | `failure_message` | VARCHAR(255) | NULL | 본문·머리 없이 |
 
-- 성공하면 `failure_*`를 비운다. 화면의 "받는 중" = 받은 결정이 없고 실패도 없다, "최근 갱신 실패" = 받은 결정이 있고 `last_failure_at` > `last_success_at`
+- 실패는 성공이 지우지 않는다(지표 커버리지와 같다 — T207) — 화면이 시각을 견준다: "받는 중" = 받은 결정이 없고 성공보다 늦은 실패도 없다, "최근 갱신 실패" = 받은 결정이 있고
+  `last_failure_at` > `last_success_at`. 목록이 성공한 바퀴에서 할 일이 없는 은행(새 결정도 겹쳐 받기도 없음)도 성공을 남긴다 — 앞 바퀴의 실패가 풀린다
 
-### 17.4 은행 표 (코드 한 곳 — `backend/src/ingestion/naver_rate/banks.py`)
+### 17.4 은행 표 (T207 — 지표와 같은 나눔: 도메인 `simulation/policy_rate.BANKS`(id·이름·금리 종류·국기·차례), 출처 국가 코드 `ingestion/naver_rate/banks.py`, 까닭 낱말 `ingestion/news/commentary.BANK_WORDS` — 각각 한 곳)
 
 | id | 출처 `nationType` | 이름(화면) | 금리 종류 | 국기 | 차례 |
 |----|-------------------|------------|-----------|------|------|
@@ -454,7 +455,7 @@ R14-7 표가 상수다. 함수는 둘이다:
 | `boe` | `GBR` | 영국은행 | Bank Rate | 🇬🇧 | 4 |
 | `boj` | `JPN` | 일본은행 | 단기 정책금리 | 🇯🇵 | 5 |
 
-- 변화 까닭의 은행 낱말(FR-042)도 이 표에 둔다 — `fed` 연준·FOMC·파월 / `bok` 한은·한국은행·금통위 / `ecb` ECB·유럽중앙은행 / `boe` 영란은행·BOE·영국 중앙은행 / `boj` 일본은행·BOJ·日銀·일은
+- 변화 까닭의 은행 낱말(FR-042 — `commentary.BANK_WORDS`) — `fed` 연준·FOMC·파월 / `bok` 한은·한국은행·금통위 / `ecb` ECB·유럽중앙은행 / `boe` 영란은행·BOE·영국 중앙은행 / `boj` 일본은행·BOJ·日銀·일은
 
 ### 17.5 수집 사건 (수집 로그 `logs/collection.log` — 표 없음)
 

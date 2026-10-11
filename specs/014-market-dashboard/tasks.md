@@ -1044,45 +1044,45 @@ description: "Task list for 014-market-dashboard"
 
 ### Source & approval (반복 2026-10-11d)
 
-- [ ] T202 출처 실측·픽스처·**원칙 II 승인** — (a) 네이버 기준금리 목록·결정 이력(다섯 은행의 깊이·`pageSize` 상한 60·자리 표시 시각·같은 날 두 행·발표 전 행·다음 결정일·계열의 뜻·응답 크기·
+- [X] T202 출처 실측·픽스처·**원칙 II 승인** — (a) 네이버 기준금리 목록·결정 이력(다섯 은행의 깊이·`pageSize` 상한 60·자리 표시 시각·같은 날 두 행·발표 전 행·다음 결정일·계열의 뜻·응답 크기·
   시간)과 뉴스 포커스 404·403·429의 결정 날 기사(은행마다 "은행 낱말 + 금리 낱말"로 고른 수)를 재고, robots·약관을 확인해 `research.md` R14-32·R14-33을 실측값으로 고친다. (b) 픽스처
   `backend/tests/contract/fixtures/policy_rate/`(본문만 — 주소·머리 없이: 목록, 은행마다 결정 이력 첫 쪽 일부, 같은 날 두 행·발표 전 행·하락 행·마이너스 금리가 든 조각, 결정 날 뉴스 포커스
   조각) + README 표. (c) `plan.md` Complexity Tracking의 새 표를 실측으로 채우고 **사용자에게 승인을 받는다** — 승인되지 않으면 T203 이후를 하지 않고 멈춘다 (FR-040, FR-042, FR-043)
 
 ### Tests for 반복 2026-10-11d ⚠️
 
-- [ ] T203 [P] [US12] 계약 테스트 — 새 `backend/tests/contract/test_policy_rate_parse.py`(목록·결정 이력 픽스처: 금리 `Decimal`·하락 부호·발표 전 행 → 결정 아님·자리 표시 시각 → 시각 없음·한국 날짜·
+- [X] T203 [P] [US12] 계약 테스트 — 새 `backend/tests/contract/test_policy_rate_parse.py`(목록·결정 이력 픽스처: 금리 `Decimal`·하락 부호·발표 전 행 → 결정 아님·자리 표시 시각 → 시각 없음·한국 날짜·
   같은 날 같은 값 하나(실제 시각)/다른 값 충돌·다음 결정일·실패 종류 다섯(contracts A0 — 400 `pageSize` 상한 포함)). 최초 실패 확인 (FR-043, SC-026)
-- [ ] T204 [P] [US12] 백엔드 테스트 — 새 `backend/tests/unit/test_policy_rate_rules.py`(전회대비·방향·첫 결정 `null`·예정일이 오늘(한국)보다 이르면 없음), 새
+- [X] T204 [P] [US12] 백엔드 테스트 — 새 `backend/tests/unit/test_policy_rate_rules.py`(전회대비·방향·첫 결정 `null`·예정일이 오늘(한국)보다 이르면 없음), 새
   `backend/tests/integration/test_policy_rate_worker.py`(처음 전부 — 짧은 쪽에서 끝남, 중간 실패는 끝남으로 기록하지 않고 다음 바퀴에 이어 받음, 새 결정이 보이면 첫 쪽, 하루 한 번 겹쳐 받기,
   개정은 덮지 않고 `policy_rate_revised`, 같은 날 충돌 `policy_rate_conflict`, 은행마다 따로 실패, 깨우기, 원본 본문만), 새 `backend/tests/integration/test_dashboard_rates_api.py`(A14~A17 —
   차례·값·한국 날짜·받는 중·실패·받아 둔 값 + 최근 갱신 실패·없는 은행 404·칸 경로가 출처를 부르지 않음), 새 `backend/tests/unit/test_policy_rate_commentary.py`(결정일·다음 날, 분류 차례
   404 → 403 → 429, 은행 낱말·금리 낱말 둘 다, 최대 3·같은 제목 한 번, 같은 (분류, 날짜) 한 번, 찾지 못함·실패·0건 읽기, 캐시). 최초 실패 확인 (FR-040~FR-043, SC-025, SC-026)
-- [ ] T205 [P] [US12] 화면 테스트 — 새 `frontend/tests/PolicyRateTable.test.tsx`(환율 묶음 뒤·원자재·변동성 앞, 다섯 행·국기·`4.00%`·▲▼·`0.00` 색·`09. 17.`·칸 머리, 받는 중 5초 뒤 다시·
+- [X] T205 [P] [US12] 화면 테스트 — 새 `frontend/tests/PolicyRateTable.test.tsx`(환율 묶음 뒤·원자재·변동성 앞, 다섯 행·국기·`4.00%`·▲▼·`0.00` 색·`09. 17.`·칸 머리, 받는 중 5초 뒤 다시·
   실패·받아 둔 값 + 최근 갱신 실패·[다시 시도] = 깨우기, 행 누르면 `/dashboard/fed?range=1y`, 화면 계산 없음), 새 `frontend/tests/RateModal.test.tsx`(머리·금리 종류·다음 결정 예정·저장된 기간,
   계단선(라인 종류)·결정 점·커서 상자, 기간 넷·처음 1년·바꾸면 처음 범위, 두 지점 확대·[리셋] = 기간 처음 범위, 표 = 예정 행 + 결정 전부(최신부터), 까닭 줄·찾지 못함·실패, 블랙 배경,
   닫으면 그 은행 행으로 포커스, 없는 은행). 최초 실패 확인 (FR-040~FR-042, SC-025, SC-026)
 
 ### Implementation for 반복 2026-10-11d
 
-- [ ] T206 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(예상: 014가 만든 대시보드 화면 테스트의 요청 모의만). T195와 같은 절차
+- [X] T206 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(예상: 014가 만든 대시보드 화면 테스트의 요청 모의만 — **결과: 화면 0, 백엔드 넷** — lifespan 태스크 수를 9로 박은 `test_apt_worker`·`test_crypto_worker`·`test_deposit_worker`(014 전 파일이지만 014가 2026-10-10에 이미 같은 단언을 8 → 9로 고쳐 승인한 줄 — 9 → 10, 바뀐 기존 파일 수 그대로 30)와 014가 만든 `test_stock_first_trade`의 "첫 거래일 리비전이 머리"(머리는 새 `test_policy_rate_worker::Test스키마`가 본다). 권장안대로 같은 선례로 승인, 화면 테스트는 바뀌지 않았다). T195와 같은 절차
   (`014 승인 2026-10-11(반복 2026-10-11d T206)`)로 승인하고 구현을 치워 실패를 확인한 뒤 `test(014)`. 014 전 테스트가 실패하면 결함으로 보고 멈춘다 (FR-026)
-- [ ] T207 [US12] 백엔드 저장·수집 — Alembic 리비전(`policy_rate_decision`·`policy_rate_raw`·`policy_rate_bank` — down `a6c2e8f41b93`), `backend/src/db/models.py`,
-  새 `backend/src/repository/policy_rate_repository.py`, 새 `backend/src/ingestion/naver_rate/`(`client.py`·`parse.py`·`banks.py`), 새 `backend/src/worker/policy_rate_worker.py`·
+- [X] T207 [US12] 백엔드 저장·수집 — Alembic 리비전(`policy_rate_decision`·`policy_rate_raw`·`policy_rate_bank` — down `a6c2e8f41b93`), `backend/src/db/models.py`,
+  새 `backend/src/repository/policy_rate_repository.py`, 새 `backend/src/ingestion/naver_rate/`(`client.py`·`parse.py`·`banks.py`), 새 `backend/src/worker/policy_rate_worker.py`·`policy_rate_runner.py`(한 바퀴 — 할 일 없는 은행도 목록 성공이면 성공)·
   `backend/src/api/main.py`(lifespan 열째), `backend/src/config/settings.py`·`.env.example`(`POLICY_RATE_*`), 개발 DB `alembic upgrade head` — DM17 (FR-043)
-- [ ] T208 [US12] 백엔드 조회·까닭 — 새 `backend/src/simulation/policy_rate.py`(순수), 새 `backend/src/api/routes/dashboard_rates.py`(A14~A17), `backend/src/ingestion/news/commentary.py`(은행 출처 —
-  결정일·다음 날·분류 404 → 403 → 429·낱말 둘 다), 새 `backend/src/api/services/policy_rate_commentary.py` — contracts A14~A17 (FR-040~FR-042)
-- [ ] T209 [US12] 화면 — `frontend/src/lib/types.ts`, 새 `frontend/src/stores/policyRateStore.ts`, 새 `frontend/src/components/dashboard/PolicyRateTable.tsx`·`RateView.tsx`·`RateChart.tsx`·
+- [X] T208 [US12] 백엔드 조회·까닭 — 새 `backend/src/simulation/policy_rate.py`(순수), 새 `backend/src/api/routes/dashboard_rates.py`(A14~A17), `backend/src/ingestion/news/commentary.py`(은행 출처 —
+  결정일·다음 날·분류 404 → 403 → 429·낱말 둘 다), 새 `backend/src/api/services/policy_rate_commentary.py`·`policy_rates.py`(칸·모달 본문) — contracts A14~A17 (FR-040~FR-042)
+- [X] T209 [US12] 화면 — `frontend/src/lib/types.ts`, 새 `frontend/src/stores/policyRateStore.ts`, 새 `frontend/src/components/dashboard/PolicyRateTable.tsx`·`RateView.tsx`·`RateChart.tsx`·
   `RateTable.tsx`, `components/dashboard/IndicatorGroups.tsx`(환율 뒤 자리), `components/dashboard/IndicatorModal.tsx`(은행 id면 `RateView`·포커스 복귀 `data-rate`)·`RangePicker.tsx`(금리 기간 넷),
-  `app/dashboard/page.tsx` — contracts D18 (FR-040~FR-042)
+  `app/dashboard/page.tsx`, `lib/dashboardApi.ts`·새 `lib/rateFormat.ts`, `components/dashboard/IndicatorCommentary.tsx`(없을 때 글자) — contracts D18 (FR-040~FR-042)
 
 ### Polish (반복 2026-10-11d)
 
-- [ ] T210 [US12] 실측 — quickstart 5-27(처음 기동 받는 중 → 다섯 행, 값 = 출처 목록, 은행 다섯 모달 — 표 = 결정 이력·예정 행, 그래프 계단선·기간·확대, 까닭 = 그 은행 기사, 블랙 배경, 출처 막힘)을
+- [X] T210 [US12] 실측 — quickstart 5-27(처음 기동 받는 중 → 다섯 행, 값 = 출처 목록, 은행 다섯 모달 — 표 = 결정 이력·예정 행, 그래프 계단선·기간·확대, 까닭 = 그 은행 기사, 블랙 배경, 출처 막힘)을
   헤드리스 Chrome으로 확인하고 `quickstart.md` 8에 기록한다 (FR-040~FR-043, SC-025, SC-026)
-- [ ] T211 불변 대조·문서 — `014-baseline/fetch.py`(기준 29파일 — 차이 0), `docs/implementation-notes.md` §7(기준금리 절), `CLAUDE.md`(014 줄·lifespan 열째·원칙 II 이탈 수), `README.md`(기능·데이터 출처),
+- [X] T211 불변 대조·문서 — `014-baseline/fetch.py`(기준 29파일 — 차이 0), `docs/implementation-notes.md` §7(기준금리 절), `CLAUDE.md`(014 줄·lifespan 열째·원칙 II 이탈 수), `README.md`(기능·데이터 출처),
   `INSTALL.md`(첫 수집·업데이트의 014 테이블), `spec.md` Status (FR-026, SC-010)
-- [ ] T212 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177·T185·T195·T206)뿐인지
+- [X] T212 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177·T185·T195·T206)뿐인지
   `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
 
 ---

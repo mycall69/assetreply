@@ -361,7 +361,7 @@
 
 ## A15. `GET /api/dashboard/rates/{bank}` — 금리 모달 (반복 2026-10-11d — spec FR-041)
 
-없는 `bank`는 404 `{ "error": "not_found" }`다. DB만 읽는다.
+없는 `bank`는 404 `{ "status": "unknown_bank", "message": "없는 은행입니다: …" }`다(지표 경로의 `unknown_indicator`와 같은 꼴). DB만 읽는다.
 
 ```json
 {
@@ -397,7 +397,7 @@ A8과 같은 꼴이다(`sessionDate` 대신 `decisionDate`). 출처가 실패해
 ```
 
 - `status`: `ok`(1~3개) · `none`(화면 "최근 결정을 다룬 기사를 찾지 못했습니다") · `failed`(A0 — 목록 표지 없음은 `parse_empty`). 결정이 아직 없으면 `none`·`decisionDate: null`
-- 고르기는 spec FR-042 — 결정일(한국)과 다음 날, 분류 404 → 403 → 429, 은행 낱말 + 금리 낱말 둘 다, 최대 3·같은 제목 한 번(R14-33)
+- 고르기는 spec FR-042 — 결정일(한국)과 다음 날, 분류 404 → 403 → 429, 은행 낱말 + 금리 낱말 둘 다, 발표 시각 30분 전(모르면 결정일 0시) 이후 게시, 최대 3·같은 제목 한 번(R14-33)
 
 ## A17. `POST /api/dashboard/rates/collect` — 다시 시도 (반복 2026-10-11d)
 
