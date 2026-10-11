@@ -97,6 +97,7 @@ FX → 가상자산 → 주식/ETF/지수 → 예금 → 부동산
 
 ## 명령어·스택
 
+설치·설정(DB 둘·`.env`·스키마)·첫 수집 순서는 [`INSTALL.md`](INSTALL.md)에 있다 — 설치 절차·필수 설정이 바뀌면 그 파일을 고친다.
 실행 스크립트는 저장소 루트에 있다 — `start.sh`·`stop.sh`(둘 다), `be-start.sh`·`be-stop.sh`, `fe-start.sh`·`fe-stop.sh`.
 백엔드 8080, 프론트엔드 3030.
 
