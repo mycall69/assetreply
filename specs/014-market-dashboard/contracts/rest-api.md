@@ -291,6 +291,30 @@
   `listing: null`. 없는 코인 404 `unknown_coin`. 출처를 부르지 않는다
 - 등록(`POST /api/stocks/selection`)·검색·메뉴 시뮬레이션 응답은 그대로다
 
+## A12. 비교 블록의 현재 가치 선 (반복 2026-10-11b — spec FR-036)
+
+- 비교 경로 일곱(`/api/comparison/{stocks,crypto,deposit,realestate}/simulation`·`stocks/recurring-simulation`·`crypto/recurring-simulation`·`deposit/installment-simulation`)의 200 응답
+  `comparison`에 키 하나가 더해진다. 202·거절 본문, `summary`·`series`, 블록의 다른 칸(`lineEnd` 포함)은 그대로다
+
+```json
+"valueLine": {
+  "points": [
+    { "date": "2024-01-02", "value": "10000000" },
+    { "date": "2024-02-01", "value": "10412345" },
+    { "date": "2026-10-06", "value": "12596486" }
+  ],
+  "afterSaleValue": "12045573"
+}
+```
+
+  - `points`: `series.points`와 **같은 날짜·같은 차례로 하나씩**(다운샘플링 뒤의 그 날). `value`는 그 날의 원화 총자산(원, 소수 문자열 — 지수 표기 없음)이고 비교 표 "현재 가치"
+    (`currentValue`)와 같은 뜻이다
+    - 주식·가상자산 일시금: 그 날 마지막 행의 KRW 원금 + 투자 수익(예수금·매수 뒤 남은 현금 포함) — 점 `balance`(보유분만)와 다를 수 있다
+    - 주식·가상자산 적립식·정기예금·정기 적금·부동산: 점 `balance`와 같은 값
+    - 마지막 점이 기준일이면 그 `value`는 `currentValue`와 같은 글자다
+  - `afterSaleValue`: `principal.krw` + 매도 후 투자 수익(`comparison.profit`) — `mainBasis`가 `after_sale`일 때만, 아니면 `null`(`lineEnd.afterSaleReturnRate`와 짝)
+  - 메뉴 경로(`/api/stocks/simulation/series` 등)의 응답에는 없다 — 메뉴 응답은 그대로다
+
 ## A6. 불변
 
 기존 경로의 응답은 바뀌지 않는다(FR-026):
@@ -298,6 +322,7 @@
 - (반복 2026-10-10f) 주식 검색 응답 둘의 행에 `firstTradedOn`, 비교 블록에 `listing`만 더해진다(A10). 등록 응답·메뉴 시뮬레이션 응답은 그대로다
 - (반복 2026-10-10g) 새 읽기 경로 둘(A11)이 더해진다. 기존 경로의 응답은 그대로다
 - (반복 2026-10-11) 경로 변경이 없다 — 표 경로(`/api/fx/daily`·주식·가상자산 일시금·적립식)는 `period`가 없으면 그대로 일이다. 화면이 처음 요청부터 `period=monthly`를 싣는다(FR-035)
+- (반복 2026-10-11b) 비교 경로 일곱의 200 `comparison`에 `valueLine`만 더해진다(A12). 메뉴 경로·비교 블록의 다른 칸은 그대로다. 그래프 확대(FR-037)는 요청이 없다
 - 주식: `/api/stocks/*`
 - 가상자산: `/api/crypto/*`
 - 예금: `/api/deposit/*`

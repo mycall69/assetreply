@@ -342,3 +342,38 @@ R14-7 표가 상수다. 함수는 둘이다:
 - `lib/tablePeriod.periodQuery`는 그대로다 — 일이면 싣지 않는다(서버 기본이 일). 이어 받기는 `&before=…` 뒤에 붙는다(지금과 같다)
 - 시계열 요청(`/series`)·보드·차트·이력 조건(012)은 단위와 무관하다 — 이력 식별자·저장 조건에 단위가 없다
 - 대상 밖: `stores/indicatorTableStore.ts`(대시보드 지표 표 — 처음 `daily` 그대로), 예금·부동산 스토어(단추 없음)
+
+## 14. 비교 블록의 현재 가치 선 (반복 2026-10-11b — FR-036, 저장하지 않음)
+
+| 칸 | 꼴 | 뜻 |
+|----|-----|-----|
+| `comparison.valueLine` | `{ points, afterSaleValue }` | 비교 경로 일곱의 200 응답에만. 메뉴 응답·`series`·`summary`·`lineEnd`와 블록의 다른 칸은 그대로 |
+| `valueLine.points[]` | `{ date, value }` — `value`는 소수 문자열(원) | `series.points`와 **같은 날짜·같은 차례로 하나씩**(다운샘플링 뒤의 그 날). 그 날의 원화 총자산 = 비교 표 "현재 가치"와 같은 뜻 |
+| `valueLine.afterSaleValue` | 소수 문자열 \| `null` | 기준일에 판다고 가정한 금액 = `principal.krw` + 매도 후 투자 수익(`comparison.profit`). `mainBasis`가 `after_sale`일 때만 — 아니면 `null`(`lineEnd.afterSaleReturnRate`와 짝) |
+
+- **값의 출처**(계산하지 않고 이미 낸 값에서 고른다 — 원칙 VI):
+
+  | 방식 | 점의 `value` | 점 `balance`와 같은가 |
+  |------|--------------|------------------------|
+  | 주식 일시금 | 그 날 마지막 행의 KRW 원금 + 투자 수익(`fx_convert.evaluate_krw` — (잔고 + 예수금) × 매매기준율) | 아니다 — 점 `balance`는 보유분만(`balance_krw`) |
+  | 가상자산 일시금 | 그 날 행의 KRW 원금 + 투자 수익(같은 함수 — 매수 뒤 남은 현금 포함) | 아니다 — 같은 까닭 |
+  | 주식·가상자산 적립식 | 점 `balance`(원화 총자산 — 잔고 + 매수 대기금 + 배당 현금, 011) | 같다 |
+  | 정기예금 | 점 `balance`(그 날 잔고) | 같다 |
+  | 정기 적금 | 점 `balance` | 같다 |
+  | 부동산 | 점 `balance`(그 달 평가액) | 같다 |
+
+- 마지막 점이 기준일이면 그 `value`는 `comparison.currentValue`와 같은 글자다(같은 값에서 고른다). 마지막 점이 기준일보다 앞이면 화면이 기준일의 `currentValue`까지 잇는다(수익률 선의 `lineEnd`와 같은 자리)
+- 화면 타입은 `ComparisonBlock.valueLine?`(선택 키 — 014 전 응답 모양의 대역은 키가 없고, 그러면 현재 가치 선을 그리지 않는다)
+
+## 15. 수익률 그래프의 확대 상태 (반복 2026-10-11b — FR-037, 화면 상태 — 저장하지 않음)
+
+| 상태 | 칸 | 보이는 것 | 다음 |
+|------|----|-----------|------|
+| `idle` | — | 처음 범위(`fitContent`), 단추 없음 | 누름(날짜 앎) → `picking` |
+| `picking` | `start`(날짜 글자) | 오른쪽 위 `시작 YYYY-MM-DD · 끝 지점을 누르세요` + [취소] | 다른 날 누름 → `zoomed`(`setVisibleRange`), 같은 날·[취소]·Esc → 앞 상태(`idle` 또는 `zoomed`) |
+| `zoomed` | `from`·`to`(앞뒤 정렬, 양 끝 포함) | 두 날 사이, 오른쪽 위 [리셋] | 누름 → `picking`(더 확대), [리셋] → `idle`(`fitContent`) |
+
+- 차트를 다시 만들면(시계열·대상·이력 항목·테마가 바뀜) `idle`이다 — 훅이 차트를 만드는 효과와 같은 의존성으로 상태를 비운다
+- 누름은 차트 칸의 DOM 이벤트다. 누른 자리의 날짜는 커서 추적(`subscribeCrosshairMove`의 `time`)이 마지막으로 준 값이고, 커서가 칸을 떠나면 비운다(날짜를 모르면 누름을 무시한다).
+  눌렀다 뗀 사이 4px 넘게 움직이면 끌기(라이브러리의 옮기기)라 누름이 아니다
+- 순수 규칙(`lib/chartZoom.ts`): 두 날 정렬, 같은 날 판정, 끌기 판정(거리), 상태 전이
