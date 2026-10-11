@@ -992,39 +992,39 @@ description: "Task list for 014-market-dashboard"
 
 ### Tests for 반복 2026-10-11c ⚠️
 
-- [ ] T192 [P] [US11] 백엔드 테스트 — 새 `backend/tests/integration/test_series_view_window.py`(메뉴 넷·비교 넷 — 질의 있으면 그 구간 ∩ 계산 구간의 시세일마다 점(주식 일시금·적립식: 빠진
+- [X] T192 [P] [US11] 백엔드 테스트 — 새 `backend/tests/integration/test_series_view_window.py`(메뉴 넷·비교 넷 — 질의 있으면 그 구간 ∩ 계산 구간의 시세일마다 점(주식 일시금·적립식: 빠진
   거래일·남는 날 0, 값 = 같은 조건 표 `period=daily` 행의 잔고·수익률, 사건 날 값 = 원래 점), 가상자산: 원래 일봉의 그 구간 그대로(줄이지 않음), 구간 `gaps`, `maxPoints` 넘으면 줄임,
   비교 `valueLine` 날짜 = 구간 점·주식 일시금 값 = 원금 + 그 날 수익, 한쪽만·`viewFrom` > `viewTo` 400 `invalid_query`, 질의 없으면 응답 불변(대조))·새 `backend/tests/unit/test_series_view_window.py`
   (`view_window` 검증·자르기). 최초 실패 확인 (FR-038, SC-023)
-- [ ] T193 [P] [US11] 화면 테스트 — 새 `frontend/tests/chartDetail.test.ts`(끼워 그리기·`gaps` 합치기·`valueLine` 끼우기·덮음 판정)·새 `frontend/tests/ChartZoomDetail.test.tsx`(세 수익률
+- [X] T193 [P] [US11] 화면 테스트 — 새 `frontend/tests/chartDetail.test.ts`(끼워 그리기·`gaps` 합치기·`valueLine` 끼우기·덮음 판정)·새 `frontend/tests/ChartZoomDetail.test.tsx`(세 수익률
   그래프·외환 — 확대가 끝나면 구간 받기 함수를 그 범위로 부름, 받은 점으로 다시 그리고 `setVisibleRange(범위)` 유지, 받는 중·실패 상태 줄, 늦은 응답 버림, [리셋]이면 원래 점·`fitContent`, 받은
   구간 안 다시 확대는 받지 않음, 받기 함수가 없으면 지금처럼, 화면 연결 — 주식 메뉴는 늘·가상자산·외환은 `downsampled`일 때만·투자 비교 주식 대상·이력 비교·비교 모달, 예금·부동산은 받기 함수 없음,
   구간 요청 주소의 `viewFrom`·`viewTo`·`maxPoints=5000`). 최초 실패 확인 (FR-038, SC-023)
-- [ ] T194 [P] [US11] 화면 테스트 — 새 `frontend/tests/ChartZoomPlacement.test.tsx`(확대 단추·상태 줄의 자리 = 오른쪽 축 폭 + 8px·위 4px, 축 폭은 처음 누를 때만 `priceScale("right").width()`,
+- [X] T194 [P] [US11] 화면 테스트 — 새 `frontend/tests/ChartZoomPlacement.test.tsx`(확대 단추·상태 줄의 자리 = 오른쪽 축 폭 + 8px·위 4px, 축 폭은 처음 누를 때만 `priceScale("right").width()`,
   외환 추이·지표 일봉 그래프의 두 지점 확대·취소·리셋, 지표 [리셋] = 그 기간의 `setVisibleLogicalRange` 처음 범위(모두면 `fitContent`), 지표 기간 바꾸면 확대 풀림, 장중은 단추 없음).
   최초 실패 확인 (FR-039, SC-024)
 
 ### Implementation for 반복 2026-10-11c
 
-- [ ] T195 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(예상: `ChartZoom.test.tsx`의 요청 0회·대상 밖·모의의 `priceScale`). T161과 같은 절차
+- [X] T195 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(결과: **`ChartZoom.test.tsx` 하나** — 29개가 모의의 `priceScale` 없음·"대상 밖" 단언으로 실패, 백엔드 3,504·화면 2,156 통과 뒤 승인. 014 전 테스트 변경 없음). T161과 같은 절차
   (`014 승인 2026-10-11(반복 2026-10-11c T195)`)로 승인하고 구현을 치워 실패를 확인한 뒤 `test(014)`. 목록 밖의 실패는 결함으로 보고 멈춘다 (FR-026)
-- [ ] T196 [US11] 백엔드 — `backend/src/api/services/series_query.py`(`view_window`), `backend/src/api/services/stock_series.py`·`recurring_series.py`·`crypto_series.py`(구간 점 빌더 — 날마다
+- [X] T196 [US11] 백엔드 — `backend/src/api/services/series_query.py`(`view_window`), `backend/src/api/services/stock_series.py`·`recurring_series.py`·`crypto_series.py`(구간 점 빌더 — 날마다
   상태에서 고르기), `backend/src/api/services/comparison_values.py`(구간 점의 원화 총자산), `backend/src/api/routes/stock_series.py`·`stock_recurring.py`·`crypto_series.py`·`crypto_recurring.py`·
   `comparison.py`(질의 둘) — DM16, contracts A13 (FR-038)
-- [ ] T197 [US11] 화면 — 새 `frontend/src/lib/chartDetail.ts`·`frontend/src/lib/seriesDetail.ts`, `frontend/src/hooks/useChartZoom.ts`(확대 끝 알림·사용자 리셋·축 폭)·
+- [X] T197 [US11] 화면 — 새 `frontend/src/lib/chartDetail.ts`·`frontend/src/lib/seriesDetail.ts`, `frontend/src/hooks/useChartZoom.ts`(확대 끝 알림·사용자 리셋·축 폭)·
   `frontend/src/components/ChartZoomControls.tsx`(자리·받는 중/실패 줄), `frontend/src/components/compare/CompareReturnChart.tsx`·`components/stock/PerformanceChart.tsx`·
   `components/stock/ComparisonChart.tsx`(받은 자료 끼우기), 스토어(`stockStore`·`cryptoStore`·`compareStore`·`compareDetailStore` — 시계열 경로 기억)와 화면(`app/stocks`·`app/crypto`·`app/compare`·
   비교 모달) — DM16, contracts D17 (FR-038, FR-039)
-- [ ] T198 [US11] 화면 — `frontend/src/components/FxChart.tsx`·`components/fx/TrendChart.tsx`(두 지점 확대·구간 받기 — `fxWorkspaceStore`), `frontend/src/components/dashboard/IndicatorChart.tsx`
+- [X] T198 [US11] 화면 — `frontend/src/components/FxChart.tsx`·`components/fx/TrendChart.tsx`(두 지점 확대·구간 받기 — `fxWorkspaceStore`), `frontend/src/components/dashboard/IndicatorChart.tsx`
   (일봉 그래프의 두 지점 확대 — [리셋] = 기간 처음 범위, 기간 바꾸면 풀림) — DM16, contracts D17 (FR-039)
 
 ### Polish (반복 2026-10-11c)
 
-- [ ] T199 [US11] 실측 — quickstart 5-26(주식 메뉴·투자 비교(주식 여럿)·비교 모달·이력 비교·가상자산(줄여진 긴 기간)·외환(긴 기간)·지표(1년) 확대 → 구간 점 간격·값 = 표 "일" 행·리셋, 받는 중·
+- [X] T199 [US11] 실측 — quickstart 5-26(주식 메뉴·투자 비교(주식 여럿)·비교 모달·이력 비교·가상자산(줄여진 긴 기간)·외환(긴 기간)·지표(1년) 확대 → 구간 점 간격·값 = 표 "일" 행·리셋, 받는 중·
   실패, 단추가 축과 겹치지 않음(밝은·블랙), 예금·부동산·장중 그대로)을 헤드리스 Chrome으로 확인하고 `quickstart.md` 8에 기록한다 (FR-038, FR-039, SC-023, SC-024)
-- [ ] T200 불변 대조·문서 — `014-baseline/fetch.py`(기준 29파일 — 질의 없는 응답 차이 0), `docs/implementation-notes.md`(§5 확대 절)·`CLAUDE.md`(014 줄·색인), `README.md`, `spec.md` Status
+- [X] T200 불변 대조·문서 — `014-baseline/fetch.py`(기준 29파일 — 질의 없는 응답 차이 0), `docs/implementation-notes.md`(§5 확대 절)·`CLAUDE.md`(014 줄·색인), `README.md`, `spec.md` Status
   (FR-026, FR-038, SC-010, SC-023)
-- [ ] T201 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177·T185·T195)뿐인지
+- [X] T201 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177·T185·T195)뿐인지
   `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
 
 ---

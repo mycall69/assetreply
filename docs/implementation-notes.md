@@ -151,6 +151,16 @@ NULL = 100%)다. 비과세의 거주 2년 요건은 늘 적용한다(조정대�
 (이력 화면 `CryptoHistoryList`의 모의에는 `subscribeCrosshairMove`도 없다). 차트 효과의 정리에서 `detach`를 불러 다시 그린 차트는 처음 범위다. 고르는 동안의 Esc는 `window` 잡기 단계에서
 받아 전파를 멈춘다 — 투자 비교 모달(`document`의 Esc)이 먼저 닫히면 고르기를 무르려다 결과 화면을 잃는다. 새 수익률 그래프를 만들면 같은 훅을 쓴다.
 
+**확대 구간의 일 단위 자료**(014 반복 2026-10-11c): 주식·가상자산 시계열 경로 여덟(메뉴 넷·비교 넷)의 선택 질의 `viewFrom`·`viewTo`(`series_query.view_window` — 둘 다 또는 없음,
+하나만·거꾸로면 400 `invalid_query`, 계산 구간으로 자름)는 **계산을 바꾸지 않고** 그 구간의 시세일마다 점을 낸다 — 주식 일시금은 `stock_series.window_states`(일자별 표 "일" 행과 같은 규칙:
+그 날 행이 있으면 그날의 마지막 행, 없으면 `daily`를 `convert`), 적립식은 `recurring_series._last_views` + `view_of`, 가상자산은 `daily` 그대로. `end`를 구간 끝으로 바꿔 부르면 계산이
+바뀐다(기준일·매도 비용·적립식 분모). 비교 경로는 같은 점으로 `valueLine`을 낸다(`comparison_values.stock_lump_totals(..., states)`). 화면은 `hooks/useZoomDetail`(받은 자료는 받은 바탕 자료·
+테마에만 쓴다 — 차례 번호로 늦은 응답을 버린다)과 `lib/chartDetail`(구간 끼우기 — 날짜 글자 비교)로 다시 그리고 `setVisibleRange(받은 구간)`을 다시 놓는다. 그래서 확대 상태는 바탕 자료·
+테마가 바뀔 때만 비운다(`release`는 차트만, `clear`는 상태만, `detach`는 둘 다). 받는 그래프는 `lib/seriesDetail.needsDetail`(주식 늘, 가상자산·외환은 `downsampled`일 때만, 예금·부동산
+없음)이고 주식·가상자산 스토어가 시계열 경로(`seriesPath`·`recurringSeriesPath`, 이력 항목 `path`)를 기억한다. 외환 추이(`FxChart`)·지표 일봉 그래프(`IndicatorChart` `DailyChart`)도 같은
+확대 훅이다 — 지표 [리셋]은 `resetView`(그 기간의 `showWindow`)이고 기간을 바꾸면 풀린다, 장중은 대상 밖. 확대 단추·상태 줄은 오른쪽 가격 축 밖이다(`controlsRight` — 처음 누를 때
+`priceScale("right").width()`를 잰다, 누를 때만 부른다).
+
 **화면 테스트가 실제 차트를 그리면 실행이 실패한다**(011 T036): jsdom에 `matchMedia`가 없어 `lightweight-charts`가 처리되지 않은 오류를 내고, vitest는
 단언이 모두 통과해도 **종료 코드 1**이다. 결과 화면을 그리는 페이지 테스트는 `lightweight-charts`를 모의하고, 시계열 요청에는 시계열 응답을 준다 — "N passed"만
 보고 게이트를 판정하지 말고 종료 코드를 본다.
