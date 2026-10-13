@@ -11,11 +11,13 @@
  * - 미뤄진 납입은 원래 날짜를 잃지 않는다 — "+n회(원래 날짜)"
  * - 환율 열은 환율이 있는 행이 있을 때만 둔다(원화 시세 코인이면 빈 열을 남기지 않는다). 원화 원금 납입 행은 환전 환율이다
  * - 화면은 계산하지 않는다 — 서식만 입힌다
+ * - 014 반복 2026-10-13b(FR-047) — 시가 바로 뒤에 시가의 등락폭·등락률(서버 글자). 날짜 칸은 왼쪽에 고정한다(좁은 창에서 밀려도 보인다)
  */
 
 import { MissingRowLine } from "@/components/period/MissingRowLine";
 import { PeriodLegend } from "@/components/period/PeriodLegend";
 import { PeriodMarks } from "@/components/period/PeriodMarks";
+import { ColumnName, PriceChangeCells, STICKY_DATE } from "@/components/period/PriceChangeCells";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { formatMoney, formatMoneyWithSymbol, formatPercent, formatPrice, formatQuantity, formatRate } from "@/lib/format";
 import type { PeriodUnit, RecurringCryptoTableRow } from "@/lib/types";
@@ -59,6 +61,8 @@ export function RecurringCryptoTable({
     { name: "납입액", unit: foreign ? principalCurrency : null },
     ...(showFx ? [{ name: "환율", unit: "KRW" }] : []),
     { name: "시가", unit: foreign ? quoteCurrency : null },
+    { name: "시가 등락폭", unit: foreign ? quoteCurrency : null },
+    { name: "시가 등락률", unit: null },
     { name: "구매 수량", unit: null },
     { name: "매매 수수료", unit: foreign ? quoteCurrency : null },
     { name: "보유 수량", unit: null },
@@ -85,8 +89,8 @@ export function RecurringCryptoTable({
             <tr className="border-b border-gray-200 text-xs text-gray-500">
               {columns.map((c, i) => (
                 <th key={c.name} scope="col"
-                  className={`whitespace-nowrap px-1.5 py-2.5 align-top font-normal ${i === 0 ? "text-left" : "text-right"}`}>
-                  {c.name}
+                  className={`whitespace-nowrap px-1.5 py-2.5 align-top font-normal ${i === 0 ? `text-left ${STICKY_DATE}` : "text-right"}`}>
+                  <ColumnName name={c.name} />
                   {c.unit !== null && <> <span className="block text-gray-400">({c.unit})</span></>}
                 </th>
               ))}
@@ -105,7 +109,7 @@ export function RecurringCryptoTable({
                 : row.fxRate !== undefined ? { text: formatRate(row.fxRate), date: row.fxRateDate } : null;
               return (
                 <tr key={`${row.date}:${row.kind}`} data-kind={row.kind} className="border-b border-gray-100 last:border-0">
-                  <td className="whitespace-nowrap px-1.5 py-1.5 text-left tabular-nums">
+                  <td className={`whitespace-nowrap px-1.5 py-1.5 text-left tabular-nums ${STICKY_DATE}`}>
                     {row.date}
                     {row.kind === "contribution" && (
                       <>
@@ -133,6 +137,7 @@ export function RecurringCryptoTable({
                     </td>
                   )}
                   <td className={CELL}>{formatPrice(row.openPrice)}</td>
+                  <PriceChangeCells change={row.openChange} format={formatPrice} cell={CELL} />
                   <td className={CELL}>{bought ? formatQuantity(row.boughtQuantity) : "—"}</td>
                   <td className={CELL}>
                     {row.tradeFee === undefined ? "—" : quoteMoney(row.tradeFee)}

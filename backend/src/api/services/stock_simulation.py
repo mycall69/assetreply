@@ -345,6 +345,9 @@ def table(result: SimulationResult, *, unit: PeriodUnit, end: dt.date, before: d
     첫 거래일)은 표에 없다 — 주식 차트의 재료로만 남는다
     (FR-008). 같은 날의 행은 처리 차례(배당락 → 재투자 → 그날 스냅숏)로 놓여 마지막 행이 그날의
     상태를 보인다.
+
+    014 반복 2026-10-13b(FR-048) — 행마다 시작가·종가의 직전 기간 대표값 대비 등락을 싣는다.
+    원주가라 분할·병합은 비교 가격을 맞춘다.
     """
     months = [c.row.date for c in result.rows if c.row.kind == "month_first"]
     bought_on = min(months) if months else None
@@ -359,7 +362,9 @@ def table(result: SimulationResult, *, unit: PeriodUnit, end: dt.date, before: d
     return table_page(
         unit=unit, end=end, before=before, limit=limit, quote_days=list(by_day),
         events=group_events(items), end_of_day_last=True,
-        day_state=lambda day: result.convert(by_day[day]))
+        day_state=lambda day: result.convert(by_day[day]),
+        prices=lambda c: (("open", c.row.open_price), ("close", c.row.close_price)),
+        splits=result.splits)
 
 
 @dataclass(frozen=True, slots=True)

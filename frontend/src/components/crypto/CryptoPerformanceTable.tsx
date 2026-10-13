@@ -10,6 +10,8 @@
  * - 수량은 소수 8자리(FR-026). 시가는 **유효 숫자를 잃지 않게**(FR-040) — `0.00`으로 보이면 시세가 없다고 읽힌다
  * - 012 FR-008 — 지금의 `◇`(그 달 1일 결측)는 없다. 월 단위는 옮겨진 기준일 표시(📅)가, 일 단위는 결측 구간 행이 대신한다
  * - 표는 **내용 폭**이다(006 버그 table-column-width) — 1440px에서 모든 열이 보이고, 넘치면 표만 스크롤된다(FR-041)
+ * - 014 반복 2026-10-13b(FR-047) — 시가 바로 뒤에 시가의 등락폭·등락률(서버 글자 — 유효 숫자 `formatPrice`). 두 열을 더해도 1440px에
+ *   들어간다(R14-38 실측). 좁은 창에서 밀려도 날짜가 보이게 날짜 칸을 왼쪽에 고정한다
  *
  * 스크롤로 이어 본다(005 FR-029). 손익을 색만으로 구별하지 않는다 — 부호를 함께 쓴다.
  */
@@ -17,15 +19,16 @@
 import { MissingRowLine } from "@/components/period/MissingRowLine";
 import { PeriodLegend } from "@/components/period/PeriodLegend";
 import { PeriodMarks } from "@/components/period/PeriodMarks";
+import { ColumnName, PriceChangeCells, STICKY_DATE } from "@/components/period/PriceChangeCells";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { formatMoney, formatPercent, formatPrice, formatQuantity, formatRate } from "@/lib/format";
 import type { CryptoSummary, CryptoTableRow, PeriodUnit } from "@/lib/types";
 
 const COLUMNS = [
-  "날짜", "시가", "구매 수량", "매매 수수료", "보유 수량", "예수금", "투자금", "잔고", "투자 수익", "수익율",
+  "날짜", "시가", "시가 등락폭", "시가 등락률", "구매 수량", "매매 수수료", "보유 수량", "예수금", "투자금", "잔고", "투자 수익", "수익율",
 ] as const;
 /** 시세 통화 열. 수수료도 예수금에서 빠지는 돈이라 예수금과 같은 통화여야 예수금 변화를 설명할 수 있다. */
-const QUOTE_COLUMNS = ["시가", "매매 수수료", "예수금"];
+const QUOTE_COLUMNS = ["시가", "시가 등락폭", "매매 수수료", "예수금"];
 const FX_COLUMN = "환율";
 const CELL = "px-1.5 py-2 text-right tabular-nums";
 
@@ -98,8 +101,8 @@ export function CryptoPerformanceTable({
                 return (
                   <th key={c} scope="col"
                     className={`whitespace-nowrap px-1.5 py-2.5 align-top font-normal ${
-                      i === 0 ? "text-left" : "text-right"}`}>
-                    {c}
+                      i === 0 ? `text-left ${STICKY_DATE}` : "text-right"}`}>
+                    <ColumnName name={c} />
                     {unit !== null && (
                       <>
                         {" "}
@@ -116,11 +119,12 @@ export function CryptoPerformanceTable({
               <MissingRowLine key={`${row.date}:missing`} row={row} colSpan={columnCount} />
             ) : (
               <tr key={`${row.date}:${row.kind}`} data-kind={row.kind} className="border-b border-gray-100 last:border-0">
-                <td className="whitespace-nowrap px-1.5 py-2 tabular-nums">
+                <td className={`whitespace-nowrap px-1.5 py-2 tabular-nums ${STICKY_DATE}`}>
                   {row.date}
                   <PeriodMarks row={row} unit={period} asset="crypto" />
                 </td>
                 <td className={CELL}>{formatPrice(row.openPrice)}</td>
+                <PriceChangeCells change={row.openChange} format={formatPrice} cell={CELL} />
                 <td className={CELL}>{formatQuantity(row.boughtQuantity)}</td>
                 <td className={CELL}>
                   {row.tradeFee !== undefined ? formatMoney(row.tradeFee, quoteCurrency) : ""}

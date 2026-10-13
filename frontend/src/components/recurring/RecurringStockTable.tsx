@@ -9,10 +9,13 @@
  * - 열을 아낀다 — 배당은 세후 한 칸이고 상세는 칸 제목(`title`)으로 보인다. 배당·환율 열은 그 값이 있을 때만 둔다(빈 열을 남기지 않는다).
  *   1440px에서 표가 잘리지 않아야 한다(SC-010)
  * - 화면은 계산하지 않는다 — 서식만 입힌다
+ * - 014 반복 2026-10-13b(FR-047) — 시작가·종가 바로 뒤에 그 가격의 등락폭·등락률(서버 글자). 열이 늘어 1440px에서 표 안으로 밀릴 수
+ *   있다(011 SC-010의 주식 표 예외 — R14-38) — 날짜 칸을 왼쪽에 고정한다
  */
 
 import { PeriodLegend } from "@/components/period/PeriodLegend";
 import { PeriodMarks } from "@/components/period/PeriodMarks";
+import { ColumnName, PriceChangeCells, STICKY, STICKY_DATE } from "@/components/period/PriceChangeCells";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import { formatDividend, formatMoney, formatPercent, formatRate } from "@/lib/format";
 import type { PeriodUnit, RecurringStockRow } from "@/lib/types";
@@ -44,6 +47,7 @@ const BG: Record<RecurringStockRow["kind"], string> = {
 };
 
 const short = (iso: string) => iso.slice(5);
+const CELL = "px-1.5 py-1.5 text-right tabular-nums";
 
 function deferredText(deferred: string[] | undefined): string | null {
   if (deferred === undefined || deferred.length === 0) return null;
@@ -66,7 +70,11 @@ export function RecurringStockTable({
     { name: "납입액", unit: foreign ? principalCurrency : null },
     ...(showFx ? [{ name: "환율", unit: "KRW" }] : []),
     { name: "시작가", unit: foreign ? stockCurrency : null },
+    { name: "시작가 등락폭", unit: foreign ? stockCurrency : null },
+    { name: "시작가 등락률", unit: null },
     { name: "종가", unit: foreign ? stockCurrency : null },
+    { name: "종가 등락폭", unit: foreign ? stockCurrency : null },
+    { name: "종가 등락률", unit: null },
     { name: "구매 주식수", unit: null },
     { name: "매매 수수료", unit: foreign ? stockCurrency : null },
     ...(showDividend ? [{ name: "배당(세후)", unit: foreign ? stockCurrency : null }] : []),
@@ -95,8 +103,8 @@ export function RecurringStockTable({
             <tr className="border-b border-gray-200 text-xs text-gray-500">
               {columns.map((c, i) => (
                 <th key={c.name} scope="col"
-                  className={`whitespace-nowrap px-1.5 py-2.5 align-top font-normal ${i === 0 ? "text-left" : "text-right"}`}>
-                  {c.name}
+                  className={`whitespace-nowrap px-1.5 py-2.5 align-top font-normal ${i === 0 ? `text-left ${STICKY_DATE}` : "text-right"}`}>
+                  <ColumnName name={c.name} />
                   {c.unit !== null && <> <span className="block text-gray-400">({c.unit})</span></>}
                 </th>
               ))}
@@ -112,7 +120,7 @@ export function RecurringStockTable({
               return (
                 <tr key={`${row.date}:${row.kind}`} data-kind={row.kind}
                   className={`border-b border-gray-100 last:border-0 ${BG[row.kind]}`}>
-                  <td className="whitespace-nowrap px-1.5 py-1.5 text-left tabular-nums">
+                  <td className={`whitespace-nowrap px-1.5 py-1.5 text-left tabular-nums ${STICKY} ${BG[row.kind] || "bg-white"}`}>
                     {row.date}{" "}
                     {MARK[row.kind] !== "" && (
                       <span data-idle={idle ? "true" : undefined}
@@ -138,8 +146,10 @@ export function RecurringStockTable({
                       )}
                     </td>
                   )}
-                  <td className="px-1.5 py-1.5 text-right tabular-nums">{formatRate(row.openPrice)}</td>
-                  <td className="px-1.5 py-1.5 text-right tabular-nums">{formatRate(row.closePrice)}</td>
+                  <td className={CELL}>{formatRate(row.openPrice)}</td>
+                  <PriceChangeCells change={row.openChange} format={formatRate} cell={CELL} />
+                  <td className={CELL}>{formatRate(row.closePrice)}</td>
+                  <PriceChangeCells change={row.closeChange} format={formatRate} cell={CELL} />
                   <td className="px-1.5 py-1.5 text-right tabular-nums">{row.boughtShares > 0 ? row.boughtShares : "—"}</td>
                   <td className="px-1.5 py-1.5 text-right tabular-nums">
                     {row.tradeFee === undefined ? "—" : money(row.tradeFee, stockCurrency)}

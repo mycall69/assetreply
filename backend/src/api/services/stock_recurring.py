@@ -280,7 +280,8 @@ def table(result: RecurringResult, *, unit: PeriodUnit, end: dt.date, before: dt
     표에 없다(차트의 재료로만 남는다, FR-008).
 
     같은 날의 행은 늦은 사건이 위다(011 그대로) — 첫 행이 그날의 상태를 보인다. 같은 날의 행은
-    쪽에서 갈리지 않는다(`period_table.page`).
+    쪽에서 갈리지 않는다(`period_table.page`). 014 반복 2026-10-13b(FR-048) — 시작가·종가의
+    등락(분할 맞춤).
     """
     items = [(v.row.date, v.row.kind, v) for v in result.views if v.row.kind != "month_first"]
     by_day = {row.date: row for row in result.daily}
@@ -289,7 +290,9 @@ def table(result: RecurringResult, *, unit: PeriodUnit, end: dt.date, before: dt
     return table_page(
         unit=unit, end=end, before=before, limit=limit, quote_days=list(by_day),
         events=group_events(items), end_of_day_last=False,
-        day_state=lambda day: view_of(by_day[day]))
+        day_state=lambda day: view_of(by_day[day]),
+        prices=lambda v: (("open", v.row.open_price), ("close", v.row.close_price)),
+        splits=result.splits)
 
 
 def summary_json(result: RecurringResult, *, amount: Decimal, stock: Stock) -> dict[str, object]:

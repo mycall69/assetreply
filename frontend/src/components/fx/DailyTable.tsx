@@ -15,6 +15,7 @@
 import { useEffect, useRef } from "react";
 import { PeriodRowBadges } from "@/components/fx/PeriodRowBadges";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { ARROW, TONE } from "@/lib/changeStyle";
 import { buildDailyCsv, downloadCsv } from "@/lib/csv";
 import { formatRate } from "@/lib/format";
 import { highlightedRow } from "@/stores/fxWorkspaceStore";
@@ -23,10 +24,6 @@ import type { DailyChange, DailyResponse } from "@/lib/types";
 const COLUMNS = [
   "날짜", "매매기준율", "현금 살 때", "현금 팔 때", "송금 보낼 때", "송금 받을 때", "등락폭", "등락율",
 ] as const;
-
-/** 요약 칸(`RateSummary`)과 같은 색 — 오름 빨강·내림 파랑. 블랙 배경의 값은 `globals.css`의 `.dark` 재정의다. */
-const TONE = { up: "text-red-600", down: "text-blue-600", flat: "text-gray-500" } as const;
-const ARROW = { up: "▲ ", down: "▼ ", flat: "" } as const;
 
 /** 등락 두 칸. 비교할 행이 없으면(저장된 첫 고시) "—" — 0으로 메우지 않는다(헌법 원칙 V). */
 function ChangeCells({ change }: { change: DailyChange | null | undefined }) {

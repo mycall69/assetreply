@@ -13,12 +13,15 @@
  *
  * 006 FR-066~069 — 해외 종목은 **열마다 통화가 정해져 있다**(ui-wireframes W8). 예수금·세금·수수료·잔고·
  * 배당금 총액은 종목 통화, 잔고 괄호는 KRW, 투자금은 입력한 원금 통화, 투자 수익·수익율은 KRW 기준이다.
- * 1440px에서 열 16개(010 반복 3 — 종가)가 가로 스크롤 없이 들어가도록 칸을 촘촘하게 두고, 머리글의 통화는 열 이름 아래 줄에 둔다
- * (research R6-26 — 한 줄이면 표가 1,365px로 칸 1,166px를 넘었다).
+ * 칸을 촘촘하게 두고 머리글의 통화는 열 이름 아래 줄에 둔다(research R6-26 — 한 줄이면 표가 1,365px로 칸 1,166px를 넘었다).
+ *
+ * 014 반복 2026-10-13b(FR-047) — 시작가·종가 바로 뒤에 그 가격의 등락폭·등락률(서버 글자 — `PriceChangeCells`). 열 20개는 1440px에
+ * 들어가지 않아 표 안에서 가로로 밀린다(006 FR-069의 예외 — R14-38) — 그래서 날짜 칸을 왼쪽에 고정한다.
  */
 
 import { PeriodLegend } from "@/components/period/PeriodLegend";
 import { PeriodMarks } from "@/components/period/PeriodMarks";
+import { ColumnName, PriceChangeCells, STICKY_DATE } from "@/components/period/PriceChangeCells";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
 import {
   formatDividend,
@@ -30,20 +33,31 @@ import {
 import type { PeriodUnit, SimulationRow, SimulationSummary } from "@/lib/types";
 
 // 006 FR-059 — 배당 소득세(배당락 행)와 매매 수수료(매수 행). FR-067 — 배당금 총액(배당락 행).
-// 010 반복 3(FR-028) — 종가(잔고를 평가한 가격)는 시작가(매수 가격) 바로 뒤.
+// 010 반복 3(FR-028) — 종가(잔고를 평가한 가격)는 시작가(매수 가격) 묶음 바로 뒤. 014 반복 2026-10-13b(FR-047) — 가격마다 바로 뒤에
+// 그 가격의 등락 두 열(머리글 글자는 "등락폭"·"등락률" — `ColumnName`).
 const COLUMNS = [
-  "날짜", "시작가", "종가", "주당 배당금", "배당율", "배당금 총액", "배당 소득세", "구매 주식수",
-  "매매 수수료", "보유 주식", "예수금", "투자금", "잔고", "투자 수익", "수익율",
+  "날짜", "시작가", "시작가 등락폭", "시작가 등락률", "종가", "종가 등락폭", "종가 등락률", "주당 배당금", "배당율",
+  "배당금 총액", "배당 소득세", "구매 주식수", "매매 수수료", "보유 주식", "예수금", "투자금", "잔고", "투자 수익", "수익율",
 ] as const;
 
 /**
  * 종목 통화 금액 열 — 해외 종목이면 머리글에 종목 통화를 붙인다(006 FR-066). 세금·수수료도 예수금에서
  * 빠지는 돈이라 예수금과 같은 통화여야 예수금 변화를 설명할 수 있다.
  */
-const STOCK_COLUMNS = ["시작가", "종가", "주당 배당금", "배당금 총액", "배당 소득세", "매매 수수료", "예수금"];
+const STOCK_COLUMNS = [
+  "시작가", "시작가 등락폭", "종가", "종가 등락폭", "주당 배당금", "배당금 총액", "배당 소득세", "매매 수수료", "예수금",
+];
 
-/** 칸 여백 — 열 16개(010 반복 3 — 종가)가 1440px에 들어가도록 좁힌다 (006 FR-069). */
+/** 칸 여백 — 열이 많아 좁힌다 (006 FR-069). */
 const CELL = "px-1.5 py-2 text-right tabular-nums";
+
+/**
+ * 고정한 날짜 칸의 행 색 — 행의 옅은 색(`/40`)을 불투명한 흰 바탕(`STICKY_DATE`) 위에 겹친다. 행 색을 그대로 쓰면 반투명이라 밀린 칸이 비친다.
+ */
+const DATE_TINT: Partial<Record<SimulationRow["kind"], string>> = {
+  dividend: "bg-linear-to-r from-amber-50/40 to-amber-50/40",
+  reinvest: "bg-linear-to-r from-emerald-50/40 to-emerald-50/40",
+};
 
 /** 외화 종목에만 붙는 열 (FR-041c). */
 const FX_COLUMN = "환율";
@@ -141,10 +155,10 @@ export function PerformanceTable({
                     key={c}
                     scope="col"
                     className={`whitespace-nowrap px-1.5 py-2.5 align-top font-normal ${
-                      i === 0 ? "text-left" : "text-right"
+                      i === 0 ? `text-left ${STICKY_DATE}` : "text-right"
                     }`}
                   >
-                    {c}
+                    <ColumnName name={c} />
                     {/* 통화는 열 이름 아래 줄 — 한 줄이면 1440px에서 오른쪽 열이 잘린다 (R6-26). */}
                     {unit !== null && (
                       <>
@@ -168,7 +182,7 @@ export function PerformanceTable({
                     : row.kind === "reinvest" ? "bg-emerald-50/40" : ""
                 }`}
               >
-                <td className="whitespace-nowrap px-1.5 py-2 tabular-nums">
+                <td className={`whitespace-nowrap px-1.5 py-2 tabular-nums ${STICKY_DATE} ${DATE_TINT[row.kind] ?? ""}`}>
                   {row.date}
                   {row.kind === "dividend" && (
                     <span title="배당락일" className="ml-1 text-amber-700">
@@ -184,7 +198,9 @@ export function PerformanceTable({
                   <PeriodMarks row={row} unit={period} asset="stock" />
                 </td>
                 <td className={CELL}>{formatRate(row.openPrice)}</td>
+                <PriceChangeCells change={row.openChange} format={formatRate} cell={CELL} />
                 <td className={CELL}>{formatRate(row.closePrice)}</td>
+                <PriceChangeCells change={row.closeChange} format={formatRate} cell={CELL} />
                 {/* 월 행은 키 자체가 없다 — 빈 칸이 "배당 없음"을 뜻한다. */}
                 <td className={CELL}>
                   {/* 006 FR-057 — 종목 통화 값이다. 소수 3자리. */}

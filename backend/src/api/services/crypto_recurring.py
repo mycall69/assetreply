@@ -209,7 +209,8 @@ def table(result: CryptoRecurringResult, *, unit: PeriodUnit, end: dt.date,
           missing: Sequence[tuple[dt.date, dt.date]] = ()) -> TablePage[CryptoRecurringView]:
     """일자별 표의 한 쪽(012 FR-003~FR-005, FR-004b). 사건 행은 납입이다 — 그 달 첫 일봉 행은 표에
     없다(FR-008 — ◇도 없다). `missing`은 일 단위의
-    출처 결측 구간이다(라우트가 시계열과 같은 입력 — 시작일부터 — 으로 구한다)."""
+    출처 결측 구간이다(라우트가 시계열과 같은 입력 — 시작일부터 — 으로 구한다). 014 반복
+    2026-10-13b(FR-048) — 시가의 직전 기간 대표값 대비 등락(결측 날은 건너뛴다)."""
     items = [(v.row.date, v.row.kind, v) for v in result.views if v.row.kind == "contribution"]
     by_day = {row.date: row for row in result.daily_rows}
     view_of = result.view_of
@@ -218,4 +219,5 @@ def table(result: CryptoRecurringResult, *, unit: PeriodUnit, end: dt.date,
         unit=unit, end=end, before=before, limit=limit, quote_days=list(by_day),
         events=group_events(items), end_of_day_last=False,
         day_state=lambda day: view_of(by_day[day]),
-        missing=missing if unit == "daily" else ())
+        missing=missing if unit == "daily" else (),
+        prices=lambda v: (("open", v.row.open_price),))

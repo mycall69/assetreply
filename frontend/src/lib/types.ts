@@ -449,6 +449,27 @@ export interface MissingRow {
 }
 
 /**
+ * 투자 성과표 한 가격의 등락 (014 반복 2026-10-13b — FR-048, contracts A20) — 직전 기간 대표값 대비, 서버가 `Decimal`로 계산한 글자다.
+ * 외환 표의 `DailyChange`와 같은 꼴에 `split`(비교 가격을 맞춘 분할·병합의 누적 비율 — 맞추지 않았으면 `null`, 013 비교 블록 `unitPrice.split`과 같은 꼴)이
+ * 더해진다.
+ */
+export interface PriceChange {
+  /** 비교한 대표 행의 날짜 — 표에 보이는 그 행의 날짜다. */
+  comparedTo: string;
+  absolute: DecimalString;
+  /** 비교 가격이 0 이하면 `null`. */
+  percent: DecimalString | null;
+  direction: "up" | "down" | "flat";
+  split: { ratio: string } | null;
+}
+
+/** 가격마다의 등락 — 비교할 행이 없으면(계산 기간의 첫 기간) `null`, 014 전 응답(테스트 픽스처)에는 키가 없다. 둘 다 "—"다. */
+interface StockChanges {
+  openChange?: PriceChange | null;
+  closeChange?: PriceChange | null;
+}
+
+/**
  * 성과 표 한 행.
  *
  * `dividendPerShare`·`dividendYield`는 **배당락 행에만 있다**(FR-026). 월 행에 0을
@@ -457,7 +478,7 @@ export interface MissingRow {
  * `fxRate`·`fxRateDate`는 외화 종목일 때만 있다. `fxRateDate`가 `date`와 다를 수
  * 있다 — 주식 거래일과 환율 고시일은 일치하지 않는다 (FR-041c).
  */
-export interface SimulationRow extends PeriodMarked {
+export interface SimulationRow extends PeriodMarked, StockChanges {
   date: string;
   kind: SimulationRowKind;
   openPrice: DecimalString;
@@ -790,6 +811,8 @@ export type CryptoFailureKind = "blocked" | "format" | "network" | "empty";
  * 일봉이 없어 다른 날이 행이 된 경우에만 있다(FR-030). 금액 열은 시세 통화, 투자 수익·수익율은 KRW 기준이다(FR-035).
  */
 export interface CryptoRow extends PeriodMarked {
+  /** 014 반복 2026-10-13b — 시가의 등락(FR-048). */
+  openChange?: PriceChange | null;
   date: string;
   /** 012 — `buy`(첫 매수 — 시작 월의 첫 일봉) · `period`(기간 행). */
   kind: "buy" | "period";
@@ -1321,7 +1344,7 @@ interface RecurringFx {
   exchangeRateDate?: string;
 }
 
-export interface RecurringStockRow extends RecurringFx, PeriodMarked {
+export interface RecurringStockRow extends RecurringFx, PeriodMarked, StockChanges {
   date: string;
   kind: RecurringStockRowKind;
   openPrice: DecimalString;
@@ -1409,6 +1432,8 @@ export interface RecurringStockResponse {
 export type RecurringCryptoRowKind = "contribution" | "period";
 
 export interface RecurringCryptoRow extends RecurringFx, PeriodMarked {
+  /** 014 반복 2026-10-13b — 시가의 등락(FR-048). */
+  openChange?: PriceChange | null;
   date: string;
   kind: RecurringCryptoRowKind;
   openPrice: DecimalString;

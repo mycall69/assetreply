@@ -29,7 +29,8 @@ from __future__ import annotations
 
 import calendar
 import datetime as dt
-from collections.abc import Collection, Sequence
+from bisect import bisect_left
+from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from typing import Final, Literal, get_args
 
@@ -99,6 +100,29 @@ def _representative(group: Sequence[dt.date], unit: PeriodUnit) -> dt.date:
         upto = [day for day in group if day <= friday]
         return upto[-1] if upto else group[-1]
     return group[-1]
+
+
+def previous_representative(
+    quote_days: Sequence[dt.date], unit: PeriodUnit,
+) -> Callable[[dt.date], dt.date | None]:
+    """날짜 → 그 날짜가 속한 구간의 **직전 구간의 대표일** (014 반복 2026-10-13b — 투자 성과표
+    등락의 비교 날짜, data-model 19.2).
+
+    직전 구간은 시세일이 있는 가장 가까운 앞 구간이다 — 시세일이 없는 구간(가상자산 결측·긴 휴장)은
+    건너뛴다. 대표일은 `build_table`과 같은 규칙이라 돌려준 날짜는 늘 표에 보이는 행의 날짜다. 사건
+    날(대표일이 아닌 날)도 같은 규칙이다 — 그 행이 속한 구간의 직전 구간과 견준다. 첫 구간은 `None`.
+    """
+    groups: dict[dt.date, list[dt.date]] = {}
+    for day in sorted(set(quote_days)):
+        groups.setdefault(period_bounds(day, unit)[0], []).append(day)
+    starts = sorted(groups)
+    representatives = [_representative(groups[start], unit) for start in starts]
+
+    def previous(day: dt.date) -> dt.date | None:
+        index = bisect_left(starts, period_bounds(day, unit)[0])
+        return representatives[index - 1] if index > 0 else None
+
+    return previous
 
 
 def build_table(

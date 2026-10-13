@@ -245,7 +245,8 @@ def table(result: CryptoResult, *, unit: PeriodUnit, end: dt.date, before: dt.da
     """일자별 표의 한 쪽(012 FR-003~FR-005, FR-004b). 사건 행은 첫 매수(`buy` — 매수일의 월 행,
     수수료가 있다) 하나다. 그 밖의 월 행은 표에 없다
     (FR-008 — ◇도 없다). `missing`은 일 단위의 출처 결측 구간이다(라우트가 시계열과 같은 입력으로
-    구한다)."""
+    구한다). 014 반복 2026-10-13b(FR-048) — 시가의 직전 기간 대표값 대비 등락(결측 날은
+    건너뛴다)."""
     items = [(v.row.date, "buy", v) for v in result.rows if v.row.date == result.bought_on]
     by_day = {row.date: row for row in result.daily_rows}
     convert = result.convert
@@ -254,7 +255,8 @@ def table(result: CryptoResult, *, unit: PeriodUnit, end: dt.date, before: dt.da
         unit=unit, end=end, before=before, limit=limit, quote_days=list(by_day),
         events=group_events(items), end_of_day_last=True,
         day_state=lambda day: convert(by_day[day]),
-        missing=missing if unit == "daily" else ())
+        missing=missing if unit == "daily" else (),
+        prices=lambda v: (("open", v.row.open_price),))
 
 
 def source_missing(start: dt.date, end: dt.date, present: set[dt.date],
