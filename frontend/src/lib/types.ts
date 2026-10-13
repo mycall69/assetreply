@@ -1751,6 +1751,17 @@ export interface SavedComparisonCreated extends SavedComparisonList {
   entry: SavedComparison;
 }
 
+/**
+ * 투자 비교 설정 (014 반복 2026-10-13 — contracts A18). `maxTargets`는 저장된 최대 대상 수(없으면 기본), 나머지 셋은 서버 상수다 — 화면이 범위·안내를
+ * 이 값으로 그린다.
+ */
+export interface CompareSettings {
+  maxTargets: number;
+  defaultMaxTargets: number;
+  minTargets: number;
+  limitTargets: number;
+}
+
 /* ───────────────────────── 014: 대시보드 ───────────────────────── */
 
 /** 장 상태(014 data-model 3). */

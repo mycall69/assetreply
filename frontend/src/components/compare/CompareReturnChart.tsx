@@ -23,9 +23,14 @@
  *
  * **확대 구간의 일 단위 자료**(014 반복 2026-10-11c — FR-038): 확대가 끝나면 `loadDetail`로 그 구간을 받아 대상마다 시계열·현재 가치 선에 끼우고
  * 확대 범위를 지킨 채 다시 그린다(`useZoomDetail`). 주식 대상은 시계열이 매달 첫 거래일·사건 날뿐이라 늘, 가상자산은 줄였을 때만 받는다.
+ *
+ * **대상이 많을 때**(014 반복 2026-10-13 — FR-046, research R14-37): 선은 색 10 × 선 모양 2 = **짝 20**이다 — 첫 10개는 그대로, 11~20번째는 같은 색에
+ * 선 모양을 뒤집는다(21번째부터 되풀이 — 이름으로 가른다). 대상 11개 이상의 커서 상자는 **커서 세로 자리에 가장 가까운 10개**를 그 날 수익률 높은
+ * 차례로 보이고 끝 줄에 나머지 수다 — 100줄이면 그래프를 덮는다. 가까운 대상은 커서 움직임에서만 `priceToCoordinate`로 찾는다(그릴 때 부르지 않는다
+ * — CLAUDE.md 010). 대상 10개 이하는 지금 그대로다.
  */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createChart, LineSeries } from "lightweight-charts";
+import { createChart, LineSeries, type ISeriesApi } from "lightweight-charts";
 import { ChartZoomControls } from "@/components/ChartZoomControls";
 import { useChartZoom } from "@/hooks/useChartZoom";
 import { useZoomDetail } from "@/hooks/useZoomDetail";
@@ -75,7 +80,10 @@ export const colorOf = (index: number, theme: Theme = "light") => {
   const palette = paletteOf(theme);
   return rgb(palette[index % palette.length]);
 };
-export const lineStyleOf = (index: number) => (index % 2 === 0 ? SOLID : DASHED);
+/** 014 반복 2026-10-13 — 11~20번째는 같은 색에 모양을 뒤집는다(짝 20 — 첫 10개는 그대로, FR-046). */
+export const lineStyleOf = (index: number) => ((index + Math.floor(index / 10)) % 2 === 0 ? SOLID : DASHED);
+/** 커서 상자의 줄 수 끝 — 대상이 이보다 많으면 커서에 가까운 이만큼만 보인다(FR-046). */
+const HOVER_LINES = 10;
 
 /** 잠정 시작일 앞(확정)과 뒤(잠정 — 앞 구간의 마지막 점에서 잇는다)로 나눈다. */
 function splitProvisional(points: SimulationPoint[], from: string | null | undefined): [SimulationPoint[], SimulationPoint[]] {
@@ -103,6 +111,27 @@ interface Hover {
   date: string;
   client: { x: number; y: number } | null;
   point: { x: number; y: number };
+  /** 대상 11개 이상 — 커서에 가까운 대상 key(그 날 수익률 높은 차례). 10개 이하면 `null`(대상 전부). */
+  nearest: string[] | null;
+}
+
+/** 그 날의 보유 중 수익률 — 기준일이면 선 끝 값, 아니면 시계열 점. 없으면 `null`. */
+function rateOn(item: CompareChartItem, date: string): string | null {
+  if (date === item.lineEnd.date && item.lineEnd.holdingReturnRate !== null) return item.lineEnd.holdingReturnRate;
+  return item.series.points.find((p) => p.date === date)?.returnRate ?? null;
+}
+
+/** 커서 세로 자리(`y`)에 가장 가까운 대상 10개를 그 날 수익률 높은 차례로 — 그 날 값이 없는 대상은 고르지 않는다. */
+function nearestKeys(items: CompareChartItem[], date: string, y: number, toY: (value: number) => number | null): string[] {
+  const placed = items.flatMap((item) => {
+    const rate = rateOn(item, date);
+    if (rate === null) return [];
+    const value = percentValue(rate);
+    const at = toY(value);
+    return at === null ? [] : [{ key: item.key, value, distance: Math.abs(at - y) }];
+  });
+  return placed.sort((a, b) => a.distance - b.distance).slice(0, HOVER_LINES)
+    .sort((a, b) => b.value - a.value).map((p) => p.key);
 }
 
 function hoverLine(item: CompareChartItem, date: string): string {
@@ -176,9 +205,15 @@ export function CompareReturnChart({ items, loadDetail }: {
     attachZoom(instance);
     const priceFormat = axisPriceFormat(2);
     const valueFormat = axisPriceFormat(0);
-    const line = (color: string, lineStyle: number) => instance.addSeries(LineSeries, {
-      color, lineWidth: 2, lineStyle, priceFormat, priceLineVisible: false, lastValueVisible: false,
-    });
+    // 수익률 선은 모두 오른쪽 축 하나다 — 그 축의 값 → 세로 자리는 어느 수익률 시리즈로 물어도 같다(커서 상자의 가까운 대상 찾기).
+    let rateScale: ISeriesApi<"Line"> | null = null;
+    const line = (color: string, lineStyle: number) => {
+      const added = instance.addSeries(LineSeries, {
+        color, lineWidth: 2, lineStyle, priceFormat, priceLineVisible: false, lastValueVisible: false,
+      });
+      rateScale ??= added;
+      return added;
+    };
     const valueSeries = (color: string, lineStyle: number) => instance.addSeries(LineSeries, {
       color, lineWidth: 1, lineStyle, priceScaleId: VALUE_AXIS, priceFormat: valueFormat,
       priceLineVisible: false, lastValueVisible: false,
@@ -246,9 +281,14 @@ export function CompareReturnChart({ items, loadDetail }: {
       const point = param.point;
       const source = param.sourceEvent;
       trackZoom(point === undefined ? undefined : time);
+      const scale = rateScale;
+      // 014 반복 2026-10-13 — 대상 11개 이상이면 커서에 가까운 10개만(새 차트 API는 커서 움직임에서만 — CLAUDE.md 010).
+      const nearest = time === undefined || point === undefined || shown.length <= HOVER_LINES || scale === null ? null
+        : nearestKeys(shown, time, point.y, (value) => scale.priceToCoordinate(value));
       setHover(time === undefined || point === undefined ? null : {
         date: time, point: { x: point.x, y: point.y },
         client: source === undefined || source === null ? null : { x: source.clientX, y: source.clientY },
+        nearest,
       });
     });
     // 받은 자료로 다시 그렸으면 확대 범위를 지킨다(FR-038) — 아니면 처음 범위.
@@ -282,9 +322,18 @@ export function CompareReturnChart({ items, loadDetail }: {
             style={place === null ? { left: 0, top: 0, visibility: "hidden" } : { left: place.left, top: place.top }}>
             <p className="mb-1 font-medium text-gray-700">{hover.date}</p>
             <ul className="space-y-0.5 whitespace-nowrap">
-              {shown.map((item, index) => (
+              {hover.nearest === null ? shown.map((item, index) => (
                 <li key={item.key} style={{ color: colorOf(index, theme) }}>{hoverLine(item, hover.date)}</li>
-              ))}
+              )) : (
+                <>
+                  {hover.nearest.flatMap((key) => {
+                    const index = shown.findIndex((item) => item.key === key);
+                    return index < 0 ? [] : [
+                      <li key={key} style={{ color: colorOf(index, theme) }}>{hoverLine(shown[index], hover.date)}</li>];
+                  })}
+                  <li className="text-gray-500">외 {shown.length - hover.nearest.length}개 — 비교 표에 모두 있습니다</li>
+                </>
+              )}
             </ul>
           </div>
         )}

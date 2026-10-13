@@ -14,7 +14,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 from collections.abc import Mapping
-from typing import Protocol
+from typing import Final, Protocol
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +23,11 @@ from src.api.services.comparison_conditions import validate_condition, validate_
 from src.repository.saved_comparison import StoredComparison
 
 Json = dict[str, object]
+
+#: 저장 열(`saved_comparison.condition` — MySQL TEXT)의 크기다. 조건 글의 UTF-8 바이트가 이것을
+#: 넘으면 저장하지 않는다 — 보내면 MySQL 엄격 모드가 500으로 거절해 무엇이 틀렸는지 알 수 없다(014
+#: 반복 2026-10-13 — FR-045).
+MAX_CONDITION_BYTES: Final = 65_535
 
 
 class SavedComparisonRepository(Protocol):
@@ -74,6 +79,11 @@ async def save(
         raise InvalidComparison("본문: {name, condition} 객체여야 합니다")
     name = validate_name(payload.get("name"))
     condition = validate_condition(payload.get("condition"))
+    size = len(condition.text.encode("utf-8"))
+    if size > MAX_CONDITION_BYTES:
+        raise InvalidComparison(
+            f"condition: 저장할 조건이 너무 깁니다 — {size:,}바이트"
+            f"({MAX_CONDITION_BYTES:,}바이트까지)")
     saved_at = utc_now().replace(microsecond=0)
     new_id = await repo.add(
         session, name=name, asset=condition.asset, condition=condition.text, saved_at=saved_at)

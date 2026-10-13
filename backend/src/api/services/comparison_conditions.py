@@ -8,8 +8,11 @@
   않는다(원칙 VI 해석, 012 R12-9 선례). 지수 표기·쉼표는 받지 않는다
 - 틀린 칸은 메시지가 칸을 밝힌다(`InvalidComparison`). 빠진 칸을 기본값으로 메우지 않는다 — 메워
   저장하면 불러올 때 다른 조건으로 돈다
-- 대상 수·중복·적금 투자처·원금 통화 규칙은 화면의 규칙과 같다(`maxTargets`·`targetKey`·
-  `allowedCurrencies`) — 화면을 거치지 않은 본문도 같은 조건만 저장된다
+- 중복·적금 투자처·원금 통화 규칙은 화면의 규칙과 같다(`targetKey`·`allowedCurrencies`) — 화면을
+  거치지 않은 본문도 같은 조건만 저장된다
+- 대상 수의 끝은 **2~100개**(예금 ≤5)다(014 반복 2026-10-13 — 013 FR-004의 10개를 대체, 014 FR-045).
+  화면의 더하기 한도(설정 — 기본 20)가 아니다 — 설정을 낮춰도 그보다 많은 저장한 비교를 다시 저장할
+  수 있어야 한다
 """
 
 from __future__ import annotations
@@ -41,7 +44,8 @@ STOCK_MARKETS: Final = ("KRX", "NASDAQ", "NYSE", "AMEX", "TSE")
 #: 원금 통화로 고를 수 있는 것 — 화면의 선택지와 같다.
 PRINCIPAL_CURRENCIES: Final = ("KRW", "USD", "JPY")
 MIN_TARGETS: Final = 2
-MAX_TARGETS: Final = 10
+#: 014 반복 2026-10-13 — 10 → 100. 설정(`comparison_settings`)의 위 끝도 이 값이다.
+MAX_TARGETS: Final = 100
 #: 예금은 투자처가 다섯이다.
 MAX_DEPOSIT_TARGETS: Final = 5
 MAX_NAME: Final = 100
@@ -193,7 +197,7 @@ def _target(raw: object, at: str, asset: str, method: str) -> tuple[Json, str]:
 
 
 def _targets(raw: object, asset: str, method: str) -> list[Json]:
-    """2~10개(예금 ≤5), 차례 있음. 같은 대상 키가 두 번이면 거절한다."""
+    """2~100개(예금 ≤5), 차례 있음. 같은 대상 키가 두 번이면 거절한다."""
     if not isinstance(raw, list):
         raise _bad("targets", "배열이어야 합니다")
     most = MAX_DEPOSIT_TARGETS if asset == "deposit" else MAX_TARGETS

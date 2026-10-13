@@ -506,6 +506,7 @@ def create_app() -> FastAPI:
     from src.api.routes import collect as collect_routes
     from src.api.routes import collection as collection_routes
     from src.api.routes import comparison as comparison_routes
+    from src.api.routes import comparison_settings as comparison_settings_routes
     from src.api.routes import coverage as coverage_routes
     from src.api.routes import crypto_list_progress as crypto_list_progress_routes
     from src.api.routes import crypto_progress as crypto_progress_routes
@@ -596,6 +597,9 @@ def create_app() -> FastAPI:
     # 013 — 투자 비교. 저장한 비교(`/api/comparison/saved`)를 비교 경로보다 먼저 더한다 — 나중의
     # 경로가 앞 경로를 잡지 않게 한다(012 `settings`와 같은 까닭).
     app.include_router(saved_comparison_routes.router)
+    # 014 반복 2026-10-13 — 투자 비교 설정(`/api/comparison/settings`)도 비교 경로보다 먼저다(같은
+    # 까닭).
+    app.include_router(comparison_settings_routes.router)
     app.include_router(comparison_routes.router)
     # 014 — 대시보드. 기존 경로 뒤에 둔다(contracts A6 — 기존 응답 불변).
     app.include_router(dashboard_quotes_routes.router)

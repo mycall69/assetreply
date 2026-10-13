@@ -12,6 +12,7 @@ import { apiClient, request } from "./apiClient";
 import type { CompareCondition } from "./compareCondition";
 import type {
   CompareCollecting,
+  CompareSettings,
   CompareTarget,
   ComparisonResponse,
   CryptoTarget,
@@ -92,3 +93,12 @@ export const postSavedComparison = (name: string, condition: CompareCondition) =
 /** 없는 `id`도 200이다(멱등). */
 export const deleteSavedComparison = (id: number) =>
   request<SavedComparisonList>(`/api/comparison/saved/${id}`, { method: "DELETE" });
+
+/* 투자 비교 설정 (014 반복 2026-10-13 — contracts A18) — 저장한 비교처럼 공통 요청 함수를 직접 쓴다(`apiClient.get` 모의가 가로채지 않는다). */
+
+/** 최대 대상 수 — 저장된 값이 없으면 기본(20). 비교 화면은 열 때마다 읽는다. */
+export const fetchCompareSettings = () => request<CompareSettings>("/api/comparison/settings");
+
+/** 정수 2~100. 틀리면 서버가 422 `invalid_setting`이다(저장하지 않는다). */
+export const saveCompareSettings = (maxTargets: number) =>
+  request<CompareSettings>("/api/comparison/settings", { method: "PUT", body: JSON.stringify({ maxTargets }) });

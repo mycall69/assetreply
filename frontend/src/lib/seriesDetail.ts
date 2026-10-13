@@ -6,9 +6,12 @@
  * - 주식·가상자산은 그 시계열 경로(메뉴·비교)에 보기 구간 질의 `viewFrom`·`viewTo`를, 외환은 이미 있는 `from`·`to`를 싣는다. 구간 안은 줄이지 않게
  *   `maxPoints=5000`(20년 남짓의 거래일)이다
  * - 202(수집 본문)는 받지 못한 것으로 친다 — 원래 점으로 보인다
+ * - 투자 비교의 대상마다 받기는 **한 번에 셋**이다(014 반복 2026-10-13 — FR-046, `lib/concurrency`) — 대상 100개를 한꺼번에 보내면 같은 주소 연결
+ *   6개를 다 차지한다. 확대마다 새 차례다(앞 확대의 늦은 응답은 `useZoomDetail`이 버린다)
  */
 import { apiClient } from "@/lib/apiClient";
 import type { ZoomRange } from "@/lib/chartZoom";
+import { DETAIL_REQUESTS, createLimiter } from "@/lib/concurrency";
 import type { ComparisonBlock, ComparisonResponse, SeriesResponse, SimulationSeriesResponse } from "@/lib/types";
 
 export const DETAIL_MAX_POINTS = 5000;
@@ -73,7 +76,8 @@ export function compareDetailLoader(
   const wanted = entries.filter((entry) => needsDetail(entry.path, entry.series));
   if (wanted.length === 0) return undefined;
   return async (range) => {
-    const settled = await Promise.allSettled(wanted.map((entry) => fetchCompareDetail(entry.path, range)));
+    const slots = createLimiter(DETAIL_REQUESTS);
+    const settled = await Promise.allSettled(wanted.map((entry) => slots.run(() => fetchCompareDetail(entry.path, range))));
     const out: Record<string, CompareDetail> = {};
     settled.forEach((result, index) => {
       if (result.status === "fulfilled") out[wanted[index].key] = result.value;

@@ -1152,6 +1152,20 @@ class HistorySetting(Base):
         TS, server_default=func.now(), onupdate=func.now())
 
 
+class ComparisonSetting(Base):
+    """투자 비교 설정 (014 반복 2026-10-13 — FR-044, data-model 18). **전역 단일 행**이다. 행이
+    없으면 기본 20이다(서비스 — `api/services/comparison_settings`). 최대 대상 수는 화면의 더하기
+    한도이고 비교 조건 검증의 끝(100)이 아니다."""
+
+    __tablename__ = "comparison_setting"
+
+    id: Mapped[int] = mapped_column(SmallInteger, primary_key=True, default=1)
+    #: 2~100 — 검증은 서비스다(DB 제약 없음 — 다른 설정 테이블과 같다).
+    max_targets: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    updated_at: Mapped[dt.datetime] = mapped_column(
+        TS, server_default=func.now(), onupdate=func.now())
+
+
 COMPARISON_ASSET_CLASSES = ("stock", "crypto", "deposit", "realestate")
 
 

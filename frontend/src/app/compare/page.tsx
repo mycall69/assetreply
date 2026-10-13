@@ -3,7 +3,7 @@
 /**
  * 투자 비교 (013 T037·T057·T077) — FR-001~FR-019, ui-wireframes F1~F9.
  *
- * 자산군 하나를 고르고 대상 2~10개를 메뉴와 같은 부품으로 더해 공통 조건으로 실행한다. 대상마다 비교 경로를 부르고(계산된 대상부터 —
+ * 자산군 하나를 고르고 대상 2개 이상(설정의 최대 대상 수까지 — 014 반복 2026-10-13, 기본 20·최대 100)을 메뉴와 같은 부품으로 더해 공통 조건으로 실행한다. 대상마다 비교 경로를 부르고(계산된 대상부터 —
  * 명확화 2), 막힌 대상이 하나라도 있으면 결과 대신 막힘 칸이다(명확화 1). 결과를 본 뒤 조건을 바꾸면 흐린다(명확화 6).
  *
  * 비교는 **이력을 쓰지 않는다**(FR-020) — 메뉴 스토어의 실행을 부르지 않고 `useCompareStore`만 쓴다. 일자별 투자 성과표는 없다.
@@ -33,11 +33,11 @@ import { TableWithHistory } from "@/components/TableWithHistory";
 import { comparisonPath } from "@/lib/compareApi";
 import { compareDetailLoader } from "@/lib/seriesDetail";
 import { overall, suggestion, type BlockReason } from "@/lib/compareBlock";
-import { autoName, maxTargets, targetKey, targetName } from "@/lib/compareCondition";
+import { autoName, targetKey, targetName } from "@/lib/compareCondition";
 import { coinLink, complexSearchLink, stockLink } from "@/lib/externalLinks";
 import type { CompareTarget } from "@/lib/types";
 import { useCompareDetailStore } from "@/stores/compareDetailStore";
-import { isStale, runRows, saveBlockReason, useCompareStore } from "@/stores/compareStore";
+import { isStale, limitNotices, runRows, saveBlockReason, targetLimit, useCompareStore } from "@/stores/compareStore";
 
 /** 대상 이름의 바깥 링크 — 메뉴와 같은 규칙(010 반복 1). 예금은 링크가 없다. */
 function linkOf(target: CompareTarget): string | null {
@@ -53,7 +53,7 @@ export default function ComparePage() {
     asset, method, frequency, start, amount, principalCurrency, reinvest, targets, notice, run, sort, saved,
     setAsset, setMethod, setFrequency, setStart, setAmount, setPrincipalCurrency, setReinvest, addTarget, removeTarget,
     toggleSort,
-    runComparison, retryTarget, moveStart, dispose, loadSaved, saveComparison, openSaved, removeSaved,
+    runComparison, retryTarget, moveStart, dispose, loadSaved, saveComparison, openSaved, removeSaved, loadLimit,
   } = store;
 
   // 화면을 떠나면 대상별 진행 구독을 모두 끊는다 — 남기면 떠난 화면이 다시 요청을 보낸다.
@@ -62,6 +62,10 @@ export default function ComparePage() {
   useEffect(() => {
     void loadSaved();
   }, [loadSaved]);
+  // 014 반복 2026-10-13 — 더하기 한도(설정의 최대 대상 수)도 열 때마다 읽는다 — 설정 화면에서 바꾸고 돌아오면 새 값이다(FR-045).
+  useEffect(() => {
+    void loadLimit();
+  }, [loadLimit]);
   // 화면을 떠나면 모달을 닫는다 — 열린 채 다시 오면 다른 실행의 줄을 보인다.
   const openDetail = useCompareDetailStore((s) => s.openDetail);
   const closeDetail = useCompareDetailStore((s) => s.close);
@@ -115,7 +119,10 @@ export default function ComparePage() {
       <section className="space-y-3 rounded-lg border border-gray-200 p-4">
         <AssetPicker value={asset} onChange={setAsset} />
         <CompareTargetPicker asset={asset} method={method} targets={targets} onAdd={addTarget} onRemove={removeTarget} />
-        <TargetChips targets={targets} max={maxTargets(asset)} onRemove={removeTarget} />
+        <TargetChips targets={targets} max={targetLimit(store)} onRemove={removeTarget} />
+        {limitNotices(store).map((text) => (
+          <p key={text} role="status" className="rounded border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">{text}</p>
+        ))}
       </section>
 
       <section className="rounded-lg border border-gray-200 p-4">

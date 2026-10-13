@@ -3,7 +3,8 @@
 /**
  * 고른 대상 칩 (013 T036) — FR-004, ui-wireframes F2.
  *
- * 칩 차례는 더한 차례다(표의 처음 차례 — FR-012). 대상마다 빼기 단추가 있다.
+ * 칩 차례는 더한 차례다(표의 처음 차례 — FR-012). 대상마다 빼기 단추가 있다. 한도는 설정의 최대 대상 수다(014 반복 2026-10-13 — FR-045) — 설정에서
+ * 바꿀 수 있다고 밝힌다.
  */
 import { targetKey, targetName } from "@/lib/compareCondition";
 import type { CompareTarget } from "@/lib/types";
@@ -33,7 +34,7 @@ export function TargetChips({ targets, max, onRemove }: {
           })}
         </ul>
       )}
-      <p className="text-xs text-gray-400">ⓘ 최대 {max}개 · 2개 이상이어야 실행할 수 있습니다</p>
+      <p className="text-xs text-gray-400">ⓘ 최대 {max}개 · 2개 이상이어야 실행할 수 있습니다 · 설정에서 바꿀 수 있습니다</p>
     </div>
   );
 }

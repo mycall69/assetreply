@@ -11,6 +11,11 @@
  * - **저장한 비교**(US4, data-model 5.2): 저장은 결과가 있고 흐리지 않고 막히지 않았을 때만이다(`saveBlockReason` — 수집 중인 대상이 남아도
  *   된다, 조건만의 기록이다). 본문은 결과를 낸 정규 조건이다 — 지금 입력이 아니다(흐린 결과를 다른 조건으로 저장하는 길을 막는다). 불러오기는
  *   입력을 채우고 곧바로 실행한다(FR-017). 저장·삭제가 실패해도 결과는 그대로다(FR-019)
+ * - **더하기 한도는 설정 값**이다(014 반복 2026-10-13 — FR-045, 013 FR-004의 10개를 대체). 화면을 열 때마다 읽고(`loadLimit`), 읽지 못하면 기본 20과
+ *   알림이다. 설정보다 많은 저장한 비교는 자르지 않고 모두 실행한다 — 더하기만 막고 알린다(`limitNotices`)
+ * - **요청은 한 번에 셋, 진행 구독은 한 번에 둘**이다(FR-046, research R14-36 — `lib/concurrency`). 나머지는 들어온 차례(대상 차례)로 기다리고, 기다리는
+ *   동안 대상은 "요청 중"·"수집 중" 그대로다. 한꺼번에 열면 구독이 같은 주소 연결 6개를 다 차지해 화면이 오류 없이 멈춘다. 늦게 연 구독도 서버가 작업
+ *   상태로 완료를 보낸다
  */
 import { create } from "zustand";
 import { subscribeCollection } from "@/lib/collectionStream";
@@ -22,10 +27,12 @@ import {
   fetchComparison,
   fetchSavedComparisons,
   isCollecting,
+  fetchCompareSettings,
   postSavedComparison,
 } from "@/lib/compareApi";
 import {
   allowedCurrencies,
+  DEFAULT_MAX_TARGETS,
   maxTargets,
   methodsFor,
   sameCondition,
@@ -33,6 +40,7 @@ import {
   toCondition,
   type CompareCondition,
 } from "@/lib/compareCondition";
+import { COMPARE_REQUESTS, COMPARE_STREAMS, createLimiter } from "@/lib/concurrency";
 import { subscribeCryptoProgress } from "@/lib/cryptoProgressStream";
 import { subscribeDepositProgress } from "@/lib/depositProgressStream";
 import { DEFAULT_PRINCIPAL } from "@/lib/principalFormat";
@@ -97,6 +105,9 @@ export interface CompareState {
   run: RunState | null;
   sort: SortState | null;
   saved: SavedState;
+  /** 014 반복 2026-10-13 — 설정의 최대 대상 수(더하기 한도). 읽기 전·읽지 못하면 기본 20이다. */
+  limit: number;
+  limitStatus: "idle" | "loading" | "ready" | "error";
 
   setAsset: (asset: CompareAsset) => void;
   setMethod: (method: CompareMethod) => void;
@@ -123,13 +134,19 @@ export interface CompareState {
   /** 저장한 비교의 조건을 채우고 곧바로 실행한다. */
   openSaved: (id: number) => Promise<void>;
   removeSaved: (id: number) => Promise<void>;
+  /** 설정의 최대 대상 수를 읽는다 — 화면을 열 때마다. 실패하면 기본 20이다(`limitNotices`가 알린다). */
+  loadLimit: () => Promise<void>;
 }
 
 /** 연달아 받은 202가 이만큼이면 수집 실패로 둔다(research R13-7). */
 const MAX_COLLECTING_REPEATS = 3;
 
-/** 대상 키 → 진행 구독 해제. */
+/** 대상 키 → 진행 구독 해제(차례를 기다리는 중이면 줄에서 빼기). */
 const subscriptions = new Map<string, () => void>();
+
+/** 014 반복 2026-10-13 — 비교 요청·진행 구독의 차례 한도(FR-046). 화면을 떠나면 요청 차례를 새로 만든다(남은 응답은 옛 차례에서 끝난다). */
+let requests = createLimiter(COMPARE_REQUESTS);
+const streamSlots = createLimiter(COMPARE_STREAMS);
 
 function unsubscribe(key: string): void {
   subscriptions.get(key)?.();
@@ -137,8 +154,26 @@ function unsubscribe(key: string): void {
 }
 
 function unsubscribeAll(): void {
+  // 기다리는 구독을 먼저 뺀다 — 열린 구독을 닫을 때 비는 자리로 옛 실행의 구독이 새로 열리지 않게.
+  streamSlots.clearWaiting();
   for (const stop of subscriptions.values()) stop();
   subscriptions.clear();
+}
+
+/** 더하기 한도 — 설정 값, 예금은 min(5, 설정). */
+export function targetLimit(state: Pick<CompareState, "asset" | "limit">): number {
+  return maxTargets(state.asset, state.limit);
+}
+
+/** 한도 알림 — 설정을 읽지 못함, 설정보다 많은 대상(저장한 비교). 대상을 빼서 한도 이하가 되면 사라진다(파생 값이다). */
+export function limitNotices(state: CompareState): string[] {
+  const notices: string[] = [];
+  if (state.limitStatus === "error") notices.push(`투자 비교 설정을 읽지 못해 기본 ${DEFAULT_MAX_TARGETS}개로 제한합니다`);
+  const max = targetLimit(state);
+  if (state.targets.length > max) {
+    notices.push(`이 비교의 대상 ${state.targets.length}개는 지금 설정(최대 ${max}개)보다 많습니다 — 더 더할 수는 없고 실행·저장은 됩니다`);
+  }
+  return notices;
 }
 
 /** 지금 입력의 정규 조건. */
@@ -174,6 +209,7 @@ const SAVED_INITIAL: SavedState = {
 };
 
 let runSeq = 0;
+let limitSeq = 0;
 
 export const useCompareStore = create<CompareState>()((set, get) => {
   function setSaved(partial: Partial<SavedState>): void {
@@ -195,7 +231,41 @@ export const useCompareStore = create<CompareState>()((set, get) => {
     };
   }
 
-  /** 202를 받은 대상의 진행을 구독한다. 끝나면 그 대상만 다시 요청한다. */
+  /** 그 자산군의 진행 스트림을 연다 — 돌려준 함수가 닫기다. */
+  function openProgress(asset: CompareAsset, jobId: number, seq: number, key: string, completed: () => void,
+    failed: (reason: string) => void): () => void {
+    switch (asset) {
+      case "stock":
+        return subscribeStockProgress(jobId, {
+          onSnapshot: (s) => progressOf(s.daysDone, s.daysTotal)(seq, key),
+          onCompleted: completed,
+          onFailed: (reason) => failed(reason),
+        });
+      case "crypto":
+        return subscribeCryptoProgress(jobId, {
+          onSnapshot: (s) => progressOf(s.daysDone, s.daysTotal)(seq, key),
+          onCompleted: completed,
+          onFailed: (kind, reason) => failed(cryptoFailureText(kind, reason)),
+        });
+      case "deposit":
+        return subscribeDepositProgress(jobId, {
+          onSnapshot: (s) => progressOf(s.monthsDone, s.monthsTotal)(seq, key),
+          onCompleted: completed,
+          onFailed: (kind, reason) => failed(depositFailureText(kind, reason)),
+        });
+      case "realestate":
+        return subscribeRealEstateProgress(jobId, {
+          onSnapshot: (s) => progressOf(s.done, s.total)(seq, key),
+          onCompleted: completed,
+          onFailed: (kind, reason) => failed(realEstateFailureText(kind, reason)),
+        });
+    }
+  }
+
+  /**
+   * 202를 받은 대상의 진행을 구독한다. 끝나면 그 대상만 다시 요청한다. 014 반복 2026-10-13 — 구독은 한 번에 둘이고(FR-046) 나머지는 "수집 중"으로
+   * 차례를 기다린다. 늦게 열어도 서버가 작업 상태로 완료를 보낸다(이미 끝난 작업이면 곧바로).
+   */
   function watch(seq: number, key: string, body: CompareCollecting, repeats: number): void {
     unsubscribe(key);
     const condition = get().run?.condition;
@@ -210,52 +280,36 @@ export const useCompareStore = create<CompareState>()((set, get) => {
       if (live()) setTarget(seq, key, { status: "failed", reason });
     };
     const jobId = typeof body.jobId === "number" ? body.jobId : null;
-    if (jobId === null && body.fx !== undefined) {
+    let open: () => () => void;
+    if (jobId === null) {
+      const fx = body.fx;
+      if (fx === undefined) return;
       // 환율만 비었다 — 통화 스트림이 한가해지면 다시 요청한다(서버가 다시 판정한다).
-      let sawProgress = false;
-      let idle = 0;
-      subscriptions.set(key, subscribeCollection(body.fx.currency as CurrencyCode, {
-        onSnapshot: () => {
-          sawProgress = true;
-        },
-        onIdle: (payload) => {
-          idle += 1;
-          if (payload.busyWith === null && (sawProgress || idle >= 2)) completed();
-        },
-        onEvent: () => undefined,
-      }));
-      return;
+      open = () => {
+        let sawProgress = false;
+        let idle = 0;
+        return subscribeCollection(fx.currency as CurrencyCode, {
+          onSnapshot: () => {
+            sawProgress = true;
+          },
+          onIdle: (payload) => {
+            idle += 1;
+            if (payload.busyWith === null && (sawProgress || idle >= 2)) completed();
+          },
+          onEvent: () => undefined,
+        });
+      };
+    } else {
+      const asset = condition.asset;
+      open = () => openProgress(asset, jobId, seq, key, completed, failed);
     }
-    if (jobId === null) return;
-    switch (condition.asset) {
-      case "stock":
-        subscriptions.set(key, subscribeStockProgress(jobId, {
-          onSnapshot: (s) => progressOf(s.daysDone, s.daysTotal)(seq, key),
-          onCompleted: completed,
-          onFailed: (reason) => failed(reason),
-        }));
+    subscriptions.set(key, streamSlots.enter((release) => {
+      if (!live()) {
+        release();
         return;
-      case "crypto":
-        subscriptions.set(key, subscribeCryptoProgress(jobId, {
-          onSnapshot: (s) => progressOf(s.daysDone, s.daysTotal)(seq, key),
-          onCompleted: completed,
-          onFailed: (kind, reason) => failed(cryptoFailureText(kind, reason)),
-        }));
-        return;
-      case "deposit":
-        subscriptions.set(key, subscribeDepositProgress(jobId, {
-          onSnapshot: (s) => progressOf(s.monthsDone, s.monthsTotal)(seq, key),
-          onCompleted: completed,
-          onFailed: (kind, reason) => failed(depositFailureText(kind, reason)),
-        }));
-        return;
-      case "realestate":
-        subscriptions.set(key, subscribeRealEstateProgress(jobId, {
-          onSnapshot: (s) => progressOf(s.done, s.total)(seq, key),
-          onCompleted: completed,
-          onFailed: (kind, reason) => failed(realEstateFailureText(kind, reason)),
-        }));
-    }
+      }
+      return open();
+    }));
   }
 
   /** 대상 하나를 요청한다. `repeats`는 그때까지 연달아 받은 202의 수다. */
@@ -265,27 +319,32 @@ export const useCompareStore = create<CompareState>()((set, get) => {
     const target = run.condition.targets.find((t) => targetKey(t) === key);
     if (target === undefined) return;
     if (!setTarget(seq, key, { status: "requesting" })) return;
-    try {
-      const body = await fetchComparison(comparisonPath(run.condition, target));
+    const path = comparisonPath(run.condition, target);
+    // 014 반복 2026-10-13 — 한 번에 셋, 들어온 차례로(FR-046). 기다리는 동안 새 실행이 시작되면 보내지 않는다.
+    await requests.run(async () => {
       if (get().run?.seq !== seq) return;
-      if (isCollecting(body)) {
-        const next = repeats + 1;
-        if (next >= MAX_COLLECTING_REPEATS) {
-          setTarget(seq, key, { status: "failed", reason: "수집이 끝나지 않았습니다 — 다시 시도하세요." });
+      try {
+        const body = await fetchComparison(path);
+        if (get().run?.seq !== seq) return;
+        if (isCollecting(body)) {
+          const next = repeats + 1;
+          if (next >= MAX_COLLECTING_REPEATS) {
+            setTarget(seq, key, { status: "failed", reason: "수집이 끝나지 않았습니다 — 다시 시도하세요." });
+            return;
+          }
+          setTarget(seq, key, { status: "collecting", body, progress: null, repeats: next });
+          watch(seq, key, body, next);
           return;
         }
-        setTarget(seq, key, { status: "collecting", body, progress: null, repeats: next });
-        watch(seq, key, body, next);
-        return;
+        setTarget(seq, key, { status: "ok", data: body });
+      } catch (err) {
+        if (get().run?.seq !== seq) return;
+        const result = classify(err);
+        setTarget(seq, key, "blocked" in result
+          ? { status: "blocked", reason: result.blocked }
+          : { status: "failed", reason: result.failed });
       }
-      setTarget(seq, key, { status: "ok", data: body });
-    } catch (err) {
-      if (get().run?.seq !== seq) return;
-      const result = classify(err);
-      setTarget(seq, key, "blocked" in result
-        ? { status: "blocked", reason: result.blocked }
-        : { status: "failed", reason: result.failed });
-    }
+    });
   }
 
   /** 원금 통화가 대상에 맞지 않으면 원화로 돌리고 알린다(006 FR-050b와 같은 이유 — 몰래 다른 통화로 계산하지 않는다). */
@@ -311,6 +370,8 @@ export const useCompareStore = create<CompareState>()((set, get) => {
     run: null,
     sort: null,
     saved: SAVED_INITIAL,
+    limit: DEFAULT_MAX_TARGETS,
+    limitStatus: "idle",
 
     setAsset: (asset) => {
       if (asset === get().asset) return;
@@ -336,7 +397,7 @@ export const useCompareStore = create<CompareState>()((set, get) => {
         set({ notice: "이미 더한 대상입니다." });
         return false;
       }
-      const max = maxTargets(asset);
+      const max = maxTargets(asset, get().limit);
       if (targets.length >= max) {
         set({ notice: `최대 ${max}개까지 비교할 수 있습니다.` });
         return false;
@@ -385,6 +446,7 @@ export const useCompareStore = create<CompareState>()((set, get) => {
 
     dispose: () => {
       unsubscribeAll();
+      requests = createLimiter(COMPARE_REQUESTS);
     },
 
     loadSaved: async () => {
@@ -425,6 +487,21 @@ export const useCompareStore = create<CompareState>()((set, get) => {
         run: null, notice: null, sort: null,
       }));
       await get().runComparison();
+    },
+
+    loadLimit: async () => {
+      limitSeq += 1;
+      const seq = limitSeq;
+      set({ limitStatus: "loading" });
+      try {
+        const body = await fetchCompareSettings();
+        if (seq !== limitSeq) return;
+        set({ limit: body.maxTargets, limitStatus: "ready" });
+      } catch {
+        if (seq !== limitSeq) return;
+        // 조용히 넘어가지 않는다 — 기본 20으로 두고 알린다(FR-045 실패 양상 *조용히 틀림*).
+        set({ limit: DEFAULT_MAX_TARGETS, limitStatus: "error" });
+      }
     },
 
     removeSaved: async (id) => {

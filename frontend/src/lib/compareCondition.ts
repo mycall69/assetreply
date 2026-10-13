@@ -62,9 +62,17 @@ export function methodsFor(asset: CompareAsset): CompareMethod[] {
   return METHODS[asset];
 }
 
-/** 대상 수의 끝 — 10개, 예금은 투자처가 다섯이다(FR-004, spec 경계 사례). */
-export function maxTargets(asset: CompareAsset): number {
-  return asset === "deposit" ? 5 : 10;
+/** 014 반복 2026-10-13 — 설정을 읽기 전·읽지 못했을 때의 더하기 한도(서버의 기본과 같다 — FR-045). */
+export const DEFAULT_MAX_TARGETS = 20;
+/** 예금은 투자처가 다섯이다(013 spec 경계 사례). */
+const DEPOSIT_TARGETS = 5;
+
+/**
+ * 더하기 한도 — 설정의 최대 대상 수, 예금은 min(5, 설정)이다(014 반복 2026-10-13 — FR-045, 013 FR-004의 10개를 대체). 서버 검증의 끝(100)은
+ * 이것과 따로다 — 설정보다 많은 저장한 비교도 불러와 실행한다.
+ */
+export function maxTargets(asset: CompareAsset, limit: number): number {
+  return asset === "deposit" ? Math.min(DEPOSIT_TARGETS, limit) : limit;
 }
 
 const isStock = (t: CompareTarget): t is StockTarget => "market" in t;

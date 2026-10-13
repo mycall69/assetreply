@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { CompareSettingsSection } from "@/components/settings/CompareSettingsSection";
 import { CryptoSettingsForm } from "@/components/settings/CryptoSettingsForm";
 import { DepositSettingsForm } from "@/components/settings/DepositSettingsForm";
 import { HistoryRetentionSection } from "@/components/settings/HistoryRetentionSection";
@@ -108,6 +109,9 @@ export default function SettingsPage() {
       {/* 009 — 부동산 보유세 기준 비율. 다른 자산군 설정과 따로 저장한다(FR-034). */}
       <RealEstateSettingsSection />
       <RealEstateResidenceSection />
+
+      {/* 014 반복 2026-10-13 — 투자 비교의 최대 대상 수(FR-044). 다른 절과 따로 저장한다. 부동산 뒤·이력 앞이다(D19). */}
+      <CompareSettingsSection />
 
       {/* 012 — 최근 시뮬레이션 이력의 보관 기간. 네 자산군이 함께 쓴다(FR-012). 맨 아래 절이다(F7). */}
       <HistoryRetentionSection />
