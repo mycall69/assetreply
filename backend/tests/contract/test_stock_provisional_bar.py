@@ -99,6 +99,43 @@ class Test마지막_거래_시각_봉:
         assert data.provisional_from is None
 
 
+#: 미국 개장 1분 전(2026-10-13 22:29:57 KST = 09:29:57 EDT)에 10-13 하루를 요청한 응답(원본 id
+#: 1042). 10-13 봉이 없고 10-12 마감 봉 하나다.
+PREOPEN_RECEIVED = dt.datetime(2026, 10, 13, 22, 29, 57, tzinfo=KST)
+
+
+class Test세션이_끝나지_않은_요청일:
+    def test_봉이_없어도_그날은_잠정이다(self) -> None:
+        """출처가 그날 봉을 아직 주지 않았다.
+
+        받은 구간에 넣으면 장이 끝난 뒤에도 다시 받지 않는다(실측)."""
+        data = parse_chart(load("chart_preopen_NVDA.json"), now=PREOPEN_RECEIVED,
+                           requested_to=D("2026-10-13"))
+        assert [p.quote_date for p in data.prices] == [D("2026-10-12")]
+        assert data.provisional_from == D("2026-10-13")
+
+    def test_끝난_날만_요청했으면_잠정이_없다(self) -> None:
+        data = parse_chart(load("chart_preopen_NVDA.json"), now=PREOPEN_RECEIVED,
+                           requested_to=D("2026-10-12"))
+        assert data.provisional_from is None
+
+    def test_마감_뒤에는_오늘도_끝난_날이다(self) -> None:
+        now = dt.datetime(2026, 10, 13, 16, 0, tzinfo=NY)
+        data = parse_chart(load("chart_preopen_NVDA.json"), now=now, requested_to=D("2026-10-13"))
+        assert data.provisional_from is None
+
+    def test_마감_뒤에는_다음_날부터가_잠정이다(self) -> None:
+        now = dt.datetime(2026, 10, 13, 16, 0, tzinfo=NY)
+        data = parse_chart(load("chart_preopen_NVDA.json"), now=now, requested_to=D("2026-10-14"))
+        assert data.provisional_from == D("2026-10-14")
+
+    def test_국내_종목의_어제는_끝난_날이다(self) -> None:
+        """계산 끝 기본값(한국 날짜의 어제) — 국내 종목은 늘 끝난 세션이라 지금과 같다."""
+        body = load("chart_live_after_close_005930_KS.json")
+        data = parse_chart(body, now=AFTER_CLOSE_RECEIVED, requested_to=D("2026-10-08"))
+        assert data.provisional_from is None
+
+
 class Test확정_봉_자리의_0:
     def test_행이_없고_잠정도_아니다(self) -> None:
         """출처의 빈 값 자리다. 0으로 저장하지 않는다(원칙 V).
@@ -145,6 +182,16 @@ class Session:
 
     async def close(self) -> None:
         return None
+
+
+async def test_클라이언트가_요청_끝을_넘긴다() -> None:
+    session = Session({"1d": Resp(text("chart_preopen_NVDA.json")),
+                       "1mo": Resp(text("chart_no_data_in_range.json"), 400)})
+    settings = dataclasses.replace(load_settings(), stock_retry_max_attempts=1)
+    now = PREOPEN_RECEIVED.astimezone(dt.UTC)
+    async with YahooStockClient(settings, session=session, now=lambda: now) as yahoo:  # type: ignore[arg-type]
+        fetched = await yahoo.fetch_chart("NVDA", D("2026-10-13"), D("2026-10-13"))
+    assert fetched.data.provisional_from == D("2026-10-13")
 
 
 async def test_클라이언트가_지금_시각으로_가른다() -> None:
