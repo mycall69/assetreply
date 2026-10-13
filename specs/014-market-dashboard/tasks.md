@@ -1085,6 +1085,61 @@ description: "Task list for 014-market-dashboard"
 - [X] T212 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177·T185·T195·T206)뿐인지
   `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests` (SC-010)
 
+## Phase 18: 반복 2026-10-13 — 투자 비교의 대상 수 설정 (US13 — Priority P13, spec Iterations — 사용자 요청)
+
+**Goal**:
+- 설정 화면의 새 절 "투자 비교"에서 최대 대상 수(정수 2~100, 기본 20 — 로컬 DB)를 정하고(US13 — FR-044), 투자 비교 화면은 그 수만큼 대상을 더한다(FR-045). 서버 검증의 끝은 100(예금 5)이다
+- 대상이 100개까지 늘어도 요청 3·진행 구독 2·확대 구간 요청 3의 차례 한도, 선 모양 짝 20, 대상 11개 이상의 커서 상자(가까운 10개 + "외 N개")로 실행·그래프가 깨지지 않는다(FR-046)
+
+**Independent Test**(spec US13):
+- 설정을 바꾸지 않으면 21번째가 막히고 "최대 20개", 100으로 저장하면 100개까지 더해진다. 범위 밖·정수 아님은 422와 칸 오류로 저장되지 않는다
+- 받아 둔 주식 100개 일시금이 30초 안에 다 채워지고 동시 연결이 5개를 넘지 않는다. 대상 20개의 선 짝이 모두 다르고, 대상 30개 커서 상자는 11줄이다. 대상 10개 이하 비교 값은 그대로다
+
+**완료 작업 영향**: **013 FR-004의 "최대 10개"를 대체한다**(013 산출물은 고치지 않는다 — FR-044가 대체를 밝힌다). 손대는 완료 산출물은 `comparison_conditions.py`(끝 100)·`saved_comparison.py`(길이 가드)·
+`api/main.py`(라우터)·`compareCondition.ts`·`compareStore.ts`·`seriesDetail.ts`·`TargetChips.tsx`·`CompareReturnChart.tsx`·`app/compare/page.tsx`·`app/settings/page.tsx`다. 끝(10)을 박은 기존 테스트는 T215에서
+실제 실패 목록으로 승인한다
+
+### Tests for 반복 2026-10-13 ⚠️
+
+- [ ] T213 [P] [US13] 백엔드 테스트 — 새 `backend/tests/unit/test_comparison_settings_rules.py`(설정 검증: 2·20·100 됨, 1·101·`True`·`20.5`·`"20"`·`None`·없는 칸 거절 — `InvalidSetting`, 기본 20, 본문
+  A18의 네 칸), 새 `backend/tests/unit/test_comparison_target_limit.py`(`validate_condition` — 대상 100개 됨·101개 거절 `targets: 2~100개여야 합니다: 101개`·예금 6개 거절·1개 거절, 저장 길이 —
+  직렬화 글 65,535바이트(UTF-8 — 한글 3바이트로 경계를 맞춤) 됨·65,536바이트 거절 `condition:`·거절이면 저장소를 부르지 않음), 새 `backend/tests/integration/test_comparison_settings_api.py`
+  (행 없음 `GET` = 20·`defaultMaxTargets` 20·`minTargets` 2·`limitTargets` 100, `PUT` 저장·다시 읽기, 범위 밖·정수 아님 422 `invalid_setting`·값 그대로, 저장한 비교 대상 100개 `POST /api/comparison/saved` 201·
+  목록에서 100개 그대로, 설정을 10으로 낮춰도 30개 저장 됨, 101개 422 `invalid_comparison`, 스키마 — `comparison_setting` 열·형·head = 새 리비전, `/api/comparison/settings`가 비교 라우터에 잡히지 않음).
+  임포트는 구현 뒤 기준(`src.*` 묶음)으로 정렬. 최초 실패 확인 (FR-044, FR-045, SC-027)
+- [ ] T214 [P] [US13] 화면 테스트 — 새 `frontend/tests/CompareSettingsSection.test.tsx`(처음 값 = 서버 값, 저장 → `PUT` 본문 정수, 범위 밖·소수·빈 칸 → 칸 오류·요청 없음 또는 서버 422 메시지, 저장 실패에도
+  칸 값 그대로, 다른 절과 상태를 나누지 않음, 안내 글자), 새 `frontend/tests/compareTargetLimit.test.ts`(스토어 — 설정 값만큼 더함·알림 글자에 그 값, 예금 min(5, 설정), 설정 읽기 실패 → 20 +
+  알림, 설정보다 많은 저장한 비교 → 전부 채움 + 알림·더하기 막힘·빼서 설정 이하면 알림 사라짐, 대상 10개 실행의 동시 요청 ≤3·대상 차례로 채움·늦게 온 응답이 제 자리, 수집 중 대상 다섯의 진행 구독
+  ≤2·끝나면 다음 차례·늦게 연 구독의 `completed`로 다시 요청, `compareDetailLoader` 동시 ≤3, 순수 `lib/concurrency`의 차례·한도), 새 `frontend/tests/CompareReturnChartMany.test.tsx`(대상 20개 짝(색·선 모양)
+  20개 모두 다름·첫 10개는 지금 그대로, 대상 30개 커서 상자 = 가까운 10줄 + "외 20개 — 비교 표에 모두 있습니다"·수익률 높은 차례, 대상 10개 상자는 지금 그대로, 그릴 때 새 차트 API 0 — 모의는 파일
+  인라인). 최초 실패 확인 (FR-044~FR-046, SC-027, SC-028)
+
+### Implementation for 반복 2026-10-13
+
+- [ ] T215 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(예상: `backend/tests/unit/test_comparison_conditions.py`의 대상 11개 거절 줄 → 101개,
+  `frontend/tests/compareStore.test.ts`·`frontend/tests/ComparePage.test.tsx`의 "11번째"·"최대 10개" → 기본 설정의 21번째·"최대 20개", 014 `backend/tests/integration/test_policy_rate_worker.py`의 head →
+  새 리비전)을 `014 승인 2026-10-13(반복 2026-10-13 T215)`으로 승인하고, `git stash push -u -- backend/src frontend/src`로 구현을 치워 새 테스트의 실패를 확인한 뒤 `test(014)`. 예상 밖 기존 테스트가
+  실패하면 결함으로 보고 멈춘다 (FR-026)
+- [ ] T216 [US13] 백엔드 — Alembic 리비전(`comparison_setting` — `id SMALLINT PK 기본 1`·`max_targets SMALLINT NOT NULL`·`updated_at TS`, down `e9f3b7c2a4d1`), `backend/src/db/models.py`
+  (`ComparisonSetting`), 새 `backend/src/repository/comparison_setting.py`(읽기 — 없으면 `None`, 저장 upsert), 새 `backend/src/api/services/comparison_settings.py`(검증 — JSON 정수 2~100·불리언 거절,
+  기본 20, 본문 A18), 새 `backend/src/api/routes/comparison_settings.py`(A18 — `backend/src/api/main.py`에 비교 라우터보다 먼저 등록), `backend/src/api/services/comparison_conditions.py`(`MAX_TARGETS`
+  10 → 100·docstring), `backend/src/api/services/saved_comparison.py`(조건 글 UTF-8 65,535바이트 가드 — 422 `invalid_comparison` 칸 `condition`), 개발 DB `alembic upgrade head` — DM18 (FR-044, FR-045)
+- [ ] T217 [US13] 화면 — `frontend/src/lib/types.ts`(`CompareSettings`), `frontend/src/lib/compareApi.ts`(설정 읽기·저장), `frontend/src/lib/compareCondition.ts`(`maxTargets(asset, limit)`),
+  새 `frontend/src/lib/concurrency.ts`(대상 차례 한도 — 순수), `frontend/src/stores/compareStore.ts`(`limit`·`loadLimit`·D5·D6 알림·요청 3·구독 2), `frontend/src/lib/seriesDetail.ts`(`compareDetailLoader` 3),
+  `frontend/src/app/compare/page.tsx`(열 때 한도 읽기·칩 한도), `frontend/src/components/compare/TargetChips.tsx`(안내), `frontend/src/components/compare/CompareReturnChart.tsx`(선 모양 짝 20·대상 11개 이상
+  커서 상자 — `priceToCoordinate`는 커서 움직임에서만), 새 `frontend/src/components/settings/CompareSettingsSection.tsx`, `frontend/src/app/settings/page.tsx`(부동산 뒤·이력 앞),
+  `frontend/tests/setup.ts`(설정 대역 — 기본 20) — contracts D19 (FR-044~FR-046)
+
+### Polish (반복 2026-10-13)
+
+- [ ] T218 [US13] 실측 — quickstart 5-28(설정 기본 20·저장·범위 밖, 비교 화면 21번째 알림, 100으로 바꾼 뒤 받아 둔 주식 100개 일시금의 실행 시간·첫 줄 시간·동시 연결 수(CDP `Network` 사건)·그래프 짝·
+  커서 상자·막대·표, 저장·불러오기·조건 글 바이트, 설정을 10으로 낮춘 뒤 불러오기 알림, 수집 중 대상 여럿의 구독 차례, 블랙 배경 대비)를 헤드리스 Chrome으로 확인하고 `quickstart.md` 8에 기록한다.
+  받아 둔 종목이 100개보다 적으면 임시 백엔드(테스트 DB에 합성 일봉 100종목 — 출처를 부르지 않음, 개발 DB를 바꾸지 않음)로 잰다 (FR-044~FR-046, SC-027, SC-028)
+- [ ] T219 불변 대조·문서 — `014-baseline/fetch.py`(기준 — 대상 10개 이하 비교 응답 차이 0), `docs/implementation-notes.md` §6(투자 비교의 대상 수 설정·연결 한도·선 짝·커서 상자), `CLAUDE.md`(013·014 줄 —
+  대상 수), `README.md`(투자 비교 기능 — 2~100, 설정), `INSTALL.md`(업데이트 — 새 테이블 `alembic upgrade head`), `spec.md` Status (FR-026, SC-010, SC-028)
+- [ ] T220 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, mypy·ruff·tsc·eslint, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177·T185·T195·T206·**T215**)뿐인지
+  `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests`(30 → 승인한 수) (SC-010)
+
 ---
 
 ## Dependencies & Execution Order
@@ -1129,6 +1184,9 @@ description: "Task list for 014-market-dashboard"
   1. T202(출처 실측·픽스처·**원칙 II 승인** — 승인 전에는 아래를 하지 않는다)
   2. 테스트 T203·T204·T205(함께 — 최초 실패 확인) → 구현 T207 → T208 → T209 → T206(실제 실패 목록 — 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
   3. T210(개발 DB `alembic upgrade head` 먼저)~T212
+- **반복 2026-10-13 (Phase 18)**: Phase 17 뒤(마이그레이션은 기준금리 리비전 뒤)
+  1. 테스트 T213·T214(함께 — 최초 실패 확인) → 구현 T216 → T217(T216의 경로) → T215(실제 실패 목록 — 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
+  2. T218(개발 DB `alembic upgrade head` 먼저)~T220
 - **Foundational (Phase 2)**: T002·T004 뒤. US1·US2를 막는다. US3는 T011(설정) 뒤면 시작할 수 있다.
 - **US1 (Phase 3)**: Foundational 뒤. **T018(승인)이 이 페이즈의 테스트 커밋을 막는다** — T031~T040 구현을 작업 트리에 둔 뒤 목록을 만든다. 백엔드(T019~T023·T031~T035)와 화면(T024~T030·T036~T040)은 나란히 할 수 있다. MVP다.
 - **US2 (Phase 4)**: US1 뒤(시세 서비스의 캐시가 잠정 꼬리·머리 값을 준다. `main.py`·`types.ts`·`dashboardApi.ts`가 겹친다). 승인 목록이 없을 것으로 본다 — 구현 뒤 목록 밖의 실패는 결함으로 보고 멈춘다.
@@ -1178,6 +1236,11 @@ description: "Task list for 014-market-dashboard"
 | `frontend/src/lib/types.ts`·`app/compare/page.tsx` | T163(이전), T187(반복 2026-10-11b) |
 | `frontend/src/hooks/useChartZoom.ts`·`components/ChartZoomControls.tsx`·차트 셋 | T188(이전), T197 → T198(반복 2026-10-11c — 차례로) |
 | `backend/src/api/routes/comparison.py`·`api/services/comparison_values.py` | T186(이전), T196(반복 2026-10-11c) |
+| `backend/src/api/main.py` | T118·T207(이전), T216(반복 2026-10-13 — 라우터 등록) |
+| `backend/src/api/services/comparison_conditions.py`·`api/services/saved_comparison.py` | T216(반복 2026-10-13 — 013 파일) |
+| `frontend/src/stores/compareStore.ts`·`components/compare/CompareReturnChart.tsx`·`lib/seriesDetail.ts`·`app/compare/page.tsx` | T163·T187·T188·T197(이전), T217(반복 2026-10-13) |
+| `frontend/tests/setup.ts` | T169(이전), T217(반복 2026-10-13 — 설정 대역) |
+| `backend/tests/integration/test_policy_rate_worker.py`·`unit/test_comparison_conditions.py`·`frontend/tests/compareStore.test.ts`·`ComparePage.test.tsx` | T215(반복 2026-10-13 — 승인 뒤에만) |
 
 ### Parallel Opportunities
 
@@ -1226,6 +1289,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 13. 반복 2026-10-11b — 수익률 추이의 현재 가치 축(US9)과 두 지점 확대(US10)(Phase 15). 비교 블록 키 하나 + 화면 — 사용자 요청. 둘은 따로 낼 수 있다(T186·T187과 T188)
 14. 반복 2026-10-11c — 확대 구간의 일 단위 자료·외환/지표 확대·단추 자리(US11)(Phase 16). 시계열 경로의 선택 질의 둘 + 화면 — 사용자 보고
 15. 반복 2026-10-11d — 대시보드 기준금리(US12)(Phase 17). 새 테이블 셋·새 워커·새 경로 넷 + 화면 — 사용자 요청. 원칙 II 새 경로라 T202 승인이 먼저다(승인되지 않으면 이 Phase는 빠진다)
+16. 반복 2026-10-13 — 투자 비교의 대상 수 설정(US13)(Phase 18). 새 테이블 하나·새 경로 하나(GET·PUT) + 비교 화면의 차례 한도·선 짝·커서 상자 — 사용자 요청. 013 FR-004 대체
 
 ---
 
@@ -1293,7 +1357,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-023 | T007, T011, T067, T068, T076, T087, T089, T092 |
 | FR-024 | T064, T065, T066, T067, T068, T069, T070, T071, T072, T076, T077, T078, T079, T081, T087 |
 | FR-025 | T070, T079, T085, T121, T126, T140 |
-| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148, T152, T155, T161, T165, T169, T170, T174, T177, T180, T185, T190, T195, T200, T206, T211 |
+| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148, T152, T155, T161, T165, T169, T170, T174, T177, T180, T185, T190, T195, T200, T206, T211, T215, T219 |
 | FR-027 | T095, T103, T104, T105, T109, T113, T118, T119, T120, T121, T123 |
 | FR-028 | T095, T102, T104, T105, T107, T112, T116, T121, T123, T128, T129, T132, T133, T137 |
 | FR-029 | T104, T105, T108, T114, T117, T119, T120, T121, T123, T124 |
@@ -1311,6 +1375,9 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-041 | T204, T205, T208, T209, T210 |
 | FR-042 | T202, T204, T205, T208, T209, T210 |
 | FR-043 | T202, T203, T204, T207, T210 |
+| FR-044 | T213, T214, T215, T216, T217, T218 |
+| FR-045 | T213, T214, T215, T216, T217, T218 |
+| FR-046 | T214, T217, T218 |
 | SC-001 | T071, T082, T087 |
 | SC-002 | T047, T056, T082, T107, T124, T130, T138 |
 | SC-003 | T010, T020, T023, T032, T041 |
@@ -1320,7 +1387,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-007 | T022, T034, T064, T065, T066, T068, T071, T081, T087, T094 |
 | SC-008 | T064, T065, T066, T068, T070, T081, T089, T092 |
 | SC-009 | T019, T026, T031 |
-| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141, T148, T150, T155, T157, T165, T167, T174, T175, T180, T181, T190, T191, T200, T201, T211, T212 |
+| SC-010 | T001, T002, T084, T086, T094, T125, T127, T139, T141, T148, T150, T155, T157, T165, T167, T174, T175, T180, T181, T190, T191, T200, T201, T211, T212, T215, T219, T220 |
 | SC-011 | T062, T087 |
 | SC-012 | T104, T108, T124 |
 | SC-013 | T103, T109, T123 |
@@ -1337,3 +1404,5 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-024 | T194, T199 |
 | SC-025 | T204, T205, T210 |
 | SC-026 | T203, T204, T205, T210 |
+| SC-027 | T213, T214, T218 |
+| SC-028 | T214, T218, T219 |

@@ -471,3 +471,48 @@ R14-7 표가 상수다. 함수는 둘이다:
   `null`)·`nextMeetingOn`·`state`(`ready`·`collecting`·`failed`)·`failure`(`{kind, message, at}` 또는 `null`)·`lastSuccessAt`
 - 모달: 칸 행 + `decisions[]`(최신부터 전부 — `decidedOn`·`announcedAt`·`rate`·`change`·`direction`) + `firstDecidedOn`·`lastDecidedOn`
 - 변화 까닭: A8과 같은 `items[]`·`failure` + `decisionDate`
+
+## 18. 투자 비교 설정 (반복 2026-10-13 — FR-044·FR-045)
+
+새 테이블 하나 — Alembic 리비전 하나(`down_revision = "e9f3b7c2a4d1"` — 기준금리). 시각은 UTC `TS`다. 012 `history_setting`과 같은 꼴(전역 단일 행)이다.
+
+### 18.1 `comparison_setting` — 투자 비교의 최대 대상 수
+
+| 열 | 형 | 제약 | 뜻 |
+|----|----|------|----|
+| `id` | SMALLINT | PK, 기본 1 | 늘 1(단일 행) |
+| `max_targets` | SMALLINT | NOT NULL | 화면의 더하기 한도 — 2~100. 범위 검증은 서비스(`api/services/comparison_settings`)다 — DB `CHECK` 없음(다른 설정 테이블과 같다) |
+| `updated_at` | TS | `server_default now()`, `onupdate now()` | 마지막 저장 시각 |
+
+- 행이 없으면 기본 **20**이다 — 읽기가 행을 만들지 않는다(`history_setting`과 같다). 저장은 `db/dialect.upsert` 한 행(`id = 1`)
+- 저장소 `repository/comparison_setting.py` — 읽기(없으면 `None`)·저장(upsert). 기본값·범위는 저장소가 모른다(서비스 한 곳)
+
+### 18.2 규칙 상수 (한 곳씩)
+
+| 상수 | 값 | 자리 | 뜻 |
+|------|----|------|----|
+| `MIN_TARGETS` | 2 | `api/services/comparison_conditions` | 비교 조건 검증의 아래 끝(013 그대로) |
+| `MAX_TARGETS` | **100**(10 → 100) | `api/services/comparison_conditions` | 비교 조건 검증의 위 끝 — **설정 값이 아니다**(FR-045). 저장한 비교가 이 검증을 지난다 |
+| `MAX_DEPOSIT_TARGETS` | 5 | `api/services/comparison_conditions` | 예금 투자처 수(013 그대로) |
+| `MIN_SETTING`·`MAX_SETTING` | 2 · `MAX_TARGETS` | `api/services/comparison_settings` | 설정의 범위 — 위 끝은 검증의 끝과 같은 상수를 쓴다(둘이 어긋나면 설정한 수만큼 더한 비교를 저장할 수 없다) |
+| `DEFAULT_SETTING` | 20 | `api/services/comparison_settings` | 행이 없을 때 |
+| `MAX_CONDITION_BYTES` | 65,535 | `api/services/saved_comparison` | 저장할 조건 글(직렬화한 JSON, UTF-8)의 끝 — MySQL TEXT 열의 크기 |
+
+- 설정 값의 형: JSON **정수**만이다 — 불리언(`true`)·소수(`20.5`)·문자열(`"20"`)·`null`은 거절(Python의 `bool`은 `int`의 하위형이라 따로 막는다)
+
+### 18.3 저장한 비교 조건 길이
+
+- `saved_comparison.condition`은 그대로 TEXT(013 스키마 테스트 `("text","NO")` 불변)다
+- 서비스가 `validate_condition`의 직렬화 글(`ComparisonCondition.text` — `ensure_ascii=False`)의 UTF-8 바이트를 센다. 65,535를 넘으면 저장소를 부르지 않고 `InvalidComparison("condition: 저장할 조건이
+  너무 깁니다 — {N}바이트(65,535바이트까지)")` → 422 `invalid_comparison`
+- 현실 크기: 대상 하나 약 80~250바이트(이름·시장·심볼·코인 id·단지 id·면적) → 100개 약 8~25KB(T218에서 잰다). 글자 칸마다 200자(`MAX_TEXT`)까지라 이론상 100개 × 최대 길이는 끝을 넘는다
+
+### 18.4 응답 꼴 (contracts A18)
+
+- `GET`·`PUT /api/comparison/settings` → `{"maxTargets": 20, "defaultMaxTargets": 20, "minTargets": 2, "limitTargets": 100}` — `maxTargets`는 저장된 값(없으면 기본), 나머지 셋은 상수다
+  (화면이 범위·안내를 서버 값으로 쓴다 — 화면에 2·20·100을 박지 않는다)
+
+### 18.5 화면 상태 (Zustand — 저장하지 않음)
+
+- `compareStore`: `limit`(설정 값 — 처음은 기본 20), `limitStatus`(`loading`·`ready`·`error`), `loadLimit()`(비교 화면을 열 때마다). 더하기 한도는 `maxTargets(asset, limit)`(예금은 min(5, limit))
+- 실행의 차례 한도는 상수다(`lib/concurrency`) — 비교 요청 3·진행 구독 2·확대 구간 요청 3. 설정이 아니다(R14-36)
