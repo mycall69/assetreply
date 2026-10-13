@@ -110,7 +110,7 @@ cd backend && .venv/bin/python -m pytest -q tests/contract/test_yahoo_market_cli
 
 **투자 성과표의 등락(반복 2026-10-13b — T221)** — `integration/test_table_change_api.py`
 - 주식 일시금 일: `openChange`·`closeChange` = 이웃 시세일의 차·비율, 쪽 경계(`before`로 다음 쪽 — 경계 행 `comparedTo` = 다음 쪽 첫 행), 첫 매수 행 `null`
-- 주식 일시금 월: 배당락·재투자 행이 낀 달 — 그 달의 행 모두 `comparedTo` = 직전 달 대표 행. 분할 날 `splitRatio`와 맞춘 값
+- 주식 일시금 월: 배당락·재투자 행이 낀 달 — 그 달의 행 모두 `comparedTo` = 직전 달 대표 행. 분할 날 `split`(`ratio`)과 맞춘 값
 - 주식 적립식 월: 납입 행·달 끝 행 모두 직전 달 대표 행 대비
 - 가상자산 일시금·적립식 일: `openChange`만(`closeChange` 키 없음), 결측 구간 바로 위 행 = 결측 앞 시세일, 결측 행에 키 없음
 - 행의 다른 키 집합 = 이 반복 전 + 새 키, 요약·`hasMore`·`oldestReturned` 그대로
@@ -817,3 +817,41 @@ cd frontend && npm test -- --run && npx tsc --noEmit && npx eslint .
 - 프론트엔드: `npm test` **240파일·2,228 통과**(종료 코드 0 — 새 `compareTargetLimit`·`CompareSettingsSection`·`CompareReturnChartMany` 38개), `tsc --noEmit`·`eslint .` 통과
 - `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests`: 바뀐 기존 테스트 **서른둘** — 반복 2026-10-11d까지의 서른에 T215가 승인한 둘(`test_comparison_conditions.py`·
   `compareStore.test.ts`)이 더해졌다. T215의 다른 승인 셋(`ComparePage.test.tsx`·`setup.ts` — 014가 이미 고친 파일, `test_policy_rate_worker.py` — 014가 만든 파일)은 수를 바꾸지 않는다
+
+### T226 — 반복 2026-10-13b 실측(2026-10-13 19:0x~19:4x KST — 헤드리스 Chrome CDP, 개발 서버, 1440×1000, 이력 다시 실행 — 읽기만)
+
+- **서버 대조**(일 단위 행 전부에서 따로 다시 계산 — 012 대표일 규칙·`Decimal`): 주식 일시금 다섯(삼성전자 2024-01-02·VOO 2015-01-01·SOXL 2011-10-02·NVDA 2016-10-01·TQQQ 2010-02-11),
+  적립식 둘(삼성전자·TQQQ 매월), 가상자산 셋(비트코인 일시금·적립식, 코인 2 일시금 2017-01-01) × 일·주·월 — **52,365칸 불일치 0**. 비교 날짜 = 직전 기간 대표 행, 첫 기간 `null`, `limit=30`으로
+  이어 받은 행 = `limit=200` 행(쪽 경계 — 열 경우 모두 같음). 분할 날은 비교 가격을 맞춘 값과 `split` — SOXL 2015-05-20 4:1·2021-03-02 15:1, NVDA 2021-07-20 4:1·2024-06-10 10:1, TQQQ
+  2011-02-25~2025-11-20 여덟 번(2:1·3:1). 등락률 25%를 넘는 칸은 2020-03-12·13·16과 2025-04-09(TQQQ — 실제 시장 움직임)뿐이다. 가상자산 행에 `closeChange` 0
+- **결함 하나를 고침**(`c3bd54b`): 삼성전자 2026-10-06의 저장 시가가 0(출처가 비운 날 — 저장 주식 159,939행 가운데 하나, 가상자산 22,909행에는 없음)이라 그 날 시작가 등락이
+  "▼ 273,500.00 −100.00%", 이튿날이 "▲ 269,500.00 —"로 보였다 → 주식·가상자산 표는 어느 쪽 가격이든 0 이하면 그 가격의 등락 `null`("—")이다(원칙 V — 외환 표 규칙과 다르다). 테스트를 먼저
+  고쳐 실패 7을 확인한 뒤 고쳤다. 위 대조는 고친 뒤 다시 잰 값이다(삼성전자 `null` 칸 10 → 12)
+- **화면**(주식 일시금 삼성전자·SOXL, 적립식 삼성전자 매월, 가상자산 일시금·적립식 비트코인): 머리 차례 `시작가 | 등락폭 | 등락률 | 종가 | 등락폭 | 등락률`(가상자산 `시가 | 등락폭 | 등락률`),
+  보이는 글자 "등락폭"·"등락률"과 숨은 가격 이름(`position: absolute`·1px), 통화 줄은 등락폭에만. 단위마다(월·일·주) 첫 쪽 30행의 칸 글자·`title`("… 대비")·색 = 서버 응답 — 불일치 0.
+  NVDA 월 표(아래로 이어 받기)의 ✂ 8칸(2024-06-28·13·11 × 두 가격 — 10:1, 2021-07-30 × 두 가격 — 4:1) = 서버의 `split` 행, 이름 "10:1 분할 반영 — 직전 값을 분할 비율로 맞춰 견줬습니다"
+- **폭 1440**: 가상자산 999·1,092px(본문 칸 1,166 — 가로 스크롤 없음, 반복 전 859·951), 주식 1,351(삼성전자 일시금, 전 1,071)·1,331(적립식, 전 1,050)·1,584px(SOXL, 전 1,283) — 표 안
+  가로 스크롤, 페이지 넘침 없음. 끝까지 밀어도 날짜 칸 왼쪽 = 칸 왼쪽(249px)이고 그 자리를 누르면 날짜 칸이다. 배경은 흰색 불투명, 배당락·재투자 행은 흰 바탕 위 옅은 색 그라데이션(행 색과
+  같음). **1024px**: 주식 1,351/750·가상자산 999/750 — 밀어도 날짜 칸, 페이지 넘침 없음
+- **블랙 배경**: 주식·가상자산 화면 글자 대비 최소 6.21(4.5 미만 0), 날짜 칸 배경 `rgb(11, 15, 20)` 불투명, 배당락·재투자 행 그라데이션은 `.dark` 색
+- **투자 비교 모달 넷**(주식·가상자산 × 일시금·적립식 — 저장한 비교 목록 응답만 CDP `Fetch`로 가짜 목록, 실행·모달은 실제 경로, 개발 DB 쓰기 없음): 머리글에 등락 열, 첫 쪽 30행 = 같은 조건
+  메뉴 경로(월)의 글자 — 불일치 0
+- **결측 구간**: 개발 DB의 코인 둘은 출처 결측 구간이 없다 — 결측 건너뛰기는 통합 테스트(BTC 픽스처에서 3-01·3-05·3-08~12를 뺌)로만 확인했다
+
+### T227 — 불변 대조(2026-10-13 19:4x KST)
+
+- **기준 파일**: 28파일(`014-baseline/after_iter13b/`)이 반복 2026-10-13(`after_iter13/`)과 `meta.json` 말고 차이 0(메뉴 `head`·`series`·비교 경로·외환)
+- **표 행**: `head` 파일은 행을 빼고 저장하므로 따로 견줬다 — 이 반복 전 코드(`df02b0e` — git worktree, 서버 없이 ASGI로·lifespan 없음(수집 워커 없음)·개발 DB 읽기만)와 지금 코드의 표 행
+  **11,834개**(삼성전자·NVDA 일시금, 삼성전자 적립식, 비트코인 일시금·적립식 × 일·주·월, 모든 쪽)가 `openChange`·`closeChange`를 빼면 같고 `hasMore`·`oldestReturned`·`period`·요약·조건도 같다.
+  다른 새 키 0
+- **외환 일자별 표**: 기호·색 상수만 옮겼다 — `DailyTableChange.test.tsx`·`DailyTable.test.tsx` 고치지 않고 통과
+
+### T229 — 게이트(2026-10-13 19:1x~19:2x KST, 서버를 내린 채)
+
+- 백엔드: `pytest --cov=src` **3,695 통과**(새 49개 — 단위 `test_price_change`·`test_period_previous`, 통합 `test_table_change_api`)·커버리지 **96.66%**(새 모듈 `simulation/price_change`·
+  `simulation/period_table` 100%, `api/services/table_rows` 99% — 빠진 한 줄은 가격을 넘기지 않는 호출의 분기), `mypy src`(strict) 문제 없음(297파일), `ruff check --no-cache src tests` 통과
+- 프론트엔드: `npm test` **243파일·2,256 통과**(종료 코드 0 — 새 `PerformanceTableChange`·`CryptoTableChange`·`SimulationModalChange` 28개), `tsc --noEmit`·`eslint .` 통과
+- `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests`: 바뀐 기존 테스트 **서른일곱** — 반복 2026-10-13까지의 서른둘에 T223이 승인한 다섯(`PerformanceTableClose`·
+  `PerformanceTableCurrency`·`RecurringStockTable`·`RecurringCryptoTable`·`CryptoPerformanceTable`)이 더해졌다
+- 첫 전체 실행(T223, 구현을 작업 트리에 둔 채)에서 005 가드 `test_layer_boundaries::test_시세_출처_필드명이_어댑터_밖에_없다`가 새 키 이름 `splitRatio`(Yahoo 응답 필드명)를 잡았다 — 키를
+  `split: {ratio}`(013 `unitPrice.split`과 같은 꼴)로 고쳐 가드는 그대로 통과한다

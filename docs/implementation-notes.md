@@ -188,6 +188,18 @@ NULL = 100%)다. 비과세의 거주 2년 요건은 늘 적용한다(조정대�
 요청 글자를 정확히 견주는 화면 테스트는 처음 상태면 그 꼬리를 기대하고, 일 단위가 주제인 테스트는 스토어에 `tablePeriod: "daily"`(외환 `period`)를 심는다. 비교 모달은 열 때의 표 요청에도 단위를 싣는다(주식·가상자산만 —
 예금·부동산 경로는 `period`를 모른다). 대시보드 지표 표(`indicatorTableStore`)는 처음 일 그대로다.
 
+**주식·가상자산 투자 성과표의 등락**(014 반복 2026-10-13b): 표 경로 넷의 행에 주식 `openChange`·`closeChange`, 가상자산 `openChange`(`comparedTo`·`absolute`·`percent`·`direction`·`split`
+— 비교할 행이 없으면 `null`, 결측 구간 행에는 없음 — `split`은 013 `unitPrice.split`과 같은 꼴이다. 시세 출처 응답의 분할 필드 이름을 키로 쓰면 005 가드 `test_layer_boundaries`에 걸린다)를 싣는다. 서비스가 `table_rows.table_page`에 `prices`(행 → 가격 이름·값)와 주식 `splits`를 넘기면 그 함수가 **쪽을 자르기 전의 전체
+시세일**에서 비교 날짜를 찾는다(쪽 경계에 추가 질의 없음) — 서비스가 쪽을 자른 뒤에 직접 계산하면 쪽의 마지막 행이 "—"가 된다. 비교 날짜는 **직전 기간의 대표일**
+(`period_table.previous_representative` — 012 대표일 규칙, 시세일이 없는 기간은 건너뜀)이라 사건 행(배당락·재투자·납입)도 그 기간의 직전 대표 행과 견준다 — "바로 아래 행"으로 바꾸면
+적립식 월 표의 달 끝 행이 같은 달 납입 행과 견준다. 등락은 `simulation/price_change`(외환과 같은 `rate_change`)이고, 표가 원주가라 비교 날짜 뒤 ~ 행 날짜의 분할·병합은 **비교 가격을 맞춘다**
+(× 분모/분자, 소수 6자리 `ROUND_HALF_UP` — `split_restated_close`와 같다, 효력일이 비교 날짜 당일이면 맞추지 않는다). 배당은 맞추지 않는다. 어느 쪽 가격이든 0 이하면 등락은 `null`이다(출처가 비운 시가 — 실측 삼성전자 2026-10-06, 외환의 "비율만 없음"과 다르다). JSON은 `format(…, "f")`다 — 가상자산 시가(소수
+14자리)의 차는 `str`이면 지수 표기(`-1.234E-7`)가 된다. 화면은 `components/period/PriceChangeCells`(기호·색은 외환 표와 같은 `lib/changeStyle`)이고 머리글은 `ColumnName` — 보이는 글자
+"등락폭"·"등락률", 화면 읽기 이름 "시작가 등락폭"(숨은 글자 뒤 공백은 **span 밖**에 둔다 — 안에 두면 이름 계산이 공백을 버려 "시작가등락폭"이 된다). 열이 늘어 주식 표는 1440px에서
+표 안으로 밀린다(006 FR-069의 예외) — 네 표의 날짜 칸은 `STICKY`(`sticky left-0`)에 불투명 배경이다. 일시금 표의 배당락·재투자 행 색은 반투명(`/40`)이라 날짜 칸은 흰 바탕 위에 같은 색을
+그라데이션으로 겹친다(`bg-linear-to-r from-amber-50/40 to-amber-50/40`) — 행 색을 그대로 주면 밀린 칸이 비친다. 표에 새 열을 끼우면 **칸 색인으로 읽는 기존 테스트**가 밀린다
+(`CryptoPerformanceTable`·`RecurringCryptoTable` 테스트 — T223 승인).
+
 **블랙 배경(014 반복 2026-10-10c)은 색 변수 재정의다.** `app/globals.css`의 `.dark { --color-…: … }`(층 밖)가 Tailwind v4의 `@layer theme` 변수를 이겨 `<html class="dark">`일 때 팔레트가
 바뀐다 — 컴포넌트 클래스는 그대로라 밝은 화면·014 전 화면 테스트가 바뀌지 않는다. **새 색 계열·단계를 쓰면 `.dark`에 짝을 더한다** — `tests/darkPaletteGuard.test.ts`가 src가 쓰는 색
 유틸리티마다 재정의가 있는지, 글자·바탕 짝이 4.5:1 이상인지 본다(빠뜨리면 그 부품만 밝게 남아 글자가 묻힌다 — 전에 OS 다크 모드에서 그랬다). 테마는 `<html>`의 클래스이고 `app/layout.tsx`의

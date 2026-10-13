@@ -440,11 +440,11 @@ A8과 같은 꼴이다(`sessionDate` 대신 `decisionDate`). 출처가 실패해
 {
   "rows": [
     { "date": "2024-06-10", "kind": "period", "openPrice": "120.370000", "closePrice": "121.790000", "…": "005·010 그대로",
-      "openChange":  { "comparedTo": "2024-06-07", "absolute": "0.600000", "percent": "0.50", "direction": "up", "splitRatio": "10:1" },
-      "closeChange": { "comparedTo": "2024-06-07", "absolute": "0.902000", "percent": "0.75", "direction": "up", "splitRatio": "10:1" } },
+      "openChange":  { "comparedTo": "2024-06-07", "absolute": "0.600000", "percent": "0.50", "direction": "up", "split": {"ratio": "10:1"} },
+      "closeChange": { "comparedTo": "2024-06-07", "absolute": "0.902000", "percent": "0.75", "direction": "up", "split": {"ratio": "10:1"} } },
     { "date": "2024-06-07", "kind": "period", "openPrice": "1197.700000", "closePrice": "1208.880000", "…": "…",
-      "openChange":  { "comparedTo": "2024-06-06", "absolute": "-41.300000", "percent": "-3.33", "direction": "down", "splitRatio": null },
-      "closeChange": { "comparedTo": "2024-06-06", "absolute": "-1.170000", "percent": "-0.10", "direction": "down", "splitRatio": null } },
+      "openChange":  { "comparedTo": "2024-06-06", "absolute": "-41.300000", "percent": "-3.33", "direction": "down", "split": null },
+      "closeChange": { "comparedTo": "2024-06-06", "absolute": "-1.170000", "percent": "-0.10", "direction": "down", "split": null } },
     { "date": "2024-01-02", "kind": "buy", "openPrice": "492.440000", "closePrice": "481.680000", "…": "…", "openChange": null, "closeChange": null }
   ]
 }
@@ -454,7 +454,7 @@ A8과 같은 꼴이다(`sessionDate` 대신 `decisionDate`). 출처가 실패해
 
 ```json
 { "date": "2024-03-02", "kind": "period", "openPrice": "62431.652344", "…": "007 그대로",
-  "openChange": { "comparedTo": "2024-03-01", "absolute": "1263.589844", "percent": "2.07", "direction": "up", "splitRatio": null } }
+  "openChange": { "comparedTo": "2024-03-01", "absolute": "1263.589844", "percent": "2.07", "direction": "up", "split": null } }
 { "date": "2024-02-27", "dateTo": "2024-02-28", "kind": "missing" }
 ```
 
@@ -462,8 +462,9 @@ A8과 같은 꼴이다(`sessionDate` 대신 `decisionDate`). 출처가 실패해
 - 비교 대상 = **직전 기간의 대표값**(data-model 19.2) — 일 = 직전 시세일(가상자산 출처 결측 구간은 건너뜀), 주·월 = 직전 주·달의 대표 행. 기간 사이의 사건 행(`buy`·`dividend`·`reinvest`·
   `contribution`)도 그 행이 속한 기간의 직전 기간 대표값이다. 같은 날 행은 같은 값. 계산 기간의 첫 기간은 `null`. 쪽의 마지막 행도 쪽 너머의 비교 행과 견준다(`comparedTo`가 다음 쪽 행의 날짜일 수 있다)
 - `absolute` = 그 행 가격 − 비교 가격(분할을 맞췄으면 맞춘 값 — 소수 6자리 `ROUND_HALF_UP`), `percent` = `absolute` ÷ 비교 가격 × 100(소수 둘째 자리 — `/api/fx/daily`·`/api/fx/latest`와 같은 함수).
-  비교 가격이 0 이하면 `percent`만 `null`. `direction`은 `up`·`down`·`flat`
-- `splitRatio` = 효력일 ∈ (비교 날짜, 행 날짜]인 분할·병합의 누적 비율(`"분자:분모"` — 비교 블록 `unitPrice.split.ratio`와 같은 글자). 없거나 1:1이면 `null`. 배당은 맞추지 않는다
+  어느 쪽 가격이든 0 이하면 그 키가 `null`이다(출처가 비운 값 — T226 실측 삼성전자 2026-10-06 시가 0, 외환 A9의 "`percent`만 `null`"과 다르다). `direction`은 `up`·`down`·`flat`
+- `split` = 효력일 ∈ (비교 날짜, 행 날짜]인 분할·병합의 누적 비율 `{"ratio": "분자:분모"}`(비교 블록 `unitPrice.split`과 같은 꼴·같은 글자). 없거나 1:1이면 `null`. 배당은 맞추지 않는다.
+  시세 출처 응답의 분할 필드 이름은 쓰지 않는다 — 005 가드(`test_layer_boundaries`, 원칙 II)가 어댑터 밖의 그 이름을 막는다(구현 중 고침 — 명확화 2026-10-13 끝 줄)
 - 저장하지 않는다(요청마다 계산 — data-model §19)
 
 ## A6. 불변

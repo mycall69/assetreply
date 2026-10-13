@@ -76,7 +76,7 @@
   - 화면: 비교 화면을 열 때마다 설정을 읽고(실패면 20 + 알림), 요청 3·진행 구독 2·확대 구간 요청 3으로 대상 차례(순수 `lib/concurrency` — R14-36), 수익률 추이는 선 모양 짝 20·대상 11개 이상의
     커서 상자 가까운 10개(커서 움직임에서만 `priceToCoordinate` — R14-37)
 - **반복 2026-10-13b — 주식·가상자산 투자 성과표의 등락폭·등락률**(spec Iterations, T221~T229 — FR-026 예외, 사용자 요청)
-  - 서버: 메뉴 시뮬레이션 경로 넷의 표 행에 주식 `openChange`·`closeChange`, 가상자산 `openChange`(A20 — 외환 `change` 꼴 + `splitRatio`). `table_rows.table_page`가 쪽을 자르기 전의 전체
+  - 서버: 메뉴 시뮬레이션 경로 넷의 표 행에 주식 `openChange`·`closeChange`, 가상자산 `openChange`(A20 — 외환 `change` 꼴 + `split`). `table_rows.table_page`가 쪽을 자르기 전의 전체
     항목에서 행마다 **직전 기간의 대표일**(순수 — `simulation/period_table`)을 찾고, 새 순수 모듈 `simulation/price_change`가 분할을 맞춘 뒤 외환과 같은 `fx_change.rate_change`를 부른다(DM19,
     R14-38). 쪽 경계에 추가 질의 없음, 계산은 잘라 낸 쪽의 행만
   - 화면: 네 표 부품(`PerformanceTable`·`RecurringStockTable`·`CryptoPerformanceTable`·`RecurringCryptoTable`)의 가격 열마다 바로 오른쪽 두 칸(새 `components/period/PriceChangeCells` — 기호·색은
@@ -163,7 +163,7 @@
 | 반복 2026-10-11c — 확대 구간 일 단위·단추 자리 예외(FR-026) | ✅(예외 기록) | 시계열 경로 여덟의 선택 질의 둘(질의 없으면 응답 불변 — 013 대조·`014-baseline`), 구간 점은 이미 낸 날마다 상태에서 고른다(원칙 VI·IV — 새 계산 없음), 결측은 구간에서 다시 판정(원칙 V). 화면은 받은 글자 그대로. 새 차트 API는 누를 때만(`priceScale().width()` 포함). 테스트 먼저(T192~T194), 014 테스트 변경은 T195 승인 |
 | 반복 2026-10-11d — 대시보드 기준금리 | ✅ 승인됨(T202·T206) | 원칙 II 새 경로(네이버 기준금리 내부 API)는 T202 실측 뒤 사용자 승인 2026-10-11. 새 칸·새 경로 넷·새 테이블 셋·새 워커뿐이라 지표·뉴스·외환·메뉴 응답은 그대로(`014-baseline` 대조 — T211). 새 워커는 테스트의 lifespan에서도 돌지만 바깥 연결은 `conftest`가 막는다(지표 워커와 같다). 014가 만든 대시보드 화면 테스트의 요청 모의가 바뀔 수 있다 — T206에서 실제 실패 목록으로 승인(결과: 화면 0, lifespan 태스크 수 단언 셋 9 → 10 — 014가 이미 고친 줄, 첫 거래일 리비전 "머리" 하나). 새 차트(`RateChart`)는 새 부품이라 기존 모의를 건드리지 않는다 |
 | 반복 2026-10-13 — 투자 비교의 대상 수 설정 예외(FR-026) | ✅ 승인됨(T215 — 실제 실패 다섯 단언 = 예상, 바뀐 기존 파일 30 → 32) | I: 설정 읽기·저장은 비동기 세션(aiomysql) — 요청 경로에 동기 I/O 없음. III: T213·T214를 먼저 쓰고 T215에서 실패를 확인한 뒤 구현한다. 013 FR-004의 끝(10)을 박은 기존 테스트(`test_comparison_conditions.py`·`compareStore.test.ts`·`ComparePage.test.tsx`)와 014의 head 단언(`test_policy_rate_worker.py`)은 구현 뒤 실제 실패 목록으로 승인받는다. IV: 규칙 상수는 서비스 한 곳(`comparison_conditions`·`comparison_settings`), 저장소는 읽기·upsert만, 차례 한도는 순수 모듈(`lib/concurrency`), 화면은 서버의 범위 값을 쓴다. V·VI: 해당 없음(시계열·금액이 아니다 — 대상 수는 정수). VII: 진행 구독은 차례를 기다릴 뿐 진행 표시는 그대로. II: 새 출처 없음. 새 차트 API(`priceToCoordinate`)는 커서 움직임에서만(CLAUDE.md 010). 비교 경로 일곱의 응답·계산 불변(`014-baseline` 대조 — T219). 새 테이블은 마이그레이션으로만(개발 DB `alembic upgrade head`) |
-| 반복 2026-10-13b — 주식·가상자산 표 등락 예외(FR-026) | ⏳(T223에서 승인) | I: 요청 경로의 새 I/O 없음(이미 계산한 결과에서 고른다). III: T221·T222를 먼저 쓰고 T223에서 실패를 확인한 뒤 구현한다. 머리글 차례를 박은 기존 화면 테스트 다섯(예상)은 구현 뒤 실제 실패 목록으로 승인받는다. IV: 비교 날짜(`simulation/period_table`)와 분할 맞춤·등락(`simulation/price_change` — `fx_change` 재사용)은 순수 함수, `table_rows`는 조립만, 화면은 서버 글자에 형식만. V: 결측 구간을 메우지 않고 건너뛰고 첫 기간은 `null`("—"). VI: `Decimal`만 — 외환 표와 같은 함수·같은 반올림. II: 새 출처 없음. 010 차트 모의 규칙: 차트를 고치지 않는다. 메뉴 경로 넷은 행 키만 더해지고 비교·시계열 경로는 그대로(`014-baseline` 대조 — T227) |
+| 반복 2026-10-13b — 주식·가상자산 표 등락 예외(FR-026) | ✅ 승인됨(T223 — 실제 실패 = 예상 다섯 파일 12단언, 바뀐 기존 파일 32 → 37. 005 가드가 잡은 새 키 이름은 구현을 고침) | I: 요청 경로의 새 I/O 없음(이미 계산한 결과에서 고른다). III: T221·T222를 먼저 쓰고 T223에서 실패를 확인한 뒤 구현한다. 머리글 차례를 박은 기존 화면 테스트 다섯(예상)은 구현 뒤 실제 실패 목록으로 승인받는다. IV: 비교 날짜(`simulation/period_table`)와 분할 맞춤·등락(`simulation/price_change` — `fx_change` 재사용)은 순수 함수, `table_rows`는 조립만, 화면은 서버 글자에 형식만. V: 결측 구간을 메우지 않고 건너뛰고 첫 기간은 `null`("—"). VI: `Decimal`만 — 외환 표와 같은 함수·같은 반올림. II: 새 출처 없음. 010 차트 모의 규칙: 차트를 고치지 않는다. 메뉴 경로 넷은 행 키만 더해지고 비교·시계열 경로는 그대로(`014-baseline` 대조 — T227) |
 | 반복 2026-10-10f — 상장일 예외(FR-026) | ✅(예외 기록) | 005·006(주식 검색 응답 둘의 `firstTradedOn`·종목 등록 안의 첫 거래일 받기·주식 수집의 저장), 007(코인 검색 결과 줄), 013(비교 표 열·비교 블록 `listing`)이 바뀐다. 메뉴 시뮬레이션 응답·시작일 판정·등록 응답은 같다(`014-baseline` 대조 — T165). 등록 경로의 외부 호출은 실패 허용·관문·lifespan 클라이언트만. 014 전 테스트 변경은 T161 승인 |
 
 ## Project Structure
@@ -495,7 +495,7 @@ backend/src/
 ├── api/services/table_rows.py                       (변경 — TableRow에 등락, table_page의 선택 인자(날짜별 가격·분할) — 없으면 지금 그대로, 쪽 너머 비교)
 ├── api/services/stock_simulation.py · stock_recurring.py   (변경 — 날짜별 시작가·종가, 분할 넘김)
 ├── api/services/crypto_simulation.py · crypto_recurring.py (변경 — 날짜별 시가)
-└── api/routes/stock_simulation.py · stock_recurring.py · crypto_simulation.py · crypto_recurring.py   (변경 — row_json에 openChange·closeChange)
+└── api/routes/stock_simulation.py · stock_recurring.py · crypto_simulation.py · crypto_recurring.py   (변경 없음 — 키는 table_rows.row_body가 싣는다. 네 라우트가 이미 그 함수로 행을 만든다)
 frontend/src/
 ├── lib/types.ts                                     (변경 — PriceChange, 네 행 형에 선택 키)
 ├── lib/changeStyle.ts                               (신규 — 기호·색 상수(외환 DailyTable에서 옮김))

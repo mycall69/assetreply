@@ -531,12 +531,12 @@ R14-7 표가 상수다. 함수는 둘이다:
 
 | 칸 | 꼴 | 뜻 |
 |----|-----|-----|
-| `…Change` | 객체 \| `null` | 직전 기간 대표값 대비(19.2). 비교 대상이 없으면(계산 기간의 첫 기간·그 가격이 없는 행) `null`. **키는 늘 있다**(결측 구간 행 제외) |
+| `…Change` | 객체 \| `null` | 직전 기간 대표값 대비(19.2). 비교 대상이 없으면(계산 기간의 첫 기간·그 가격이 없는 행) `null`, 두 가격 가운데 하나라도 0 이하면 `null`(출처가 비운 값 — T226 실측). **키는 늘 있다**(결측 구간 행 제외) |
 | `….comparedTo` | 날짜 `YYYY-MM-DD` | 비교한 대표 행의 날짜 — 표에 보이는 그 행의 날짜다 |
 | `….absolute` | `Decimal` 문자열 | 그 행 가격 − 비교 가격(분할을 맞췄으면 맞춘 값). 반올림하지 않는다 |
-| `….percent` | `Decimal` 문자열 \| `null` | `absolute` ÷ 비교 가격 × 100, 소수 둘째 자리(`ROUND_HALF_EVEN` — 외환 표와 같은 `rate_change`). 비교 가격이 0 이하면 `null` |
+| `….percent` | `Decimal` 문자열 | `absolute` ÷ 비교 가격 × 100, 소수 둘째 자리(`ROUND_HALF_EVEN` — 외환 표와 같은 `rate_change`). 0 이하 가격이면 등락 전체가 `null`이라 이 칸은 늘 값이 있다(형은 외환과 같게 `null` 허용) |
 | `….direction` | `"up"` · `"down"` · `"flat"` | `absolute`의 부호 |
-| `….splitRatio` | `"10:1"` \| `null` | 비교 가격을 맞춘 분할·병합의 누적 비율(분자:분모 — 010 `unit_price.split_ratio`와 같은 글자). 맞추지 않았으면 `null`. 가상자산은 늘 `null` |
+| `….split` | `{"ratio": "10:1"}` \| `null` | 비교 가격을 맞춘 분할·병합의 누적 비율(분자:분모 — 010 `unit_price.split_ratio`와 같은 글자, 013 비교 블록 `unitPrice.split`과 같은 꼴). 맞추지 않았으면 `null`. 가상자산은 늘 `null` |
 
 - 결측 구간 행(`kind: "missing"` — 012)에는 키가 없다(`date`·`dateTo`·`kind` 그대로)
 - 다른 키·차례·쪽(`hasMore`·`oldestReturned`)·202·요약·조건·시계열은 그대로다
@@ -560,10 +560,10 @@ R14-7 표가 상수다. 함수는 둘이다:
 
 ### 19.4 화면 (형식만)
 
-- 형: `PriceChange`(`comparedTo`·`absolute`·`percent: string | null`·`direction`·`splitRatio: string | null`). 네 행 형에 선택 키(`openChange?`·주식은 `closeChange?` — `PriceChange | null`) — 014 전 테스트
+- 형: `PriceChange`(`comparedTo`·`absolute`·`percent: string | null`·`direction`·`split: { ratio: string } | null`). 네 행 형에 선택 키(`openChange?`·주식은 `closeChange?` — `PriceChange | null`) — 014 전 테스트
   픽스처에 없어도 된다(없으면 "—")
 - 기호·색 상수 `lib/changeStyle.ts`(`TONE`·`ARROW` — 외환 `DailyTable`이 쓰던 값을 옮김), 칸 부품 `components/period/PriceChangeCells.tsx`(두 칸 — 형식 함수를 받는다: 주식 `formatRate`, 가상자산
   `formatPrice`)
-- 칸 `title` = "{comparedTo} 대비". 분할을 맞춘 칸은 등락폭 뒤에 ✂ 표시 — `role="img"`·`aria-label`·`title` "{splitRatio} 분할 반영 — 직전 값을 분할 비율로 맞춰 견줬습니다"(기호만으로 전하지
+- 칸 `title` = "{comparedTo} 대비". 분할을 맞춘 칸은 등락폭 뒤에 ✂ 표시 — `role="img"`·`aria-label`·`title` "{split.ratio} 분할 반영 — 직전 값을 분할 비율로 맞춰 견줬습니다"(기호만으로 전하지
   않는다 — 006 FR-041c의 📅와 같은 꼴). 글자는 contracts D20
 - 날짜 칸 고정: 네 표의 첫 칸(머리·몸)은 `sticky left-0` + 불투명 배경(행 배경과 같은 색 — 배당락·재투자 행 포함, 블랙 배경은 `.dark` 색 변수)

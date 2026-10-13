@@ -1161,17 +1161,17 @@ description: "Task list for 014-market-dashboard"
 
 ### Tests for 반복 2026-10-13b ⚠️
 
-- [ ] T221 [P] [US14] 백엔드 테스트 — 최초 실패 확인 (FR-048, SC-029)
+- [X] T221 [P] [US14] 백엔드 테스트 — 최초 실패 확인 (FR-048, SC-029)
   - 새 `backend/tests/unit/test_price_change.py` — 오름·내림·같음(`direction`), 등락폭 저장 정밀도, 등락률 소수 둘째 자리(외환 `rate_change`와 같은 글자), 직전 없음 → `None`, 직전 0 이하 → 비율
-    `None`, 분할 10:1·병합 1:10·3:2(소수 6자리 `ROUND_HALF_UP`)·사이에 분할 둘(누적 비율 글자), 효력일이 비교 날짜 당일(맞추지 않음)·행 날짜 당일(맞춤)의 경계, 가상자산(분할 없음 → `splitRatio`
+    `None`, 분할 10:1·병합 1:10·3:2(소수 6자리 `ROUND_HALF_UP`)·사이에 분할 둘(누적 비율 글자), 효력일이 비교 날짜 당일(맞추지 않음)·행 날짜 당일(맞춤)의 경계, 가상자산(분할 없음 → 비율
     `None`)
   - 새 `backend/tests/unit/test_period_previous.py` — 일 = 직전 시세일(결측 날 건너뜀), 주 = 직전 주 대표일(금요일 이하 마지막 시세일 — 토·일만 있는 주는 그 주의 마지막 시세일), 월 = 직전 달 대표일,
     사이에 낀 사건 날(대표일이 아닌 날)도 직전 기간, 첫 기간 → `None`, 시세일이 없는 기간을 건너뜀, 진행 중 기간
   - 새 `backend/tests/integration/test_table_change_api.py` — 경로 넷(`/api/stocks/simulation`·`/api/stocks/recurring-simulation`·`/api/crypto/simulation`·`/api/crypto/recurring-simulation`):
     주식 일시금 일 — 두 키 = 이웃 시세일 차·비율, 쪽 경계(`before`로 다음 쪽 — 경계 행의 `comparedTo` = 다음 쪽 첫 행 날짜), 첫 행(첫 매수) `null`; 월 — 배당락·재투자 행이 낀 달의 행 모두
-    `comparedTo` = 직전 달 대표 행; 분할 날 `splitRatio`·맞춘 값; 주식 적립식 월 — 납입 행·달 끝 행 모두 직전 달 대표 행; 가상자산 일시금 일 — `openChange`만(`closeChange` 키 없음), 결측 구간
+    `comparedTo` = 직전 달 대표 행; 분할 날 `split`(`ratio`)·맞춘 값; 주식 적립식 월 — 납입 행·달 끝 행 모두 직전 달 대표 행; 가상자산 일시금 일 — `openChange`만(`closeChange` 키 없음), 결측 구간
     바로 위 행 = 결측 앞 시세일, 결측 행에 키 없음; 가상자산 적립식; 행의 다른 키 집합 = 이 반복 전 + 새 키, 요약·`hasMore`·`oldestReturned` 그대로. 임포트는 구현 뒤 기준(`src.*` 묶음)으로 정렬
-- [ ] T222 [P] [US14] 화면 테스트 — 최초 실패 확인 (FR-047, SC-029, SC-030)
+- [X] T222 [P] [US14] 화면 테스트 — 최초 실패 확인 (FR-047, SC-029, SC-030)
   - 새 `frontend/tests/PerformanceTableChange.test.tsx` — 주식 일시금·적립식: 머리 차례 `시작가·등락폭·등락률·종가·등락폭·등락률`(앞뒤 다른 열 그대로), 화면 읽기 이름 "시작가 등락폭"·
     "종가 등락률", 해외 통화 줄(등락폭만), ▲·빨강/▼·파랑/0·회색, 등락폭 `formatRate`·크기만, 등락률 부호·%, `null`·키 없음 → 두 칸 "—", 비율만 `null` → 등락률만 "—", `title` "… 대비",
     ✂(`role="img"`·`aria-label`·`title`), 날짜 칸 고정(`sticky`)과 불투명 배경
@@ -1180,29 +1180,30 @@ description: "Task list for 014-market-dashboard"
 
 ### Implementation for 반복 2026-10-13b
 
-- [ ] T223 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(예상: `frontend/tests/PerformanceTableClose.test.tsx`의 "시작가 바로 뒤" 둘 → 시작가 묶음 바로 뒤,
+- [X] T223 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(예상: `frontend/tests/PerformanceTableClose.test.tsx`의 "시작가 바로 뒤" 둘 → 시작가 묶음 바로 뒤,
   `frontend/tests/PerformanceTableCurrency.test.tsx`의 머리 목록 둘, `frontend/tests/RecurringStockTable.test.tsx`·`frontend/tests/RecurringCryptoTable.test.tsx`·
   `frontend/tests/CryptoPerformanceTable.test.tsx`의 머리 목록 — 백엔드 0)을 `014 승인 2026-10-13(반복 2026-10-13b T223)`으로 승인하고, `git stash push -u -- backend/src frontend/src`로 구현을
   치워 새 테스트의 실패를 확인한 뒤 `test(014)`. 예상 밖 기존 테스트가 실패하면 결함으로 보고 멈춘다 (FR-026)
-- [ ] T224 [US14] 백엔드 — 새 `backend/src/simulation/price_change.py`(순수 — 분할 맞춤 + `fx_change.rate_change`, 비율 글자), `backend/src/simulation/period_table.py`(직전 기간의 대표일 — 순수 함수
+- [X] T224 [US14] 백엔드 — 새 `backend/src/simulation/price_change.py`(순수 — 분할 맞춤 + `fx_change.rate_change`, 비율 글자), `backend/src/simulation/period_table.py`(직전 기간의 대표일 — 순수 함수
   하나), `backend/src/api/services/table_rows.py`(`TableRow`에 등락, `table_page`의 선택 인자 — 날짜별 가격·분할, 없으면 지금 그대로, 쪽을 자르기 전 항목에서 비교 날짜), 서비스 넷
   `backend/src/api/services/stock_simulation.py`·`stock_recurring.py`(날짜별 `open_price`·`close_price`, 분할)·`crypto_simulation.py`·`crypto_recurring.py`(날짜별 `open_price`), 라우트 넷
-  `backend/src/api/routes/stock_simulation.py`·`stock_recurring.py`·`crypto_simulation.py`·`crypto_recurring.py`(`row_json` — `openChange`·`closeChange`, 결측 행 제외) — DM19, contracts A20 (FR-048)
-- [ ] T225 [US14] 화면 — `frontend/src/lib/types.ts`(`PriceChange`, 네 행 형의 선택 키), 새 `frontend/src/lib/changeStyle.ts`(기호·색 — `DailyTable`에서 옮김), 새
+  `backend/src/api/routes/stock_simulation.py`·`stock_recurring.py`·`crypto_simulation.py`·`crypto_recurring.py`(`row_json` — `openChange`·`closeChange`, 결측 행 제외) — DM19, contracts A20 (FR-048).
+  **결과**: 라우트는 고치지 않았다 — 키는 네 라우트가 이미 부르는 `table_rows.row_body`가 싣는다. 분할 비율 키는 `split: {ratio}`(define의 `splitRatio`는 005 가드에 걸려 고침 — T223 전체 스위트)
+- [X] T225 [US14] 화면 — `frontend/src/lib/types.ts`(`PriceChange`, 네 행 형의 선택 키), 새 `frontend/src/lib/changeStyle.ts`(기호·색 — `DailyTable`에서 옮김), 새
   `frontend/src/components/period/PriceChangeCells.tsx`, `frontend/src/components/fx/DailyTable.tsx`(상수 가져오기만 — 출력 불변), `frontend/src/components/stock/PerformanceTable.tsx`·
   `frontend/src/components/recurring/RecurringStockTable.tsx`·`frontend/src/components/crypto/CryptoPerformanceTable.tsx`·`frontend/src/components/recurring/RecurringCryptoTable.tsx`(열·통화 줄·화면 읽기
   이름·날짜 칸 고정·결측 행 `colSpan`·머리 주석의 열 수) — contracts D20 (FR-047)
 
 ### Polish (반복 2026-10-13b)
 
-- [ ] T226 [US14] 실측 — quickstart 5-29(주식 삼성전자·해외(VOO·SOXL) 일시금·적립식 일·주·월의 열 차례·값 = 직전 대표 행의 차·비율, 더 받기 경계, 분할 종목(NVDA 2024-06-10 10:1·TQQQ·SOXL)의
+- [X] T226 [US14] 실측 — quickstart 5-29(주식 삼성전자·해외(VOO·SOXL) 일시금·적립식 일·주·월의 열 차례·값 = 직전 대표 행의 차·비율, 더 받기 경계, 분할 종목(NVDA 2024-06-10 10:1·TQQQ·SOXL)의
   분할 날, 배당락일, 가상자산 비트코인 일시금·적립식·결측 구간이 있는 코인, 투자 비교 모달 넷, 1440px 폭(가상자산 가로 스크롤 없음·주식 표를 밀어도 날짜 보임·페이지 넘침 없음)과 1024px,
   블랙 배경 대비)을 헤드리스 Chrome으로 확인하고 `quickstart.md` 8에 기록한다(개발 서버 — 이력 다시 실행, 개발 DB를 바꾸지 않음) (FR-047, FR-048, SC-029, SC-030)
-- [ ] T227 불변 대조 — `014-baseline/fetch.py`(메뉴 `*.head.json`은 행에 `openChange`·`closeChange`만 더해지고 나머지 차이 0, 비교 블록·시계열·외환 차이 0)와 외환 일자별 표 화면 그대로
+- [X] T227 불변 대조 — `014-baseline/fetch.py`(메뉴 `*.head.json`은 행에 `openChange`·`closeChange`만 더해지고 나머지 차이 0, 비교 블록·시계열·외환 차이 0)와 외환 일자별 표 화면 그대로
   (FR-026, SC-010, SC-029)
-- [ ] T228 문서 — `docs/implementation-notes.md` §5(투자 성과표의 등락 — 서버 계산·직전 기간 대표값·분할 맞춤·날짜 칸 고정·주식 표 1440px 예외), `CLAUDE.md`(014 줄·§5 색인 한 마디 — 200줄
+- [X] T228 문서 — `docs/implementation-notes.md` §5(투자 성과표의 등락 — 서버 계산·직전 기간 대표값·분할 맞춤·날짜 칸 고정·주식 표 1440px 예외), `CLAUDE.md`(014 줄·§5 색인 한 마디 — 200줄
   이하 유지), `README.md`(주식·가상자산 표 설명), `spec.md` Status (FR-047, FR-048)
-- [ ] T229 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, mypy·ruff·tsc·eslint, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177·T185·T195·T206·T215·**T223**)뿐인지
+- [X] T229 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, mypy·ruff·tsc·eslint, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177·T185·T195·T206·T215·**T223**)뿐인지
   `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests`(32 → 승인한 수) (SC-010)
 
 ---
