@@ -516,3 +516,54 @@ R14-7 표가 상수다. 함수는 둘이다:
 
 - `compareStore`: `limit`(설정 값 — 처음은 기본 20), `limitStatus`(`loading`·`ready`·`error`), `loadLimit()`(비교 화면을 열 때마다). 더하기 한도는 `maxTargets(asset, limit)`(예금은 min(5, limit))
 - 실행의 차례 한도는 상수다(`lib/concurrency`) — 비교 요청 3·진행 구독 2·확대 구간 요청 3. 설정이 아니다(R14-36)
+
+## 19. 투자 성과표 행의 등락 (반복 2026-10-13b — FR-047·FR-048, 저장하지 않음)
+
+스키마 변경 없음. 메뉴 시뮬레이션 경로 넷(`/api/stocks/simulation`·`/api/stocks/recurring-simulation`·`/api/crypto/simulation`·`/api/crypto/recurring-simulation`)의 표 행에 더해지는 칸이다.
+요청마다 계산하고 저장하지 않는다. 투자 비교 모달은 같은 경로를 부른다.
+
+### 19.1 행 키
+
+| 표 | 키 | 가격 |
+|----|----|------|
+| 주식 일시금·적립식 | `openChange` · `closeChange` | `openPrice`(시작가)·`closePrice`(종가) — 원주가 |
+| 가상자산 일시금·적립식 | `openChange` | `openPrice`(시가) |
+
+| 칸 | 꼴 | 뜻 |
+|----|-----|-----|
+| `…Change` | 객체 \| `null` | 직전 기간 대표값 대비(19.2). 비교 대상이 없으면(계산 기간의 첫 기간·그 가격이 없는 행) `null`. **키는 늘 있다**(결측 구간 행 제외) |
+| `….comparedTo` | 날짜 `YYYY-MM-DD` | 비교한 대표 행의 날짜 — 표에 보이는 그 행의 날짜다 |
+| `….absolute` | `Decimal` 문자열 | 그 행 가격 − 비교 가격(분할을 맞췄으면 맞춘 값). 반올림하지 않는다 |
+| `….percent` | `Decimal` 문자열 \| `null` | `absolute` ÷ 비교 가격 × 100, 소수 둘째 자리(`ROUND_HALF_EVEN` — 외환 표와 같은 `rate_change`). 비교 가격이 0 이하면 `null` |
+| `….direction` | `"up"` · `"down"` · `"flat"` | `absolute`의 부호 |
+| `….splitRatio` | `"10:1"` \| `null` | 비교 가격을 맞춘 분할·병합의 누적 비율(분자:분모 — 010 `unit_price.split_ratio`와 같은 글자). 맞추지 않았으면 `null`. 가상자산은 늘 `null` |
+
+- 결측 구간 행(`kind: "missing"` — 012)에는 키가 없다(`date`·`dateTo`·`kind` 그대로)
+- 다른 키·차례·쪽(`hasMore`·`oldestReturned`)·202·요약·조건·시계열은 그대로다
+
+### 19.2 비교 날짜 — 직전 기간의 대표일
+
+- 행 날짜 `d`가 속한 기간(012 `period_bounds(d, unit)` — 일은 그날, 주는 월~일, 월은 1일~말일)의 **바로 앞 기간들 가운데 시세일이 있는 가장 가까운 기간**의 대표일이다. 대표일은 012 규칙
+  그대로(주 = 그 주 ∩ 계산 기간의 금요일 이하 마지막 시세일, 없으면 그 주의 마지막 시세일 / 월 = 그 달 ∩ 계산 기간의 마지막 시세일 / 일 = 그날)
+- 계산 기간 안(첫 매수일 ~ 계산 끝)만 본다 — 없으면 `null`(첫 기간)
+- 일 단위는 직전 시세일이다 — 가상자산 출처 결측 구간(시세일이 없는 날)은 건너뛴다
+- 같은 날짜의 행(사건 묶음)은 같은 비교 날짜·같은 값이다. 기간 사이에 낀 사건 행도 이 규칙이다(그 행이 속한 기간의 직전 기간)
+- 순수 함수 하나(`simulation/period_table`)가 시세일 목록·단위·계산 끝으로 날짜 → 비교 날짜를 정한다. `table_rows.table_page`는 **쪽을 자르기 전의 전체 항목**에서 찾으므로 쪽의 마지막 행도
+  쪽 너머의 비교 행을 얻는다(추가 질의 없음). 계산은 잘라 낸 쪽의 행(≤ `limit` 200)만이다(R12-7)
+
+### 19.3 가격과 분할 맞춤
+
+- 가격은 그 날짜의 하루 상태(`day_state` — 같은 날 행은 같은 가격)다. 주식 `open_price`·`close_price`(원주가), 가상자산 `open_price`(출처 원값 — 소수 14자리)
+- 주식: 효력일이 (비교 날짜, 행 날짜]인 분할·병합이 있으면 비교 가격 × ∏(분모 / 분자) — 소수 6자리 `ROUND_HALF_UP`(010 `split_adjust.PRICE_QUANTUM`과 같다). 효력일이 비교 날짜 당일이면 비교 가격이 이미
+  분할 뒤라 맞추지 않는다. 배당은 맞추지 않는다
+- 계산 — 새 순수 모듈 `simulation/price_change.py`: 분할 맞춤 뒤 `fx_change.rate_change(current, Quote(compared_to, adjusted))`를 부르고 비율을 붙인다
+
+### 19.4 화면 (형식만)
+
+- 형: `PriceChange`(`comparedTo`·`absolute`·`percent: string | null`·`direction`·`splitRatio: string | null`). 네 행 형에 선택 키(`openChange?`·주식은 `closeChange?` — `PriceChange | null`) — 014 전 테스트
+  픽스처에 없어도 된다(없으면 "—")
+- 기호·색 상수 `lib/changeStyle.ts`(`TONE`·`ARROW` — 외환 `DailyTable`이 쓰던 값을 옮김), 칸 부품 `components/period/PriceChangeCells.tsx`(두 칸 — 형식 함수를 받는다: 주식 `formatRate`, 가상자산
+  `formatPrice`)
+- 칸 `title` = "{comparedTo} 대비". 분할을 맞춘 칸은 등락폭 뒤에 ✂ 표시 — `role="img"`·`aria-label`·`title` "{splitRatio} 분할 반영 — 직전 값을 분할 비율로 맞춰 견줬습니다"(기호만으로 전하지
+  않는다 — 006 FR-041c의 📅와 같은 꼴). 글자는 contracts D20
+- 날짜 칸 고정: 네 표의 첫 칸(머리·몸)은 `sticky left-0` + 불투명 배경(행 배경과 같은 색 — 배당락·재투자 행 포함, 블랙 배경은 `.dark` 색 변수)

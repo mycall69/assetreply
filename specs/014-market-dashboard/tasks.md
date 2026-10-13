@@ -1142,6 +1142,71 @@ description: "Task list for 014-market-dashboard"
 
 ---
 
+## Phase 19: 반복 2026-10-13b — 주식·가상자산 투자 성과표의 등락폭·등락률 (US14 — Priority P14, spec Iterations — 사용자 요청)
+
+**Goal**:
+- 주식·가상자산 메뉴의 일시금·적립식 네 표와 투자 비교 투자 시뮬레이션 모달(같은 부품·같은 경로)에서 가격 열마다 바로 오른쪽에 **등락폭·등락률** — 주식은 시작가·종가 각각(네 열),
+  가상자산은 시가(두 열)(US14 — FR-047)
+- 비교 대상은 **직전 기간의 대표값**(일 = 직전 시세일·결측 건너뜀, 주·월 = 직전 대표 행, 사건 행도 같은 기준, 첫 기간 "—"). 서버가 `Decimal`로 계산해 행에 싣고(외환과 같은 `rate_change`) 분할·
+  병합은 비교 가격을 맞춘다(FR-048)
+- 가상자산 두 표는 1440px 가로 스크롤 없음 유지, 주식 두 표는 표 안 가로 스크롤 예외 — 네 표 모두 날짜 칸 고정(FR-047)
+
+**Independent Test**(spec US14):
+- 삼성전자 일시금 표의 시작가·종가 바로 뒤에 두 열씩, 값 = 직전 시세일 행의 같은 가격과의 차·비율. 월로 바꾸면 직전 달 대표 행 대비, 쪽 경계 행에 값이 있다
+- NVDA 2024-06-10(10:1) 분할 날이 −90%가 아니고 ✂로 밝혀진다. 비트코인 표는 시가 뒤 두 열. 투자 비교 모달 넷도 같다. 1440px에서 가상자산 표는 가로 스크롤 없음, 주식 표는 밀어도 날짜가 보인다
+
+**완료 작업 영향**: 새 열·새 행 키를 더할 뿐이다. 앞 기능 요구의 예외 셋 — 010 FR-028(종가는 시작가 바로 뒤 → 종가 묶음은 시작가 묶음 바로 뒤), 006 FR-069·010 SC-004·011 SC-010(1440px —
+주식 두 표만), 014 T146 `DailyTable.tsx`(상수만 옮김 — 출력 불변). 손대는 완료 산출물은 `table_rows.py`·서비스 넷·라우트 넷(012)·네 표 부품(005·007·010·011·012)·`DailyTable.tsx`(T146)다.
+머리글 차례를 박은 기존 화면 테스트 다섯(예상)은 T223에서 실제 실패 목록으로 승인한다
+
+### Tests for 반복 2026-10-13b ⚠️
+
+- [ ] T221 [P] [US14] 백엔드 테스트 — 최초 실패 확인 (FR-048, SC-029)
+  - 새 `backend/tests/unit/test_price_change.py` — 오름·내림·같음(`direction`), 등락폭 저장 정밀도, 등락률 소수 둘째 자리(외환 `rate_change`와 같은 글자), 직전 없음 → `None`, 직전 0 이하 → 비율
+    `None`, 분할 10:1·병합 1:10·3:2(소수 6자리 `ROUND_HALF_UP`)·사이에 분할 둘(누적 비율 글자), 효력일이 비교 날짜 당일(맞추지 않음)·행 날짜 당일(맞춤)의 경계, 가상자산(분할 없음 → `splitRatio`
+    `None`)
+  - 새 `backend/tests/unit/test_period_previous.py` — 일 = 직전 시세일(결측 날 건너뜀), 주 = 직전 주 대표일(금요일 이하 마지막 시세일 — 토·일만 있는 주는 그 주의 마지막 시세일), 월 = 직전 달 대표일,
+    사이에 낀 사건 날(대표일이 아닌 날)도 직전 기간, 첫 기간 → `None`, 시세일이 없는 기간을 건너뜀, 진행 중 기간
+  - 새 `backend/tests/integration/test_table_change_api.py` — 경로 넷(`/api/stocks/simulation`·`/api/stocks/recurring-simulation`·`/api/crypto/simulation`·`/api/crypto/recurring-simulation`):
+    주식 일시금 일 — 두 키 = 이웃 시세일 차·비율, 쪽 경계(`before`로 다음 쪽 — 경계 행의 `comparedTo` = 다음 쪽 첫 행 날짜), 첫 행(첫 매수) `null`; 월 — 배당락·재투자 행이 낀 달의 행 모두
+    `comparedTo` = 직전 달 대표 행; 분할 날 `splitRatio`·맞춘 값; 주식 적립식 월 — 납입 행·달 끝 행 모두 직전 달 대표 행; 가상자산 일시금 일 — `openChange`만(`closeChange` 키 없음), 결측 구간
+    바로 위 행 = 결측 앞 시세일, 결측 행에 키 없음; 가상자산 적립식; 행의 다른 키 집합 = 이 반복 전 + 새 키, 요약·`hasMore`·`oldestReturned` 그대로. 임포트는 구현 뒤 기준(`src.*` 묶음)으로 정렬
+- [ ] T222 [P] [US14] 화면 테스트 — 최초 실패 확인 (FR-047, SC-029, SC-030)
+  - 새 `frontend/tests/PerformanceTableChange.test.tsx` — 주식 일시금·적립식: 머리 차례 `시작가·등락폭·등락률·종가·등락폭·등락률`(앞뒤 다른 열 그대로), 화면 읽기 이름 "시작가 등락폭"·
+    "종가 등락률", 해외 통화 줄(등락폭만), ▲·빨강/▼·파랑/0·회색, 등락폭 `formatRate`·크기만, 등락률 부호·%, `null`·키 없음 → 두 칸 "—", 비율만 `null` → 등락률만 "—", `title` "… 대비",
+    ✂(`role="img"`·`aria-label`·`title`), 날짜 칸 고정(`sticky`)과 불투명 배경
+  - 새 `frontend/tests/CryptoTableChange.test.tsx` — 가상자산 일시금·적립식: 시가 뒤 두 열, 시세 통화 줄, `formatPrice` 유효 숫자, 결측 행 `colSpan` = 열 수, 날짜 칸 고정
+  - 새 `frontend/tests/SimulationModalChange.test.tsx` — 투자 비교 모달의 주식·가상자산 × 일시금·적립식 표에 같은 열·같은 글자(모달 스토어 응답의 키가 그대로 그려짐). 차트는 모의(파일 인라인)
+
+### Implementation for 반복 2026-10-13b
+
+- [ ] T223 기존 테스트 변경 승인 — 구현을 작업 트리에 둔 뒤 전체 스위트의 실제 실패 목록(예상: `frontend/tests/PerformanceTableClose.test.tsx`의 "시작가 바로 뒤" 둘 → 시작가 묶음 바로 뒤,
+  `frontend/tests/PerformanceTableCurrency.test.tsx`의 머리 목록 둘, `frontend/tests/RecurringStockTable.test.tsx`·`frontend/tests/RecurringCryptoTable.test.tsx`·
+  `frontend/tests/CryptoPerformanceTable.test.tsx`의 머리 목록 — 백엔드 0)을 `014 승인 2026-10-13(반복 2026-10-13b T223)`으로 승인하고, `git stash push -u -- backend/src frontend/src`로 구현을
+  치워 새 테스트의 실패를 확인한 뒤 `test(014)`. 예상 밖 기존 테스트가 실패하면 결함으로 보고 멈춘다 (FR-026)
+- [ ] T224 [US14] 백엔드 — 새 `backend/src/simulation/price_change.py`(순수 — 분할 맞춤 + `fx_change.rate_change`, 비율 글자), `backend/src/simulation/period_table.py`(직전 기간의 대표일 — 순수 함수
+  하나), `backend/src/api/services/table_rows.py`(`TableRow`에 등락, `table_page`의 선택 인자 — 날짜별 가격·분할, 없으면 지금 그대로, 쪽을 자르기 전 항목에서 비교 날짜), 서비스 넷
+  `backend/src/api/services/stock_simulation.py`·`stock_recurring.py`(날짜별 `open_price`·`close_price`, 분할)·`crypto_simulation.py`·`crypto_recurring.py`(날짜별 `open_price`), 라우트 넷
+  `backend/src/api/routes/stock_simulation.py`·`stock_recurring.py`·`crypto_simulation.py`·`crypto_recurring.py`(`row_json` — `openChange`·`closeChange`, 결측 행 제외) — DM19, contracts A20 (FR-048)
+- [ ] T225 [US14] 화면 — `frontend/src/lib/types.ts`(`PriceChange`, 네 행 형의 선택 키), 새 `frontend/src/lib/changeStyle.ts`(기호·색 — `DailyTable`에서 옮김), 새
+  `frontend/src/components/period/PriceChangeCells.tsx`, `frontend/src/components/fx/DailyTable.tsx`(상수 가져오기만 — 출력 불변), `frontend/src/components/stock/PerformanceTable.tsx`·
+  `frontend/src/components/recurring/RecurringStockTable.tsx`·`frontend/src/components/crypto/CryptoPerformanceTable.tsx`·`frontend/src/components/recurring/RecurringCryptoTable.tsx`(열·통화 줄·화면 읽기
+  이름·날짜 칸 고정·결측 행 `colSpan`·머리 주석의 열 수) — contracts D20 (FR-047)
+
+### Polish (반복 2026-10-13b)
+
+- [ ] T226 [US14] 실측 — quickstart 5-29(주식 삼성전자·해외(VOO·SOXL) 일시금·적립식 일·주·월의 열 차례·값 = 직전 대표 행의 차·비율, 더 받기 경계, 분할 종목(NVDA 2024-06-10 10:1·TQQQ·SOXL)의
+  분할 날, 배당락일, 가상자산 비트코인 일시금·적립식·결측 구간이 있는 코인, 투자 비교 모달 넷, 1440px 폭(가상자산 가로 스크롤 없음·주식 표를 밀어도 날짜 보임·페이지 넘침 없음)과 1024px,
+  블랙 배경 대비)을 헤드리스 Chrome으로 확인하고 `quickstart.md` 8에 기록한다(개발 서버 — 이력 다시 실행, 개발 DB를 바꾸지 않음) (FR-047, FR-048, SC-029, SC-030)
+- [ ] T227 불변 대조 — `014-baseline/fetch.py`(메뉴 `*.head.json`은 행에 `openChange`·`closeChange`만 더해지고 나머지 차이 0, 비교 블록·시계열·외환 차이 0)와 외환 일자별 표 화면 그대로
+  (FR-026, SC-010, SC-029)
+- [ ] T228 문서 — `docs/implementation-notes.md` §5(투자 성과표의 등락 — 서버 계산·직전 기간 대표값·분할 맞춤·날짜 칸 고정·주식 표 1440px 예외), `CLAUDE.md`(014 줄·§5 색인 한 마디 — 200줄
+  이하 유지), `README.md`(주식·가상자산 표 설명), `spec.md` Status (FR-047, FR-048)
+- [ ] T229 게이트(서버를 내린 채) — 백엔드·프론트엔드 전체, mypy·ruff·tsc·eslint, 바뀐 기존 테스트 파일이 승인 목록(T018·US2·T111·T132·T144·T152·T161·T169·T177·T185·T195·T206·T215·**T223**)뿐인지
+  `git diff --stat --diff-filter=MD 90e848b -- backend/tests frontend/tests`(32 → 승인한 수) (SC-010)
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
@@ -1187,6 +1252,9 @@ description: "Task list for 014-market-dashboard"
 - **반복 2026-10-13 (Phase 18)**: Phase 17 뒤(마이그레이션은 기준금리 리비전 뒤)
   1. 테스트 T213·T214(함께 — 최초 실패 확인) → 구현 T216 → T217(T216의 경로) → T215(실제 실패 목록 — 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
   2. T218(개발 DB `alembic upgrade head` 먼저)~T220
+- **반복 2026-10-13b (Phase 19)**: Phase 18 뒤(스키마 변경 없음)
+  1. 테스트 T221·T222(함께 — 최초 실패 확인) → 구현 T224 → T225(T224의 행 키) → T223(실제 실패 목록 — 승인, 구현을 치워 실패 확인 뒤 `test(014)`) → 구현 커밋
+  2. T226~T229
 - **Foundational (Phase 2)**: T002·T004 뒤. US1·US2를 막는다. US3는 T011(설정) 뒤면 시작할 수 있다.
 - **US1 (Phase 3)**: Foundational 뒤. **T018(승인)이 이 페이즈의 테스트 커밋을 막는다** — T031~T040 구현을 작업 트리에 둔 뒤 목록을 만든다. 백엔드(T019~T023·T031~T035)와 화면(T024~T030·T036~T040)은 나란히 할 수 있다. MVP다.
 - **US2 (Phase 4)**: US1 뒤(시세 서비스의 캐시가 잠정 꼬리·머리 값을 준다. `main.py`·`types.ts`·`dashboardApi.ts`가 겹친다). 승인 목록이 없을 것으로 본다 — 구현 뒤 목록 밖의 실패는 결함으로 보고 멈춘다.
@@ -1241,6 +1309,10 @@ description: "Task list for 014-market-dashboard"
 | `frontend/src/stores/compareStore.ts`·`components/compare/CompareReturnChart.tsx`·`lib/seriesDetail.ts`·`app/compare/page.tsx` | T163·T187·T188·T197(이전), T217(반복 2026-10-13) |
 | `frontend/tests/setup.ts` | T169(이전), T217(반복 2026-10-13 — 설정 대역) |
 | `backend/tests/integration/test_policy_rate_worker.py`·`unit/test_comparison_conditions.py`·`frontend/tests/compareStore.test.ts`·`ComparePage.test.tsx` | T215(반복 2026-10-13 — 승인 뒤에만) |
+| `backend/src/api/services/table_rows.py`·서비스 넷(`stock_simulation`·`stock_recurring`·`crypto_simulation`·`crypto_recurring`)·같은 이름의 라우트 넷 | 012(이전), T224(반복 2026-10-13b) |
+| `frontend/src/components/fx/DailyTable.tsx` | T146(이전), T225(반복 2026-10-13b — 상수만) |
+| `frontend/src/components/stock/PerformanceTable.tsx`·`recurring/RecurringStockTable.tsx`·`crypto/CryptoPerformanceTable.tsx`·`recurring/RecurringCryptoTable.tsx`·`lib/types.ts` | 005·007·010~012(이전), T225(반복 2026-10-13b) |
+| `frontend/tests/PerformanceTableClose.test.tsx`·`PerformanceTableCurrency.test.tsx`·`RecurringStockTable.test.tsx`·`RecurringCryptoTable.test.tsx`·`CryptoPerformanceTable.test.tsx` | T223(반복 2026-10-13b — 승인 뒤에만) |
 
 ### Parallel Opportunities
 
@@ -1290,6 +1362,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 14. 반복 2026-10-11c — 확대 구간의 일 단위 자료·외환/지표 확대·단추 자리(US11)(Phase 16). 시계열 경로의 선택 질의 둘 + 화면 — 사용자 보고
 15. 반복 2026-10-11d — 대시보드 기준금리(US12)(Phase 17). 새 테이블 셋·새 워커·새 경로 넷 + 화면 — 사용자 요청. 원칙 II 새 경로라 T202 승인이 먼저다(승인되지 않으면 이 Phase는 빠진다)
 16. 반복 2026-10-13 — 투자 비교의 대상 수 설정(US13)(Phase 18). 새 테이블 하나·새 경로 하나(GET·PUT) + 비교 화면의 차례 한도·선 짝·커서 상자 — 사용자 요청. 013 FR-004 대체
+17. 반복 2026-10-13b — 주식·가상자산 투자 성과표의 등락폭·등락률(US14)(Phase 19). 메뉴 경로 넷의 행 키 + 네 표 부품(비교 모달은 같은 부품) — 사용자 요청. 스키마 변경 없음
 
 ---
 
@@ -1357,7 +1430,7 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-023 | T007, T011, T067, T068, T076, T087, T089, T092 |
 | FR-024 | T064, T065, T066, T067, T068, T069, T070, T071, T072, T076, T077, T078, T079, T081, T087 |
 | FR-025 | T070, T079, T085, T121, T126, T140 |
-| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148, T152, T155, T161, T165, T169, T170, T174, T177, T180, T185, T190, T195, T200, T206, T211, T215, T219 |
+| FR-026 | T001, T002, T008, T014, T017, T084, T085, T086, T125, T128, T135, T139, T144, T148, T152, T155, T161, T165, T169, T170, T174, T177, T180, T185, T190, T195, T200, T206, T211, T215, T219, T223, T227 |
 | FR-027 | T095, T103, T104, T105, T109, T113, T118, T119, T120, T121, T123 |
 | FR-028 | T095, T102, T104, T105, T107, T112, T116, T121, T123, T128, T129, T132, T133, T137 |
 | FR-029 | T104, T105, T108, T114, T117, T119, T120, T121, T123, T124 |
@@ -1378,6 +1451,8 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | FR-044 | T213, T214, T215, T216, T217, T218 |
 | FR-045 | T213, T214, T215, T216, T217, T218 |
 | FR-046 | T214, T217, T218 |
+| FR-047 | T222, T225, T226, T228 |
+| FR-048 | T221, T224, T226, T228 |
 | SC-001 | T071, T082, T087 |
 | SC-002 | T047, T056, T082, T107, T124, T130, T138 |
 | SC-003 | T010, T020, T023, T032, T041 |
@@ -1406,3 +1481,5 @@ Task: "T027 marketQuotesStore.test.ts · T028 DashboardPage.test.tsx · T029 Roo
 | SC-026 | T203, T204, T205, T210 |
 | SC-027 | T213, T214, T218 |
 | SC-028 | T214, T218, T219 |
+| SC-029 | T221, T222, T226, T227 |
+| SC-030 | T222, T226 |

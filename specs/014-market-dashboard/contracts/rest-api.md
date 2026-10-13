@@ -430,6 +430,42 @@ A8과 같은 꼴이다(`sessionDate` 대신 `decisionDate`). 출처가 실패해
 - 직렬화한 조건 글(UTF-8)이 **65,535바이트를 넘으면** 저장하지 않고 422 `invalid_comparison`(`"condition: 저장할 조건이 너무 깁니다 — {N}바이트(65,535바이트까지)"`). 목록·삭제 응답 꼴은 그대로다
 - 비교 경로 일곱(`/api/comparison/<자산군>/…`)은 대상 하나씩이라 바뀌지 않는다
 
+## A20. 주식·가상자산 일자별 표 행의 등락 (반복 2026-10-13b — spec FR-048)
+
+메뉴 시뮬레이션 경로 넷의 표 행(`rows[]`)에 칸을 더한다 — `GET /api/stocks/simulation`·`GET /api/stocks/recurring-simulation`(005·011 — 주식 `openChange`·`closeChange`),
+`GET /api/crypto/simulation`·`GET /api/crypto/recurring-simulation`(007·011 — 가상자산 `openChange`). 질의·다른 칸·차례·쪽 넘기기(`before`·`limit`·`hasMore`·`oldestReturned`)·`period`·요약·조건·202 본문은
+그대로다. 투자 비교 모달은 같은 경로를 부른다. 시계열 경로(`…/series`)·비교 경로(`/api/comparison/…`)는 바뀌지 않는다.
+
+```json
+{
+  "rows": [
+    { "date": "2024-06-10", "kind": "period", "openPrice": "120.370000", "closePrice": "121.790000", "…": "005·010 그대로",
+      "openChange":  { "comparedTo": "2024-06-07", "absolute": "0.600000", "percent": "0.50", "direction": "up", "splitRatio": "10:1" },
+      "closeChange": { "comparedTo": "2024-06-07", "absolute": "0.902000", "percent": "0.75", "direction": "up", "splitRatio": "10:1" } },
+    { "date": "2024-06-07", "kind": "period", "openPrice": "1197.700000", "closePrice": "1208.880000", "…": "…",
+      "openChange":  { "comparedTo": "2024-06-06", "absolute": "-41.300000", "percent": "-3.33", "direction": "down", "splitRatio": null },
+      "closeChange": { "comparedTo": "2024-06-06", "absolute": "-1.170000", "percent": "-0.10", "direction": "down", "splitRatio": null } },
+    { "date": "2024-01-02", "kind": "buy", "openPrice": "492.440000", "closePrice": "481.680000", "…": "…", "openChange": null, "closeChange": null }
+  ]
+}
+```
+
+(NVDA 일시금 일 단위의 꼴 — 값은 예시다. 2024-06-10 효력 10:1 분할이라 2024-06-07 가격을 ÷10 해 견준다: 1208.88 ÷ 10 = 120.888 → 121.79 − 120.888 = 0.902)
+
+```json
+{ "date": "2024-03-02", "kind": "period", "openPrice": "62431.652344", "…": "007 그대로",
+  "openChange": { "comparedTo": "2024-03-01", "absolute": "1263.589844", "percent": "2.07", "direction": "up", "splitRatio": null } }
+{ "date": "2024-02-27", "dateTo": "2024-02-28", "kind": "missing" }
+```
+
+- 키는 **늘 있다**(결측 구간 행 제외) — 비교 대상이 없으면 `null`이다(외환 A9의 `change`와 같다 — "확인했고 없다"). 가상자산 행에는 `closeChange`가 없다
+- 비교 대상 = **직전 기간의 대표값**(data-model 19.2) — 일 = 직전 시세일(가상자산 출처 결측 구간은 건너뜀), 주·월 = 직전 주·달의 대표 행. 기간 사이의 사건 행(`buy`·`dividend`·`reinvest`·
+  `contribution`)도 그 행이 속한 기간의 직전 기간 대표값이다. 같은 날 행은 같은 값. 계산 기간의 첫 기간은 `null`. 쪽의 마지막 행도 쪽 너머의 비교 행과 견준다(`comparedTo`가 다음 쪽 행의 날짜일 수 있다)
+- `absolute` = 그 행 가격 − 비교 가격(분할을 맞췄으면 맞춘 값 — 소수 6자리 `ROUND_HALF_UP`), `percent` = `absolute` ÷ 비교 가격 × 100(소수 둘째 자리 — `/api/fx/daily`·`/api/fx/latest`와 같은 함수).
+  비교 가격이 0 이하면 `percent`만 `null`. `direction`은 `up`·`down`·`flat`
+- `splitRatio` = 효력일 ∈ (비교 날짜, 행 날짜]인 분할·병합의 누적 비율(`"분자:분모"` — 비교 블록 `unitPrice.split.ratio`와 같은 글자). 없거나 1:1이면 `null`. 배당은 맞추지 않는다
+- 저장하지 않는다(요청마다 계산 — data-model §19)
+
 ## A6. 불변
 
 기존 경로의 응답은 바뀌지 않는다(FR-026):
@@ -441,6 +477,7 @@ A8과 같은 꼴이다(`sessionDate` 대신 `decisionDate`). 출처가 실패해
 - (반복 2026-10-11c) 주식·가상자산 시계열 경로 여덟에 선택 질의 `viewFrom`·`viewTo`(A13) — 질의가 없으면 응답은 그대로다. 확대는 일 단위 그래프에서 구간을 받는다(FR-038)
 - (반복 2026-10-11d) 새 경로 넷(A14~A17)만 더해진다. 대시보드의 지표·뉴스 경로(A1~A5·A7·A8)와 외환·다른 메뉴 경로의 응답은 그대로다
 - (반복 2026-10-13) 새 경로 하나(A18 — `GET`·`PUT`)가 더해지고 저장한 비교의 대상 수 끝이 100·저장 길이 가드(A19)다. 비교 경로 일곱의 질의·응답·비교 블록, 저장한 비교 목록·삭제 응답 꼴은 그대로다
+- (반복 2026-10-13b) 메뉴 시뮬레이션 경로 넷(주식·가상자산 일시금·적립식)의 표 행에 `openChange`·`closeChange`(가상자산은 `openChange`)만 더해진다(A20). 질의·다른 칸·쪽·요약·202와 시계열·비교 경로는 그대로다
 - 주식: `/api/stocks/*`
 - 가상자산: `/api/crypto/*`
 - 예금: `/api/deposit/*`
