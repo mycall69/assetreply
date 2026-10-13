@@ -358,13 +358,15 @@ class Test워커:
 
 
 class Test스키마:
-    def test_리비전은_첫_거래일_뒤의_머리다(self) -> None:
+    def test_리비전은_첫_거래일_뒤다(self) -> None:
+        # 014 승인 2026-10-13(반복 2026-10-13 T215) — 투자 비교 설정 리비전(c7d4e2a9b615)이 그
+        # 뒤에 붙었다 — 기준금리 리비전은 머리가 아니다. 머리는 `test_comparison_settings_api`가
+        # 본다(FR-044)
         script = ScriptDirectory.from_config(_alembic_config())
-        head = script.get_revision(script.get_current_head())
-        assert head is not None
-        assert head.revision == "e9f3b7c2a4d1"
-        assert head.down_revision == "a6c2e8f41b93"
-        assert "기준금리" in (head.doc or "")
+        revision = script.get_revision("e9f3b7c2a4d1")
+        assert revision is not None
+        assert revision.down_revision == "a6c2e8f41b93"
+        assert "기준금리" in (revision.doc or "")
 
     async def test_테이블_셋(self, engine: AsyncEngine) -> None:
         async with engine.connect() as conn:

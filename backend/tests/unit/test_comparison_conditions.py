@@ -100,7 +100,9 @@ class Test거절:
         ({"reinvest": None}, "reinvest"),
         ({"targets": [SAMSUNG]}, "targets"),
         ({"targets": [SAMSUNG, {**SAMSUNG}]}, "targets"),
-        ({"targets": [SAMSUNG] + [{**SAMSUNG, "symbol": f"00000{i}.KS"} for i in range(10)]},
+        # 014 승인 2026-10-13(반복 2026-10-13 T215) — 대상 수의 끝은 100이다(014 FR-045, 013
+        # FR-004의 10개를 대체) — 101개를 거절한다
+        ({"targets": [SAMSUNG] + [{**SAMSUNG, "symbol": f"{i:06d}.KS"} for i in range(100)]},
          "targets"),
         ({"targets": [SAMSUNG, {**XLK, "market": "LSE"}]}, "targets"),
         ({"targets": [SAMSUNG, {"market": "KRX", "symbol": "000660.KS"}]}, "targets"),

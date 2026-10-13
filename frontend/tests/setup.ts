@@ -84,3 +84,14 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise
 beforeEach(() => {
   resetListingStub();
 });
+
+// 014 승인 2026-10-13(반복 2026-10-13 T215) — 투자 비교 설정 경로 대역(같은 틀). 투자 비교 화면은 열 때마다 최대 대상 수를 묻는다 — 설정이 주제가 아닌 테스트는
+// 기본(최대 20개)을 보고, 요청이 네트워크로 나가지 않는다.
+import { handleCompareSettings, resetCompareSettingsStub } from "./support/compareSettingsStub";
+
+const listingFetch = globalThis.fetch;
+globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> =>
+  (await handleCompareSettings(input, init)) ?? listingFetch(input, init);
+beforeEach(() => {
+  resetCompareSettingsStub();
+});

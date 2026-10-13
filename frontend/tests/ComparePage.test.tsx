@@ -93,7 +93,8 @@ describe("화면", () => {
     await userEvent.click(await screen.findByRole("option", { name: /삼성전자/ }));
     // 014 승인 2026-10-10(반복 2026-10-10e T152) — 투자 비교의 주식·가상자산 이름은 이름(티커)다(FR-032)
     expect(await screen.findByRole("button", { name: "삼성전자(005930) 빼기" })).toBeInTheDocument();
-    expect(screen.getByText(/1\/10/)).toBeInTheDocument();
+    // 014 승인 2026-10-13(반복 2026-10-13 T215) — 칩의 한도는 설정의 최대 대상 수다(기본 20 — 014 FR-045)
+    expect(screen.getByText(/1\/20/)).toBeInTheDocument();
   });
 
   it("대상이 2개보다 적으면 실행할 수 없다", () => {
@@ -114,12 +115,15 @@ describe("화면", () => {
     expect(screen.queryByRole("button", { name: "SK하이닉스(000660) 빼기" })).toBeNull();
   });
 
-  it("11번째는 더하지 않고 알린다", () => {
+  // 014 승인 2026-10-13(반복 2026-10-13 T215) — 더하기 한도는 설정의 최대 대상 수다(기본 20 — 014 FR-045, 013 FR-004의 10개를 대체)
+  it("21번째는 더하지 않고 알린다(기본 설정 20)", () => {
     route(() => undefined);
-    for (let i = 0; i < 10; i += 1) useCompareStore.getState().addTarget({ ...SAMSUNG_T, symbol: `00000${i}.KS`, name: `종목${i}` });
+    for (let i = 0; i < 20; i += 1) {
+      useCompareStore.getState().addTarget({ ...SAMSUNG_T, symbol: `${String(i).padStart(6, "0")}.KS`, name: `종목${i}` });
+    }
     useCompareStore.getState().addTarget({ ...SAMSUNG_T, symbol: "999999.KS" });
     render(<ComparePage />);
-    expect(screen.getByRole("alert")).toHaveTextContent("최대 10개");
+    expect(screen.getByRole("alert")).toHaveTextContent("최대 20개");
   });
 });
 

@@ -246,13 +246,14 @@ describe("대상", () => {
     expect(useCompareStore.getState().notice).toContain("이미 더한 대상");
   });
 
-  it("11번째는 더하지 않고 알린다", () => {
-    for (let i = 0; i < 10; i += 1) {
-      useCompareStore.getState().addTarget({ ...SAMSUNG_T, symbol: `00000${i}.KS` });
+  // 014 승인 2026-10-13(반복 2026-10-13 T215) — 더하기 한도는 설정의 최대 대상 수다(기본 20 — 014 FR-045, 013 FR-004의 10개를 대체)
+  it("21번째는 더하지 않고 알린다(기본 설정 20)", () => {
+    for (let i = 0; i < 20; i += 1) {
+      useCompareStore.getState().addTarget({ ...SAMSUNG_T, symbol: `${String(i).padStart(6, "0")}.KS` });
     }
     expect(useCompareStore.getState().addTarget({ ...SAMSUNG_T, symbol: "999999.KS" })).toBe(false);
-    expect(useCompareStore.getState().targets).toHaveLength(10);
-    expect(useCompareStore.getState().notice).toContain("최대 10개");
+    expect(useCompareStore.getState().targets).toHaveLength(20);
+    expect(useCompareStore.getState().notice).toContain("최대 20개");
   });
 
   it("예금은 다섯이 끝이다", () => {
