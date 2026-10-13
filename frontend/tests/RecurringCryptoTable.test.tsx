@@ -33,10 +33,11 @@ const header = () => screen.getAllByRole("columnheader").map((h) => {
 });
 
 describe("가상자산 적립식 표", () => {
+  // 014 승인 2026-10-13(반복 2026-10-13b T223) — 시가 바로 뒤에 시가의 등락폭·등락률 — 014 FR-047(`header()`는 작은 글자를 지워 보이는 이름만 — 화면 읽기의 "시가"도 빠진다)
   it("원화 시세 코인은 환율 열이 없다", () => {
     render(<RecurringCryptoTable {...base} rows={[row({})]} />);
-    expect(header()).toEqual(["날짜", "납입액", "시가", "구매 수량", "매매 수수료", "보유 수량", "매수 대기금", "총 납입 원금",
-      "잔고", "투자 수익", "수익률"]);
+    expect(header()).toEqual(["날짜", "납입액", "시가", "등락폭", "등락률", "구매 수량", "매매 수수료", "보유 수량",
+      "매수 대기금", "총 납입 원금", "잔고", "투자 수익", "수익률"]);
   });
 
   it("수량은 소수 8자리이고 납입은 ＋다", () => {
@@ -86,10 +87,11 @@ describe("가상자산 적립식 표", () => {
       row({ openPrice: "86531.91406250000000", tradeFee: "0.00734309822734375", pending: "0.000258110002265625",
         balance: "2831.3623021671875" }),
     ]} />);
+    // 014 승인 2026-10-13(반복 2026-10-13b T223) — 시가 뒤에 등락 두 칸이 끼어 칸 차례가 둘씩 밀렸다(014 FR-047). 값은 그대로다
     const cells = screen.getAllByRole("row")[1].querySelectorAll("td");
-    expect(cells[4]).toHaveTextContent("0.007343");
-    expect(cells[6]).toHaveTextContent("0.0002581");
-    expect(cells[8]).toHaveTextContent("2,831.36");
+    expect(cells[6]).toHaveTextContent("0.007343");
+    expect(cells[8]).toHaveTextContent("0.0002581");
+    expect(cells[10]).toHaveTextContent("2,831.36");
   });
 
   it("끝에 닿으면 상태 줄이 알리고 더 받을 것이 있으면 센티널을 둔다", () => {

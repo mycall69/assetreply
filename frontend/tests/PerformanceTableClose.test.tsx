@@ -36,16 +36,17 @@ function cell(date: string, heading: string): string {
 }
 
 describe("주식 표의 종가 열", () => {
-  it("해외 종목 — 시작가 바로 뒤에 종목 통화의 종가 열이 있다", () => {
+  // 014 승인 2026-10-13(반복 2026-10-13b T223) — 시작가 바로 뒤에는 시작가의 등락폭·등락률이 오고(014 FR-047), 종가 묶음은 시작가 묶음 바로 뒤다(010 FR-028 → 014 FR-047)
+  it("해외 종목 — 시작가 묶음 바로 뒤에 종목 통화의 종가 열이 있다", () => {
     setup([aapl], "USD");
     const all = headings();
-    expect(all[all.indexOf("시작가 (USD)") + 1]).toBe("종가 (USD)");
+    expect(all[all.indexOf("시작가 (USD)") + 3]).toBe("종가 (USD)");
   });
 
-  it("국내 종목 — 통화 머리말 없이 시작가 바로 뒤", () => {
+  it("국내 종목 — 통화 머리말 없이 시작가 묶음 바로 뒤", () => {
     setup([samsung], "KRW");
     const all = headings();
-    expect(all[all.indexOf("시작가") + 1]).toBe("종가");
+    expect(all[all.indexOf("시작가") + 3]).toBe("종가");
   });
 
   it("종가는 시작가와 같은 형식이고 시작가는 그대로 남는다", () => {
