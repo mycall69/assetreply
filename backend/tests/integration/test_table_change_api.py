@@ -33,6 +33,7 @@ from tests.integration.crypto_support import add_coin, seed_daily, seed_usd
 D = dt.date.fromisoformat
 HOLIDAYS = {"2026-09-30", "2026-10-05", "2026-10-09"}
 SPLIT_DAY = D("2026-09-15")
+ZERO_OPEN = D("2026-10-06")
 CRYPTO_DROPPED = [D("2021-03-01"), D("2021-03-05"), *(D(f"2021-03-{d:02d}") for d in range(8, 13))]
 Json = dict[str, object]
 
@@ -87,6 +88,8 @@ async def stocks(session_factory) -> None:  # type: ignore[no-untyped-def]
         for i, day in enumerate(trading_days()):
             for symbol, (open_, close) in (("005930.KS", krx_prices(i)),
                                            ("NVDA", us_prices(day, i))):
+                if symbol == "005930.KS" and day == ZERO_OPEN:
+                    open_ = Decimal("0")  # 출처가 시가를 비운 날(T226 실측과 같은 꼴)
                 rows.append({"stock_id": ids[symbol], "quote_date": day, "open_raw": open_,
                              "close_raw": close, "close_adjusted": close, "source": "yahoo:chart"})
         await upsert(s, StockPrice, rows)
@@ -166,9 +169,12 @@ def check(row: Json, key: str, price: str, by_date: dict[str, Decimal], compared
     if compared_to is None:
         assert change is None, (row["date"], key)
         return
+    previous = by_date[compared_to]
+    if Decimal(str(row[price])) <= 0 or previous <= 0:
+        assert change is None, (row["date"], key)  # 0 이하는 출처가 비운 값 — 견주지 않는다
+        return
     assert isinstance(change, dict), (row["date"], key, change)
     assert change["comparedTo"] == compared_to, (row["date"], key)
-    previous = by_date[compared_to]
     if ratio is not None:
         previous = (previous * ratio[1] / ratio[0]).quantize(Decimal("0.000001"),
                                                              rounding=ROUND_HALF_UP)
@@ -198,7 +204,16 @@ class Test주식_일시금:
                 check(row, key, price, by_date, previous_day(days, str(row["date"])))
         assert rows[-1]["kind"] == "buy" and rows[-1]["openChange"] is None
         oct6 = next(r for r in rows if r["date"] == "2026-10-06")
-        assert oct6["openChange"]["comparedTo"] == "2026-10-02"  # type: ignore[index]  # 휴장 10-05를 건너뜀
+        assert oct6["closeChange"]["comparedTo"] == "2026-10-02"  # type: ignore[index]  # 휴장 10-05를 건너뜀
+
+    async def test_시가가_0인_날과_이튿날의_시가_등락은_없다(self, client, stocks) -> None:
+        rows = await rows_of(client, "/api/stocks/simulation", KRX)
+        by = {str(r["date"]): r for r in rows}
+        assert Decimal(str(by["2026-10-06"]["openPrice"])) == 0
+        assert by["2026-10-06"]["openChange"] is None
+        assert by["2026-10-07"]["openChange"] is None
+        assert by["2026-10-06"]["closeChange"] is not None
+        assert by["2026-10-07"]["closeChange"] is not None
 
     async def test_내린_날과_같은_날이_있다(self, client, stocks) -> None:
         rows = await rows_of(client, "/api/stocks/simulation", KRX)

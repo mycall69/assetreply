@@ -9,6 +9,10 @@ R14-38).
 비율로 맞춘다** — 원주가 그대로면 1:4 분할 날이 −75%로 보인다. 비율·반올림은 010
 `split_adjust.split_restated_close`와 같다. 배당은 맞추지 않는다(010 차트와 같은 원칙).
 
+주식·가상자산에는 0 이하 가격이 없다 — 0은 출처가 값을 비운 날이다(T226 실측: 삼성전자 2026-10-06
+시가 0). 그 날과 견주면 −100%와 이튿날의 ▲전액이 사실처럼 보이므로 등락을 내지 않는다(원칙 V).
+외환 표의 규칙(직전 0 이하면 비율만 없음)과 다르다.
+
 `Decimal`만 쓴다(헌법 원칙 VI).
 """
 
@@ -50,12 +54,13 @@ def _ratio(splits: Iterable[SplitOn], after: dt.date, upto: dt.date) -> tuple[in
 
 def price_change(current: Decimal | None, previous: Decimal | None, *, compared_to: dt.date,
                  day: dt.date, splits: Iterable[SplitOn] = ()) -> PriceChange | None:
-    """`day`의 `current`와 `compared_to`의 `previous`를 견준다. 가격 하나라도 없으면 `None`이다.
+    """`day`의 `current`와 `compared_to`의 `previous`를 견준다. 가격 하나라도 없거나 0 이하면
+    `None`이다.
 
     효력일이 비교 날짜 당일이면 비교 가격이 이미 분할 뒤라 맞추지 않고, 행 날짜 당일이면 그 날
     가격이 분할 뒤라 맞춘다.
     """
-    if current is None or previous is None:
+    if current is None or previous is None or current <= 0 or previous <= 0:
         return None
     numerator, denominator = _ratio(splits, compared_to, day)
     adjusted = numerator != denominator

@@ -65,12 +65,13 @@ class Test등락:
         assert price_change(None, Decimal("1"), compared_to=BEFORE, day=DAY) is None
         assert price_change(Decimal("1"), None, compared_to=BEFORE, day=DAY) is None
 
-    @pytest.mark.parametrize("previous", ["0", "-37.63"])
-    def test_직전_가격이_0_이하면_등락폭만_있다(self, previous: str) -> None:
-        got = change("10", previous)
-        assert got is not None
-        assert got.absolute == Decimal("10") - Decimal(previous)
-        assert got.percent is None
+    @pytest.mark.parametrize(("current", "previous"), [
+        ("10", "0"), ("10", "-37.63"), ("0", "100"), ("0", "0")])
+    def test_가격이_0_이하면_없다(self, current: str, previous: str) -> None:
+        # 주식·가상자산에는 0 이하 가격이 없다 — 출처가 값을 비운 날이다(T226 실측: 삼성전자
+        # 2026-10-06 시가 0). 견주면 −100%와 이튿날의 ▲전액이 사실처럼 보인다(원칙 V — 외환 표
+        # 규칙과 다르다)
+        assert change(current, previous) is None
 
 
 class Test분할_맞춤:
