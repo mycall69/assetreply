@@ -154,7 +154,7 @@
 | 반복 2026-10-11b — 현재 가치 축·두 지점 확대 예외(FR-026) | ✅(예외 기록) | 013 비교 블록에 `valueLine` 키 하나(값은 이미 낸 행·점에서 고른다 — 원칙 VI·IV, 계산 새로 없음)와 013 수익률 추이의 왼쪽 축, 005·010·011·013 차트 셋의 누르기 확대·[리셋]. 메뉴 응답·`series`·`summary`·`lineEnd` 불변(013 대조·`014-baseline` — 비교 파일은 `valueLine`만 차이, T190). 그릴 때 새 차트 API 없음(기존 모의 그대로). 테스트 먼저(T182~T184, 원칙 III), 014 전 테스트 변경은 T185 승인 |
 | 반복 2026-10-11c — 확대 구간 일 단위·단추 자리 예외(FR-026) | ✅(예외 기록) | 시계열 경로 여덟의 선택 질의 둘(질의 없으면 응답 불변 — 013 대조·`014-baseline`), 구간 점은 이미 낸 날마다 상태에서 고른다(원칙 VI·IV — 새 계산 없음), 결측은 구간에서 다시 판정(원칙 V). 화면은 받은 글자 그대로. 새 차트 API는 누를 때만(`priceScale().width()` 포함). 테스트 먼저(T192~T194), 014 테스트 변경은 T195 승인 |
 | 반복 2026-10-11d — 대시보드 기준금리 | ✅ 승인됨(T202·T206) | 원칙 II 새 경로(네이버 기준금리 내부 API)는 T202 실측 뒤 사용자 승인 2026-10-11. 새 칸·새 경로 넷·새 테이블 셋·새 워커뿐이라 지표·뉴스·외환·메뉴 응답은 그대로(`014-baseline` 대조 — T211). 새 워커는 테스트의 lifespan에서도 돌지만 바깥 연결은 `conftest`가 막는다(지표 워커와 같다). 014가 만든 대시보드 화면 테스트의 요청 모의가 바뀔 수 있다 — T206에서 실제 실패 목록으로 승인(결과: 화면 0, lifespan 태스크 수 단언 셋 9 → 10 — 014가 이미 고친 줄, 첫 거래일 리비전 "머리" 하나). 새 차트(`RateChart`)는 새 부품이라 기존 모의를 건드리지 않는다 |
-| 반복 2026-10-13 — 투자 비교의 대상 수 설정 예외(FR-026) | ⚠ 승인 필요(T215) | I: 설정 읽기·저장은 비동기 세션(aiomysql) — 요청 경로에 동기 I/O 없음. III: T213·T214를 먼저 쓰고 T215에서 실패를 확인한 뒤 구현한다. 013 FR-004의 끝(10)을 박은 기존 테스트(`test_comparison_conditions.py`·`compareStore.test.ts`·`ComparePage.test.tsx`)와 014의 head 단언(`test_policy_rate_worker.py`)은 구현 뒤 실제 실패 목록으로 승인받는다. IV: 규칙 상수는 서비스 한 곳(`comparison_conditions`·`comparison_settings`), 저장소는 읽기·upsert만, 차례 한도는 순수 모듈(`lib/concurrency`), 화면은 서버의 범위 값을 쓴다. V·VI: 해당 없음(시계열·금액이 아니다 — 대상 수는 정수). VII: 진행 구독은 차례를 기다릴 뿐 진행 표시는 그대로. II: 새 출처 없음. 새 차트 API(`priceToCoordinate`)는 커서 움직임에서만(CLAUDE.md 010). 비교 경로 일곱의 응답·계산 불변(`014-baseline` 대조 — T219). 새 테이블은 마이그레이션으로만(개발 DB `alembic upgrade head`) |
+| 반복 2026-10-13 — 투자 비교의 대상 수 설정 예외(FR-026) | ✅ 승인됨(T215 — 실제 실패 다섯 단언 = 예상, 바뀐 기존 파일 30 → 32) | I: 설정 읽기·저장은 비동기 세션(aiomysql) — 요청 경로에 동기 I/O 없음. III: T213·T214를 먼저 쓰고 T215에서 실패를 확인한 뒤 구현한다. 013 FR-004의 끝(10)을 박은 기존 테스트(`test_comparison_conditions.py`·`compareStore.test.ts`·`ComparePage.test.tsx`)와 014의 head 단언(`test_policy_rate_worker.py`)은 구현 뒤 실제 실패 목록으로 승인받는다. IV: 규칙 상수는 서비스 한 곳(`comparison_conditions`·`comparison_settings`), 저장소는 읽기·upsert만, 차례 한도는 순수 모듈(`lib/concurrency`), 화면은 서버의 범위 값을 쓴다. V·VI: 해당 없음(시계열·금액이 아니다 — 대상 수는 정수). VII: 진행 구독은 차례를 기다릴 뿐 진행 표시는 그대로. II: 새 출처 없음. 새 차트 API(`priceToCoordinate`)는 커서 움직임에서만(CLAUDE.md 010). 비교 경로 일곱의 응답·계산 불변(`014-baseline` 대조 — T219). 새 테이블은 마이그레이션으로만(개발 DB `alembic upgrade head`) |
 | 반복 2026-10-10f — 상장일 예외(FR-026) | ✅(예외 기록) | 005·006(주식 검색 응답 둘의 `firstTradedOn`·종목 등록 안의 첫 거래일 받기·주식 수집의 저장), 007(코인 검색 결과 줄), 013(비교 표 열·비교 블록 `listing`)이 바뀐다. 메뉴 시뮬레이션 응답·시작일 판정·등록 응답은 같다(`014-baseline` 대조 — T165). 등록 경로의 외부 호출은 실패 허용·관문·lifespan 클라이언트만. 014 전 테스트 변경은 T161 승인 |
 
 ## Project Structure
@@ -473,7 +473,7 @@ frontend/src/
 ├── components/settings/CompareSettingsSection.tsx   (신규 — 설정 화면 "투자 비교" 절)
 └── app/settings/page.tsx                            (변경 — 절 자리: 부동산 뒤·이력 앞)
 backend/tests/   unit/test_comparison_settings_rules.py · unit/test_comparison_target_limit.py · integration/test_comparison_settings_api.py
-frontend/tests/  CompareSettingsSection.test.tsx · compareTargetLimit.test.ts · CompareReturnChartMany.test.tsx · setup.ts(설정 대역 — 기본 20)
+frontend/tests/  CompareSettingsSection.test.tsx · compareTargetLimit.test.tsx · CompareReturnChartMany.test.tsx · setup.ts(설정 대역 — 기본 20)
                  (014 전 테스트 변경 — T215 승인)
 ```
 
