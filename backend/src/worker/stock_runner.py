@@ -27,6 +27,8 @@ from src.repository.stock import (
 )
 from src.repository.stock_price import store_chart, store_raw
 
+_ONE_DAY = dt.timedelta(days=1)
+
 #: 한 번에 요청하는 날짜 폭. 출처가 한 응답에 수천 행을 담을 수 있지만, 길게 잡으면
 #: 중단 시 잃는 구간이 커지고 본문도 커진다.
 CHUNK_DAYS = 365 * 2
@@ -74,6 +76,10 @@ async def collect_range(
 
     `on_chunk`는 청크 하나를 저장·커밋한 뒤에 불린다. 진행을 기록하지 않으면 SSE가
     같은 숫자만 반복해 보내고 사용자는 멈춘 것으로 읽는다 (SC-001a).
+
+    **출처가 아직 확정하지 않은 봉의 날부터는 받은 구간이 아니다**(버그 stock-provisional-bar).
+    커버리지를 그 전날까지만 넓히고 그 뒤 청크는 받지 않는다 — 커버리지는 연속 구간 하나라 뒤 청크를
+    기록하면 그날이 함께 덮이고, 출처가 바로잡아도 다시 받지 않는다.
     """
     covered = await get_coverage(session, stock_id)
     gaps = missing_ranges(covered, start, end)
@@ -94,7 +100,10 @@ async def collect_range(
                     status_code=raw.status, requested_from=raw.requested_from,
                     requested_to=raw.requested_to)
             stored += await store_chart(session, stock_id, fetched.data)
-            await record_coverage(session, stock_id, chunk_start, chunk_end)
+            provisional = fetched.data.provisional_from
+            through = chunk_end if provisional is None else min(chunk_end, provisional - _ONE_DAY)
+            if through >= chunk_start:
+                await record_coverage(session, stock_id, chunk_start, through)
             # 014 FR-033 — 응답 meta의 첫 거래일(표시 전용)을 비었을 때만 남긴다. 추가 요청은 없다.
             if fetched.data.first_trade_date is not None:
                 await record_first_trade_date(session, stock_id, fetched.data.first_trade_date)
@@ -103,6 +112,8 @@ async def collect_range(
             await session.commit()
             if on_chunk is not None:
                 await on_chunk()
+            if provisional is not None:
+                return stored
             await source.delay_between_chunks()
 
     return stored

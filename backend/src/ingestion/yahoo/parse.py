@@ -19,6 +19,7 @@ from fractions import Fraction
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from src.ingestion.yahoo.errors import StockSourceUnavailable
+from src.simulation.market_session import session_finished, trading_date
 
 #: 출처의 거래소 코드 → 우리가 쓰는 시장 이름.
 #: 매핑에 없는 거래소는 다루지 않는다 — 통화와 거래 규칙을 모르는 채로 시뮬레이션하면
@@ -35,6 +36,11 @@ _MARKETS: dict[str, tuple[str, str]] = {
     "JPX": ("TSE", "JPY"),
     "TYO": ("TSE", "JPY"),
 }
+
+#: 우리 시장 이름 → 거래 시간표(`simulation/market_session`)의 키. 출처의 마지막 봉이 장중 값인지
+#: 가르는 데 쓴다(버그 stock-provisional-bar). 없는 시장은 가르지 않는다.
+_SESSION_KEYS: dict[str, str] = {
+    "KRX": "krx", "NASDAQ": "us_equity", "NYSE": "us_equity", "AMEX": "us_equity", "TSE": "tse"}
 
 #: 시뮬레이션 대상. ETF·GDR 등은 이번 범위가 아니다 (spec Out of Scope).
 _TRADABLE_TYPES = {"EQUITY"}
@@ -111,6 +117,10 @@ class ChartData:
     prices: list[DailyPrice] = field(default_factory=list)
     dividends: list[DividendEvent] = field(default_factory=list)
     splits: list[SplitEvent] = field(default_factory=list)
+    #: 출처가 아직 확정하지 않은 봉(잠정 봉)의 첫 날, 또는 요청 구간 안에서 세션이 아직 끝나지 않은
+    #: 첫 날 — 그날부터는 행이 없다. 수집은 이날부터를 받은 구간에 넣지 않는다(다음 수집이 다시
+    #: 받는다 — 버그 stock-provisional-bar). 없으면 `None`.
+    provisional_from: dt.date | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -250,11 +260,37 @@ def parse_splits(body: object) -> list[SplitEvent]:
     return _split_events(first, offset)
 
 
-def parse_chart(body: object) -> ChartData:
+def _epoch(value: object) -> int | None:
+    return int(float(str(value))) if isinstance(value, int | float | str) else None
+
+
+def _first_unfinished(key: str, now: dt.datetime) -> dt.date:
+    """`now`에 정규 세션이 아직 끝나지 않은 첫 거래일 — 오늘 세션이 끝났으면 다음 날이다."""
+    today = trading_date(key, now)
+    return today + dt.timedelta(days=1) if session_finished(key, today, now) else today
+
+
+def parse_chart(
+    body: object, *, now: dt.datetime | None = None, requested_to: dt.date | None = None
+) -> ChartData:
     """일봉·배당·분할을 도메인 타입으로 바꾼다.
 
     값이 없는 날(출처가 `null`을 준 날)은 **행을 만들지 않는다.** 없는 값을 만들어
     채우면 헌법 원칙 V 위반이다.
+
+    **잠정 봉도 행을 만들지 않는다**(버그 stock-provisional-bar). 출처는 가장 최근 거래일을 아직
+    일봉으로 굳히지 않았을 때 마지막 거래 시각(`regularMarketTime`)의 봉을 붙인다. 장중이면
+    그때까지의 값이고, 출처 자료가 늦으면 시가·고가·저가가 0이다. 둘 중 하나면 잠정이다 — 그 첫 날을
+    `provisional_from`에 싣는다.
+    - `now`에 그 거래일의 정규 세션이 끝나지 않았다(장 전·장중·점심). `now`가 없으면 가리지 않는다
+    - 마지막 거래 시각의 봉인데 시가나 종가가 0 이하다
+
+    봉이 없어도 같다 — 요청 끝(`requested_to`)까지에 세션이 끝나지 않은 날이 있으면 그 첫 날이
+    잠정이다. 장 전에는 출처가 그날 봉을 주지 않는다(실측) — 그날을 받은 구간에 넣으면 장이 끝난
+    뒤에도 다시 받지 않는다.
+
+    확정 봉 자리의 0 이하 가격은 출처의 빈 값이다 — 행을 만들지 않되(0으로 채우지 않는다) 잠정도
+    아니다. 다시 받아도 같다.
 
     **돌려주는 시가·종가·배당은 출처가 분할을 소급 반영한 값이다**(006 T090 결함 5). 원주가로 쓰려면
     그 뒤의 분할 기록과 함께 `restore_unadjusted`를 거쳐야 한다 — 클라이언트가 한다.
@@ -263,6 +299,9 @@ def parse_chart(body: object) -> ChartData:
     currency = str(meta_map.get("currency") or "")
 
     first_trade_date = _first_trade_date(meta_map, offset)
+    exchange = _MARKETS.get(str(meta_map.get("exchangeName") or ""))
+    session_key = _SESSION_KEYS.get(exchange[0]) if exchange is not None else None
+    live_stamp = _epoch(meta_map.get("regularMarketTime"))
 
     raw_stamps = first.get("timestamp")
     timestamps = raw_stamps if isinstance(raw_stamps, list) else []
@@ -276,20 +315,36 @@ def parse_chart(body: object) -> ChartData:
     adj_closes = _as_list(adjusted.get(_ADJUSTED_KEY))
 
     prices: list[DailyPrice] = []
+    provisional: dt.date | None = None
     for i, stamp in enumerate(timestamps):
-        if not isinstance(stamp, int | float | str):
+        epoch = _epoch(stamp)
+        if epoch is None:
             continue
         open_raw = _decimal(opens[i] if i < len(opens) else None)
         close_raw = _decimal(closes[i] if i < len(closes) else None)
         if open_raw is None or close_raw is None:
             # 출처가 값을 주지 않은 날이다. 만들어 채우지 않는다 (헌법 원칙 V).
             continue
+        day = _local_date(epoch, offset)
+        empty = open_raw <= 0 or close_raw <= 0
+        unfinished = (now is not None and session_key is not None
+                      and not session_finished(session_key, day, now))
+        if unfinished or (empty and epoch == live_stamp):
+            provisional = day if provisional is None else min(provisional, day)
+            continue
+        if empty:
+            continue
         prices.append(DailyPrice(
-            quote_date=_local_date(int(float(str(stamp))), offset),
+            quote_date=day,
             open_raw=open_raw,
             close_raw=close_raw,
             close_adjusted=_decimal(adj_closes[i] if i < len(adj_closes) else None),
         ))
+
+    pending: dt.date | None = None
+    if now is not None and session_key is not None and requested_to is not None:
+        first_open = _first_unfinished(session_key, now)
+        pending = first_open if first_open <= requested_to else None
 
     raw_events = first.get("events")
     events = raw_events if isinstance(raw_events, dict) else {}
@@ -307,7 +362,14 @@ def parse_chart(body: object) -> ChartData:
         prices=prices,
         dividends=dividends,
         splits=_split_events(first, offset),
+        provisional_from=_earlier(provisional, pending),
     )
+
+
+def _earlier(a: dt.date | None, b: dt.date | None) -> dt.date | None:
+    if a is None or b is None:
+        return a if b is None else b
+    return min(a, b)
 
 
 #: 되살린 값의 자릿수. 저장 열(`stock_price`·`stock_dividend`, 소수 6자리)과 같다. 병합(1:3)은

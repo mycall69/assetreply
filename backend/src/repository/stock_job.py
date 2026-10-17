@@ -50,6 +50,25 @@ async def symbol_unknown(session: AsyncSession, stock_id: int) -> bool:
     return split_error(last[1])[0] == SYMBOL_UNKNOWN
 
 
+async def attempted_since(
+    session: AsyncSession, stock_id: int, start: dt.date, end: dt.date, since: dt.datetime
+) -> bool:
+    """그 종목의 **마지막 작업**이 `[start, end]`를 요청했고 `since` 뒤에 성공으로 끝났는가.
+
+    버그 stock-provisional-bar — 출처가 아직 확정하지 않은 봉만 받은 수집은 성공하고도 그날을 받은
+    구간에 넣지 않는다. 곧바로 다시 받으면 같은 잠정 봉을 받고 202를 되풀이한다. 실패한 작업·다른
+    구간의 작업은 근거가 아니다.
+    """
+    last = (await session.execute(
+        select(StockCollectionJob.status, StockCollectionJob.range_start,
+               StockCollectionJob.range_end, StockCollectionJob.finished_at)
+        .where(StockCollectionJob.stock_id == stock_id)
+        .order_by(StockCollectionJob.id.desc()).limit(1))).first()
+    if last is None or last[0] is not JobStatus.SUCCEEDED or last[3] is None:
+        return False
+    return bool(last[1] <= start and last[2] >= end and last[3] >= since)
+
+
 async def get_job(
     session: AsyncSession, job_id: int
 ) -> StockCollectionJob | None:

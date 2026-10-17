@@ -6,6 +6,8 @@
 
 판정 근거는 커버리지다. 받으러 갔다가 아무 값도 없었던 구간도 커버리지에는
 기록되므로(상장폐지·거래정지), 한 번 시도한 구간을 영원히 다시 받으러 가지 않는다.
+예외는 출처가 아직 확정하지 않은 봉의 날이다(버그 stock-provisional-bar) — 커버리지에 넣지 않아
+다시 받는다. 다만 방금 받으러 갔던 구간이면 설정한 시간 동안은 받아 둔 날까지로 답한다.
 
 006 — **환율도 함께 본다**(FR-043~046). 해외 종목이면(FR-068 — 원금 통화와 관계없이) 필요한
 구간(시작일 ~ 계산 끝) 전체의 환율 커버리지를 보고, 비었으면 외환 수집을 요청한다. 시작일
@@ -26,7 +28,7 @@ from src.config.settings import Settings, load_settings
 from src.db.models import Currency, FxCoverage, Stock
 from src.ingestion.yahoo.errors import StockSymbolNotFound
 from src.repository.stock import get_coverage, missing_ranges
-from src.repository.stock_job import acquire_or_get_running, symbol_unknown
+from src.repository.stock_job import acquire_or_get_running, attempted_since, symbol_unknown
 from src.worker.queue import StartQueue
 from src.worker.stock_queue import StockWork, get_stock_queue
 from src.worker.stock_runner import CHUNK_DAYS, split_into_chunks
@@ -180,6 +182,13 @@ async def plan_collection(
 
     missing_from = min(g[0] for g in gaps)
     missing_through = max(g[1] for g in gaps)
+    # 버그 stock-provisional-bar — 방금 끝난 수집이 이 구간을 받으러 갔는데 출처가 아직 확정하지
+    # 않은 봉만 줬다(그날은 받은 구간이 아니다). 설정한 시간 동안은 다시 받지 않고 받아 둔 날까지로
+    # 답한다 — 곧바로 다시 받으면 같은 잠정 봉을 받고 화면이 "받고 있습니다"를 되풀이한다.
+    retry = dt.timedelta(minutes=load_settings().stock_provisional_retry_minutes)
+    if await attempted_since(session, stock_id, missing_from, missing_through,
+                             dt.datetime.now() - retry):
+        return None
     chunks = sum(len(split_into_chunks(a, b, CHUNK_DAYS)) for a, b in gaps)
 
     job_id, created = await acquire_or_get_running(

@@ -129,9 +129,11 @@ class YahooStockClient:
             "interval": "1d",
             "events": "div,splits",
         })
-        chart = parse_chart(chunk_body)
-
+        # 지금 시각으로 잠정 봉(장중·시가 0)과 세션이 끝나지 않은 요청일을 가른다 — 받은 구간에
+        # 넣으면 출처가 바로잡거나 그날 봉을 준 뒤에도 다시 받지 않는다(버그 stock-provisional-bar).
         now = self._now()
+        chart = parse_chart(chunk_body, now=now, requested_to=date_to)
+
         history_body, history_raw, history_status = await self._get(path, {
             "period1": str(_epoch(date_from)),
             "period2": str(int(now.timestamp())),

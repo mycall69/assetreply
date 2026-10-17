@@ -201,6 +201,18 @@ def market_state(
     return state
 
 
+def session_finished(key: str, day: dt.date, now: dt.datetime) -> bool:
+    """거래일 `day`의 정규 세션이 `now`에 끝났는가(버그 stock-provisional-bar).
+
+    지금 거래일보다 앞이면 끝났고 뒤면 끝나지 않았다. 같으면 시간표로 — 마지막 세션의 마감 뒤만
+    끝났다(장 전·장중·점심은 아니다). 출처의 세션 시각은 쓰지 않는다(KOSPI 마감을 15:00으로 준다).
+    """
+    today = trading_date(key, now)
+    if day != today:
+        return day < today
+    return _schedule_state(market(key), now) in ("closed", "holiday")
+
+
 def display_timezone(key: str) -> str:
     """화면이 기준 시각을 보일 현지 시간대. 외환은 출처의 하루 경계(런던 0시)라 런던이다."""
     m = market(key)

@@ -249,6 +249,10 @@ class Settings:
     #: 종목도 그 뒤에 거래하지 않았을 때만 쓴다(버그 stock-holiday-stale-warning). 거래소 연휴(설·
     #: 추석에 대체·임시공휴일이 겹친 경우)를 덮는 값이다. 넘으면 시세 단절로 알린다(005 FR-014a).
     stock_holiday_tolerance_weekdays: int = 7
+    #: 출처가 아직 확정하지 않은 봉(장중·시가 0)만 받은 수집이 끝난 뒤 그 구간을 다시 받기까지의 분
+    #: (버그 stock-provisional-bar). 그 사이에는 받아 둔 날까지로 답한다 — 곧바로 다시 받으면 같은
+    #: 잠정 봉을 받고 화면이 "받고 있습니다"를 되풀이한다.
+    stock_provisional_retry_minutes: int = 30
 
     # ── 014 대시보드 — 지표 시세·이력 (research R14-1·R14-2·R14-6, data-model 8) ──
     #
@@ -489,6 +493,8 @@ def load_settings(env_file: Path | None = None) -> Settings:
             "STOCK_REQUEST_TIMEOUT_SECONDS", 20, minimum=1),
         stock_first_trade_timeout_ms=_env_int("STOCK_FIRST_TRADE_TIMEOUT_MS", 3000, minimum=1),
         stock_holiday_tolerance_weekdays=_env_int("STOCK_HOLIDAY_TOLERANCE_WEEKDAYS", 7),
+        stock_provisional_retry_minutes=_env_int(
+            "STOCK_PROVISIONAL_RETRY_MINUTES", 30, minimum=1),
         market_source_base_url=_env_str("MARKET_SOURCE_BASE_URL", "https://query1.finance.yahoo.com"),
         market_chunk_days=_env_int("MARKET_CHUNK_DAYS", 730, minimum=1),
         market_chunk_delay_ms=_env_int("MARKET_CHUNK_DELAY_MS", 1500),
